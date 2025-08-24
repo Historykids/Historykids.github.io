@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>10秒クリック競争ゲーム</title>
+  <style>
+    body { text-align: center; font-family: sans-serif; margin-top: 50px; }
+    button { font-size: 20px; padding: 10px 20px; cursor: pointer; }
+    #score { font-size: 30px; margin-top: 20px; }
+    #leaderboard { margin-top: 30px; font-size: 18px; }
+    #timer { font-size: 25px; margin-top: 10px; color: red; }
+  </style>
+</head>
+<body>
+
+<h1>10秒クリック競争！</h1>
+<input type="text" id="playerName" placeholder="名前を入力">
+<br><br>
+<button id="clickBtn">クリック！</button>
+<div id="score">スコア: 0</div>
+<div id="timer">残り時間: 10 秒</div>
+
+<h2>ランキング</h2>
+<div id="leaderboard">読み込み中...</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+  // Firebase 初期化
+  const firebaseConfig = {
+    apiKey: "AIzaSyDhQ3DSg_AgZ-sK94usMkh54s0CJ8BFcK0",
+    authDomain: "mygame-d583f-e218b.firebaseapp.com",
+    databaseURL: "https://mygame-d583f-e218b-default-rtdb.firebaseio.com",
+    projectId: "mygame-d583f-e218b",
+    storageBucket: "mygame-d583f-e218b.appspot.com",
+    messagingSenderId: "112750475090",
+    appId: "1:112750475090:web:fd177e17163f6face62c8b"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  let score = 0;
+  let timeLeft = 10;
+  let gameStarted = false;
+
+  const button = document.getElementById('clickBtn');
+  const scoreDisplay = document.getElementById('score');
+  const leaderboard = document.getElementById('leaderboard');
+  const timerDisplay = document.getElementById('timer');
+  const playerNameInput = document.getElementById('playerName');
+
+  button.addEventListener('click', () => {
+    if (!gameStarted) {
+      startGame();
+    }
+    if (timeLeft > 0) {
+      score += 1;
+      scoreDisplay.textContent = "スコア: " + score;
+    }
+  });
+
+  function startGame() {
+    const name = playerNameInput.value.trim();
+    if (!name) { alert("名前を入力してね！"); return; }
+
+    gameStarted = true;
+    const countdown = setInterval(() => {
+      timeLeft -= 1;
+      timerDisplay.textContent = "残り時間: " + timeLeft + " 秒";
+      if (timeLeft <= 0) {
+        clearInterval(countdown);
+        button.disabled = true;
+        timerDisplay.textContent = "ゲーム終了！";
+        // スコアをFirebaseに保存
+        db.ref('scores/' + playerNameInput.value.trim()).set(score);
+      }
+    }, 1000);
+  }
+
+  // ランキング更新
+  db.ref('scores').on('value', snapshot => {
+    const data = snapshot.val();
+    if (!data) { leaderboard.innerHTML = "まだスコアがありません"; return; }
+
+    const sorted = Object.entries(data).sort((a,b) => b[1] - a[1]);
+    leaderboard.innerHTML = sorted.map(([name, sc]) => `${name}: ${sc}`).join("<br>");
+  });
+</script>
+
+</body>
+</html>

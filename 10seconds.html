@@ -74,8 +74,11 @@
         clearInterval(countdown);
         button.disabled = true;
         timerDisplay.textContent = "ゲーム終了！";
-        // スコアをFirebaseに保存
-        db.ref('scores/' + playerNameInput.value.trim()).set(score);
+        // push() でスコア保存（同じ名前でも上書きされない）
+        db.ref('scores').push({
+          name: name,
+          score: score
+        });
       }
     }, 1000);
   }
@@ -85,10 +88,11 @@
     const data = snapshot.val();
     if (!data) { leaderboard.innerHTML = "まだスコアがありません"; return; }
 
-    const sorted = Object.entries(data).sort((a,b) => b[1] - a[1]);
-    leaderboard.innerHTML = sorted.map(([name, sc]) => `${name}: ${sc}`).join("<br>");
+    const sorted = Object.values(data).sort((a,b) => b.score - a.score);
+    leaderboard.innerHTML = sorted.map(entry => `${entry.name}: ${entry.score}`).join("<br>");
   });
 </script>
 
 </body>
 </html>
+

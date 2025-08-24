@@ -6,12 +6,11 @@
   <title>連打ゲーム総合ページ</title>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922140858632050" crossorigin="anonymous"></script>
   <style>
-    /* 基本画面固定 */
     html, body {
       margin: 0;
       padding: 0;
       height: 100vh;
-      overflow: hidden;
+      overflow: hidden; /* スクロール防止 */
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -28,18 +27,18 @@
       box-sizing: border-box;
     }
 
-    /* クリックボタン大きめ */
+    /* クリックボタン大きめで縦画面対応 */
     #clickBtnNormal, #clickBtnTimed {
       display: block;
-      width: 90%;          /* 画面幅に対して大きめ */
-      max-width: 500px;
-      height: 150px;       /* 高さ150px */
-      font-size: 72px;     /* 文字も大きめ */
+      width: 80vw;       /* 縦画面でも収まる */
+      max-width: 500px;  /* PCや横画面での最大幅 */
+      height: 150px;
+      font-size: 72px;
       padding: 0;
       margin: 30px auto;
       border-radius: 25px;
       cursor: pointer;
-      touch-action: manipulation; /* スマホで押しやすく */
+      touch-action: manipulation;
     }
 
     /* その他ボタン */
@@ -49,7 +48,6 @@
       margin: 15px;
     }
 
-    /* スコア・ランキング */
     #scoreNormal, #scoreTimed {
       font-size: 32px;
       margin-top: 20px;
@@ -75,6 +73,14 @@
       max-width: 500px;
       height: auto;
       box-sizing: border-box;
+    }
+
+    /* 縦画面用に文字サイズ・ボタン高さ調整 */
+    @media (max-width: 500px) {
+      #clickBtnNormal, #clickBtnTimed {
+        height: 120px;
+        font-size: 56px;
+      }
     }
   </style>
 </head>
@@ -217,10 +223,3 @@
 
 </body>
 </html>
-
-
-
-
-
-
-

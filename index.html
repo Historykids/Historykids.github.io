@@ -27,20 +27,23 @@
 
 <script>
   // Firebase 初期化（自分のFirebaseプロジェクトに置き換えてください）
-  const firebaseConfig = {
-   apiKey: "AIzaSyD4AcRgn209y8D2tU7lfAXlINpgzXWdQ6k", 
-  authDomain: "mygame-d583f.firebaseapp.com",
-  projectId: "mygame-d583f",
-  storageBucket: "mygame-d583f.firebasestorage.app",
-  messagingSenderId: "265301390775",
-  appId: "1:265301390775:web:ce0d14df930ce2ccf6a432",
-  measurementId: "G-GMH0RR1FG3"
-};
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+<script>
+  // Firebase 初期化（自分のFirebaseプロジェクトに置き換える）
+  const firebaseConfig = {
+    apiKey: "AIzaSyD4AcRgn209y8D2tU7lfAXlINpgzXWdQ6k",
+    authDomain: "mygame-d583f.firebaseapp.com",
+    databaseURL: "https://mygame-d583f-default-rtdb.firebaseio.com", // ←追加
+    projectId: "mygame-d583f",
+    storageBucket: "mygame-d583f.appspot.com",
+    messagingSenderId: "265301390775",
+    appId: "1:265301390775:web:ce0d14df930ce2ccf6a432"
   };
+
+  // v8互換方式で初期化
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
@@ -71,7 +74,11 @@ const analytics = getAnalytics(app);
   });
 </script>
 
+
+
+
 </body>
 </html>
+
 
 

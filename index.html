@@ -5,11 +5,55 @@
   <title>連打ゲーム総合ページ</title>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922140858632050" crossorigin="anonymous"></script>
   <style>
-    body { text-align: center; font-family: sans-serif; margin-top: 30px; }
-    button { font-size: 20px; padding: 10px 20px; cursor: pointer; margin: 10px; }
-    #score, #timer { font-size: 28px; margin-top: 20px; }
-    #leaderboard { margin-top: 30px; font-size: 18px; }
-    .game { display: none; margin-top: 20px; }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      font-family: sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+
+    /* クリックボタンだけ超巨大化 */
+    #clickBtnNormal, #clickBtnTimed {
+      font-size: 64px;       /* 文字大きめ */
+      padding: 50px 100px;   /* ボタン巨大 */
+      border-radius: 25px;
+      margin: 30px auto;
+      display: block;
+      cursor: pointer;
+    }
+
+    /* 他のボタン */
+    button:not(#clickBtnNormal):not(#clickBtnTimed) {
+      font-size: 28px;
+      padding: 20px 40px;
+      margin: 15px;
+      border-radius: 15px;
+      cursor: pointer;
+    }
+
+    #score, #scoreNormal, #scoreTimed {
+      font-size: 32px;
+      margin-top: 20px;
+      height: 50px;   /* 高さ固定で揺れ防止 */
+    }
+
+    #leaderboard, #leaderboardNormal, #leaderboardTimed {
+      margin-top: 30px;
+      font-size: 18px;
+      height: 250px;  /* 固定高さ */
+      overflow-y: auto; /* スクロール可能 */
+    }
+
+    .game {
+      display: none;
+      margin-top: 20px;
+      width: 100%;
+      max-width: 500px;
+    }
   </style>
 </head>
 <body>

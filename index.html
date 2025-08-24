@@ -5,7 +5,7 @@
   <title>友達とスコア競争ゲーム</title>
   <style>
     body { text-align: center; font-family: sans-serif; margin-top: 50px; }
-    button { font-size: 20px; padding: 10px 20px; cursor: pointer; }
+    button { font-size: 20px; padding: 10px 20px; cursor: pointer; margin: 5px; }
     #score { font-size: 30px; margin-top: 20px; }
     #leaderboard { margin-top: 30px; font-size: 18px; }
     a { display: inline-block; margin-top: 30px; font-size: 18px; text-decoration: none; color: blue; }
@@ -17,6 +17,7 @@
 <input type="text" id="playerName" placeholder="名前を入力">
 <br><br>
 <button id="clickBtn">クリック！</button>
+<button id="endBtn">ゲーム終了</button>
 <div id="score">スコア: 0</div>
 
 <h2>ランキング</h2>
@@ -45,27 +46,46 @@
   const db = firebase.database();
 
   let score = 0;
+  let gameEnded = false;
+
   const button = document.getElementById('clickBtn');
+  const endButton = document.getElementById('endBtn');
   const scoreDisplay = document.getElementById('score');
   const leaderboard = document.getElementById('leaderboard');
   const playerNameInput = document.getElementById('playerName');
 
-  // クリックでスコアを増やす
+  // クリックでスコアをローカルだけ増やす
   button.addEventListener('click', () => {
+    if (gameEnded) return;
     const name = playerNameInput.value.trim();
     if (!name) { alert("名前を入力してね！"); return; }
 
     score += 1;
     scoreDisplay.textContent = "スコア: " + score;
+  });
 
-    // push() でスコア保存（同じ名前でも上書きされない）
+  // ゲーム終了ボタン
+  endButton.addEventListener('click', () => {
+    endGame();
+  });
+
+  function endGame() {
+    if (gameEnded) return;
+    const name = playerNameInput.value.trim();
+    if (!name) { alert("名前を入力してね！"); return; }
+
+    gameEnded = true;
+    button.disabled = true;
+    endButton.disabled = true;
+
+    // スコアを一度だけFirebaseに保存
     db.ref('scores').push({
       name: name,
       score: score
     });
-  });
+  }
 
-  // ランキング更新
+  // ランキング更新（リアルタイム）
   db.ref('scores').on('value', snapshot => {
     const data = snapshot.val();
     if (!data) { leaderboard.innerHTML = "まだスコアがありません"; return; }

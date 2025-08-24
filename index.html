@@ -1,189 +1,154 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>連打ゲーム総合ページ</title>
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922140858632050" crossorigin="anonymous"></script>
-<style>
-html, body {
-  margin:0; padding:0; height:100vh; overflow:hidden;
-  display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
-  font-family:sans-serif; background-color:#f5f5f5;
-}
-
-input { font-size:24px; padding:10px; margin:10px; width:90%; max-width:500px; }
-
-button { border-radius:15px; cursor:pointer; box-sizing:border-box; }
-
-#clickBtnNormal, #clickBtnTimed {
-  display:block; width:80vw; max-width:500px; height:150px;
-  font-size:72px; padding:0; margin:30px auto; border-radius:25px;
-  touch-action: manipulation;
-}
-
-button:not(#clickBtnNormal):not(#clickBtnTimed) {
-  font-size:28px; padding:20px 40px; margin:15px;
-}
-
-#scoreNormal, #scoreTimed {
-  font-size:64px;  /* 大きめ表示 */
-  margin-top:20px; text-align:center;
-}
-
-#leaderboardNormal, #leaderboardTimed {
-  font-size:18px; max-height:250px; overflow-y:auto; margin-top:20px;
-  width:90%; max-width:500px; background-color:#fff; padding:10px; border-radius:10px;
-}
-
-.game, .rankingScreen { display:none; margin-top:20px; width:100%; max-width:500px; box-sizing:border-box; }
-
-@media(max-width:500px){
-  #clickBtnNormal, #clickBtnTimed { height:120px; font-size:56px; }
-}
-</style>
+  <meta charset="UTF-8">
+  <title>連打ゲーム</title>
+  <style>
+    body { text-align: center; font-family: sans-serif; margin: 0; padding: 0; }
+    h1 { font-size: 20px; }
+    button { font-size: 20px; padding: 10px 20px; margin: 10px; }
+    #game, #menu, #result { display: none; }
+    #score { font-size: 30px; margin: 20px 0; }
+    #timer { font-size: 18px; }
+    #leaderboard { margin-top: 20px; font-size: 14px; }
+  </style>
 </head>
 <body>
 
-<h1>連打ゲーム総合ページ</h1>
-<input type="text" id="playerName" placeholder="名前を入力">
-<br>
-<button id="showNormal">普通の連打ゲーム</button>
-<button id="showTimed">10秒チャレンジ</button>
-
-<!-- 普通ゲーム -->
-<div id="normalGame" class="game">
-  <button id="clickBtnNormal">クリック！</button>
-  <button id="endBtnNormal">終了</button>
-  <div id="scoreNormal">スコア: 0</div>
+<!-- メニュー画面 -->
+<h1>モード選択</h1>
+<div id="menu">
+  <button onclick="startGame('normal')">通常モード</button>
+  <button onclick="startGame('10sec')">10秒チャレンジ</button>
 </div>
 
-<!-- 10秒チャレンジ -->
-<div id="timedGame" class="game">
-  <button id="clickBtnTimed" disabled>クリック！</button>
-  <button id="startBtnTimed">スタート</button>
-  <div id="scoreTimed">スコア: 0</div>
-  <div id="timer">残り時間: 10秒</div>
+<!-- ゲーム画面 -->
+<div id="game">
+  <h1 id="modeTitle"></h1>
+  <input type="text" id="playerName" placeholder="名前を入力">
+  <br><br>
+  <button id="clickBtn">クリック！</button>
+  <div id="score">スコア: 0</div>
+  <div id="timer"></div>
+  <button onclick="endGame()">終了</button>
 </div>
 
-<!-- ランキング画面 -->
-<div id="rankingScreen" class="rankingScreen">
-  <h2>普通ゲームランキング</h2>
-  <div id="leaderboardNormal">読み込み中...</div>
-  <h2>10秒チャレンジランキング</h2>
-  <div id="leaderboardTimed">読み込み中...</div>
-  <button id="backBtn">戻る</button>
+<!-- 結果画面 -->
+<div id="result">
+  <h2>ランキング</h2>
+  <div id="leaderboard">読み込み中...</div>
+  <button onclick="backToMenu()">メニューに戻る</button>
 </div>
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
 
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyDhQ3DSg_AgZ-sK94usMkh54s0CJ8BFcK0",
-  authDomain: "mygame-d583f-e218b.firebaseapp.com",
-  databaseURL: "https://mygame-d583f-e218b-default-rtdb.firebaseio.com",
-  projectId: "mygame-d583f-e218b",
-  storageBucket: "mygame-d583f-e218b.appspot.com",
-  messagingSenderId: "112750475090",
-  appId: "1:112750475090:web:fd177e17163f6face62c8b"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+  // あなたの Firebase 設定
+  const firebaseConfig = {
+    apiKey: "AIzaSyDhQ3DSg_AgZ-sK94usMkh54s0CJ8BFcK0",
+    authDomain: "mygame-d583f-e218b.firebaseapp.com",
+    databaseURL: "https://mygame-d583f-e218b-default-rtdb.firebaseio.com",
+    projectId: "mygame-d583f-e218b",
+    storageBucket: "mygame-d583f-e218b.firebasestorage.app",
+    messagingSenderId: "112750475090",
+    appId: "1:112750475090:web:fd177e17163f6face62c8b",
+    measurementId: "G-CJLL8YF042"
+  };
 
-const playerNameInput = document.getElementById('playerName');
-const showNormal = document.getElementById('showNormal');
-const showTimed = document.getElementById('showTimed');
-const normalGame = document.getElementById('normalGame');
-const timedGame = document.getElementById('timedGame');
-const rankingScreen = document.getElementById('rankingScreen');
-const backBtn = document.getElementById('backBtn');
+  // 初期化
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
 
-// ゲーム切替
-showNormal.addEventListener('click', ()=>{
-  normalGame.style.display='block';
-  timedGame.style.display='none';
-  rankingScreen.style.display='none';
-});
-showTimed.addEventListener('click', ()=>{
-  timedGame.style.display='block';
-  normalGame.style.display='none';
-  rankingScreen.style.display='none';
-});
+  let score = 0;
+  let mode = "normal";
+  let timer = null;
+  let timeLeft = 10;
 
-// 普通ゲーム
-let scoreNormal=0;
-const clickBtnNormal=document.getElementById('clickBtnNormal');
-const endBtnNormal=document.getElementById('endBtnNormal');
-const scoreDisplayNormal=document.getElementById('scoreNormal');
-const leaderboardNormal=document.getElementById('leaderboardNormal');
+  document.getElementById("menu").style.display = "block";
 
-clickBtnNormal.addEventListener('click', ()=>{ scoreNormal++; scoreDisplayNormal.textContent="スコア: "+scoreNormal; });
+  function startGame(selectedMode) {
+    mode = selectedMode;
+    score = 0;
+    timeLeft = 10;
 
-endBtnNormal.addEventListener('click', ()=>{
-  const name=playerNameInput.value.trim();
-  if(!name){alert("名前を入力してね！"); return;}
-  const playerId=Date.now();
-  db.ref('normalScores/'+name+"_"+playerId).set(scoreNormal);
-  scoreNormal=0; scoreDisplayNormal.textContent="スコア: 0";
-  // ランキング画面へ
-  normalGame.style.display='none';
-  rankingScreen.style.display='block';
-});
+    document.getElementById("menu").style.display = "none";
+    document.getElementById("result").style.display = "none";
+    document.getElementById("game").style.display = "block";
+    document.getElementById("score").textContent = "スコア: 0";
+    document.getElementById("modeTitle").textContent =
+      mode === "normal" ? "通常モード" : "10秒チャレンジ";
 
-// 10秒チャレンジ
-let scoreTimed=0, timeLeft=10, timerId;
-const clickBtnTimed=document.getElementById('clickBtnTimed');
-const startBtnTimed=document.getElementById('startBtnTimed');
-const scoreDisplayTimed=document.getElementById('scoreTimed');
-const timerDisplay=document.getElementById('timer');
-const leaderboardTimed=document.getElementById('leaderboardTimed');
-
-startBtnTimed.addEventListener('click', ()=>{
-  const name=playerNameInput.value.trim();
-  if(!name){alert("名前を入力してね！"); return;}
-  scoreTimed=0; timeLeft=10; scoreDisplayTimed.textContent="スコア: 0"; timerDisplay.textContent="残り時間: 10秒";
-  clickBtnTimed.disabled=false; startBtnTimed.disabled=true;
-
-  timerId=setInterval(()=>{
-    timeLeft--; timerDisplay.textContent="残り時間: "+timeLeft+"秒";
-    if(timeLeft<=0){
-      clearInterval(timerId);
-      clickBtnTimed.disabled=true; startBtnTimed.disabled=false;
-      const playerId=Date.now();
-      db.ref('tenSecondScores/'+name+"_"+playerId).set(scoreTimed);
-      // ランキング画面へ
-      timedGame.style.display='none'; rankingScreen.style.display='block';
+    if (mode === "10sec") {
+      document.getElementById("timer").textContent = "残り時間: 10秒";
+      timer = setInterval(() => {
+        timeLeft--;
+        document.getElementById("timer").textContent = "残り時間: " + timeLeft + "秒";
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          endGame();
+        }
+      }, 1000);
+    } else {
+      document.getElementById("timer").textContent = "";
     }
-  },1000);
-});
+  }
 
-clickBtnTimed.addEventListener('click', ()=>{ scoreTimed++; scoreDisplayTimed.textContent="スコア: "+scoreTimed; });
+  document.getElementById("clickBtn").addEventListener("click", () => {
+    score++;
+    document.getElementById("score").textContent = "スコア: " + score;
 
-// ランキング更新
-db.ref('normalScores').on('value', snapshot=>{
-  const data=snapshot.val();
-  if(!data){leaderboardNormal.innerHTML="まだスコアがありません"; return;}
-  const sorted=Object.entries(data).sort((a,b)=>b[1]-a[1]);
-  leaderboardNormal.innerHTML=sorted.map(([name,sc])=>`${name}: ${sc}`).join("<br>");
-});
-db.ref('tenSecondScores').on('value', snapshot=>{
-  const data=snapshot.val();
-  if(!data){leaderboardTimed.innerHTML="まだスコアがありません"; return;}
-  const sorted=Object.entries(data).sort((a,b)=>b[1]-a[1]);
-  leaderboardTimed.innerHTML=sorted.map(([name,sc])=>`${name}: ${sc}`).join("<br>");
-});
+    if (mode === "normal") {
+      saveScore(); // 通常モードはリアルタイム保存
+    }
+  });
 
-// 戻るボタン
-backBtn.addEventListener('click', ()=>{
-  rankingScreen.style.display='none';
-});
+  function endGame() {
+    if (mode === "10sec") clearInterval(timer);
+    saveScore();
+    showResult();
+  }
+
+  function saveScore() {
+    const name = document.getElementById("playerName").value.trim();
+    if (!name) { alert("名前を入力してね！"); return; }
+
+    const key = mode + "_" + name;
+    set(ref(db, "scores/" + key), score);
+  }
+
+  function showResult() {
+    document.getElementById("game").style.display = "none";
+    document.getElementById("result").style.display = "block";
+    loadLeaderboard();
+  }
+
+  function backToMenu() {
+    document.getElementById("result").style.display = "none";
+    document.getElementById("menu").style.display = "block";
+  }
+
+  function loadLeaderboard() {
+    get(ref(db, "scores")).then(snapshot => {
+      const data = snapshot.val();
+      if (!data) { document.getElementById("leaderboard").innerHTML = "まだスコアがありません"; return; }
+
+      let filtered = Object.entries(data)
+        .filter(([k,v]) => k.startsWith(mode + "_"))
+        .map(([k,v]) => [k.replace(mode + "_", ""), v]);
+
+      const sorted = filtered.sort((a,b) => b[1] - a[1]);
+      document.getElementById("leaderboard").innerHTML =
+        sorted.map(([n,s]) => `${n}: ${s}`).join("<br>");
+    });
+  }
+
+  // グローバルに公開
+  window.startGame = startGame;
+  window.endGame = endGame;
+  window.backToMenu = backToMenu;
 </script>
+
 </body>
 </html>
-
-
-
-
-

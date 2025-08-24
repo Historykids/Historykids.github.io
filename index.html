@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>友達とスコア競争ゲーム</title>
+  <style>
+    body { text-align: center; font-family: sans-serif; margin-top: 50px; }
+    button { font-size: 20px; padding: 10px 20px; cursor: pointer; }
+    #score { font-size: 30px; margin-top: 20px; }
+    #leaderboard { margin-top: 30px; font-size: 18px; }
+  </style>
+</head>
+<body>
+
+<h1>クリックでスコア競争！</h1>
+<input type="text" id="playerName" placeholder="名前を入力">
+<br><br>
+<button id="clickBtn">クリック！</button>
+<div id="score">スコア: 0</div>
+
+<h2>ランキング</h2>
+<div id="leaderboard">読み込み中...</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+  // Firebase 初期化（自分のFirebaseプロジェクトに置き換えてください）
+  const firebaseConfig = {
+   
+ apiKey: "AIzaSyD4AcRgn209y8D2tU7lfAXlINpgzXWdQ6k",
+  authDomain: "mygame-d583f.firebaseapp.com",
+  projectId: "mygame-d583f",
+  storageBucket: "mygame-d583f.firebasestorage.app",
+  messagingSenderId: "265301390775",
+  appId: "1:265301390775:web:ce0d14df930ce2ccf6a432",
+  measurementId: "G-GMH0RR1FG3"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  let score = 0;
+  const button = document.getElementById('clickBtn');
+  const scoreDisplay = document.getElementById('score');
+  const leaderboard = document.getElementById('leaderboard');
+  const playerNameInput = document.getElementById('playerName');
+
+  button.addEventListener('click', () => {
+    const name = playerNameInput.value.trim();
+    if (!name) { alert("名前を入力してね！"); return; }
+
+    score += 1;
+    scoreDisplay.textContent = "スコア: " + score;
+
+    // スコアをFirebaseに保存
+    db.ref('scores/' + name).set(score);
+  });
+
+  // ランキング更新
+  db.ref('scores').on('value', snapshot => {
+    const data = snapshot.val();
+    if (!data) { leaderboard.innerHTML = "まだスコアがありません"; return; }
+
+    const sorted = Object.entries(data).sort((a,b) => b[1] - a[1]);
+    leaderboard.innerHTML = sorted.map(([name, sc]) => `${name}: ${sc}`).join("<br>");
+  });
+</script>
+
+</body>
+</html>

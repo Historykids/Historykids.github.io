@@ -5,7 +5,7 @@
   <title>10秒クリック競争ゲーム</title>
   <style>
     body { text-align: center; font-family: sans-serif; margin-top: 50px; }
-    button { font-size: 20px; padding: 10px 20px; cursor: pointer; }
+    button { font-size: 20px; padding: 10px 20px; cursor: pointer; margin: 5px; }
     #score { font-size: 30px; margin-top: 20px; }
     #leaderboard { margin-top: 30px; font-size: 18px; }
     #timer { font-size: 25px; margin-top: 10px; color: red; }
@@ -44,37 +44,40 @@
 
   let score = 0;
   let timeLeft = 10;
-  let gameStarted = false;
+  let gameEnded = false;
 
   const button = document.getElementById('clickBtn');
   const scoreDisplay = document.getElementById('score');
-  const leaderboard = document.getElementById('leaderboard');
   const timerDisplay = document.getElementById('timer');
+  const leaderboard = document.getElementById('leaderboard');
   const playerNameInput = document.getElementById('playerName');
 
   button.addEventListener('click', () => {
-    if (!gameStarted) {
-      startGame();
-    }
-    if (timeLeft > 0) {
-      score += 1;
-      scoreDisplay.textContent = "スコア: " + score;
-    }
-  });
-
-  function startGame() {
+    if (gameEnded) return;
     const name = playerNameInput.value.trim();
     if (!name) { alert("名前を入力してね！"); return; }
 
-    gameStarted = true;
+    if (!gameEnded) startTimer();
+    score += 1;
+    scoreDisplay.textContent = "スコア: " + score;
+  });
+
+  function startTimer() {
+    const name = playerNameInput.value.trim();
+    if (!name) return;
+
+    gameEnded = false;
     const countdown = setInterval(() => {
       timeLeft -= 1;
       timerDisplay.textContent = "残り時間: " + timeLeft + " 秒";
+
       if (timeLeft <= 0) {
         clearInterval(countdown);
+        gameEnded = true;
         button.disabled = true;
         timerDisplay.textContent = "ゲーム終了！";
-        // push() でスコア保存（同じ名前でも上書きされない）
+
+        // ゲーム終了時にまとめてFirebaseに保存
         db.ref('scores').push({
           name: name,
           score: score
@@ -95,4 +98,3 @@
 
 </body>
 </html>
-

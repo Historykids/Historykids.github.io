@@ -54,7 +54,11 @@
     score += 1;
     scoreDisplay.textContent = "スコア: " + score;
 
-    db.ref('scores/' + name).set(score);
+    // push() でスコア保存（同じ名前でも上書きされない）
+    db.ref('scores').push({
+      name: name,
+      score: score
+    });
   });
 
   // ランキング更新
@@ -62,17 +66,15 @@
     const data = snapshot.val();
     if (!data) { leaderboard.innerHTML = "まだスコアがありません"; return; }
 
-    const sorted = Object.entries(data).sort((a,b) => b[1] - a[1]);
-    leaderboard.innerHTML = sorted.map(([name, sc]) => `${name}: ${sc}`).join("<br>");
+    const sorted = Object.values(data).sort((a,b) => b.score - a.score);
+    leaderboard.innerHTML = sorted.map(entry => `${entry.name}: ${entry.score}`).join("<br>");
   });
 </script>
 
 </body>
 </html>
 
-<!-- 既存ゲームの下に追加 -->
-<br><br>
-<a href="10seconds.html" style="font-size:18px;">▶ 10秒クリックゲームを遊ぶ</a>
+
 
 
 

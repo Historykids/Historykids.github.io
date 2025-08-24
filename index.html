@@ -6,12 +6,12 @@
   <title>連打ゲーム総合ページ</title>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922140858632050" crossorigin="anonymous"></script>
   <style>
-    /* ----------------- 基本画面固定 ----------------- */
+    /* 基本画面固定 */
     html, body {
       margin: 0;
       padding: 0;
       height: 100vh;
-      overflow: hidden;       /* スクロール禁止 */
+      overflow: hidden;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -20,7 +20,7 @@
       background-color: #f5f5f5;
     }
 
-    input { font-size: 24px; padding: 10px; margin: 10px; }
+    input { font-size: 24px; padding: 10px; margin: 10px; width: 90%; max-width: 500px; }
 
     button {
       border-radius: 15px;
@@ -28,41 +28,40 @@
       box-sizing: border-box;
     }
 
-    /* ----------------- クリックボタン超巨大 ----------------- */
+    /* クリックボタン大きめ */
     #clickBtnNormal, #clickBtnTimed {
       display: block;
-      width: 100%;
+      width: 90%;          /* 画面幅に対して大きめ */
       max-width: 500px;
-      height: 120px;
-      font-size: 64px;
+      height: 150px;       /* 高さ150px */
+      font-size: 72px;     /* 文字も大きめ */
       padding: 0;
       margin: 30px auto;
       border-radius: 25px;
       cursor: pointer;
-      touch-action: manipulation; /* モバイルで押しやすく */
+      touch-action: manipulation; /* スマホで押しやすく */
     }
 
-    /* 他のボタン */
+    /* その他ボタン */
     button:not(#clickBtnNormal):not(#clickBtnTimed) {
       font-size: 28px;
       padding: 20px 40px;
       margin: 15px;
     }
 
-    /* ----------------- スコア・ランキング固定 ----------------- */
+    /* スコア・ランキング */
     #scoreNormal, #scoreTimed {
       font-size: 32px;
-      height: 50px;
       margin-top: 20px;
       text-align: center;
     }
 
     #leaderboardNormal, #leaderboardTimed {
       font-size: 18px;
-      height: 250px;
+      max-height: 250px;
       overflow-y: auto;
-      margin-top: 30px;
-      width: 100%;
+      margin-top: 20px;
+      width: 90%;
       max-width: 500px;
       background-color: #fff;
       padding: 10px;
@@ -74,7 +73,7 @@
       margin-top: 20px;
       width: 100%;
       max-width: 500px;
-      height: 600px;
+      height: auto;
       box-sizing: border-box;
     }
   </style>
@@ -87,7 +86,7 @@
 <button id="showNormal">普通の連打ゲーム</button>
 <button id="showTimed">10秒チャレンジ</button>
 
-<!-- 普通の連打ゲーム -->
+<!-- 普通ゲーム -->
 <div id="normalGame" class="game">
   <button id="clickBtnNormal">クリック！</button>
   <button id="endBtnNormal">終了</button>
@@ -139,7 +138,7 @@
     normalGame.style.display = 'none';
   });
 
-  // ------------------ 普通ゲーム ------------------
+  // 普通ゲーム
   let scoreNormal = 0;
   const clickBtnNormal = document.getElementById('clickBtnNormal');
   const endBtnNormal = document.getElementById('endBtnNormal');
@@ -168,7 +167,7 @@
     leaderboardNormal.innerHTML = sorted.map(([name, sc]) => `${name}: ${sc}`).join("<br>");
   });
 
-  // ------------------ 10秒チャレンジ ------------------
+  // 10秒チャレンジ
   let scoreTimed = 0;
   let timeLeft = 10;
   let timerId;

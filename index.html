@@ -2,38 +2,48 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>友達とスコア競争ゲーム</title>
+  <title>連打ゲーム総合ページ</title>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922140858632050" crossorigin="anonymous"></script>
   <style>
-    body { text-align: center; font-family: sans-serif; margin-top: 50px; }
-    button { font-size: 20px; padding: 10px 20px; cursor: pointer; margin: 5px; }
-    #score { font-size: 30px; margin-top: 20px; }
+    body { text-align: center; font-family: sans-serif; margin-top: 30px; }
+    button { font-size: 20px; padding: 10px 20px; cursor: pointer; margin: 10px; }
+    #score, #timer { font-size: 28px; margin-top: 20px; }
     #leaderboard { margin-top: 30px; font-size: 18px; }
-    a { display: inline-block; margin-top: 30px; font-size: 18px; text-decoration: none; color: blue; }
+    .game { display: none; margin-top: 20px; }
   </style>
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922140858632050"
-     crossorigin="anonymous"></script>
 </head>
 <body>
 
-<h1>クリックでスコア競争！</h1>
+<h1>連打ゲーム総合ページ</h1>
 <input type="text" id="playerName" placeholder="名前を入力">
 <br><br>
-<button id="clickBtn">クリック！</button>
-<button id="endBtn">ゲーム終了</button>
-<div id="score">スコア: 0</div>
+<button id="showNormal">普通の連打ゲーム</button>
+<button id="showTimed">10秒チャレンジ</button>
 
-<h2>ランキング</h2>
-<div id="leaderboard">読み込み中...</div>
+<!-- 普通の連打ゲーム -->
+<div id="normalGame" class="game">
+  <button id="clickBtnNormal">クリック！</button>
+  <button id="endBtnNormal">終了</button>
+  <div id="scoreNormal">スコア: 0</div>
+  <h3>普通ゲームランキング</h3>
+  <div id="leaderboardNormal">読み込み中...</div>
+</div>
 
-<!-- 10秒ゲームへのリンク -->
-<a href="10seconds.html">▶ 10秒クリックゲームを遊ぶ</a>
+<!-- 10秒チャレンジ -->
+<div id="timedGame" class="game">
+  <button id="clickBtnTimed" disabled>クリック！</button>
+  <button id="startBtnTimed">スタート</button>
+  <div id="scoreTimed">スコア: 0</div>
+  <div id="timer">残り時間: 10秒</div>
+  <h3>10秒チャレンジランキング</h3>
+  <div id="leaderboardTimed">読み込み中...</div>
+</div>
 
-<!-- Firebase SDK -->
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-  // Firebase 初期化
   const firebaseConfig = {
     apiKey: "AIzaSyDhQ3DSg_AgZ-sK94usMkh54s0CJ8BFcK0",
     authDomain: "mygame-d583f-e218b.firebaseapp.com",
@@ -43,62 +53,107 @@
     messagingSenderId: "112750475090",
     appId: "1:112750475090:web:fd177e17163f6face62c8b"
   };
-
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
-  let score = 0;
-  let gameEnded = false;
-
-  const button = document.getElementById('clickBtn');
-  const endButton = document.getElementById('endBtn');
-  const scoreDisplay = document.getElementById('score');
-  const leaderboard = document.getElementById('leaderboard');
   const playerNameInput = document.getElementById('playerName');
+  const showNormal = document.getElementById('showNormal');
+  const showTimed = document.getElementById('showTimed');
 
-  // クリックでスコアをローカルだけ増やす
-  button.addEventListener('click', () => {
-    if (gameEnded) return;
-    const name = playerNameInput.value.trim();
-    if (!name) { alert("名前を入力してね！"); return; }
+  const normalGame = document.getElementById('normalGame');
+  const timedGame = document.getElementById('timedGame');
 
-    score += 1;
-    scoreDisplay.textContent = "スコア: " + score;
+  // ゲーム切替
+  showNormal.addEventListener('click', () => {
+    normalGame.style.display = 'block';
+    timedGame.style.display = 'none';
+  });
+  showTimed.addEventListener('click', () => {
+    timedGame.style.display = 'block';
+    normalGame.style.display = 'none';
   });
 
-  // ゲーム終了ボタン
-  endButton.addEventListener('click', () => {
-    endGame();
+  // =================== 普通の連打ゲーム ===================
+  let scoreNormal = 0;
+  const clickBtnNormal = document.getElementById('clickBtnNormal');
+  const endBtnNormal = document.getElementById('endBtnNormal');
+  const scoreDisplayNormal = document.getElementById('scoreNormal');
+  const leaderboardNormal = document.getElementById('leaderboardNormal');
+
+  clickBtnNormal.addEventListener('click', () => {
+    scoreNormal++;
+    scoreDisplayNormal.textContent = "スコア: " + scoreNormal;
   });
 
-  function endGame() {
-    if (gameEnded) return;
+  endBtnNormal.addEventListener('click', () => {
     const name = playerNameInput.value.trim();
     if (!name) { alert("名前を入力してね！"); return; }
+    const playerId = Date.now();
+    db.ref('normalScores/' + name + "_" + playerId).set(scoreNormal);
+    alert("スコアを保存しました！");
+    scoreNormal = 0;
+    scoreDisplayNormal.textContent = "スコア: 0";
+  });
 
-    gameEnded = true;
-    button.disabled = true;
-    endButton.disabled = true;
-
-    // スコアを一度だけFirebaseに保存
-    db.ref('scores').push({
-      name: name,
-      score: score
-    });
-  }
-
-  // ランキング更新（リアルタイム）
-  db.ref('scores').on('value', snapshot => {
+  db.ref('normalScores').on('value', snapshot => {
     const data = snapshot.val();
-    if (!data) { leaderboard.innerHTML = "まだスコアがありません"; return; }
-
-    const sorted = Object.values(data).sort((a,b) => b.score - a.score);
-    leaderboard.innerHTML = sorted.map(entry => `${entry.name}: ${entry.score}`).join("<br>");
+    if (!data) { leaderboardNormal.innerHTML = "まだスコアがありません"; return; }
+    const sorted = Object.entries(data).sort((a,b) => b[1]-a[1]);
+    leaderboardNormal.innerHTML = sorted.map(([name, sc]) => `${name}: ${sc}`).join("<br>");
   });
+
+  // =================== 10秒チャレンジ ===================
+  let scoreTimed = 0;
+  let timeLeft = 10;
+  let timerId;
+  const clickBtnTimed = document.getElementById('clickBtnTimed');
+  const startBtnTimed = document.getElementById('startBtnTimed');
+  const scoreDisplayTimed = document.getElementById('scoreTimed');
+  const timerDisplay = document.getElementById('timer');
+  const leaderboardTimed = document.getElementById('leaderboardTimed');
+
+  startBtnTimed.addEventListener('click', () => {
+    const name = playerNameInput.value.trim();
+    if (!name) { alert("名前を入力してね！"); return; }
+
+    scoreTimed = 0;
+    timeLeft = 10;
+    scoreDisplayTimed.textContent = "スコア: 0";
+    timerDisplay.textContent = "残り時間: 10秒";
+    clickBtnTimed.disabled = false;
+    startBtnTimed.disabled = true;
+
+    timerId = setInterval(() => {
+      timeLeft--;
+      timerDisplay.textContent = "残り時間: " + timeLeft + "秒";
+      if (timeLeft <= 0) {
+        clearInterval(timerId);
+        clickBtnTimed.disabled = true;
+        startBtnTimed.disabled = false;
+        const playerId = Date.now();
+        db.ref('tenSecondScores/' + name + "_" + playerId).set(scoreTimed);
+        alert("スコアを保存しました！");
+      }
+    }, 1000);
+  });
+
+  clickBtnTimed.addEventListener('click', () => {
+    scoreTimed++;
+    scoreDisplayTimed.textContent = "スコア: " + scoreTimed;
+  });
+
+  db.ref('tenSecondScores').on('value', snapshot => {
+    const data = snapshot.val();
+    if (!data) { leaderboardTimed.innerHTML = "まだスコアがありません"; return; }
+    const sorted = Object.entries(data).sort((a,b) => b[1]-a[1]);
+    leaderboardTimed.innerHTML = sorted.map(([name, sc]) => `${name}: ${sc}`).join("<br>");
+  });
+
 </script>
 
 </body>
 </html>
+
 
 
 

@@ -26,17 +26,10 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-  // Firebase 初期化（自分のFirebaseプロジェクトに置き換えてください）
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
-<script>
-  // Firebase 初期化（自分のFirebaseプロジェクトに置き換える）
   const firebaseConfig = {
     apiKey: "AIzaSyD4AcRgn209y8D2tU7lfAXlINpgzXWdQ6k",
     authDomain: "mygame-d583f.firebaseapp.com",
-    databaseURL: "https://mygame-d583f-default-rtdb.firebaseio.com", // ←追加
+    databaseURL: "https://mygame-d583f-default-rtdb.firebaseio.com",
     projectId: "mygame-d583f",
     storageBucket: "mygame-d583f.appspot.com",
     messagingSenderId: "265301390775",
@@ -60,11 +53,9 @@
     score += 1;
     scoreDisplay.textContent = "スコア: " + score;
 
-    // スコアをFirebaseに保存
     db.ref('scores/' + name).set(score);
   });
 
-  // ランキング更新
   db.ref('scores').on('value', snapshot => {
     const data = snapshot.val();
     if (!data) { leaderboard.innerHTML = "まだスコアがありません"; return; }
@@ -74,11 +65,9 @@
   });
 </script>
 
-
-
-
 </body>
 </html>
+
 
 
 

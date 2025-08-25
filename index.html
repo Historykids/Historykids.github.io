@@ -2,13 +2,12 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport"
-  content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>連打ゲーム（通常）</title>
 <style>
   :root { --bg:#0f1220; --fg:#fff; --accent:#5dd6ff; --card:#171b30; --muted:#9aa3b2; }
   * { -webkit-tap-highlight-color: rgba(0,0,0,0); }
-  html, body { height:100%; -webkit-text-size-adjust:100%; overscroll-behavior:none; }
+  html, body { height:100%; -webkit-text-size-adjust:100%; overscroll-beavior:none; }
   body {
     margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
     color:var(--fg); background:radial-gradient(1200px 800px at 50% -10%, #1b2040, var(--bg));
@@ -32,8 +31,10 @@
     background:#111626; border-radius:24px; user-select:none; touch-action:none;
     box-shadow:inset 0 0 0 2px rgba(93,214,255,.15), 0 20px 50px rgba(0,0,0,.45);
   }
-  .tap-btn { pointer-events:none; width:min(70vw,420px); height:min(70vw,420px); border-radius:9999px; background:linear-gradient(180deg,#2a315a,#1b2147);
-    display:grid; place-items:center; box-shadow:0 16px 40px rgba(0,0,0,.5), inset 0 0 0 6px rgba(93,214,255,.25); transform:translateZ(0); transition:transform .06s ease; }
+  .tap-btn { pointer-events:none; width:min(70vw,420px); height:min(70vw,420px); border-radius:9999px;
+    background:linear-gradient(180deg,#2a315a,#1b2147); display:grid; place-items:center;
+    box-shadow:0 16px 40px rgba(0,0,0,.5), inset 0 0 0 6px rgba(93,214,255,.25);
+    transform:translateZ(0); transition:transform .06s ease; }
   .tap-btn span { font-size:clamp(20px,6vw,36px); font-weight:800; letter-spacing:.08em; color:var(--accent); }
   .bigzone.active .tap-btn { transform:scale(.98); }
   .controls { display:flex; gap:8px; margin:12px 0 0; flex-wrap:wrap; }
@@ -42,7 +43,6 @@
   .btn:disabled { opacity:.5; cursor:not-allowed; }
   .note { color:var(--muted); font-size:12px; margin-top:6px; }
 
-  /* ランキングモーダル */
   .modal { position:fixed; inset:0; display:none; place-items:center; background:rgba(5,7,12,.66); padding:20px; z-index:50; }
   .modal.open { display:grid; }
   .sheet { width:min(560px,100%); background:var(--card); border-radius:16px; padding:16px; box-shadow:0 20px 60px rgba(0,0,0,.6); }
@@ -66,7 +66,7 @@
         <label for="nick">ニックネーム</label>
         <input id="nick" type="text" placeholder="例）しろながす" maxlength="20" />
       </div>
-      <div class="note">※ ランキングはオンラインで共有されます</div>
+      <div class="note">※ ランキングはオンラインで共有（同じ名前でも何件でも残る）</div>
     </div>
 
     <div class="hud">
@@ -87,7 +87,6 @@
     </div>
   </div>
 
-  <!-- ランキングモーダル -->
   <div id="modal" class="modal" aria-modal="true" role="dialog">
     <div class="sheet">
       <h2>ランキング（通常）</h2>
@@ -100,27 +99,26 @@
   </div>
 
 <script type="module">
-/* ---------------- Firebase 初期化 ---------------- */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getDatabase, ref, push, query, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDhQ3DSg_AgZ-sK94usMkh54s0CJ8BFcK0",
-  authDomain: "mygame-d583f-e218b.firebaseapp.com",
-  databaseURL: "https://mygame-d583f-e218b-default-rtdb.firebaseio.com",
-  projectId: "mygame-d583f-e218b",
-  storageBucket: "mygame-d583f-e218b.firebasestorage.app",
-  messagingSenderId: "112750475090",
-  appId: "1:112750475090:web:fd177e17163f6face62c8b",
-  measurementId: "G-CJLL8YF042"
+  apiKey:"AIzaSyDhQ3DSg_AgZ-sK94usMkh54s0CJ8BFcK0",
+  authDomain:"mygame-d583f-e218b.firebaseapp.com",
+  databaseURL:"https://mygame-d583f-e218b-default-rtdb.firebaseio.com",
+  projectId:"mygame-d583f-e218b",
+  storageBucket:"mygame-d583f-e218b.firebasestorage.app",
+  messagingSenderId:"112750475090",
+  appId:"1:112750475090:web:fd177e17163f6face62c8b",
+  measurementId:"G-CJLL8YF042"
 };
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getDatabase(app);
 signInAnonymously(auth).catch(console.error);
 
-/* ---------------- iOS ゆれ対策 ---------------- */
+/* iOS揺れ/ズーム対策（プレイ中のみ） */
 const isIOS = (() => {
   const ua = navigator.userAgent || '';
   return /iP(ad|hone|od)/.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
@@ -146,32 +144,31 @@ function iosScrollZoomGuard(enable){
   };
 }
 
-/* ---------------- DOM ---------------- */
+/* DOM */
 const el = {
-  zone:  document.getElementById('zone'),
-  score: document.getElementById('score'),
-  state: document.getElementById('state'),
-  start: document.getElementById('start'),
-  stop:  document.getElementById('stop'),
-  view:  document.getElementById('viewRank'),
-  modal: document.getElementById('modal'),
-  rank:  document.getElementById('rank'),
-  close: document.getElementById('close'),
-  nick:  document.getElementById('nick'),
+  zone:document.getElementById('zone'),
+  score:document.getElementById('score'),
+  state:document.getElementById('state'),
+  start:document.getElementById('start'),
+  stop:document.getElementById('stop'),
+  view:document.getElementById('viewRank'),
+  modal:document.getElementById('modal'),
+  rank:document.getElementById('rank'),
+  close:document.getElementById('close'),
+  nick:document.getElementById('nick'),
 };
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 
-/* ニックネーム：保存値が無ければ “しろながす” を初期表示 */
 const NICK_KEY='nickname';
 const saved=(localStorage.getItem(NICK_KEY)||'').trim();
 el.nick.value = saved || 'しろながす';
 el.nick.addEventListener('change', ()=> localStorage.setItem(NICK_KEY, el.nick.value.trim()) );
 
-/* ---------------- オンラインランキング ---------------- */
-const MODE='free'; // leaderboard/free
+/* オンラインランキング（push保存） */
+const MODE='free';
 async function submitScore(v,n){
-  const payload={ v, n:(n||'匿名').slice(0,20), t:Date.now(), ua:(navigator.userAgent||'').slice(0,80) };
-  const res=await push(ref(db,`leaderboard/${MODE}`), payload);
+  const payload = { v, n:(n||'匿名').slice(0,20), t:Date.now(), ua:(navigator.userAgent||'').slice(0,80) };
+  const res = await push(ref(db,`leaderboard/${MODE}`), payload);
   return { id:res.key, ...payload };
 }
 async function fetchTop(top=10){
@@ -184,18 +181,18 @@ async function renderRank(me){
   el.rank.innerHTML = list.map((r,i)=>`<li class="${me&&me.id===r.id?'me':''}">
     <div>${i+1}. <strong>${r.v}</strong> 回 <small>（${escapeHtml(r.n||'匿名')}）</small></div>
     <small>${new Date(r.t).toLocaleString()}</small>
-  </li>`).join('');
+  </li>`).join('') || `<li class="row"><div>該当データなし</div></li>`;
 }
 function openModal(me){ renderRank(me); el.modal.classList.add('open'); }
 
-/* ---------------- ゲーム本体 ---------------- */
+/* ゲーム本体 */
 let status='idle', score=0, lastFrame=-1;
 function setState(s){
   status=s;
   if(s==='playing'){ document.body.classList.add('lock'); iosScrollZoomGuard(true); }
   else { document.body.classList.remove('lock'); iosScrollZoomGuard(false); }
   el.state.textContent = s==='idle'?'待機中':s==='playing'?'プレイ中':'終了';
-  el.start.disabled = (s!=='idle'); el.stop.disabled=(s!=='playing');
+  el.start.disabled=(s!=='idle'); el.stop.disabled=(s!=='playing');
 }
 function startGame(){
   score=0; el.score.textContent='0'; lastFrame=-1;
@@ -222,7 +219,6 @@ el.stop .addEventListener('click', finishGame);
 el.view .addEventListener('click', ()=> openModal(null));
 el.close.addEventListener('click', ()=> el.modal.classList.remove('open'));
 
-/* 初回：認証後にランキング読み込み */
 onAuthStateChanged(auth, async ()=>{ await renderRank(null); });
 setState('idle');
 </script>

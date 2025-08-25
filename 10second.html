@@ -1,94 +1,235 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>10秒クリック競争ゲーム</title>
-  <style>
-    body { text-align: center; font-family: sans-serif; margin-top: 50px; }
-    button { font-size: 20px; padding: 10px 20px; cursor: pointer; }
-    #score { font-size: 30px; margin-top: 20px; }
-    #leaderboard { margin-top: 30px; font-size: 18px; }
-    #timer { font-size: 25px; margin-top: 10px; color: red; }
-  </style>
-</head>
-<body>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>10秒連打チャレンジ</title>
+<style>
+  :root {
+    --bg: #0f1220; --fg: #fff; --accent: #5dd6ff; --card:#171b30; --muted:#9aa3b2;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+    color: var(--fg); background: radial-gradient(1200px 800px at 50% -10%, #1b2040, var(--bg));
+    display: grid; place-items: center; padding: 16px;
+  }
+  .wrap { width: min(680px, 100%); }
+  header { text-align:center; margin-bottom: 12px; }
+  header h1 { margin: 0 0 8px; font-size: clamp(20px, 4vw, 28px); }
+  header p { margin: 0; color: var(--muted); }
 
-<h1>10秒クリック競争！</h1>
-<input type="text" id="playerName" placeholder="名前を入力">
-<br><br>
-<button id="clickBtn">クリック！</button>
-<div id="score">スコア: 0</div>
-<div id="timer">残り時間: 10 秒</div>
+  .hud { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 16px 0; }
+  .card {
+    background: var(--card); border-radius: 16px; padding: 12px 16px;
+    display:flex; align-items:center; justify-content:center; min-height:58px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  .label { color: var(--muted); margin-right: 8px; }
+  .value { font-size: clamp(20px, 6vw, 36px); font-weight: 700; letter-spacing: .5px; }
 
-<h2>ランキング</h2>
-<div id="leaderboard">読み込み中...</div>
+  .bigzone {
+    position: relative; display: grid; place-items: center;
+    width: 100%; height: clamp(300px, 68vh, 620px);
+    background: #111626; border-radius: 24px; user-select: none; touch-action: manipulation;
+    box-shadow: inset 0 0 0 2px rgba(93,214,255,.15), 0 20px 50px rgba(0,0,0,.45);
+  }
+  .tap-btn {
+    pointer-events: none;
+    width: min(70vw, 420px); height: min(70vw, 420px);
+    border-radius: 9999px; background: linear-gradient(180deg, #2a315a, #1b2147);
+    display: grid; place-items: center;
+    box-shadow: 0 16px 40px rgba(0,0,0,.5), inset 0 0 0 6px rgba(93,214,255,.25);
+    transform: translateZ(0); transition: transform .06s ease;
+  }
+  .tap-btn span { font-size: clamp(20px, 6vw, 36px); font-weight: 800; letter-spacing: .08em; color: var(--accent); }
+  .bigzone.active .tap-btn { transform: scale(0.98); }
 
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  .controls { display:flex; gap:8px; margin: 12px 0 0; }
+  .btn { appearance:none; border:0; border-radius:12px; padding:12px 16px; font-weight:700; background:#283056; color:#e9f4ff; cursor:pointer; }
+  .btn.accent { background:#2b9ed0; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
 
-<script>
-  // Firebase 初期化
-  const firebaseConfig = {
-    apiKey: "AIzaSyDhQ3DSg_AgZ-sK94usMkh54s0CJ8BFcK0",
-    authDomain: "mygame-d583f-e218b.firebaseapp.com",
-    databaseURL: "https://mygame-d583f-e218b-default-rtdb.firebaseio.com",
-    projectId: "mygame-d583f-e218b",
-    storageBucket: "mygame-d583f-e218b.appspot.com",
-    messagingSenderId: "112750475090",
-    appId: "1:112750475090:web:fd177e17163f6face62c8b"
-  };
-
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-
-  let score = 0;
-  let timeLeft = 10;
-  let gameStarted = false;
-
-  const button = document.getElementById('clickBtn');
-  const scoreDisplay = document.getElementById('score');
-  const leaderboard = document.getElementById('leaderboard');
-  const timerDisplay = document.getElementById('timer');
-  const playerNameInput = document.getElementById('playerName');
-
-  button.addEventListener('click', () => {
-    if (!gameStarted) {
-      startGame();
-    }
-    if (timeLeft > 0) {
-      score += 1;
-      scoreDisplay.textContent = "スコア: " + score;
-    }
-  });
-
-  function startGame() {
-    const name = playerNameInput.value.trim();
-    if (!name) { alert("名前を入力してね！"); return; }
-
-    gameStarted = true;
-    const countdown = setInterval(() => {
-      timeLeft -= 1;
-      timerDisplay.textContent = "残り時間: " + timeLeft + " 秒";
-      if (timeLeft <= 0) {
-        clearInterval(countdown);
-        button.disabled = true;
-        timerDisplay.textContent = "ゲーム終了！";
-        // スコアをFirebaseに保存
-        db.ref('scores/' + playerNameInput.value.trim()).set(score);
-      }
-    }, 1000);
+  /* カウントダウンのオーバーレイ */
+  .overlay {
+    position:absolute; inset:0; display:none; place-items:center; background: rgba(0,0,0,.5);
+    border-radius:24px; z-index: 10;
+  }
+  .overlay.show { display:grid; }
+  .count {
+    font-size: clamp(48px, 12vw, 120px); font-weight: 900; color: #fff; text-shadow: 0 6px 24px rgba(0,0,0,.6);
   }
 
-  // ランキング更新
-  db.ref('scores').on('value', snapshot => {
-    const data = snapshot.val();
-    if (!data) { leaderboard.innerHTML = "まだスコアがありません"; return; }
+  /* ランキングモーダル */
+  .modal { position: fixed; inset: 0; display: none; place-items: center; background: rgba(5,7,12,.66); padding: 20px; z-index: 50; }
+  .modal.open { display: grid; }
+  .sheet { width: min(560px, 100%); background: var(--card); border-radius: 16px; padding: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+  .sheet h2 { margin: 0 0 8px; }
+  .ranklist { margin: 12px 0 0; padding: 0; list-style: none; max-height: 60vh; overflow: auto; }
+  .ranklist li { display:flex; justify-content: space-between; align-items: baseline; padding: 10px 12px; border-radius: 10px; }
+  .ranklist li.me { background: rgba(93,214,255,.12); }
+  .sheet .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+  a.mode-link { color: var(--accent); text-decoration: none; font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>10秒連打チャレンジ</h1>
+      <p>開始→<strong>3秒カウントダウン</strong>→STARTで10秒計測。ゾーン全体が当たり判定。</p>
+    </header>
 
-    const sorted = Object.entries(data).sort((a,b) => b[1] - a[1]);
-    leaderboard.innerHTML = sorted.map(([name, sc]) => `${name}: ${sc}`).join("<br>");
+    <div class="hud">
+      <div class="card"><span class="label">スコア</span><span id="score" class="value" aria-live="polite">0</span></div>
+      <div class="card"><span class="label">残り</span><span id="left" class="value" aria-live="polite">10.00</span></div>
+    </div>
+
+    <div id="zone" class="bigzone" role="button" aria-label="ここを連打！">
+      <div class="tap-btn"><span>ここを連打！</span></div>
+
+      <div id="ovl" class="overlay"><div id="cnt" class="count">3</div></div>
+    </div>
+
+    <div class="controls">
+      <button id="start" class="btn accent">開始</button>
+      <button id="stop" class="btn" disabled>強制終了</button>
+      <a href="./index.html" class="btn">通常モードへ</a>
+    </div>
+  </div>
+
+  <!-- ランキングモーダル -->
+  <div id="modal" class="modal" aria-modal="true" role="dialog">
+    <div class="sheet">
+      <h2>ランキング（10秒）</h2>
+      <ol id="rank" class="ranklist"></ol>
+      <div class="actions">
+        <a class="mode-link" href="./index.html">通常モードを見る</a>
+        <button id="close" class="btn accent">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const el = {
+    zone: document.getElementById('zone'),
+    score: document.getElementById('score'),
+    left: document.getElementById('left'),
+    start: document.getElementById('start'),
+    stop: document.getElementById('stop'),
+    ovl: document.getElementById('ovl'),
+    cnt: document.getElementById('cnt'),
+    modal: document.getElementById('modal'),
+    rank: document.getElementById('rank'),
+    close: document.getElementById('close'),
+  };
+
+  let status = 'idle'; // idle | countdown | playing | ended
+  let score = 0;
+  let startAt = 0, endAt = 0, rafId = 0, lastFrame = -1;
+
+  const KEY = 'rank_10s';
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
+  const saveScore = (v) => {
+    const list = load();
+    const me = { v, t: Date.now() };
+    list.push(me);
+    list.sort((a,b)=> b.v - a.v);
+    localStorage.setItem(KEY, JSON.stringify(list.slice(0,10)));
+    return me;
+  };
+  const fmt = (ts) => new Date(ts).toLocaleString();
+
+  function renderRank(me) {
+    const list = load();
+    el.rank.innerHTML = list.map((r,i) => {
+      const mine = (me && r.t === me.t && r.v === me.v);
+      return `<li class="${mine ? 'me':''}"><div>${i+1}. <strong>${r.v}</strong> 回</div><small>${fmt(r.t)}</small></li>`;
+    }).join('');
+  }
+  function openModal(me) {
+    renderRank(me);
+    el.modal.classList.add('open');
+  }
+
+  function setLeft(ms) {
+    el.left.textContent = (Math.max(0, ms) / 1000).toFixed(2);
+  }
+
+  function setState(s) {
+    status = s;
+    el.start.disabled = (s !== 'idle' && s !== 'ended');
+    el.stop.disabled  = (s !== 'playing' && s !== 'countdown');
+  }
+
+  async function countdown3() {
+    setState('countdown');
+    el.ovl.classList.add('show');
+    for (const n of [3,2,1]) {
+      el.cnt.textContent = String(n);
+      await new Promise(r => setTimeout(r, 800)); // 0.8秒表示
+      el.cnt.textContent = ''; await new Promise(r => setTimeout(r, 200)); // 0.2秒消し
+    }
+    el.cnt.textContent = 'START!';
+    await new Promise(r => setTimeout(r, 400));
+    el.ovl.classList.remove('show');
+  }
+
+  function startGame() {
+    score = 0;
+    el.score.textContent = '0';
+    lastFrame = -1;
+    startAt = performance.now();
+    endAt = startAt + 10_000;
+    setState('playing');
+    tick();
+  }
+
+  function tick(now = performance.now()) {
+    const remain = endAt - now;
+    setLeft(remain);
+    if (remain <= 0) { finishGame(); return; }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function finishGame() {
+    cancelAnimationFrame(rafId);
+    setLeft(0);
+    setState('ended');
+    const me = saveScore(score);
+    openModal(me);
+  }
+
+  // 超デカ当たり判定（ゾーン全体）・Pointer Events一本化
+  el.zone.addEventListener('pointerdown', () => {
+    if (status !== 'playing') return;
+    el.zone.classList.add('active');
+    const frame = Math.floor(performance.now() / 16.6667);
+    if (frame === lastFrame) return; // 1フレーム1カウント
+    lastFrame = frame;
+    score++;
+    el.score.textContent = String(score);
   });
-</script>
+  el.zone.addEventListener('pointerup',    () => el.zone.classList.remove('active'));
+  el.zone.addEventListener('pointercancel',() => el.zone.classList.remove('active'));
+  el.zone.addEventListener('pointerleave', () => el.zone.classList.remove('active'));
 
+  el.start.addEventListener('click', async () => {
+    if (status === 'playing' || status === 'countdown') return;
+    setState('countdown');
+    setLeft(10_000);
+    await countdown3();
+    startGame();
+  });
+  el.stop.addEventListener('click', () => {
+    if (status === 'playing' || status === 'countdown') finishGame();
+  });
+  el.close.addEventListener('click', () => el.modal.classList.remove('open'));
+
+  setState('idle');
+})();
+</script>
 </body>
 </html>
+
+

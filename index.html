@@ -1,226 +1,292 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<title>連打ゲーム（通常）</title>
+<meta charset="UTF-8" />
+<meta name="viewport"
+  content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>江戸カードで町づくり！（ブラウザ版・年表拡張）</title>
 <style>
-  :root { --bg:#0f1220; --fg:#fff; --accent:#5dd6ff; --card:#171b30; --muted:#9aa3b2; }
-  * { -webkit-tap-highlight-color: rgba(0,0,0,0); }
-  html, body { height:100%; -webkit-text-size-adjust:100%; overscroll-beavior:none; }
-  body {
-    margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
-    color:var(--fg); background:radial-gradient(1200px 800px at 50% -10%, #1b2040, var(--bg));
-    display:grid; place-items:center; padding:16px;
+  :root{
+    --edo-yellow:#FCD34D; --edo-info:#FFF8DC; --edo-border:#999;
+    --bg:#FFF6E3; --shadow:rgba(0,0,0,.12); --ink:#222; --adbg:#f1f1f1;
   }
-  body.lock { position:fixed; inset:0; width:100%; height:100%; overflow:hidden; -webkit-overflow-scrolling:auto; }
-  .wrap { width:min(720px,100%); }
-  header { text-align:center; margin-bottom:12px; }
-  header h1 { margin:0 0 8px; font-size:clamp(20px,4vw,28px); }
-  header p { margin:0; color:var(--muted); }
-  .topbar { display:grid; grid-template-columns:1fr; gap:8px; margin-top:8px; }
-  .namebox { background:var(--card); border-radius:12px; padding:10px 12px; display:flex; gap:8px; align-items:center; }
-  .namebox label { color:var(--muted); font-size:14px; }
-  .namebox input { flex:1; border:0; outline:none; background:#0f1426; color:#e9f4ff; border-radius:8px; padding:10px 12px; }
-  .hud { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0; }
-  .card { background:var(--card); border-radius:16px; padding:12px 16px; display:flex; align-items:center; justify-content:center; min-height:58px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
-  .label { color:var(--muted); margin-right:8px; }
-  .value { font-size:clamp(20px,6vw,36px); font-weight:700; letter-spacing:.5px; }
-  .bigzone {
-    position:relative; display:grid; place-items:center; width:100%; height:clamp(300px,68vh,620px);
-    background:#111626; border-radius:24px; user-select:none; touch-action:none;
-    box-shadow:inset 0 0 0 2px rgba(93,214,255,.15), 0 20px 50px rgba(0,0,0,.45);
-  }
-  .tap-btn { pointer-events:none; width:min(70vw,420px); height:min(70vw,420px); border-radius:9999px;
-    background:linear-gradient(180deg,#2a315a,#1b2147); display:grid; place-items:center;
-    box-shadow:0 16px 40px rgba(0,0,0,.5), inset 0 0 0 6px rgba(93,214,255,.25);
-    transform:translateZ(0); transition:transform .06s ease; }
-  .tap-btn span { font-size:clamp(20px,6vw,36px); font-weight:800; letter-spacing:.08em; color:var(--accent); }
-  .bigzone.active .tap-btn { transform:scale(.98); }
-  .controls { display:flex; gap:8px; margin:12px 0 0; flex-wrap:wrap; }
-  .btn { appearance:none; border:0; border-radius:12px; padding:12px 16px; font-weight:700; background:#283056; color:#e9f4ff; cursor:pointer; text-decoration:none; }
-  .btn.accent { background:#2b9ed0; }
-  .btn:disabled { opacity:.5; cursor:not-allowed; }
-  .note { color:var(--muted); font-size:12px; margin-top:6px; }
-
-  .modal { position:fixed; inset:0; display:none; place-items:center; background:rgba(5,7,12,.66); padding:20px; z-index:50; }
-  .modal.open { display:grid; }
-  .sheet { width:min(560px,100%); background:var(--card); border-radius:16px; padding:16px; box-shadow:0 20px 60px rgba(0,0,0,.6); }
-  .sheet h2 { margin:0 0 8px; }
-  .ranklist { margin:12px 0 0; padding:0; list-style:none; max-height:60vh; overflow:auto; }
-  .ranklist li { display:flex; justify-content:space-between; align-items:baseline; padding:10px 12px; border-radius:10px; }
-  .ranklist li.me { background:rgba(93,214,255,.12); }
-  .sheet .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
-  a.mode-link { color:var(--accent); font-weight:700; }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+      "Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;}
+  .wrap{display:flex;flex-direction:column;min-height:100svh;}
+  header{position:sticky;top:0;z-index:3;background:var(--edo-yellow);
+    padding:10px 12px;display:flex;gap:8px;align-items:center;justify-content:space-between;
+    box-shadow:0 1px 4px var(--shadow);}
+  header h1{font-size:18px;margin:0;font-weight:700}
+  header .controls{display:flex;gap:8px}
+  header button, header select{border:0;border-radius:10px;background:#fff;padding:6px 12px;
+    font-weight:700;box-shadow:0 1px 3px var(--shadow);cursor:pointer}
+  #info{padding:10px;background:var(--edo-info);border-bottom:1px solid #ccc;
+    font-size:15px;min-height:40px}
+  #town{position:relative;width:100%;height:44vh;min-height:260px;background:#fff;
+    border-top:2px solid var(--edo-border);border-bottom:2px solid var(--edo-border);
+    overflow:hidden}
+  #cards{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:10px}
+  .card{width:28vw;max-width:110px;min-width:86px;height:120px;border-radius:12px;background:#ddd;
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;
+    cursor:pointer;box-shadow:0 2px 6px var(--shadow);user-select:none;text-align:center;padding:6px}
+  .card.done{background:#cdeccd; color:#1a5e1a}
+  .building{position:absolute;font-size:34px;opacity:0;transform:scale(.8);
+    transition:opacity .7s, transform .7s}
+  .show{opacity:1;transform:scale(1.2)}
+  .villager{position:absolute;font-size:20px;animation:walk 8s linear infinite}
+  @keyframes walk{0%{left:2%}50%{left:90%}100%{left:2%}}
+  #zukanPanel{position:fixed;inset:0 0 auto 0;height:72%;top:-100%;background:#fff;
+    border-bottom:3px solid #333;box-shadow:0 4px 16px var(--shadow);
+    transition:top .45s ease;z-index:5;overflow:auto}
+  #zukanPanel.active{top:0}
+  #zukanHead{position:sticky;top:0;background:#fff;padding:10px;border-bottom:1px solid #eee;
+    display:flex;align-items:center;gap:8px}
+  #zukanHead h2{margin:0;font-size:18px}
+  #closeZukan{margin-left:auto;border:0;background:#eee;border-radius:8px;padding:6px 12px;cursor:pointer}
+  .zukanSec{padding:10px}
+  .zukanSec h3{margin:8px 0}
+  .zCard{display:inline-flex;align-items:center;justify-content:center;width:96px;height:116px;margin:4px;
+    border:1px solid #ccc;border-radius:8px;box-shadow:0 1px 3px var(--shadow);white-space:pre-line;text-align:center;padding:6px}
+  .locked{background:#eee;color:#999}
+  #completeMsg{font-size:18px;font-weight:800;color:green;text-align:center;padding:10px}
+  .petal{position:fixed;top:-10px;font-size:20px;animation:fall linear forwards;pointer-events:none}
+  @keyframes fall{to{transform:translateY(110vh) rotate(360deg);opacity:0}}
+  .adbar{position:sticky;bottom:0;background:var(--adbg);border-top:1px solid #ddd;
+    padding:4px 8px; display:flex; justify-content:center; align-items:center; min-height:52px}
+  .adslot{width:100%; max-width:728px; height:50px; background:
+    repeating-linear-gradient(45deg,#eee,#eee 8px,#e2e2e2 8px,#e2e2e2 16px);
+    border:1px dashed #bbb;border-radius:8px; display:flex; align-items:center; justify-content:center;
+    font-size:12px; color:#666}
+  footer{height:8px}
+  .landscapeWarn{position:fixed;inset:0;background:rgba(0,0,0,.65);color:#fff;display:none;
+    align-items:center;justify-content:center;z-index:20;text-align:center;padding:20px}
+  @media (orientation:landscape){ .landscapeWarn{display:flex} }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>連打ゲーム（通常）</h1>
-      <p>スマホ縦＆PC対応。大きい当たり判定でサクサク！</p>
-    </header>
-
-    <div class="topbar">
-      <div class="namebox">
-        <label for="nick">ニックネーム</label>
-        <input id="nick" type="text" placeholder="例）しろながす" maxlength="20" />
-      </div>
-      <div class="note">※ ランキングはオンラインで共有（同じ名前でも何件でも残る）</div>
-    </div>
-
-    <div class="hud">
-      <div class="card"><span class="label">スコア</span><span id="score" class="value" aria-live="polite">0</span></div>
-      <div class="card"><span class="label">状態</span><span id="state" class="value" aria-live="polite">待機中</span></div>
-    </div>
-
-    <div id="zone" class="bigzone" role="button" aria-label="ここを連打！">
-      <div class="tap-btn"><span>ここを連打！</span></div>
-    </div>
-
+<div class="wrap" role="application" aria-label="江戸カードで町づくり（年表拡張）">
+  <header>
+    <h1>江戸カードで町づくり！</h1>
     <div class="controls">
-      <button id="start" class="btn accent">開始</button>
-      <button id="stop" class="btn" disabled>終了</button>
-      <button id="viewRank" class="btn">ランキングを見る</button>
-      <a href="./10second.html" class="btn">10秒チャレンジへ</a>
-      <a href="./rankings.html" class="btn">ランキング一覧</a>
+      <select id="chapterFilter" title="章をえらぶ">
+        <option value="ALL">章：ぜんぶ</option>
+        <option value="初期">章：初期（1603〜）</option>
+        <option value="中期">章：中期</option>
+        <option value="幕末">章：幕末</option>
+      </select>
+      <button id="zukanBtn" aria-controls="zukanPanel" aria-expanded="false">図鑑</button>
     </div>
-  </div>
+  </header>
 
-  <div id="modal" class="modal" aria-modal="true" role="dialog">
-    <div class="sheet">
-      <h2>ランキング（通常）</h2>
-      <ol id="rank" class="ranklist"></ol>
-      <div class="actions">
-        <a class="mode-link" href="./10second.html">10秒チャレンジを見る</a>
-        <button id="close" class="btn accent">閉じる</button>
-      </div>
+  <div id="info">カードをめくって江戸の町を発展させよう！</div>
+  <div id="town" role="img" aria-label="江戸の町エリア"></div>
+
+  <!-- カードはJSで自動生成 -->
+  <div id="cards" aria-label="カードエリア"></div>
+
+  <section id="zukanPanel" aria-hidden="true">
+    <div id="zukanHead">
+      <h2>江戸カード図鑑（章ごと）</h2>
+      <button id="closeZukan" aria-label="図鑑をとじる">とじる</button>
     </div>
+    <div id="zukanList"></div>
+    <div id="completeMsg"></div>
+  </section>
+
+  <div class="adbar" aria-label="広告枠">
+    <div class="adslot">広告スペース（公開時に AdSense コードへ差し替え）</div>
   </div>
+  <footer aria-hidden="true"></footer>
+</div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getDatabase, ref, push, query, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+<div class="landscapeWarn">縦向きで遊んでね🔄</div>
 
-const firebaseConfig = {
-  apiKey:"AIzaSyDhQ3DSg_AgZ-sK94usMkh54s0CJ8BFcK0",
-  authDomain:"mygame-d583f-e218b.firebaseapp.com",
-  databaseURL:"https://mygame-d583f-e218b-default-rtdb.firebaseio.com",
-  projectId:"mygame-d583f-e218b",
-  storageBucket:"mygame-d583f-e218b.firebasestorage.app",
-  messagingSenderId:"112750475090",
-  appId:"1:112750475090:web:fd177e17163f6face62c8b",
-  measurementId:"G-CJLL8YF042"
-};
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getDatabase(app);
-signInAnonymously(auth).catch(console.error);
-
-/* iOS揺れ/ズーム対策（プレイ中のみ） */
-const isIOS = (() => {
-  const ua = navigator.userAgent || '';
-  return /iP(ad|hone|od)/.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
-})();
-let iosTearDown=null;
-function iosScrollZoomGuard(enable){
-  if(!isIOS) return;
-  if(!enable && iosTearDown){ iosTearDown(); iosTearDown=null; return; }
-  if(!enable||iosTearDown) return;
-  const onGestureStart=e=>e.preventDefault();
-  const onTouchMove =e=>{ if(e.touches&&e.touches.length<2) e.preventDefault(); };
-  let lastEnd=0; const onTouchEnd=e=>{ const n=Date.now(); if(n-lastEnd<350) e.preventDefault(); lastEnd=n; };
-  const onWheel=e=>e.preventDefault();
-  document.addEventListener('gesturestart', onGestureStart, {passive:false});
-  document.addEventListener('touchmove',    onTouchMove,    {passive:false});
-  document.addEventListener('touchend',     onTouchEnd,     {passive:false});
-  document.addEventListener('wheel',        onWheel,        {passive:false});
-  iosTearDown=()=> {
-    document.removeEventListener('gesturestart', onGestureStart, {passive:false});
-    document.removeEventListener('touchmove',    onTouchMove,    {passive:false});
-    document.removeEventListener('touchend',     onTouchEnd,     {passive:false});
-    document.removeEventListener('wheel',        onWheel,        {passive:false});
+<script>
+  // 江戸の出来事（年・要約・アイコン）— 小学生向けに簡潔化
+  // 出典は文末に記載。本文は要約・言い換えで、直接の引用はしていません。
+  const chapters = {
+    "初期": {
+      "1603 江戸幕府がはじまる": { text: "家康が将軍になり、江戸で国の中心が動き出す。", icon: "🏯", year: 1603 },
+      "1615 大坂の陣": { text: "大きなたたかいが終わり、豊臣の時代に幕。", icon: "⚔️", year: 1615 },
+      "1635 参勤交代": { text: "大名は国と江戸を行き来するきまりに。", icon: "🚶", year: 1635 },
+      "1637 島原・天草の乱": { text: "九州で大きな一揆が起きる。", icon: "🔥", year: 1637 },
+      "1639 ポルトガル船の来航禁止": { text: "外国船の出入りをしめて、交流をせいげん。", icon: "⛵", year: 1639 },
+      "1641 出島での貿易": { text: "オランダ商館が長崎の出島へ。", icon: "🏝️", year: 1641 },
+      "1657 明暦の大火": { text: "江戸の町が大火事。町づくりを立て直す。", icon: "🔥", year: 1657 },
+      "1657 新吉原へ移転": { text: "遊郭が浅草千束の新しい場所へ。", icon: "🏮", year: 1657 }
+    },
+    "中期": {
+      "1688 元禄文化がさかえる": { text: "町人の文化が花ひらく。歌舞伎や浮世絵が人気。", icon: "🎭", year: 1688 },
+      "1716 享保の改革": { text: "吉宗がくらしと財政を立て直す工夫をはじめる。", icon: "📜", year: 1716 },
+      "1720 洋書をとりいれる": { text: "海外の学びが広がり、知識がふえる。", icon: "📚", year: 1720 },
+      "1720 町火消のしくみ": { text: "火事にそなえる町人の組ができる。", icon: "🚒", year: 1720 },
+      "1730 物のながれを整える": { text: "商いのきまりをととのえ、町を元気に。", icon: "🧺", year: 1730 },
+      "1775 田沼の時代": { text: "商いを活かす政治でお金の流れをよくする試み。", icon: "💹", year: 1775 },
+      "1783 天明のききん": { text: "寒さや不作で食べ物がたりなくなる。", icon: "🌾", year: 1783 }
+    },
+    "幕末": {
+      "1787 寛政の改革": { text: "くらしをひきしめ、教育も大切にする方針。", icon: "📝", year: 1787 },
+      "1825 異国船打払令": { text: "近づく外国船を追いはらうきまり。", icon: "📣", year: 1825 },
+      "1837 大塩平八郎の乱": { text: "大阪で人びとの苦しさが爆発。", icon: "⚠️", year: 1837 },
+      "1841 天保の改革": { text: "町の決まりを見直し、ぜいたくをおさえる。", icon: "📏", year: 1841 },
+      "1853 黒船が来る": { text: "アメリカの船が浦賀に来航。", icon: "⛴️", year: 1853 },
+      "1854 和親条約": { text: "日本は港を開き、交流をはじめる。", icon: "🤝", year: 1854 },
+      "1858 安政の条約": { text: "いくつかの国とむすび、貿易が広がる。", icon: "🌐", year: 1858 },
+      "1858 安政の大獄": { text: "意見のちがいで多くの人が処罰される。", icon: "⚖️", year: 1858 },
+      "1860 桜田門外の変": { text: "政治の対立が事件に。", icon: "🗡️", year: 1860 },
+      "1867 大政奉還": { text: "政（まつりごと）を朝廷にお返し。", icon: "🗝️", year: 1867 },
+      "1868 明治へ": { text: "新しい時代のスタート！", icon: "🌸", year: 1868 }
+    }
   };
-}
 
-/* DOM */
-const el = {
-  zone:document.getElementById('zone'),
-  score:document.getElementById('score'),
-  state:document.getElementById('state'),
-  start:document.getElementById('start'),
-  stop:document.getElementById('stop'),
-  view:document.getElementById('viewRank'),
-  modal:document.getElementById('modal'),
-  rank:document.getElementById('rank'),
-  close:document.getElementById('close'),
-  nick:document.getElementById('nick'),
-};
-function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+  const infoBox = document.getElementById("info");
+  const town = document.getElementById("town");
+  const zukanPanel = document.getElementById("zukanPanel");
+  const zukanList = document.getElementById("zukanList");
+  const completeMsg = document.getElementById("completeMsg");
+  const zukanBtn = document.getElementById("zukanBtn");
+  const closeZukan = document.getElementById("closeZukan");
+  const chapterFilter = document.getElementById("chapterFilter");
 
-const NICK_KEY='nickname';
-const saved=(localStorage.getItem(NICK_KEY)||'').trim();
-el.nick.value = saved || 'しろながす';
-el.nick.addEventListener('change', ()=> localStorage.setItem(NICK_KEY, el.nick.value.trim()) );
+  const LS_KEY = "edoTown_cards_v2";
+  const gotCards = {};
+  try { Object.assign(gotCards, JSON.parse(localStorage.getItem(LS_KEY) || "{}")); } catch(e){}
 
-/* オンラインランキング（push保存） */
-const MODE='free';
-async function submitScore(v,n){
-  const payload = { v, n:(n||'匿名').slice(0,20), t:Date.now(), ua:(navigator.userAgent||'').slice(0,80) };
-  const res = await push(ref(db,`leaderboard/${MODE}`), payload);
-  return { id:res.key, ...payload };
-}
-async function fetchTop(top=10){
-  const q=query(ref(db,`leaderboard/${MODE}`), orderByChild('v'), limitToLast(top));
-  const snap=await get(q); const arr=[]; snap.forEach(ch=>arr.push({id:ch.key, ...ch.val()}));
-  arr.sort((a,b)=>b.v-a.v); return arr;
-}
-async function renderRank(me){
-  const list=await fetchTop(10);
-  el.rank.innerHTML = list.map((r,i)=>`<li class="${me&&me.id===r.id?'me':''}">
-    <div>${i+1}. <strong>${r.v}</strong> 回 <small>（${escapeHtml(r.n||'匿名')}）</small></div>
-    <small>${new Date(r.t).toLocaleString()}</small>
-  </li>`).join('') || `<li class="row"><div>該当データなし</div></li>`;
-}
-function openModal(me){ renderRank(me); el.modal.classList.add('open'); }
+  // 追加：章フィルタでカードを動的生成
+  function buildCards(){
+    const wrap = document.getElementById("cards");
+    wrap.innerHTML = "";
+    const sel = chapterFilter.value;
+    Object.keys(chapters).forEach(ch=>{
+      if(sel!=="ALL" && sel!==ch) return;
+      for(const name in chapters[ch]){
+        const el = document.createElement("div");
+        el.className = "card";
+        el.dataset.card = name;
+        if(gotCards[name]) { el.textContent = name; el.classList.add("done"); }
+        else { el.textContent = "？\n"+name.split(" ")[0]; } // 先頭の年をヒント表示
+        el.addEventListener("click", ()=>onCardClick(el, name, ch));
+        wrap.appendChild(el);
+      }
+    });
+  }
 
-/* ゲーム本体 */
-let status='idle', score=0, lastFrame=-1;
-function setState(s){
-  status=s;
-  if(s==='playing'){ document.body.classList.add('lock'); iosScrollZoomGuard(true); }
-  else { document.body.classList.remove('lock'); iosScrollZoomGuard(false); }
-  el.state.textContent = s==='idle'?'待機中':s==='playing'?'プレイ中':'終了';
-  el.start.disabled=(s!=='idle'); el.stop.disabled=(s!=='playing');
-}
-function startGame(){
-  score=0; el.score.textContent='0'; lastFrame=-1;
-  const name=(el.nick.value.trim()||'匿名'); localStorage.setItem(NICK_KEY,name);
-  setState('playing');
-}
-async function finishGame(){
-  setState('ended');
-  const me=await submitScore(score, el.nick.value.trim()||'匿名');
-  openModal(me);
-}
-/* 入力（ゾーン全面） */
-el.zone.addEventListener('pointerdown', e=>{
-  if(status!=='playing') return; e.preventDefault();
-  el.zone.classList.add('active');
-  const frame=Math.floor(performance.now()/16.6667);
-  if(frame===lastFrame) return; lastFrame=frame;
-  score++; el.score.textContent=String(score);
-});
-['pointerup','pointercancel','pointerleave'].forEach(ev=> el.zone.addEventListener(ev, ()=>el.zone.classList.remove('active')));
+  function onCardClick(card, name, ch){
+    if(card.textContent !== "？\n"+name.split(" ")[0]) return;
+    const data = chapters[ch][name];
+    card.textContent = name;
+    card.classList.add("done");
+    infoBox.textContent = data.text;
 
-el.start.addEventListener('click', startGame);
-el.stop .addEventListener('click', finishGame);
-el.view .addEventListener('click', ()=> openModal(null));
-el.close.addEventListener('click', ()=> el.modal.classList.remove('open'));
+    const b = document.createElement("div");
+    b.className = "building";
+    b.textContent = data.icon;
+    b.style.left = (Math.random()*80 + 5) + "%";
+    b.style.top = (Math.random()*70 + 5) + "%";
+    town.appendChild(b);
+    setTimeout(()=>b.classList.add("show"),50);
 
-onAuthStateChanged(auth, async ()=>{ await renderRank(null); });
-setState('idle');
+    const v = document.createElement("div");
+    v.className = "villager";
+    v.textContent = Math.random()>0.5 ? "😊" : "👘";
+    v.style.top = Math.floor(Math.random()* (town.clientHeight-40)) + "px";
+    town.appendChild(v);
+
+    gotCards[name] = true;
+    persist();
+    renderZukan();
+  }
+
+  function persist(){ try { localStorage.setItem(LS_KEY, JSON.stringify(gotCards)); } catch(e){} }
+
+  // 図鑑描画
+  function renderZukan(){
+    zukanList.innerHTML = "";
+    let allComplete = true;
+    for(const ch in chapters){
+      const section = document.createElement("div");
+      section.className = "zukanSec";
+      section.innerHTML = `<h3>${ch}</h3>`;
+      for(const name in chapters[ch]){
+        const div = document.createElement("div");
+        div.className = "zCard";
+        if(gotCards[name]){
+          const item = chapters[ch][name];
+          div.textContent = `${item.icon}\n${name}`;
+          div.style.lineHeight = "normal";
+        }else{
+          div.textContent = "？？？";
+          div.classList.add("locked");
+          allComplete = false;
+        }
+        section.appendChild(div);
+      }
+      zukanList.appendChild(section);
+    }
+    if(allComplete){
+      completeMsg.textContent = "🎉 江戸コンプリート！おめでとう！ 🎉";
+      launchPetals();
+    }else{
+      completeMsg.textContent = "";
+    }
+  }
+
+  function launchPetals(){
+    for(let i=0;i<24;i++){
+      const p=document.createElement("div");
+      p.className="petal";
+      p.textContent="🌸";
+      p.style.left = Math.random()*100 + "vw";
+      p.style.animationDuration = (3 + Math.random()*3) + "s";
+      document.body.appendChild(p);
+      setTimeout(()=>p.remove(), 7000);
+    }
+  }
+
+  zukanBtn.addEventListener("click", ()=>{
+    const active = !zukanPanel.classList.contains("active");
+    zukanPanel.classList.toggle("active");
+    zukanPanel.setAttribute("aria-hidden", active ? "false" : "true");
+    zukanBtn.setAttribute("aria-expanded", String(active));
+  });
+  closeZukan.addEventListener("click", ()=>{
+    zukanPanel.classList.remove("active");
+    zukanPanel.setAttribute("aria-hidden","true");
+    zukanBtn.setAttribute("aria-expanded","false");
+  });
+  chapterFilter.addEventListener("change", buildCards);
+
+  // 初期描画（保存済みを町に再配置）
+  buildCards();
+  renderZukan();
+  for(const ch in chapters){
+    for(const name in chapters[ch]){
+      if(!gotCards[name]) continue;
+      const item = chapters[ch][name];
+      const b = document.createElement("div");
+      b.className = "building show";
+      b.textContent = item.icon;
+      b.style.left = (Math.random()*80 + 5) + "%";
+      b.style.top = (Math.random()*70 + 5) + "%";
+      town.appendChild(b);
+      const v = document.createElement("div");
+      v.className = "villager";
+      v.textContent = Math.random()>0.5 ? "😊" : "👘";
+      v.style.top = Math.floor(Math.random()* (town.clientHeight-40)) + "px";
+      town.appendChild(v);
+    }
+  }
 </script>
+
+<!-- （任意）公開時はここを本物の AdSense に差し替え -->
+<!--
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-xxxxxxxxxxxxxxxx" crossorigin="anonymous"></script>
+<ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-xxxxxxxxxxxxxxxx" data-ad-slot="9999999999" data-ad-format="auto" data-full-width-responsive="true"></ins>
+<script>(adsbygoogle=window.adsbygoogle||[]).push({});</script>
+-->
 </body>
 </html>
+

@@ -2,24 +2,21 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport"
-  content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>ランキング一覧</title>
 <style>
   :root { --bg:#0f1220; --fg:#fff; --accent:#5dd6ff; --card:#171b30; --muted:#9aa3b2; }
   * { -webkit-tap-highlight-color: rgba(0,0,0,0); }
   html, body { height:100%; -webkit-text-size-adjust:100%; }
-  body {
-    margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
     color:var(--fg); background:radial-gradient(1200px 800px at 50% -10%, #1b2040, var(--bg));
-    display:grid; place-items:center; padding:16px;
-  }
+    display:grid; place-items:center; padding:16px; }
   .wrap { width:min(820px,100%); }
   header { text-align:center; margin-bottom:14px; }
   header h1 { margin:0 0 6px; font-size:clamp(22px,4.5vw,30px); }
   header p { margin:0; color:var(--muted); }
   nav { display:flex; gap:8px; margin:14px 0; flex-wrap:wrap; }
-  .btn { appearance:none; border:0; border-radius:12px; padding:10px 14px; font-weight:700; background:#283056; color:#e9f4ff; cursor:pointer; text-decoration:none; }
+  .btn { border:0; border-radius:12px; padding:10px 14px; font-weight:700; background:#283056; color:#e9f4ff; cursor:pointer; text-decoration:none; }
   .btn.accent { background:#2b9ed0; }
   .panel { background:var(--card); border-radius:16px; padding:12px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
   .tabs { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
@@ -35,14 +32,13 @@
   .muted { color:var(--muted); }
   .inputs { display:flex; gap:8px; margin:10px 0 0; flex-wrap:wrap; }
   .inputs input { border:0; outline:none; background:#0f1426; color:#e9f4ff; border-radius:8px; padding:8px 10px; width:100px; }
-  .help { color:var(--muted); font-size:12px; margin-top:6px; }
 </style>
 </head>
 <body>
   <div class="wrap">
     <header>
       <h1>ランキング一覧</h1>
-      <p>通常モード と 10秒チャレンジ のオンラインランキング</p>
+      <p>通常モード と 10秒チャレンジ のオンラインランキング（push保存対応）</p>
     </header>
 
     <nav>
@@ -65,35 +61,33 @@
       <ol id="list" class="ranklist"></ol>
 
       <div class="inputs">
-        <input id="limit" type="number" min="10" max="100" step="10" value="50" />
+        <input id="limit" type="number" min="10" max="200" step="10" value="50" />
         <button id="reload" class="btn accent">再読み込み</button>
       </div>
-      <div class="help">デフォルトは上位50件を表示。フィルターで「今日」「今週」に絞り込めます。</div>
     </div>
   </div>
 
 <script type="module">
-/* Firebase */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getDatabase, ref, query, orderByChild, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDhQ3DSg_AgZ-sK94usMkh54s0CJ8BFcK0",
-  authDomain: "mygame-d583f-e218b.firebaseapp.com",
-  databaseURL: "https://mygame-d583f-e218b-default-rtdb.firebaseio.com",
-  projectId: "mygame-d583f-e218b",
-  storageBucket: "mygame-d583f-e218b.firebasestorage.app",
-  messagingSenderId: "112750475090",
-  appId: "1:112750475090:web:fd177e17163f6face62c8b",
-  measurementId: "G-CJLL8YF042"
+  apiKey:"AIzaSyDhQ3DSg_AgZ-sK94usMkh54s0CJ8BFcK0",
+  authDomain:"mygame-d583f-e218b.firebaseapp.com",
+  databaseURL:"https://mygame-d583f-e218b-default-rtdb.firebaseio.com",
+  projectId:"mygame-d583f-e218b",
+  storageBucket:"mygame-d583f-e218b.firebasestorage.app",
+  messagingSenderId:"112750475090",
+  appId:"1:112750475090:web:fd177e17163f6face62c8b",
+  measurementId:"G-CJLL8YF042"
 };
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getDatabase(app);
-signInAnonymously(auth).catch(console.error);
+await signInAnonymously(auth).catch(console.error);
 
-/* DOM */
+/* DOM & state */
 const el = {
   tabFree: document.getElementById('tab-free'),
   tab10s:  document.getElementById('tab-10s'),
@@ -105,74 +99,63 @@ const el = {
   fWeek:   document.getElementById('f-week'),
 };
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+let mode='free'; // 'free' | '10s'
+let filter='all'; // all | today | week
 
-let mode = 'free'; // 'free' | '10s'
-let filter = 'all'; // all | today | week
-
+/* 取得：スコア順に上位N件（push保存想定） */
 async function fetchTop(mode, top=50) {
-  const q = query(ref(db, `leaderboard/${mode}`), orderByChild('v'), limitToLast(top*5)); // 多めに取得してからフィルタ
+  const q = query(ref(db, `leaderboard/${mode}`), orderByChild('v'), limitToLast(top*5)); // フィルタ用に多め
   const snap = await get(q);
-  const arr = [];
-  snap.forEach(ch => arr.push({ id: ch.key, ...ch.val() }));
-  arr.sort((a,b)=> b.v - a.v);
-  return arr;
+  const rows = [];
+  snap.forEach(ch => rows.push({ id: ch.key, ...ch.val() }));
+  rows.sort((a,b)=> b.v - a.v);
+  return rows;
 }
 
-// 時間フィルタ用
-function getTodayRange() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const end   = start + 24*60*60*1000;
-  return [start,end];
+/* フィルタ（今日/今週） */
+function dayRange(){
+  const now=new Date(); const s=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
+  return [s,s+86400000];
 }
-function getWeekRange() {
-  const now = new Date();
-  const day = now.getDay(); // 0=日
-  const diff = (day+6)%7;   // 月曜始まりにする
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate()-diff);
-  const start = monday.getTime();
-  const end   = start + 7*24*60*60*1000;
-  return [start,end];
+function weekRange(){
+  const now=new Date(); const d=now.getDay(); const diff=(d+6)%7; // 月曜始まり
+  const mon=new Date(now.getFullYear(),now.getMonth(),now.getDate()-diff).getTime();
+  return [mon, mon+7*86400000];
 }
-
-function applyFilter(list) {
-  if (filter==='today') {
-    const [s,e]=getTodayRange();
-    return list.filter(r => r.t>=s && r.t<e);
-  } else if (filter==='week') {
-    const [s,e]=getWeekRange();
-    return list.filter(r => r.t>=s && r.t<e);
-  }
+function applyFilter(list){
+  if(filter==='today'){ const [s,e]=dayRange(); return list.filter(r=>r.t>=s && r.t<e); }
+  if(filter==='week'){ const [s,e]=weekRange(); return list.filter(r=>r.t>=s && r.t<e); }
   return list;
 }
 
-function render(list) {
-  el.list.innerHTML = list.map((r,i)=> `
+/* UI */
+function setLoading(){ el.list.innerHTML = `<li class="row"><div>読み込み中…</div></li>`; }
+function render(list){
+  el.list.innerHTML = list.length ? list.map((r,i)=>`
     <li class="row">
       <div>${i+1}. <strong>${r.v}</strong> 回 <span class="muted">（${escapeHtml(r.n||'匿名')}）</span></div>
       <div class="muted">${new Date(r.t).toLocaleString()}</div>
-    </li>
-  `).join('') || `<li class="row"><div>該当データなし</div></li>`;
+    </li>`).join('') : `<li class="row"><div>該当データなし</div></li>`;
 }
-
-async function load() {
-  const top = Math.min(Math.max(parseInt(el.limit.value || '50', 10), 10), 100);
+async function load(){
+  setLoading();
+  const top = Math.min(Math.max(parseInt(el.limit.value||'50',10),10),200);
   let rows = await fetchTop(mode, top);
   rows = applyFilter(rows);
   rows = rows.slice(0, top);
   render(rows);
 }
-function setTab(newMode) {
-  mode = newMode;
-  el.tabFree.classList.toggle('active', mode==='free');
-  el.tab10s.classList.toggle('active',  mode==='10s');
+function setTab(m){
+  mode=m;
+  el.tabFree.classList.toggle('active', m==='free');
+  el.tab10s.classList.toggle('active', m==='10s');
   load();
 }
-function setFilter(newF) {
-  filter = newF;
-  el.fAll.classList.toggle('active', filter==='all');
-  el.fToday.classList.toggle('active', filter==='today');
-  el.fWeek.classList.toggle('active', filter==='week');
+function setFilter(f){
+  filter=f;
+  el.fAll.classList.toggle('active', f==='all');
+  el.fToday.classList.toggle('active', f==='today');
+  el.fWeek.classList.toggle('active', f==='week');
   load();
 }
 

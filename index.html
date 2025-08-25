@@ -1,155 +1,204 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>連打ゲーム</title>
-  <style>
-    body { text-align: center; font-family: sans-serif; margin: 0; padding: 0; }
-    h1 { font-size: 20px; }
-    button { font-size: 20px; padding: 10px 20px; margin: 10px; }
-    #game, #menu, #result { display: none; }
-    #score { font-size: 30px; margin: 20px 0; }
-    #timer { font-size: 18px; }
-    #leaderboard { margin-top: 20px; font-size: 14px; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>連打ゲーム</title>
+<style>
+  :root {
+    --bg: #0f1220;
+    --fg: #fff;
+    --accent: #5dd6ff;
+    --card: #171b30;
+    --muted: #9aa3b2;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+    color: var(--fg); background: radial-gradient(1200px 800px at 50% -10%, #1b2040, var(--bg));
+    display: grid; place-items: center; padding: 16px;
+  }
+  .wrap { width: min(680px, 100%); }
+  header { text-align:center; margin-bottom: 12px; }
+  header h1 { margin: 0 0 8px; font-size: clamp(20px, 4vw, 28px); }
+  header p { margin: 0; color: var(--muted); }
+
+  .hud {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 16px 0;
+  }
+  .card {
+    background: var(--card); border-radius: 16px; padding: 12px 16px;
+    display:flex; align-items:center; justify-content:center; min-height:58px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  .label { color: var(--muted); margin-right: 8px; }
+  .value { font-size: clamp(20px, 6vw, 36px); font-weight: 700; letter-spacing: .5px; }
+
+  .bigzone {
+    position: relative; display: grid; place-items: center;
+    width: 100%; height: clamp(280px, 65vh, 560px);
+    background: #111626; border-radius: 24px; user-select: none; touch-action: manipulation;
+    box-shadow: inset 0 0 0 2px rgba(93,214,255,.15), 0 20px 50px rgba(0,0,0,.45);
+  }
+  /* 超デカ当たり判定（実際はゾーン全体がカウント）＋視覚的なボタン */
+  .tap-btn {
+    pointer-events: none; /* カウントは親で取る */
+    width: min(70vw, 420px); height: min(70vw, 420px);
+    border-radius: 9999px; background: linear-gradient(180deg, #2a315a, #1b2147);
+    display: grid; place-items: center;
+    box-shadow: 0 16px 40px rgba(0,0,0,.5), inset 0 0 0 6px rgba(93,214,255,.25);
+    transform: translateZ(0); transition: transform .06s ease;
+  }
+  .tap-btn span { font-size: clamp(20px, 6vw, 36px); font-weight: 800; letter-spacing: .08em; color: var(--accent); }
+  .bigzone.active .tap-btn { transform: scale(0.98); }
+
+  .controls { display:flex; gap: 8px; margin: 12px 0 0; }
+  .btn {
+    appearance: none; border: 0; border-radius: 12px; padding: 12px 16px; font-weight: 700;
+    background: #283056; color: #e9f4ff; cursor: pointer;
+  }
+  .btn.accent { background: #2b9ed0; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* モーダル（ランキング） */
+  .modal {
+    position: fixed; inset: 0; display: none; place-items: center; background: rgba(5,7,12,.66);
+    padding: 20px; z-index: 50;
+  }
+  .modal.open { display: grid; }
+  .sheet {
+    width: min(560px, 100%); background: var(--card); border-radius: 16px; padding: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.6);
+  }
+  .sheet h2 { margin: 0 0 8px; }
+  .ranklist { margin: 12px 0 0; padding: 0; list-style: none; max-height: 60vh; overflow: auto; }
+  .ranklist li {
+    display:flex; justify-content: space-between; align-items: baseline; padding: 10px 12px; border-radius: 10px;
+  }
+  .ranklist li.me { background: rgba(93,214,255,.12); }
+  .ranklist small { color: var(--muted); }
+  .sheet .actions { display:flex; gap:8px; justify-content: flex-end; margin-top: 12px; }
+  a.mode-link { color: var(--accent); text-decoration: none; font-weight: 700; }
+</style>
 </head>
 <body>
+  <div class="wrap">
+    <header>
+      <h1>連打ゲーム（通常）</h1>
+      <p>スマホ縦＆PC対応。ゾーン全体が当たり判定（デカいよ）。</p>
+    </header>
 
-<!-- メニュー画面 -->
-<h1>モード選択</h1>
-<div id="menu">
-  <button onclick="startGame('normal')">通常モード</button>
-  <button onclick="startGame('10sec')">10秒チャレンジ</button>
-</div>
+    <div class="hud">
+      <div class="card"><span class="label">スコア</span><span id="score" class="value" aria-live="polite">0</span></div>
+      <div class="card"><span class="label">状態</span><span id="state" class="value" aria-live="polite">待機中</span></div>
+    </div>
 
-<!-- ゲーム画面 -->
-<div id="game">
-  <h1 id="modeTitle"></h1>
-  <input type="text" id="playerName" placeholder="名前を入力">
-  <br><br>
-  <button id="clickBtn">クリック！</button>
-  <div id="score">スコア: 0</div>
-  <div id="timer"></div>
-  <button onclick="endGame()">終了</button>
-</div>
+    <div id="zone" class="bigzone" role="button" aria-label="ここを連打！">
+      <div class="tap-btn"><span>ここを連打！</span></div>
+    </div>
 
-<!-- 結果画面 -->
-<div id="result">
-  <h2>ランキング</h2>
-  <div id="leaderboard">読み込み中...</div>
-  <button onclick="backToMenu()">メニューに戻る</button>
-</div>
+    <div class="controls">
+      <button id="start" class="btn accent">開始</button>
+      <button id="stop" class="btn" disabled>終了</button>
+      <a href="./10second.html" class="btn">10秒チャレンジへ</a>
+    </div>
+  </div>
 
-<!-- Firebase SDK -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
+  <!-- ランキングモーダル -->
+  <div id="modal" class="modal" aria-modal="true" role="dialog">
+    <div class="sheet">
+      <h2>ランキング（通常）</h2>
+      <ol id="rank" class="ranklist"></ol>
+      <div class="actions">
+        <a class="mode-link" href="./10second.html">10秒チャレンジを見る</a>
+        <button id="close" class="btn accent">閉じる</button>
+      </div>
+    </div>
+  </div>
 
-  // あなたの Firebase 設定
-  const firebaseConfig = {
-    apiKey: "AIzaSyDhQ3DSg_AgZ-sK94usMkh54s0CJ8BFcK0",
-    authDomain: "mygame-d583f-e218b.firebaseapp.com",
-    databaseURL: "https://mygame-d583f-e218b-default-rtdb.firebaseio.com",
-    projectId: "mygame-d583f-e218b",
-    storageBucket: "mygame-d583f-e218b.firebasestorage.app",
-    messagingSenderId: "112750475090",
-    appId: "1:112750475090:web:fd177e17163f6face62c8b",
-    measurementId: "G-CJLL8YF042"
+<script>
+(() => {
+  const el = {
+    zone: document.getElementById('zone'),
+    score: document.getElementById('score'),
+    state: document.getElementById('state'),
+    start: document.getElementById('start'),
+    stop: document.getElementById('stop'),
+    modal: document.getElementById('modal'),
+    rank: document.getElementById('rank'),
+    close: document.getElementById('close'),
   };
 
-  // 初期化
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-
+  let status = 'idle'; // idle | playing | ended
   let score = 0;
-  let mode = "normal";
-  let timer = null;
-  let timeLeft = 10;
+  let lastFrame = -1;
 
-  document.getElementById("menu").style.display = "block";
+  const KEY = 'rank_free';
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
+  const saveScore = (v) => {
+    const list = load();
+    const me = { v, t: Date.now() };
+    list.push(me);
+    list.sort((a,b)=> b.v - a.v);
+    localStorage.setItem(KEY, JSON.stringify(list.slice(0,10)));
+    return me;
+  };
+  const fmt = (ts) => new Date(ts).toLocaleString();
 
-  function startGame(selectedMode) {
-    mode = selectedMode;
+  function renderRank(me) {
+    const list = load();
+    el.rank.innerHTML = list.map((r,i) => {
+      const mine = (me && r.t === me.t && r.v === me.v);
+      return `<li class="${mine ? 'me':''}"><div>${i+1}. <strong>${r.v}</strong> 回</div><small>${fmt(r.t)}</small></li>`;
+    }).join('');
+  }
+
+  function openModal(me) {
+    renderRank(me);
+    el.modal.classList.add('open');
+  }
+
+  function setState(s) {
+    status = s;
+    el.state.textContent = (s === 'idle' ? '待機中' : s === 'playing' ? 'プレイ中' : '終了');
+    el.start.disabled = (s !== 'idle');
+    el.stop.disabled  = (s !== 'playing');
+  }
+
+  function startGame() {
     score = 0;
-    timeLeft = 10;
-
-    document.getElementById("menu").style.display = "none";
-    document.getElementById("result").style.display = "none";
-    document.getElementById("game").style.display = "block";
-    document.getElementById("score").textContent = "スコア: 0";
-    document.getElementById("modeTitle").textContent =
-      mode === "normal" ? "通常モード" : "10秒チャレンジ";
-
-    if (mode === "10sec") {
-      document.getElementById("timer").textContent = "残り時間: 10秒";
-      timer = setInterval(() => {
-        timeLeft--;
-        document.getElementById("timer").textContent = "残り時間: " + timeLeft + "秒";
-        if (timeLeft <= 0) {
-          clearInterval(timer);
-          endGame();
-        }
-      }, 1000);
-    } else {
-      document.getElementById("timer").textContent = "";
-    }
+    el.score.textContent = '0';
+    lastFrame = -1;
+    setState('playing');
   }
 
-  document.getElementById("clickBtn").addEventListener("click", () => {
+  function finishGame() {
+    setState('ended');
+    const me = saveScore(score);
+    openModal(me);
+  }
+
+  // 超デカ当たり判定（ゾーン全体）・Pointer Events一本化
+  el.zone.addEventListener('pointerdown', (e) => {
+    if (status !== 'playing') return;
+    el.zone.classList.add('active');
+    const frame = Math.floor(performance.now() / 16.6667);
+    if (frame === lastFrame) return; // 1フレーム1カウント（簡易チート抑止）
+    lastFrame = frame;
     score++;
-    document.getElementById("score").textContent = "スコア: " + score;
-
-    if (mode === "normal") {
-      saveScore(); // 通常モードはリアルタイム保存
-    }
+    el.score.textContent = String(score);
   });
+  el.zone.addEventListener('pointerup', () => el.zone.classList.remove('active'));
+  el.zone.addEventListener('pointercancel', () => el.zone.classList.remove('active'));
+  el.zone.addEventListener('pointerleave', () => el.zone.classList.remove('active'));
 
-  function endGame() {
-    if (mode === "10sec") clearInterval(timer);
-    saveScore();
-    showResult();
-  }
+  el.start.addEventListener('click', startGame);
+  el.stop.addEventListener('click', finishGame);
 
-  function saveScore() {
-    const name = document.getElementById("playerName").value.trim();
-    if (!name) { alert("名前を入力してね！"); return; }
+  el.close.addEventListener('click', () => el.modal.classList.remove('open'));
 
-    const key = mode + "_" + name;
-    set(ref(db, "scores/" + key), score);
-  }
-
-  function showResult() {
-    document.getElementById("game").style.display = "none";
-    document.getElementById("result").style.display = "block";
-    loadLeaderboard();
-  }
-
-  function backToMenu() {
-    document.getElementById("result").style.display = "none";
-    document.getElementById("menu").style.display = "block";
-  }
-
-  function loadLeaderboard() {
-    get(ref(db, "scores")).then(snapshot => {
-      const data = snapshot.val();
-      if (!data) { document.getElementById("leaderboard").innerHTML = "まだスコアがありません"; return; }
-
-      let filtered = Object.entries(data)
-        .filter(([k,v]) => k.startsWith(mode + "_"))
-        .map(([k,v]) => [k.replace(mode + "_", ""), v]);
-
-      const sorted = filtered.sort((a,b) => b[1] - a[1]);
-      document.getElementById("leaderboard").innerHTML =
-        sorted.map(([n,s]) => `${n}: ${s}`).join("<br>");
-    });
-  }
-
-  // グローバルに公開
-  window.startGame = startGame;
-  window.endGame = endGame;
-  window.backToMenu = backToMenu;
+  setState('idle');
+})();
 </script>
-
 </body>
 </html>
-

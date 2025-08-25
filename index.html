@@ -4,7 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport"
   content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>江戸カードで町づくり！（ブラウザ版・年表拡張）</title>
+<title>江戸カードで町づくり！（ブラウザ版・年表拡張＋クイズ）</title>
+
+<!-- ✅ AdSense（あなたのclient IDで“自動広告”が動きます。固定バナーは下に枠だけ用意） -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922140858632050" crossorigin="anonymous"></script>
+
 <style>
   :root{
     --edo-yellow:#FCD34D; --edo-info:#FFF8DC; --edo-border:#999;
@@ -67,7 +71,7 @@
 </style>
 </head>
 <body>
-<div class="wrap" role="application" aria-label="江戸カードで町づくり（年表拡張）">
+<div class="wrap" role="application" aria-label="江戸カードで町づくり（年表拡張＋クイズ）">
   <header>
     <h1>江戸カードで町づくり！</h1>
     <div class="controls">
@@ -81,7 +85,7 @@
     </div>
   </header>
 
-  <div id="info">カードをめくって江戸の町を発展させよう！</div>
+  <div id="info">カードをめくって江戸の町を発展させよう！（クイズにひらがなで正解すると開くよ）</div>
   <div id="town" role="img" aria-label="江戸の町エリア"></div>
 
   <!-- カードはJSで自動生成 -->
@@ -96,23 +100,9 @@
     <div id="completeMsg"></div>
   </section>
 
+  <!-- 下部の固定バナー枠（手動配置）。AdSenseの“自動広告”も同時に動きます。 -->
   <div class="adbar" aria-label="広告枠">
-   <!-- 広告コード開始 -->
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922140858632050"
-     crossorigin="anonymous"></script>
-
-<ins class="adsbygoogle"
-     style="display:block;height:60px"
-     data-ad-client="ca-pub-4922140858632050"
-     data-ad-slot="XXXXXXX"   <!-- ← 管理画面で発行された広告ユニットのslot番号に差し替え -->
-     data-ad-format="auto"
-     data-full-width-responsive="true"></ins>
-
-<script>
-     (adsbygoogle = window.adsbygoogle || []).push({});
-</script>
-<!-- 広告コード終了 -->
-
+    <div class="adslot">広告スペース（AdSenseの広告ユニットを使うなら、ここに <ins class="adsbygoogle"> … を入れてね）</div>
   </div>
   <footer aria-hidden="true"></footer>
 </div>
@@ -120,8 +110,7 @@
 <div class="landscapeWarn">縦向きで遊んでね🔄</div>
 
 <script>
-  // 江戸の出来事（年・要約・アイコン）— 小学生向けに簡潔化
-  // 出典は文末に記載。本文は要約・言い換えで、直接の引用はしていません。
+  // ===== 江戸の出来事（年・要約・アイコン）— 小学生向けに簡潔化 =====
   const chapters = {
     "初期": {
       "1603 江戸幕府がはじまる": { text: "家康が将軍になり、江戸で国の中心が動き出す。", icon: "🏯", year: 1603 },
@@ -157,6 +146,36 @@
     }
   };
 
+  // ✅ ひらがな正解辞書（カード名 → ひらがな）
+  const hiraAnswers = {
+    "1603 江戸幕府がはじまる": "えどばくふ",
+    "1615 大坂の陣": "おおさかのじん",
+    "1635 参勤交代": "さんきんこうたい",
+    "1637 島原・天草の乱": "しまばらあまくさのらん",
+    "1639 ポルトガル船の来航禁止": "ぽるとがるせんのらいこうきんし",
+    "1641 出島での貿易": "でじまでのぼうえき",
+    "1657 明暦の大火": "めいれきのたいか",
+    "1657 新吉原へ移転": "しんよしわらへいてん",
+    "1688 元禄文化がさかえる": "げんろくぶんかがさかえる",
+    "1716 享保の改革": "きょうほうのかいかく",
+    "1720 洋書をとりいれる": "ようしょをとりいれる",
+    "1720 町火消のしくみ": "まちびけしのしくみ",
+    "1730 物のながれを整える": "もののながれをととのえる",
+    "1775 田沼の時代": "たぬまのじだい",
+    "1783 天明のききん": "てんめいのききん",
+    "1787 寛政の改革": "かんせいのかいかく",
+    "1825 異国船打払令": "いこくせんうちはらいれい",
+    "1837 大塩平八郎の乱": "おおしおへいはちろうのらん",
+    "1841 天保の改革": "てんぽうのかいかく",
+    "1853 黒船が来る": "くろふねがくる",
+    "1854 和親条約": "わしんじょうやく",
+    "1858 安政の条約": "あんせいのじょうやく",
+    "1858 安政の大獄": "あんせいのたいごく",
+    "1860 桜田門外の変": "さくらだもんがいのへん",
+    "1867 大政奉還": "たいせいほうかん",
+    "1868 明治へ": "めいじへ"
+  };
+
   const infoBox = document.getElementById("info");
   const town = document.getElementById("town");
   const zukanPanel = document.getElementById("zukanPanel");
@@ -166,11 +185,11 @@
   const closeZukan = document.getElementById("closeZukan");
   const chapterFilter = document.getElementById("chapterFilter");
 
-  const LS_KEY = "edoTown_cards_v2";
+  const LS_KEY = "edoTown_cards_quiz_v1";
   const gotCards = {};
   try { Object.assign(gotCards, JSON.parse(localStorage.getItem(LS_KEY) || "{}")); } catch(e){}
 
-  // 追加：章フィルタでカードを動的生成
+  // ===== 章フィルタでカード生成 =====
   function buildCards(){
     const wrap = document.getElementById("cards");
     wrap.innerHTML = "";
@@ -182,42 +201,70 @@
         el.className = "card";
         el.dataset.card = name;
         if(gotCards[name]) { el.textContent = name; el.classList.add("done"); }
-        else { el.textContent = "？\n"+name.split(" ")[0]; } // 先頭の年をヒント表示
+        else { el.textContent = "？\n"+name.split(" ")[0]; } // 先頭の年でヒント
         el.addEventListener("click", ()=>onCardClick(el, name, ch));
         wrap.appendChild(el);
       }
     });
   }
 
-  function onCardClick(card, name, ch){
-    if(card.textContent !== "？\n"+name.split(" ")[0]) return;
-    const data = chapters[ch][name];
-    card.textContent = name;
-    card.classList.add("done");
-    infoBox.textContent = data.text;
-
-    const b = document.createElement("div");
-    b.className = "building";
-    b.textContent = data.icon;
-    b.style.left = (Math.random()*80 + 5) + "%";
-    b.style.top = (Math.random()*70 + 5) + "%";
-    town.appendChild(b);
-    setTimeout(()=>b.classList.add("show"),50);
-
-    const v = document.createElement("div");
-    v.className = "villager";
-    v.textContent = Math.random()>0.5 ? "😊" : "👘";
-    v.style.top = Math.floor(Math.random()* (town.clientHeight-40)) + "px";
-    town.appendChild(v);
-
-    gotCards[name] = true;
-    persist();
-    renderZukan();
-  }
-
   function persist(){ try { localStorage.setItem(LS_KEY, JSON.stringify(gotCards)); } catch(e){} }
 
-  // 図鑑描画
+  function isHiraganaOnly(s){ return /^[\u3041-\u3096\s]+$/.test(s); } // ひらがな＋空白のみ
+
+  // ===== クイズ付きカード開放 =====
+  function onCardClick(card, name, ch){
+    if(card.classList.contains("done")) return;
+
+    const data = chapters[ch][name];
+    if(!data) return;
+
+    const correct = hiraAnswers[name];
+    if(!correct){ alert("このカードの答えが未登録です"); return; }
+
+    const userAnswer = prompt(`${name}\n\nこのできごとのなまえを ひらがな でこたえてね！\n（例：さんきんこうたい）`);
+    if(userAnswer === null) return; // キャンセル
+
+    const trimmed = userAnswer.trim();
+
+    // 入力がひらがな以外を含む場合は、答えを見せず注意
+    if(!isHiraganaOnly(trimmed)){
+      alert("ひらがなで入力してね！（カタカナ・漢字・英数字は×）");
+      return;
+    }
+
+    // 空白を除いて厳密一致で判定
+    const normalized = trimmed.replace(/\s+/g,"");
+    if(normalized === correct){
+      // 正解：カード開放
+      card.textContent = name;
+      card.classList.add("done");
+      infoBox.textContent = data.text;
+
+      const b = document.createElement("div");
+      b.className = "building";
+      b.textContent = data.icon;
+      b.style.left = (Math.random()*80 + 5) + "%";
+      b.style.top = (Math.random()*70 + 5) + "%";
+      town.appendChild(b);
+      setTimeout(()=>b.classList.add("show"),50);
+
+      const v = document.createElement("div");
+      v.className = "villager";
+      v.textContent = Math.random()>0.5 ? "😊" : "👘";
+      v.style.top = Math.floor(Math.random()* (town.clientHeight-40)) + "px";
+      town.appendChild(v);
+
+      gotCards[name] = true;
+      persist();
+      renderZukan();
+    } else {
+      // 不正解：正解を表示（学習効果）
+      alert(`ざんねん！せいかいは「${correct}」だよ`);
+    }
+  }
+
+  // ===== 図鑑描画 =====
   function renderZukan(){
     zukanList.innerHTML = "";
     let allComplete = true;
@@ -261,6 +308,7 @@
     }
   }
 
+  // ===== 図鑑の開閉 & 初期描画 =====
   zukanBtn.addEventListener("click", ()=>{
     const active = !zukanPanel.classList.contains("active");
     zukanPanel.classList.toggle("active");
@@ -274,9 +322,10 @@
   });
   chapterFilter.addEventListener("change", buildCards);
 
-  // 初期描画（保存済みを町に再配置）
   buildCards();
   renderZukan();
+
+  // 保存済みの建物・人を復元
   for(const ch in chapters){
     for(const name in chapters[ch]){
       if(!gotCards[name]) continue;
@@ -296,13 +345,19 @@
   }
 </script>
 
-<!-- （任意）公開時はここを本物の AdSense に差し替え -->
 <!--
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-xxxxxxxxxxxxxxxx" crossorigin="anonymous"></script>
-<ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-xxxxxxxxxxxxxxxx" data-ad-slot="9999999999" data-ad-format="auto" data-full-width-responsive="true"></ins>
-<script>(adsbygoogle=window.adsbygoogle||[]).push({});</script>
+  ✅ 手動で固定バナー広告を入れたい場合（任意）：
+  下の .adslot の中身を、あなたの「広告ユニット（ad-slot番号付き）」の <ins class="adsbygoogle"> に置き換え、
+  最後に (adsbygoogle = window.adsbygoogle || []).push({}); を呼び出してください。
+  例：
+  <ins class="adsbygoogle"
+      style="display:block;height:60px"
+      data-ad-client="ca-pub-4922140858632050"
+      data-ad-slot="ここに番号"
+      data-ad-format="auto"
+      data-full-width-responsive="true"></ins>
+  <script>(adsbygoogle=window.adsbygoogle||[]).push({});</script>
 -->
+
 </body>
 </html>
-
-

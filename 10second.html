@@ -24,8 +24,7 @@
   .namebox label { color:var(--muted); font-size:14px; }
   .namebox input { flex:1; border:0; outline:none; background:#0f1426; color:#e9f4ff; border-radius:8px; padding:10px 12px; }
   .hud { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0; }
-  .card { background:var(--card); border-radius:16px; padding:12px 16px; display:flex; align-items:center; justify-content:center; min-height:58px;
-    box-shadow:0 10px 30px rgba(0,0,0,.35); }
+  .card { background:var(--card); border-radius:16px; padding:12px 16px; display:flex; align-items:center; justify-content:center; min-height:58px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
   .label { color:var(--muted); margin-right:8px; }
   .value { font-size:clamp(20px,6vw,36px); font-weight:700; letter-spacing:.5px; }
   .bigzone {
@@ -34,17 +33,18 @@
     box-shadow:inset 0 0 0 2px rgba(93,214,255,.15), 0 20px 50px rgba(0,0,0,.45);
   }
   .tap-btn { pointer-events:none; width:min(70vw,420px); height:min(70vw,420px); border-radius:9999px; background:linear-gradient(180deg,#2a315a,#1b2147);
-    display:grid; place-items:center; box-shadow:0 16px 40px rgba(0,0,0,.5), inset 0 0 0 6px rgba(93,214,255,.25);
-    transform:translateZ(0); transition:transform .06s ease; }
+    display:grid; place-items:center; box-shadow:0 16px 40px rgba(0,0,0,.5), inset 0 0 0 6px rgba(93,214,255,.25); transform:translateZ(0); transition:transform .06s ease; }
   .tap-btn span { font-size:clamp(20px,6vw,36px); font-weight:800; letter-spacing:.08em; color:var(--accent); }
   .bigzone.active .tap-btn { transform:scale(.98); }
   .overlay { position:absolute; inset:0; display:none; place-items:center; background:rgba(0,0,0,.5); border-radius:24px; z-index:10; }
   .overlay.show { display:grid; }
   .count { font-size:clamp(48px,12vw,120px); font-weight:900; color:#fff; text-shadow:0 6px 24px rgba(0,0,0,.6); }
   .controls { display:flex; gap:8px; margin:12px 0 0; flex-wrap:wrap; }
-  .btn { appearance:none; border:0; border-radius:12px; padding:12px 16px; font-weight:700; background:#283056; color:#e9f4ff; cursor:pointer; }
+  .btn { appearance:none; border:0; border-radius:12px; padding:12px 16px; font-weight:700; background:#283056; color:#e9f4ff; cursor:pointer; text-decoration:none; }
   .btn.accent { background:#2b9ed0; }
   .btn:disabled { opacity:.5; cursor:not-allowed; }
+
+  /* ランキングモーダル */
   .modal { position:fixed; inset:0; display:none; place-items:center; background:rgba(5,7,12,.66); padding:20px; z-index:50; }
   .modal.open { display:grid; }
   .sheet { width:min(560px,100%); background:var(--card); border-radius:16px; padding:16px; box-shadow:0 20px 60px rgba(0,0,0,.6); }
@@ -53,8 +53,7 @@
   .ranklist li { display:flex; justify-content:space-between; align-items:baseline; padding:10px 12px; border-radius:10px; }
   .ranklist li.me { background:rgba(93,214,255,.12); }
   .sheet .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
-  a.mode-link { color:var(--accent); text-decoration:none; font-weight:700; }
-  .note { color:var(--muted); font-size:12px; margin-top:6px; }
+  a.mode-link { color:var(--accent); font-weight:700; }
 </style>
 </head>
 <body>
@@ -69,7 +68,6 @@
         <label for="nick">ニックネーム</label>
         <input id="nick" type="text" placeholder="例）しろながす" maxlength="20" />
       </div>
-      <div class="note">※ ランキングはオンラインで共有されます</div>
     </div>
 
     <div class="hud">
@@ -85,10 +83,13 @@
     <div class="controls">
       <button id="start" class="btn accent">開始</button>
       <button id="stop" class="btn" disabled>強制終了</button>
+      <button id="viewRank" class="btn">ランキングを見る</button>
       <a href="./index.html" class="btn">通常モードへ</a>
+      <a href="./rankings.html" class="btn">ランキング一覧</a>
     </div>
   </div>
 
+  <!-- ランキングモーダル -->
   <div id="modal" class="modal" aria-modal="true" role="dialog">
     <div class="sheet">
       <h2>ランキング（10秒）</h2>
@@ -121,159 +122,127 @@ const auth = getAuth(app);
 const db   = getDatabase(app);
 signInAnonymously(auth).catch(console.error);
 
-/* ---------------- iOS 追加対策 ---------------- */
+/* ---------------- iOS ゆれ対策 ---------------- */
 const isIOS = (() => {
   const ua = navigator.userAgent || '';
   return /iP(ad|hone|od)/.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
 })();
-let iosTearDown = null;
-function iosScrollZoomGuard(enable) {
-  if (!isIOS) return;
-  if (!enable && iosTearDown) { iosTearDown(); iosTearDown = null; return; }
-  if (!enable) return;
-  if (iosTearDown) return;
-  const onGestureStart = (e) => { e.preventDefault(); };
-  const onTouchMove = (e) => { if (e.touches && e.touches.length < 2) e.preventDefault(); };
-  let lastTouchEnd = 0;
-  const onTouchEnd = (e) => { const now = Date.now(); if (now - lastTouchEnd < 350) e.preventDefault(); lastTouchEnd = now; };
-  const onWheel = (e) => { e.preventDefault(); };
-  document.addEventListener('gesturestart', onGestureStart, { passive:false });
-  document.addEventListener('touchmove', onTouchMove, { passive:false });
-  document.addEventListener('touchend', onTouchEnd, { passive:false });
-  document.addEventListener('wheel', onWheel, { passive:false });
-  iosTearDown = () => {
-    document.removeEventListener('gesturestart', onGestureStart, { passive:false });
-    document.removeEventListener('touchmove', onTouchMove, { passive:false });
-    document.removeEventListener('touchend', onTouchEnd, { passive:false });
-    document.removeEventListener('wheel', onWheel, { passive:false });
+let iosTearDown=null;
+function iosScrollZoomGuard(enable){
+  if(!isIOS) return;
+  if(!enable && iosTearDown){ iosTearDown(); iosTearDown=null; return; }
+  if(!enable||iosTearDown) return;
+  const onGestureStart=e=>e.preventDefault();
+  const onTouchMove =e=>{ if(e.touches&&e.touches.length<2) e.preventDefault(); };
+  let lastEnd=0; const onTouchEnd=e=>{ const n=Date.now(); if(n-lastEnd<350) e.preventDefault(); lastEnd=n; };
+  const onWheel=e=>e.preventDefault();
+  document.addEventListener('gesturestart', onGestureStart, {passive:false});
+  document.addEventListener('touchmove',    onTouchMove,    {passive:false});
+  document.addEventListener('touchend',     onTouchEnd,     {passive:false});
+  document.addEventListener('wheel',        onWheel,        {passive:false});
+  iosTearDown=()=> {
+    document.removeEventListener('gesturestart', onGestureStart, {passive:false});
+    document.removeEventListener('touchmove',    onTouchMove,    {passive:false});
+    document.removeEventListener('touchend',     onTouchEnd,     {passive:false});
+    document.removeEventListener('wheel',        onWheel,        {passive:false});
   };
 }
 
 /* ---------------- DOM ---------------- */
-const el = {
-  zone:  document.getElementById('zone'),
-  score: document.getElementById('score'),
-  left:  document.getElementById('left'),
-  start: document.getElementById('start'),
-  stop:  document.getElementById('stop'),
-  ovl:   document.getElementById('ovl'),
-  cnt:   document.getElementById('cnt'),
-  modal: document.getElementById('modal'),
-  rank:  document.getElementById('rank'),
-  close: document.getElementById('close'),
-  nick:  document.getElementById('nick'),
+const el={
+  zone:document.getElementById('zone'),
+  score:document.getElementById('score'),
+  left:document.getElementById('left'),
+  start:document.getElementById('start'),
+  stop:document.getElementById('stop'),
+  view:document.getElementById('viewRank'),
+  ovl:document.getElementById('ovl'),
+  cnt:document.getElementById('cnt'),
+  modal:document.getElementById('modal'),
+  rank:document.getElementById('rank'),
+  close:document.getElementById('close'),
+  nick:document.getElementById('nick'),
 };
-const NICK_KEY = 'nickname';
-el.nick.value = localStorage.getItem(NICK_KEY) || '';
-el.nick.addEventListener('change', () => {
-  localStorage.setItem(NICK_KEY, el.nick.value.trim());
-});
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 
-/* ---------------- ランキング（オンライン） ---------------- */
-const MODE_KEY = '10s'; // DBパス: leaderboard/10s
-function escapeHtml(s){ return s.replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+/* ニックネーム：保存値が無ければ “しろながす” を初期表示 */
+const NICK_KEY='nickname';
+const saved=(localStorage.getItem(NICK_KEY)||'').trim();
+el.nick.value = saved || 'しろながす';
+el.nick.addEventListener('change', ()=> localStorage.setItem(NICK_KEY, el.nick.value.trim()) );
 
-async function submitScoreOnline(mode, v, n) {
-  const payload = {
-    v, n: (n || '匿名').slice(0,20), t: Date.now(),
-    ua: (navigator.userAgent || '').slice(0,80)
-  };
-  const refPath = ref(db, `leaderboard/${mode}`);
-  const res = await push(refPath, payload);
-  return { id: res.key, ...payload };
+/* ---------------- オンラインランキング ---------------- */
+const MODE='10s'; // leaderboard/10s
+async function submitScore(v,n){
+  const payload={ v, n:(n||'匿名').slice(0,20), t:Date.now(), ua:(navigator.userAgent||'').slice(0,80) };
+  const res=await push(ref(db,`leaderboard/${MODE}`), payload);
+  return { id:res.key, ...payload };
 }
-async function fetchTopOnline(mode, top=10) {
-  const q = query(ref(db, `leaderboard/${mode}`), orderByChild('v'), limitToLast(top));
-  const snap = await get(q);
-  const arr = [];
-  snap.forEach(ch => arr.push({ id: ch.key, ...ch.val() }));
-  arr.sort((a,b)=> b.v - a.v);
-  return arr;
+async function fetchTop(top=10){
+  const q=query(ref(db,`leaderboard/${MODE}`), orderByChild('v'), limitToLast(top));
+  const snap=await get(q); const arr=[]; snap.forEach(ch=>arr.push({id:ch.key, ...ch.val()}));
+  arr.sort((a,b)=>b.v-a.v); return arr;
 }
-async function renderRank(me) {
-  const list = await fetchTopOnline(MODE_KEY, 10);
-  el.rank.innerHTML = list.map((r,i)=> {
-    const mine = (me && r.id === me.id);
-    return `<li class="${mine?'me':''}">
-      <div>${i+1}. <strong>${r.v}</strong> 回 <small>（${escapeHtml(r.n||'匿名')}）</small></div>
-      <small>${new Date(r.t).toLocaleString()}</small>
-    </li>`;
-  }).join('');
+async function renderRank(me){
+  const list=await fetchTop(10);
+  el.rank.innerHTML = list.map((r,i)=>`<li class="${me&&me.id===r.id?'me':''}">
+    <div>${i+1}. <strong>${r.v}</strong> 回 <small>（${escapeHtml(r.n||'匿名')}）</small></div>
+    <small>${new Date(r.t).toLocaleString()}</small>
+  </li>`).join('');
 }
-function openModal(me) { renderRank(me); el.modal.classList.add('open'); }
+function openModal(me){ renderRank(me); el.modal.classList.add('open'); }
 
-/* ---------------- ゲーム本体 ---------------- */
-let status = 'idle'; // idle | countdown | playing | ended
-let score = 0;
-let startAt = 0, endAt = 0, rafId = 0, lastFrame = -1;
-
-function setLeft(ms) { el.left.textContent = (Math.max(0, ms) / 1000).toFixed(2); }
-
-function setState(s) {
-  status = s;
-  if (s === 'countdown' || s === 'playing') { document.body.classList.add('lock'); iosScrollZoomGuard(true); }
+/* ---------------- ゲーム本体（3秒→10秒） ---------------- */
+let status='idle', score=0, startAt=0, endAt=0, rafId=0, lastFrame=-1;
+function setLeft(ms){ el.left.textContent=(Math.max(0,ms)/1000).toFixed(2); }
+function setState(s){
+  status=s;
+  if(s==='countdown'||s==='playing'){ document.body.classList.add('lock'); iosScrollZoomGuard(true); }
   else { document.body.classList.remove('lock'); iosScrollZoomGuard(false); }
-  el.start.disabled = (s !== 'idle' && s !== 'ended');
-  el.stop.disabled  = (s !== 'playing' && s !== 'countdown');
+  el.start.disabled=(s!=='idle'&&s!=='ended'); el.stop.disabled=(s!=='playing'&&s!=='countdown');
 }
-
-async function countdown3() {
-  setState('countdown');
-  el.ovl.classList.add('show');
-  for (const n of [3,2,1]) {
-    el.cnt.textContent = String(n);
-    await new Promise(r => setTimeout(r, 800));
-    el.cnt.textContent = ''; await new Promise(r => setTimeout(r, 200));
-  }
-  el.cnt.textContent = 'START!';
-  await new Promise(r => setTimeout(r, 400));
-  el.ovl.classList.remove('show');
+async function countdown3(){
+  setState('countdown'); el.ovl.classList.add('show');
+  for(const n of [3,2,1]){ el.cnt.textContent=String(n); await new Promise(r=>setTimeout(r,800)); el.cnt.textContent=''; await new Promise(r=>setTimeout(r,200)); }
+  el.cnt.textContent='START!'; await new Promise(r=>setTimeout(r,400)); el.ovl.classList.remove('show');
 }
-function startGame() {
-  score = 0; el.score.textContent = '0'; lastFrame = -1;
-  const name = (el.nick.value.trim() || '匿名'); localStorage.setItem(NICK_KEY, name);
-  startAt = performance.now(); endAt = startAt + 10_000;
+function startGame(){
+  score=0; el.score.textContent='0'; lastFrame=-1;
+  const name=(el.nick.value.trim()||'匿名'); localStorage.setItem(NICK_KEY,name);
+  startAt=performance.now(); endAt=startAt+10_000;
   setState('playing'); tick();
 }
-function tick(now = performance.now()) {
-  const remain = endAt - now; setLeft(remain);
-  if (remain <= 0) { finishGame(); return; }
-  rafId = requestAnimationFrame(tick);
+function tick(now=performance.now()){
+  const remain=endAt-now; setLeft(remain);
+  if(remain<=0){ finishGame(); return; }
+  rafId=requestAnimationFrame(tick);
 }
-async function finishGame() {
-  cancelAnimationFrame(rafId);
-  setLeft(0);
-  setState('ended');
-  const me = await submitScoreOnline(MODE_KEY, score, el.nick.value.trim() || '匿名');
+async function finishGame(){
+  cancelAnimationFrame(rafId); setLeft(0); setState('ended');
+  const me=await submitScore(score, el.nick.value.trim()||'匿名');
   openModal(me);
 }
-
-// 入力
-el.zone.addEventListener('pointerdown', (e) => {
-  if (status !== 'playing') return;
-  e.preventDefault();
+/* 入力（ゾーン全面／1フレーム1カウント） */
+el.zone.addEventListener('pointerdown', e=>{
+  if(status!=='playing') return; e.preventDefault();
   el.zone.classList.add('active');
-  const frame = Math.floor(performance.now() / 16.6667);
-  if (frame === lastFrame) return;
-  lastFrame = frame;
-  score++; el.score.textContent = String(score);
+  const frame=Math.floor(performance.now()/16.6667);
+  if(frame===lastFrame) return; lastFrame=frame;
+  score++; el.score.textContent=String(score);
 });
-['pointerup','pointercancel','pointerleave'].forEach(ev =>
-  el.zone.addEventListener(ev, ()=> el.zone.classList.remove('active'))
-);
+['pointerup','pointercancel','pointerleave'].forEach(ev=> el.zone.addEventListener(ev, ()=>el.zone.classList.remove('active')));
 
-el.start.addEventListener('click', async () => {
-  if (status === 'playing' || status === 'countdown') return;
-  setLeft(10_000);
-  await countdown3();
-  startGame();
+el.start.addEventListener('click', async ()=>{
+  if(status==='playing'||status==='countdown') return;
+  setLeft(10_000); await countdown3(); startGame();
 });
-el.stop.addEventListener('click', () => { if (status === 'playing' || status === 'countdown') finishGame(); });
-el.close.addEventListener('click', () => el.modal.classList.remove('open'));
+el.stop .addEventListener('click', ()=>{ if(status==='playing'||status==='countdown') finishGame(); });
+el.view .addEventListener('click', ()=> openModal(null));
+el.close.addEventListener('click', ()=> el.modal.classList.remove('open'));
 
-onAuthStateChanged(auth, async () => { await renderRank(); });
+/* 初回：認証後にランキング読み込み */
+onAuthStateChanged(auth, async ()=>{ await renderRank(null); });
 setState('idle');
 </script>
 </body>
 </html>
-

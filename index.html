@@ -4,9 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport"
   content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>江戸カードで町づくり！（ブラウザ版・年表拡張＋クイズ）</title>
+<title>江戸カードで町づくり！（年表拡張＋クイズ＋ふりがな／〇〇維持）</title>
 
-<!-- ✅ AdSense（あなたのclient IDで“自動広告”が動きます。固定バナーは下に枠だけ用意） -->
+<!-- AdSense（自動広告） -->
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922140858632050" crossorigin="anonymous"></script>
 
 <style>
@@ -68,10 +68,12 @@
   .landscapeWarn{position:fixed;inset:0;background:rgba(0,0,0,.65);color:#fff;display:none;
     align-items:center;justify-content:center;z-index:20;text-align:center;padding:20px}
   @media (orientation:landscape){ .landscapeWarn{display:flex} }
+  ruby rt{font-size:.7em;color:#444}
+  .yr{font-weight:800;margin-right:2px}
 </style>
 </head>
 <body>
-<div class="wrap" role="application" aria-label="江戸カードで町づくり（年表拡張＋クイズ）">
+<div class="wrap" role="application" aria-label="江戸カードで町づくり（〇〇維持）">
   <header>
     <h1>江戸カードで町づくり！</h1>
     <div class="controls">
@@ -88,7 +90,6 @@
   <div id="info">カードをめくって江戸の町を発展させよう！（クイズにひらがなで正解すると開くよ）</div>
   <div id="town" role="img" aria-label="江戸の町エリア"></div>
 
-  <!-- カードはJSで自動生成 -->
   <div id="cards" aria-label="カードエリア"></div>
 
   <section id="zukanPanel" aria-hidden="true">
@@ -100,9 +101,9 @@
     <div id="completeMsg"></div>
   </section>
 
-  <!-- 下部の固定バナー枠（手動配置）。AdSenseの“自動広告”も同時に動きます。 -->
+  <!-- 下部の固定バナー枠（必要なら中身を ad ユニットに差し替え） -->
   <div class="adbar" aria-label="広告枠">
-    <div class="adslot">広告スペース（AdSenseの広告ユニットを使うなら、ここに <ins class="adsbygoogle"> … を入れてね）</div>
+    <div class="adslot">広告スペース（<ins class="adsbygoogle">…</ins> を入れる場所）</div>
   </div>
   <footer aria-hidden="true"></footer>
 </div>
@@ -110,7 +111,7 @@
 <div class="landscapeWarn">縦向きで遊んでね🔄</div>
 
 <script>
-  // ===== 江戸の出来事（年・要約・アイコン）— 小学生向けに簡潔化 =====
+  // ===== データ（タイトルは〇〇つきのまま） =====
   const chapters = {
     "初期": {
       "1603 〇〇幕府がはじまる": { text: "家康が将軍になり、江戸で国の中心が動き出す。", icon: "🏯", year: 1603 },
@@ -146,35 +147,72 @@
     }
   };
 
-  // ✅ ひらがな正解辞書（カード名 → ひらがな）
+  // ===== クイズ正解（ひらがな／本来の読み）※キーは「〇〇付きのタイトル＋年」 =====
   const hiraAnswers = {
-    "1603 江戸幕府がはじまる": "えどばくふ",
-    "1615 大坂の陣": "おおさかのじん",
-    "1635 参勤交代": "さんきんこうたい",
-    "1637 島原・天草の乱": "しまばらあまくさのらん",
-    "1639 ポルトガル船の来航禁止": "ぽるとがるせんのらいこうきんし",
-    "1641 出島での貿易": "でじまでのぼうえき",
-    "1657 明暦の大火": "めいれきのたいか",
-    "1657 新吉原へ移転": "しんよしわらへいてん",
-    "1688 元禄文化がさかえる": "げんろくぶんかがさかえる",
-    "1716 享保の改革": "きょうほうのかいかく",
-    "1720 洋書をとりいれる": "ようしょをとりいれる",
-    "1720 町火消のしくみ": "まちびけしのしくみ",
-    "1730 物のながれを整える": "もののながれをととのえる",
-    "1775 田沼の時代": "たぬまのじだい",
-    "1783 天明のききん": "てんめいのききん",
-    "1787 寛政の改革": "かんせいのかいかく",
-    "1825 異国船打払令": "いこくせんうちはらいれい",
-    "1837 大塩平八郎の乱": "おおしおへいはちろうのらん",
-    "1841 天保の改革": "てんぽのかいかく",
-    "1853 黒船が来る": "くろふねがくる",
-    "1854 和親条約": "わしんじょうやく",
-    "1858 安政の条約": "あんせいのじょうやく",
-    "1858 安政の大獄": "あんせいのたいごく",
-    "1860 桜田門外の変": "さくらだもんがいのへん",
-    "1867 大政奉還": "たいせいほうかん",
-    "1868 明治へ": "めいじへ"
+    "1603 〇〇幕府がはじまる": "えどばくふがはじまる",
+    "1615 〇〇の陣": "おおさかのじん",
+    "1635 〇〇交代": "さんきんこうたい",
+    "1637 島〇・天〇の乱": "しまばらあまくさのらん",
+    "1639 〇〇〇〇〇船の来航禁止": "ぽるとがるせんのらいこうきんし",
+    "1641 〇〇での貿易": "でじまでのぼうえき",
+    "1657 〇〇の大火": "めいれきのたいか",
+    "1657 〇〇〇へ移転": "しんよしわらへいてん",
+    "1688 〇〇文化がさかえる": "げんろくぶんかがさかえる",
+    "1716 〇〇の改革": "きょうほうのかいかく",
+    "1720 〇〇をとりいれる": "ようしょをとりいれる",
+    "1720 〇〇のしくみ": "まちびけしのしくみ",
+    "1730 〇のながれを整える": "もののながれをととのえる",
+    "1775 〇〇の時代": "たぬまのじだい",
+    "1783 〇〇のききん": "てんめいのききん",
+    "1787 〇〇の改革": "かんせいのかいかく",
+    "1825 〇〇〇打払令": "いこくせんうちはらいれい",
+    "1837 〇〇〇〇〇の乱": "おおしおへいはちろうのらん",
+    "1841 〇〇の改革": "てんぽうのかいかく",
+    "1853 〇〇が来る": "くろふねがくる",
+    "1854 〇〇条約": "わしんじょうやく",
+    "1858 〇〇の条約": "あんせいのじょうやく",
+    "1858 〇〇の大獄": "あんせいのたいごく",
+    "1860 〇〇〇〇の変": "さくらだもんがいのへん",
+    "1867 〇〇奉還": "たいせいほうかん",
+    "1868 〇〇へ": "めいじへ"
   };
+
+  // ===== ふりがな表示（見えている漢字だけに ruby。〇〇はそのまま） =====
+  const rubyMasked = {
+    "1603 〇〇幕府がはじまる": "〇〇<ruby>幕府<rt>ばくふ</rt></ruby>がはじまる",
+    "1615 〇〇の陣": "〇〇の<ruby>陣<rt>じん</rt></ruby>",
+    "1635 〇〇交代": "〇〇<ruby>交代<rt>こうたい</rt></ruby>",
+    "1637 島〇・天〇の乱": "島〇・天〇の<ruby>乱<rt>らん</rt></ruby>",
+    "1639 〇〇〇〇〇船の来航禁止": "〇〇〇〇〇<ruby>船<rt>せん</rt></ruby>の<ruby>来航<rt>らいこう</rt></ruby><ruby>禁止<rt>きんし</rt></ruby>",
+    "1641 〇〇での貿易": "〇〇での<ruby>貿易<rt>ぼうえき</rt></ruby>",
+    "1657 〇〇の大火": "〇〇の<ruby>大火<rt>たいか</rt></ruby>",
+    "1657 〇〇〇へ移転": "〇〇〇へ<ruby>移転<rt>いてん</rt></ruby>",
+    "1688 〇〇文化がさかえる": "〇〇<ruby>文化<rt>ぶんか</rt></ruby>がさかえる",
+    "1716 〇〇の改革": "〇〇の<ruby>改革<rt>かいかく</rt></ruby>",
+    "1720 〇〇をとりいれる": "〇〇をとりいれる",
+    "1720 〇〇のしくみ": "〇〇のしくみ",
+    "1730 〇のながれを整える": "〇のながれを<ruby>整える<rt>ととのえる</rt></ruby>",
+    "1775 〇〇の時代": "〇〇の<ruby>時代<rt>じだい</rt></ruby>",
+    "1783 〇〇のききん": "〇〇のききん",
+    "1787 〇〇の改革": "〇〇の<ruby>改革<rt>かいかく</rt></ruby>",
+    "1825 〇〇〇打払令": "〇〇〇<ruby>打払令<rt>うちはらいれい</rt></ruby>",
+    "1837 〇〇〇〇〇の乱": "〇〇〇〇〇の<ruby>乱<rt>らん</rt></ruby>",
+    "1841 〇〇の改革": "〇〇の<ruby>改革<rt>かいかく</rt></ruby>",
+    "1853 〇〇が来る": "〇〇が<ruby>来る<rt>くる</rt></ruby>",
+    "1854 〇〇条約": "〇〇<ruby>条約<rt>じょうやく</rt></ruby>",
+    "1858 〇〇の条約": "〇〇の<ruby>条約<rt>じょうやく</rt></ruby>",
+    "1858 〇〇の大獄": "〇〇の<ruby>大獄<rt>たいごく</rt></ruby>",
+    "1860 〇〇〇〇の変": "〇〇〇〇の<ruby>変<rt>へん</rt></ruby>",
+    "1867 〇〇奉還": "〇〇<ruby>奉還<rt>ほうかん</rt></ruby>",
+    "1868 〇〇へ": "〇〇へ"
+  };
+
+  function withRubyMasked(fullName){
+    const sp = fullName.indexOf(" ");
+    const year = fullName.slice(0, sp);
+    const body = rubyMasked[fullName] || fullName.slice(sp+1);
+    return `<span class="yr">${year}</span> ${body}`;
+  }
 
   const infoBox = document.getElementById("info");
   const town = document.getElementById("town");
@@ -185,11 +223,11 @@
   const closeZukan = document.getElementById("closeZukan");
   const chapterFilter = document.getElementById("chapterFilter");
 
-  const LS_KEY = "edoTown_cards_quiz_v1";
+  const LS_KEY = "edoTown_cards_quiz_furigana_masked_v1";
   const gotCards = {};
   try { Object.assign(gotCards, JSON.parse(localStorage.getItem(LS_KEY) || "{}")); } catch(e){}
 
-  // ===== 章フィルタでカード生成 =====
+  // ===== カード生成 =====
   function buildCards(){
     const wrap = document.getElementById("cards");
     wrap.innerHTML = "";
@@ -200,8 +238,8 @@
         const el = document.createElement("div");
         el.className = "card";
         el.dataset.card = name;
-        if(gotCards[name]) { el.textContent = name; el.classList.add("done"); }
-        else { el.textContent = "？\n"+name.split(" ")[0]; } // 先頭の年でヒント
+        if(gotCards[name]) { el.innerHTML = withRubyMasked(name); el.classList.add("done"); }
+        else { el.textContent = "？\n"+name.split(" ")[0]; }
         el.addEventListener("click", ()=>onCardClick(el, name, ch));
         wrap.appendChild(el);
       }
@@ -209,35 +247,29 @@
   }
 
   function persist(){ try { localStorage.setItem(LS_KEY, JSON.stringify(gotCards)); } catch(e){} }
+  function isHiraganaOnly(s){ return /^[\u3041-\u3096\s]+$/.test(s); }
 
-  function isHiraganaOnly(s){ return /^[\u3041-\u3096\s]+$/.test(s); } // ひらがな＋空白のみ
-
-  // ===== クイズ付きカード開放 =====
+  // ===== クイズ判定（ひらがな完全一致／空白は無視） =====
   function onCardClick(card, name, ch){
     if(card.classList.contains("done")) return;
-
-    const data = chapters[ch][name];
-    if(!data) return;
+    const data = chapters[ch][name]; if(!data) return;
 
     const correct = hiraAnswers[name];
     if(!correct){ alert("このカードの答えが未登録です"); return; }
 
     const userAnswer = prompt(`${name}\n\nこのできごとのなまえを ひらがな でこたえてね！\n（例：さんきんこうたい）`);
-    if(userAnswer === null) return; // キャンセル
+    if(userAnswer === null) return;
 
     const trimmed = userAnswer.trim();
-
-    // 入力がひらがな以外を含む場合は、答えを見せず注意
     if(!isHiraganaOnly(trimmed)){
       alert("ひらがなで入力してね！（カタカナ・漢字・英数字は×）");
       return;
     }
 
-    // 空白を除いて厳密一致で判定
     const normalized = trimmed.replace(/\s+/g,"");
     if(normalized === correct){
-      // 正解：カード開放
-      card.textContent = name;
+      // 正解
+      card.innerHTML = withRubyMasked(name);
       card.classList.add("done");
       infoBox.textContent = data.text;
 
@@ -259,12 +291,11 @@
       persist();
       renderZukan();
     } else {
-      // 不正解：正解を表示（学習効果）
       alert(`ざんねん！せいかいは「${correct}」だよ`);
     }
   }
 
-  // ===== 図鑑描画 =====
+  // ===== 図鑑（解放済みだけふりがな表示／〇〇維持） =====
   function renderZukan(){
     zukanList.innerHTML = "";
     let allComplete = true;
@@ -276,9 +307,7 @@
         const div = document.createElement("div");
         div.className = "zCard";
         if(gotCards[name]){
-          const item = chapters[ch][name];
-          div.textContent = `${item.icon}\n${name}`;
-          div.style.lineHeight = "normal";
+          div.innerHTML = withRubyMasked(name);
         }else{
           div.textContent = "？？？";
           div.classList.add("locked");
@@ -308,7 +337,7 @@
     }
   }
 
-  // ===== 図鑑の開閉 & 初期描画 =====
+  // ===== 初期化 =====
   zukanBtn.addEventListener("click", ()=>{
     const active = !zukanPanel.classList.contains("active");
     zukanPanel.classList.toggle("active");
@@ -325,7 +354,7 @@
   buildCards();
   renderZukan();
 
-  // 保存済みの建物・人を復元
+  // 保存復元（建物＆住人）
   for(const ch in chapters){
     for(const name in chapters[ch]){
       if(!gotCards[name]) continue;
@@ -346,19 +375,9 @@
 </script>
 
 <!--
-  ✅ 手動で固定バナー広告を入れたい場合（任意）：
-  下の .adslot の中身を、あなたの「広告ユニット（ad-slot番号付き）」の <ins class="adsbygoogle"> に置き換え、
-  最後に (adsbygoogle = window.adsbygoogle || []).push({}); を呼び出してください。
-  例：
-  <ins class="adsbygoogle"
-      style="display:block;height:60px"
-      data-ad-client="ca-pub-4922140858632050"
-      data-ad-slot="ここに番号"
-      data-ad-format="auto"
-      data-full-width-responsive="true"></ins>
-  <script>(adsbygoogle=window.adsbygoogle||[]).push({});</script>
+  固定のバナー広告を使う場合は、.adslot の中身をあなたの広告ユニットに置換し、
+  直後で (adsbygoogle = window.adsbygoogle || []).push({}); を呼び出してください。
 -->
 
 </body>
 </html>
-

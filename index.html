@@ -206,6 +206,36 @@
     "1867 〇〇奉還": "〇〇<ruby>奉還<rt>ほうかん</rt></ruby>",
     "1868 〇〇へ": "〇〇へ"
   };
+  // 〇〇部分だけの正解（ひらがな）。複数空欄は配列で順番どおり。
+const blanksMap = {
+  "1603 〇〇幕府がはじまる": ["えど"],
+  "1615 〇〇の陣": ["おおさか"],
+  "1635 〇〇交代": ["さんきん"],
+  "1637 島〇・天〇の乱": ["ばら","くさ"],
+  "1639 〇〇〇〇〇船の来航禁止": ["ぽるとがる"],
+  "1641 〇〇での貿易": ["でじま"],
+  "1657 〇〇の大火": ["めいれき"],
+  "1657 〇〇〇へ移転": ["しんよしわら"],
+  "1688 〇〇文化がさかえる": ["げんろく"],
+  "1716 〇〇の改革": ["きょうほう"],
+  "1720 〇〇をとりいれる": ["ようしょ"],
+  "1720 〇〇のしくみ": ["まちびけし"],
+  "1730 〇のながれを整える": ["もの"],
+  "1775 〇〇の時代": ["たぬま"],
+  "1783 〇〇のききん": ["てんめい"],
+  "1787 〇〇の改革": ["かんせい"],
+  "1825 〇〇〇打払令": ["いこくせん"],
+  "1837 〇〇〇〇〇の乱": ["おおしおへいはちろう"],
+  "1841 〇〇の改革": ["てんぽう"],
+  "1853 〇〇が来る": ["くろふね"],
+  "1854 〇〇条約": ["わしん"],
+  "1858 〇〇の条約": ["あんせい"],
+  "1858 〇〇の大獄": ["あんせい"],
+  "1860 〇〇〇〇の変": ["さくらだもんがい"],
+  "1867 〇〇奉還": ["たいせい"],
+  "1868 〇〇へ": ["めいじ"]
+};
+
 
   function withRubyMasked(fullName){
     const sp = fullName.indexOf(" ");
@@ -249,51 +279,78 @@
   function persist(){ try { localStorage.setItem(LS_KEY, JSON.stringify(gotCards)); } catch(e){} }
   function isHiraganaOnly(s){ return /^[\u3041-\u3096\s]+$/.test(s); }
 
-  // ===== クイズ判定（ひらがな完全一致／空白は無視） =====
-  function onCardClick(card, name, ch){
-    if(card.classList.contains("done")) return;
-    const data = chapters[ch][name]; if(!data) return;
+// ひらがな & 区切り（スペース/・/、,/／）だけ許可
+function onlyHiraAndSep(s){
+  return /^[\u3041-\u3096\s・,，、/／]+$/.test(s);
+}
+function splitTokens(ans){
+  // 区切りをスペースに寄せて分割
+  let s = ans.replace(/[・,，、/／]+/g, ' ');
+  s = s.replace(/\s+/g, ' ').trim();
+  return s ? s.split(' ') : [];
+}
 
-    const correct = hiraAnswers[name];
-    if(!correct){ alert("このカードの答えが未登録です"); return; }
+function onCardClick(card, name, ch){
+  if(card.classList.contains("done")) return;
+  const data = chapters[ch][name]; if(!data) return;
 
-    const userAnswer = prompt(`${name}\n\nこのできごとのなまえを ひらがな でこたえてね！\n（例：さんきんこうたい）`);
-    if(userAnswer === null) return;
+  const expected = blanksMap[name];
+  if(!expected){ alert("このカードの空欄答えが未登録です"); return; }
 
-    const trimmed = userAnswer.trim();
-    if(!isHiraganaOnly(trimmed)){
-      alert("ひらがなで入力してね！（カタカナ・漢字・英数字は×）");
-      return;
-    }
+  const hint = expected.length >= 2 ? "（空欄が2つ以上あるときは スペース や ・ で区切ってね）" : "";
+  const msg =
+`${name}
 
-    const normalized = trimmed.replace(/\s+/g,"");
-    if(normalized === correct){
-      // 正解
-      card.innerHTML = withRubyMasked(name);
-      card.classList.add("done");
-      infoBox.textContent = data.text;
+〇〇の部分だけを ひらがな でこたえてね！
+例：島〇・天〇の乱 → ばら くさ
+${hint}`;
+  const userAnswer = prompt(msg);
+  if(userAnswer === null) return;
 
-      const b = document.createElement("div");
-      b.className = "building";
-      b.textContent = data.icon;
-      b.style.left = (Math.random()*80 + 5) + "%";
-      b.style.top = (Math.random()*70 + 5) + "%";
-      town.appendChild(b);
-      setTimeout(()=>b.classList.add("show"),50);
+  const raw = userAnswer.trim();
+  if(!onlyHiraAndSep(raw)){ alert("ひらがな だけで入力してね（区切りは スペース/・/、/，/／ だけOK）"); return; }
 
-      const v = document.createElement("div");
-      v.className = "villager";
-      v.textContent = Math.random()>0.5 ? "😊" : "👘";
-      v.style.top = Math.floor(Math.random()* (town.clientHeight-40)) + "px";
-      town.appendChild(v);
+  const tokens = splitTokens(raw);             // ["ばら","くさ"] など
+  const joined = tokens.join("");              // "ばらくさ"
+  const expectJoined = expected.join("");      // "ばらくさ"
 
-      gotCards[name] = true;
-      persist();
-      renderZukan();
-    } else {
-      alert(`ざんねん！せいかいは「${correct}」だよ`);
-    }
+  let ok = false;
+  if(tokens.length === expected.length){
+    ok = tokens.every((t,i)=>t === expected[i]);
+  }else if(tokens.length === 1){
+    ok = joined === expectJoined;              // まとめて入力でもOK
   }
+
+  if(ok){
+    // 正解：カード開放（表示は 〇〇 を残したまま、見えている漢字にふりがな）
+    card.innerHTML = withRubyMasked(name);
+    card.classList.add("done");
+    infoBox.textContent = data.text;
+
+    const b = document.createElement("div");
+    b.className = "building";
+    b.textContent = data.icon;
+    b.style.left = (Math.random()*80 + 5) + "%";
+    b.style.top = (Math.random()*70 + 5) + "%";
+    town.appendChild(b);
+    setTimeout(()=>b.classList.add("show"),50);
+
+    const v = document.createElement("div");
+    v.className = "villager";
+    v.textContent = Math.random()>0.5 ? "😊" : "👘";
+    v.style.top = Math.floor(Math.random()* (town.clientHeight-40)) + "px";
+    town.appendChild(v);
+
+    gotCards[name] = true;
+    persist();
+    renderZukan();
+  } else {
+    // 不正解：正解を 〇〇部分だけ で表示
+    const right = expected.join(" ・ ");
+    alert(`ざんねん！せいかいは「${right}」だよ（〇〇の部分だけ）`);
+  }
+}
+
 
   // ===== 図鑑（解放済みだけふりがな表示／〇〇維持） =====
   function renderZukan(){
@@ -381,3 +438,4 @@
 
 </body>
 </html>
+

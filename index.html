@@ -84,6 +84,9 @@
         <option value="幕末">章：幕末</option>
       </select>
       <button id="zukanBtn" aria-controls="zukanPanel" aria-expanded="false">図鑑</button>
+      <!-- 追加：リセットボタン -->
+<button id="resetBtn" title="進捗を全部消して最初から">リセット</button>
+
     </div>
   </header>
 
@@ -96,6 +99,16 @@
     <div id="zukanHead">
       <h2>江戸カード図鑑（章ごと）</h2>
       <button id="closeZukan" aria-label="図鑑をとじる">とじる</button>
+      <div class="controls">
+  <select id="chapterFilter" title="章をえらぶ">
+    <option value="ALL">章：ぜんぶ</option>
+    <option value="初期">章：初期（1603〜）</option>
+    <option value="中期">章：中期</option>
+    <option value="幕末">章：幕末</option>
+  </select>
+  <button id="zukanBtn" aria-controls="zukanPanel" aria-expanded="false">図鑑</button>
+</div>
+
     </div>
     <div id="zukanList"></div>
     <div id="completeMsg"></div>
@@ -252,6 +265,9 @@ const blanksMap = {
   const zukanBtn = document.getElementById("zukanBtn");
   const closeZukan = document.getElementById("closeZukan");
   const chapterFilter = document.getElementById("chapterFilter");
+  // 取得を追加
+const resetBtn = document.getElementById("resetBtn");
+
 
   const LS_KEY = "edoTown_cards_quiz_furigana_masked_v1";
   const gotCards = {};
@@ -407,6 +423,40 @@ ${hint}`;
     zukanBtn.setAttribute("aria-expanded","false");
   });
   chapterFilter.addEventListener("change", buildCards);
+  zukanBtn.addEventListener("click", ()=>{ /* … */ });
+closeZukan.addEventListener("click", ()=>{ /* … */ });
+chapterFilter.addEventListener("change", buildCards);
+
+/* ここに追加：リセット処理 */
+resetBtn.addEventListener("click", ()=>{
+  if(!confirm("進捗（開いたカード・町づくり）をリセットします。よろしいですか？")) return;
+
+  // 保存データ削除
+  localStorage.removeItem(LS_KEY);
+  for(const k in gotCards) delete gotCards[k];
+
+  // 町の建物・住人を消す
+  document.querySelectorAll("#town .building, #town .villager").forEach(el=>el.remove());
+
+  // お知らせを初期文に戻す
+  infoBox.textContent = "カードをめくって江戸の町を発展させよう！（クイズにひらがなで正解すると開くよ）";
+
+  // 図鑑を閉じる
+  zukanPanel.classList.remove("active");
+  zukanPanel.setAttribute("aria-hidden","true");
+  zukanBtn.setAttribute("aria-expanded","false");
+
+  // カード＆図鑑を再描画
+  buildCards();
+  renderZukan();
+
+  alert("リセットしました！");
+});
+
+/* 既存 */
+buildCards();
+renderZukan();
+
 
   buildCards();
   renderZukan();
@@ -438,5 +488,6 @@ ${hint}`;
 
 </body>
 </html>
+
 
 

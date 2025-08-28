@@ -20,6 +20,38 @@
 
 <!-- AdSense（自動広告） -->
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922140858632050" crossorigin="anonymous"></script>
+  <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+
+  <!-- ✅ ここからSEO系（タイトル＆説明＆OGP＆Twitter） -->
+  <title>楽しく学べる！子供向け歴史学習サイト｜歴史キッズ</title>
+  <meta name="description" content="歴史キッズは、子供でも楽しく学べる歴史学習サイトです。幅広い時代をカードゲーム風に体験しながら学べます。遊びながら歴史に親しもう！" />
+  <link rel="canonical" href="https://historykids.github.io/" />
+
+  <!-- Google サイト所有権（Search Console） -->
+  <meta name="google-site-verification" content="bgJFyYeBgPsces8Rz5ONG_d-nj8ZEH_fHddcwAXMX0U" />
+
+  <!-- OGP -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://historykids.github.io/" />
+  <meta property="og:title" content="楽しく学べる！子供向け歴史学習サイト｜歴史キッズ" />
+  <meta property="og:description" content="幅広い時代の出来事をカードを集めながら学べる、子供向けの歴史学習サイト。遊びながら歴史を学ぼう！" />
+  <meta property="og:image" content="https://historykids.github.io/thumbnail.png" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="楽しく学べる！子供向け歴史学習サイト｜歴史キッズ" />
+  <meta name="twitter:description" content="幅広い時代の出来事をカードを集めながら学べる、子供向けの歴史学習サイト。" />
+  <meta name="twitter:image" content="https://historykids.github.io/thumbnail.png" />
+  <!-- ✅ ここまでを <style> の前に入れる -->
+
+  <!-- AdSense（自動広告。元の位置のままでOK） -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922140858632050" crossorigin="anonymous"></script>
+
+ 
+
 
 <style>
   :root{
@@ -153,7 +185,7 @@
       <span id="quizHint" style="color:#666"></span>
     </p>
     <input id="quizInput" type="text" inputmode="kana" autocomplete="off"
-           placeholder="ここに ひらがな を入力（例：てんぽ）" />
+           placeholder="ここに ひらがな を入力（例：てんぽう）" />
     <div class="quiz-actions">
       <button id="quizCancel">やめる</button>
       <button id="quizOk">決定</button>
@@ -196,7 +228,7 @@ const dataSets = {
         "1787 〇〇〇〇の改革":         { text: "くらしをひきしめ、教育も大切にする方針。", icon: "📝", year: 1787 },
         "1825 〇〇〇〇〇打払令":       { text: "近づく外国船を追いはらうきまり。", icon: "📣", year: 1825 },
         "1837 〇〇〇〇〇〇〇〇〇〇の乱": { text: "大阪で人びとの苦しさが爆発。", icon: "⚠️", year: 1837 },
-        "1841 〇〇〇の改革":           { text: "町の決まりを見直し、ぜいたくをおさえる。", icon: "📏", year: 1841 }, /* 天保=3（てんぽ） */
+        "1841 〇〇〇〇の改革":           { text: "町の決まりを見直し、ぜいたくをおさえる。", icon: "📏", year: 1841 }, /* 天保=3（てんぽ） */
         "1853 〇〇〇〇が来る":         { text: "アメリカの船が浦賀に来航。", icon: "⛴️", year: 1853 },
         "1854 〇〇〇条約":             { text: "日本は港を開き、交流をはじめる。", icon: "🤝", year: 1854 },
         "1858 〇〇〇〇の条約":         { text: "いくつかの国とむすび、貿易が広がる。", icon: "🌐", year: 1858 },
@@ -225,7 +257,7 @@ const dataSets = {
       "1787 〇〇〇〇の改革": "〇〇〇〇の<ruby>改革<rt>かいかく</rt></ruby>",
       "1825 〇〇〇〇〇打払令": "〇〇〇〇〇<ruby>打払令<rt>うちはらいれい</rt></ruby>",
       "1837 〇〇〇〇〇〇〇〇〇〇の乱": "〇〇〇〇〇〇〇〇〇〇の<ruby>乱<rt>らん</rt></ruby>",
-      "1841 〇〇〇の改革": "〇〇〇の<ruby>改革<rt>かいかく</rt></ruby>",
+      "1841 〇〇〇〇の改革": "〇〇〇〇の<ruby>改革<rt>かいかく</rt></ruby>",
       "1853 〇〇〇〇が来る": "〇〇〇〇が<ruby>来<rt>く</rt></ruby>る",
       "1854 〇〇〇条約": "〇〇〇<ruby>条約<rt>じょうやく</rt></ruby>",
       "1858 〇〇〇〇の条約": "〇〇〇〇の<ruby>条約<rt>じょうやく</rt></ruby>",
@@ -253,7 +285,7 @@ const dataSets = {
       "1787 〇〇〇〇の改革": ["かんせい"],
       "1825 〇〇〇〇〇打払令": ["いこくせん"],
       "1837 〇〇〇〇〇〇〇〇〇〇の乱": ["おおしおへいはちろう"],
-      "1841 〇〇〇の改革": ["てんぽ"],
+      "1841 〇〇〇〇の改革": ["てんぽう"],
       "1853 〇〇〇〇が来る": ["くろふね"],
       "1854 〇〇〇条約": ["わしん"],
       "1858 〇〇〇〇の条約": ["あんせい"],
@@ -611,6 +643,7 @@ renderZukan();
 
 </body>
 </html>
+
 
 
 

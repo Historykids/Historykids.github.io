@@ -1,60 +1,45 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-6Z9WN4HFK5"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-6Z9WN4HFK5"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-6Z9WN4HFK5');
+  </script>
 
-  gtag('config', 'G-6Z9WN4HFK5');
-</script>
-<meta name="google-site-verification" content="bgJFyYeBgPsces8Rz5ONG_d-nj8ZEH_fHddcwAXMX0U">
-
-
-<meta charset="UTF-8" />
-<meta name="viewport"
-  content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>カードで町づくり！（江戸・室町対応 完成版）</title>
-
-<!-- AdSense（自動広告） -->
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922140858632050" crossorigin="anonymous"></script>
-  <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-
-  <!-- ✅ ここからSEO系（タイトル＆説明＆OGP＆Twitter） -->
-  <title>楽しく学べる！子供向け歴史学習サイト｜歴史キッズ</title>
-  <meta name="description" content="歴史キッズは、子供でも楽しく学べる歴史学習サイトです。幅広い時代をカードゲーム風に体験しながら学べます。遊びながら歴史に親しもう！" />
-  <link rel="canonical" href="https://historykids.github.io/" />
-
-  <!-- Google サイト所有権（Search Console） -->
+  <!-- Search Console 所有権 -->
   <meta name="google-site-verification" content="bgJFyYeBgPsces8Rz5ONG_d-nj8ZEH_fHddcwAXMX0U" />
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+
+  <!-- SEO -->
+  <title>楽しく学べる！子供向け歴史学習サイト｜歴史キッズ</title>
+  <meta name="description" content="歴史キッズは、子供でも楽しく学べる歴史学習サイトです。江戸時代や室町時代をカードゲーム風に体験しながら学べます。遊びながら歴史に親しもう！" />
+  <link rel="canonical" href="https://historykids.github.io/" />
 
   <!-- OGP -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://historykids.github.io/" />
   <meta property="og:title" content="楽しく学べる！子供向け歴史学習サイト｜歴史キッズ" />
-  <meta property="og:description" content="幅広い時代の出来事をカードを集めながら学べる、子供向けの歴史学習サイト。遊びながら歴史を学ぼう！" />
+  <meta property="og:description" content="江戸や室町の出来事をカードを集めながら学べる、子供向けの歴史学習サイト。遊びながら歴史を学ぼう！" />
   <meta property="og:image" content="https://historykids.github.io/thumbnail.png" />
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="楽しく学べる！子供向け歴史学習サイト｜歴史キッズ" />
-  <meta name="twitter:description" content="幅広い時代の出来事をカードを集めながら学べる、子供向けの歴史学習サイト。" />
+  <meta name="twitter:description" content="江戸や室町の出来事をカードを集めながら学べる、子供向けの歴史学習サイト。" />
   <meta name="twitter:image" content="https://historykids.github.io/thumbnail.png" />
-  <!-- ✅ ここまでを <style> の前に入れる -->
 
-  <!-- AdSense（自動広告。元の位置のままでOK） -->
+  <!-- AdSense（1つだけでOK） -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922140858632050" crossorigin="anonymous"></script>
 
- 
-
-
-<style>
-  :root{
+  <style>
+    /* ← ここに今の CSS をそのまま置く（内容はあなたのままでOK） */
+      :root{
     --edo-yellow:#FCD34D; --edo-info:#FFF8DC; --edo-border:#999;
     --bg:#FFF6E3; --shadow:rgba(0,0,0,.12); --ink:#222; --adbg:#f1f1f1;
   }
@@ -128,8 +113,12 @@
   .quiz-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
   .quiz-actions button{border:0;border-radius:10px;padding:8px 14px;background:#eee;cursor:pointer}
   .quiz-actions #quizOk{background:#cdeccd;color:#145f14;font-weight:700}
-</style>
+  </style>
 </head>
+
+
+
+
  
 
   
@@ -303,7 +292,7 @@ const dataSets = {
     chapters: {
       "初期（南北朝〜）": {
         "1336 〇〇〇〇幕府がはじまる": { text: "足利氏の幕府が京都で始まる。", icon: "🏯", year: 1336 },
-        "1392 〇〇〇〇〇〇統一":       { text: "南朝と北朝がひとつになる。", icon: "🤝", year: 1392 }, /* なんぼくちょう=6 */
+        "1392 〇〇〇〇〇〇〇統一":       { text: "南朝と北朝がひとつになる。", icon: "🤝", year: 1392 }, /* なんぼくちょう=6 */
         "1397 〇〇〇〇が建てられる":   { text: "きらびやかな建物（鹿苑寺）。", icon: "🏯", year: 1397 },
         "1390 〇〇〇〇文化がさかえる": { text: "能や茶の湯など都の文化が発展。", icon: "🎭", year: 1390 },
         "1401 〇〇〇〇貿易がはじまる": { text: "明との勘合（証明）を用いた貿易。", icon: "🛶", year: 1401 }
@@ -325,7 +314,7 @@ const dataSets = {
     },
     ruby: {
       "1336 〇〇〇〇幕府がはじまる": "〇〇〇〇<ruby>幕府<rt>ばくふ</rt></ruby>がはじまる",
-      "1392 〇〇〇〇〇〇統一":       "〇〇〇〇〇〇<ruby>統一<rt>とういつ</rt></ruby>",
+      "1392 〇〇〇〇〇〇〇統一":       "〇〇〇〇〇〇<ruby>統一<rt>とういつ</rt></ruby>",
       "1397 〇〇〇〇が建てられる":   "〇〇〇〇が<ruby>建<rt>た</rt></ruby>てられる",
       "1390 〇〇〇〇文化がさかえる": "〇〇〇〇<ruby>文化<rt>ぶんか</rt></ruby>がさかえる",
       "1401 〇〇〇〇<ruby>貿易<rt>ぼうえき</rt></ruby>がはじまる": "〇〇〇〇<ruby>貿易<rt>ぼうえき</rt></ruby>がはじまる",
@@ -344,7 +333,7 @@ const dataSets = {
     },
     blanks: {
       "1336 〇〇〇〇幕府がはじまる": ["むろまち"],
-      "1392 〇〇〇〇〇〇統一":       ["なんぼくちょう"],
+      "1392 〇〇〇〇〇〇〇統一":       ["なんぼくちょう"],
       "1397 〇〇〇〇が建てられる":   ["きんかく"],
       "1390 〇〇〇〇文化がさかえる": ["きたやま"],
       "1401 〇〇〇〇貿易がはじまる": ["かんごう"],
@@ -643,6 +632,7 @@ renderZukan();
 
 </body>
 </html>
+
 
 
 

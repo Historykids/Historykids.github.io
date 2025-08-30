@@ -38,6 +38,27 @@
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922140858632050" crossorigin="anonymous"></script>
 
   <style>
+    /* === 上部PRバー === */
+.promoBar{
+  background:#fffbe6;
+  border-bottom:1px solid #e6d400;
+  padding:8px 12px;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+  box-shadow:0 1px 3px rgba(0,0,0,.08);
+}
+.promoBar b{ color:#b58900; }
+.promoBar .title{ font-weight:700; }
+.promoBar .button{
+  display:inline-block; background:#ffd814; color:#111;
+  padding:8px 12px; border-radius:8px; font-weight:700;
+  text-decoration:none; box-shadow:0 1px 3px rgba(0,0,0,.15);
+}
+.promoBar small{ color:#666; }
+
     /* ← ここに今の CSS をそのまま置く（内容はあなたのままでOK） */
       :root{
     --edo-yellow:#FCD34D; --edo-info:#FFF8DC; --edo-border:#999;
@@ -140,6 +161,18 @@
       <button id="resetBtn" title="進捗を全部消して最初から">リセット</button>
     </div>
   </header>
+  <!-- PR：おすすめの本（ドラえもん） -->
+<div class="promoBar" role="note" aria-label="おすすめの本（PR）">
+  <b>PR</b>
+  <span class="title">歴史入門にぴったり！<strong>ドラえもんの社会科おもしろ攻略 日本の歴史1</strong>（小学館）</span>
+  <a id="promoLink" class="button"
+     href="https://www.amazon.co.jp/%E3%83%89%E3%83%A9%E3%81%88%E3%82%82%E3%82%93%E3%81%AE%E7%A4%BE%E4%BC%9A%E7%A7%91%E3%81%8A%E3%82%82%E3%81%97%E3%82%8D%E6%94%BB%E7%95%A5-%E6%97%A5%E6%9C%AC%E3%81%AE%E6%AD%B4%E5%8F%B2-1-%E6%97%A7%E7%9F%B3%E5%99%A8%E6%99%82%E4%BB%A3-%E5%B9%B3%E5%AE%89%E6%99%82%E4%BB%A3-%E3%83%89%E3%83%A9%E3%81%88%E3%82%82%E3%82%93%E3%81%AE%E5%AD%A6%E7%BF%92%E3%82%B7%E3%83%AA%E3%83%BC%E3%82%BA/dp/4092538537?pd_rd_w=NK63N&content-id=amzn1.sym.fe9e7b6a-7eb1-4695-9d8d-c2c9268438f1&pf_rd_p=fe9e7b6a-7eb1-4695-9d8d-c2c9268438f1&pf_rd_r=G85F6PCJVEQDAM4FQS4R&pd_rd_wg=L55xE&pd_rd_r=36a12256-57c6-4432-b0bb-0fbf5e1eae89&pd_rd_i=4092538537&psc=1&linkCode=ll1&tag=74317515-22&linkId=b3ebab66de83e2054f98f905b61d1ad5&language=ja_JP&ref_=as_li_ss_tl"
+     target="_blank" rel="noopener sponsored nofollow">
+     Amazonで見る
+  </a>
+  <small>※当サイトはアフィリエイト広告を利用しています</small>
+</div>
+
 
   <div id="info">時代をえらんでカードをめくろう！ 〇の部分だけを「ひらがな」で答えると開くよ。</div>
   <div id="town" role="img" aria-label="町エリア"></div>
@@ -153,11 +186,6 @@
     <div id="zukanList"></div>
     <div id="completeMsg"></div>
   </section>
-  <a href="https://www.amazon.co.jp/%E3%83%89%E3%83%A9%E3%81%88%E3%82%82%E3%82%93%E3%81%AE%E7%A4%BE%E4%BC%9A%E7%A7%91%E3%81%8A%E3%82%82%E3%81%97%E3%82%8D%E6%94%BB%E7%95%A5-%E6%97%A5%E6%9C%AC%E3%81%AE%E6%AD%B4%E5%8F%B2-1-%E6%97%A7%E7%9F%B3%E5%99%A8%E6%99%82%E4%BB%A3-%E5%B9%B3%E5%AE%89%E6%99%82%E4%BB%A3-%E3%83%89%E3%83%A9%E3%81%88%E3%82%82%E3%82%93%E3%81%AE%E5%AD%A6%E7%BF%92%E3%82%B7%E3%83%AA%E3%83%BC%E3%82%BA/dp/4092538537?pd_rd_w=NK63N&content-id=amzn1.sym.fe9e7b6a-7eb1-4695-9d8d-c2c9268438f1&pf_rd_p=fe9e7b6a-7eb1-4695-9d8d-c2c9268438f1&pf_rd_r=G85F6PCJVEQDAM4FQS4R&pd_rd_wg=L55xE&pd_rd_r=36a12256-57c6-4432-b0bb-0fbf5e1eae89&pd_rd_i=4092538537&psc=1&linkCode=ll1&tag=74317515-22&linkId=b3ebab66de83e2054f98f905b61d1ad5&language=ja_JP&ref_=as_li_ss_tl"
-   target="_blank" rel="noopener sponsored nofollow"
-   style="display:inline-block;background:#ffd814;color:#111;padding:10px 14px;border-radius:8px;font-weight:700;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,.15)">
-  Amazonで見る
-</a>
 
 
   <!-- 下部の固定バナー枠（必要なら中身を ad ユニットに差し替え） -->
@@ -639,6 +667,7 @@ renderZukan();
 
 </body>
 </html>
+
 
 
 

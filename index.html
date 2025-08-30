@@ -1,5 +1,34 @@
 <!DOCTYPE html>
 <html lang="ja">
+  <script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"FAQPage",
+  "mainEntity":[
+    {
+      "@type":"Question",
+      "name":"対象は小学生ですか？",
+      "acceptedAnswer":{"@type":"Answer","text":"はい。小学生が遊びながら歴史に親しめるように、ひらがなクイズや図鑑（年表）でやさしく学べます。"}
+    },
+    {
+      "@type":"Question",
+      "name":"無料で使えますか？",
+      "acceptedAnswer":{"@type":"Answer","text":"無料で利用できます。サイト下部に広告が表示されます。"}
+    },
+    {
+      "@type":"Question",
+      "name":"どんな学習内容がありますか？",
+      "acceptedAnswer":{"@type":"Answer","text":"江戸時代・室町時代の主要な出来事を、年と出来事を結びつけるクイズ、年表の拡張表示、カード収集と街づくり演出で学べます。"}
+    },
+    {
+      "@type":"Question",
+      "name":"スマホやタブレットでも使えますか？",
+      "acceptedAnswer":{"@type":"Answer","text":"はい。縦画面・1画面で遊べるよう最適化しています。"}
+    }
+  ]
+}
+</script>
+
 <head>
   <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-6Z9WN4HFK5"></script>
@@ -17,9 +46,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 
   <!-- SEO -->
-  <title>楽しく学べる！子供向け歴史学習サイト｜歴史キッズ</title>
-  <meta name="description" content="歴史キッズは、子供でも楽しく学べる歴史学習サイトです。江戸時代や室町時代をカードゲーム風に体験しながら学べます。遊びながら歴史に親しもう！" />
-  <link rel="canonical" href="https://historykids.github.io/" />
+<title>歴史キッズ｜小学生向け歴史学習サイト（江戸時代・室町時代のクイズ／年表／カードゲーム）</title>
+<meta name="description" content="歴史キッズは小学生向けの歴史学習サイト。江戸時代・室町時代をクイズ／年表／カード集めの街づくりで楽しく学べます。スマホ対応・無料で遊べる子ども向け歴史教材。">
+<link rel="canonical" href="https://historykids.github.io/">
+
 
   <!-- OGP -->
   <meta property="og:type" content="website" />
@@ -147,7 +177,8 @@
 <body>
 <div class="wrap" role="application" aria-label="江戸・室町カードで町づくり（完成版）">
   <header>
-    <h1>カードで町づくり！</h1>
+    <h1>歴史キッズ｜小学生向け 歴史学習（江戸時代・室町時代）カードで町づくり！</h1>
+
     <div class="controls">
       <label for="eraSelect" style="font-size:12px">時代：</label>
       <select id="eraSelect" title="時代をえらぶ">
@@ -161,6 +192,18 @@
       <button id="resetBtn" title="進捗を全部消して最初から">リセット</button>
     </div>
   </header>
+  <section id="intro" style="padding:10px 12px;background:#fff;">
+  <p style="margin:0 0 8px;">
+    小学生向けの<span style="font-weight:700;">歴史学習サイト</span>です。<br>
+    <b>江戸時代・室町時代</b>の出来事を、<b>クイズ</b>と<b>年表</b>、<b>カード集め</b>で楽しく学べます（スマホ対応・無料）。
+  </p>
+  <nav style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a href="#cards" style="display:inline-block;background:#fcd34d;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;color:#222;">江戸時代で遊ぶ</a>
+    <a href="#cards" style="display:inline-block;background:#fde68a;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;color:#222;">室町時代で遊ぶ</a>
+    <a href="#zukanPanel" style="display:inline-block;background:#e5e7eb;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;color:#111;">図鑑（年表）を見る</a>
+  </nav>
+</section>
+
   <!-- PR：おすすめの本（ドラえもん） -->
 <div class="promoBar" role="note" aria-label="おすすめの本（PR）">
   <b>PR</b>
@@ -664,9 +707,17 @@ renderZukan();
   固定のバナー広告を使う場合は、.adslot の中身をあなたの広告ユニットに置換し、
   直後で (adsbygoogle = window.adsbygoogle || []).push({}); を呼び出してください。
 -->
+  <p style="padding:0 12px;">
+  <strong>子ども向け 歴史 学習</strong>として、まずは
+  <a href="#cards">江戸時代のクイズ</a>と
+  <a href="#cards">室町時代のクイズ</a>から始めてみよう。図鑑で
+  <a href="#zukanPanel">年表</a>も確認できるよ。
+</p>
+
 
 </body>
 </html>
+
 
 
 

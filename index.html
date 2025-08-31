@@ -1005,10 +1005,16 @@ renderZukan();
   document.getElementById("footMuromachi").addEventListener("click", (e)=>{e.preventDefault(); eraSelect.value="muromachi"; eraSelect.dispatchEvent(new Event("change")); document.getElementById("cards").scrollIntoView({behavior:"smooth"});});
   document.getElementById("footKamakura").addEventListener("click", (e)=>{e.preventDefault(); eraSelect.value="kamakura"; eraSelect.dispatchEvent(new Event("change")); document.getElementById("cards").scrollIntoView({behavior:"smooth"});});
   document.getElementById("footZukan").addEventListener("click", (e)=>{e.preventDefault(); document.getElementById("openZukan").click();});
-</script>
+document.getElementById("footSengoku").addEventListener("click", (e) => {
+  e.preventDefault();
+  eraSelect.value = "sengoku";                // セレクトを戦国に切り替え
+  eraSelect.dispatchEvent(new Event("change")); // changeイベントを発火
+  document.getElementById("cards").scrollIntoView({behavior:"smooth"}); // カードにスクロール
+});</script>
 
 </body>
 </html>
+
 
 
 

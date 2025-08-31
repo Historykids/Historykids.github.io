@@ -94,7 +94,8 @@
       "Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;}
   .wrap{display:flex;flex-direction:column;min-height:100svh;}
   header{
-    position:sticky;top:0;z-index:3;background:var(--edo-yellow);
+    position:sticky;top:0;z-index:3;
+    background:linear-gradient(180deg,var(--edo-yellow),#fde68a);
     padding:10px 12px;display:flex;gap:8px;align-items:center;justify-content:space-between;
     box-shadow:0 1px 4px var(--shadow);flex-wrap:wrap;
   }
@@ -113,7 +114,9 @@
   #cards{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:10px}
   .card{width:28vw;max-width:110px;min-width:86px;height:120px;border-radius:12px;background:#ddd;
     display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;
-    cursor:pointer;box-shadow:0 2px 6px var(--shadow);user-select:none;text-align:center;padding:6px}
+    cursor:pointer;box-shadow:0 2px 6px var(--shadow);user-select:none;text-align:center;padding:6px;
+    transition:transform .2s, box-shadow .2s}
+  .card:hover{transform:scale(1.05);box-shadow:0 4px 12px var(--shadow)}
   .card.done{background:#cdeccd;color:#1a5e1a}
   .building{position:absolute;font-size:34px;opacity:0;transform:scale(.8);transition:opacity .7s, transform .7s}
   .show{opacity:1;transform:scale(1.2)}
@@ -158,7 +161,9 @@
   .quiz-instruction{font-size:14px;margin:6px 0 10px 0;color:#444}
   #quizInput{width:100%;padding:10px 12px;font-size:16px;border:1px solid #ccc;border-radius:10px}
   .quiz-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
-  .quiz-actions button{border:0;border-radius:10px;padding:8px 14px;background:#eee;cursor:pointer}
+  .quiz-actions button{border:0;border-radius:10px;padding:8px 14px;background:#eee;cursor:pointer;
+    box-shadow:0 1px 3px var(--shadow);transition:background .2s, transform .2s}
+  .quiz-actions button:hover{transform:translateY(-2px)}
   .quiz-actions #quizOk{background:#cdeccd;color:#145f14;font-weight:700}
   </style>
 </head>
@@ -710,6 +715,11 @@ function onCardClick(card, name, ch){
 }
 
 /* ========= イベント ========= */
+quizCancel.addEventListener("click", closeQuiz);
+quizBg.addEventListener("click", closeQuiz);
+quizOk.addEventListener("click", submitQuiz);
+quizInput.addEventListener("keydown", e=>{ if(e.key === "Enter") submitQuiz(); });
+
 zukanBtn.addEventListener("click", ()=>{
   const active = !zukanPanel.classList.contains("active");
   zukanPanel.classList.toggle("active");

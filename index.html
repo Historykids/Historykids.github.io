@@ -129,7 +129,7 @@
     transition:transform .2s, box-shadow .2s
   }
   .card:hover{transform:scale(1.03);box-shadow:0 4px 12px var(--shadow)}
-  .card.done{background:#cdeccd;color:#1a5e1a} /* ← 重複は削除済み */
+  .card.done{background:#cdeccd;color:#1a5e1a}
 
   .building{position:absolute;font-size:34px;opacity:0;transform:scale(.8);transition:opacity .7s, transform .7s}
   .show{opacity:1;transform:scale(1.2)}
@@ -549,42 +549,42 @@ const dataSets = {
     LS_KEY: "cards_sengoku_complete_v1",
     chapters: {
       "前期（戦乱のはじまり）": {
-        "1467 〇〇〇〇の乱":                { text: "京都で大きな戦いがはじまり、全国に広がる。", icon: "🔥", year: 1467 }, // おうにん
-        "1485 〇〇〇〇国一揆":              { text: "人びとが協力して自治（山城国）。", icon: "🛡️", year: 1485 }           // やましろ
+        "1467 〇〇〇〇の乱":                { text: "京都で大きな戦いがはじまり、全国に広がる。", icon: "🔥", year: 1467 },
+        "1485 〇〇〇〇国一揆":              { text: "人びとが協力して自治（山城国）。", icon: "🛡️", year: 1485 }
       },
       "群雄割拠": {
-        "1543 〇〇〇〇伝来":                { text: "新しい武器が伝わる（鉄砲）。", icon: "🔫", year: 1543 },             // てっぽう
-        "1549 〇〇〇〇教伝来":              { text: "キリスト教が日本に広がる。", icon: "⛪", year: 1549 },               // きりすと
-        "1555 〇〇〇〇〇の戦い":            { text: "厳島の戦い、武将が勢力拡大。", icon: "🗺️", year: 1555 },           // いつくしま
-        "1560 〇〇〇〇〇の戦い":            { text: "桶狭間の戦い、奇襲でかつ。", icon: "⚔️", year: 1560 },             // おけはざま
-        "1561 〇〇〇〇〇〇の戦い":          { text: "川中島の戦い、名将どうしが激突。", icon: "⚔️", year: 1561 },       // かわなかじま
-        "1567 〇〇に改名（稲葉山→〜）":    { text: "城下町の名をあらためる（岐阜）。", icon: "🏯", year: 1567 },       // ぎふ
-        "1568 〇〇〇〇が京都に入る":        { text: "都をおさえて天下へ進む。", icon: "🏯", year: 1568 }                 // のぶなが
+        "1543 〇〇〇〇伝来":                { text: "新しい武器が伝わる（鉄砲）。", icon: "🔫", year: 1543 },
+        "1549 〇〇〇〇教伝来":              { text: "キリスト教が日本に広がる。", icon: "⛪", year: 1549 },
+        "1555 〇〇〇〇〇の戦い":            { text: "厳島の戦い、武将が勢力拡大。", icon: "🗺️", year: 1555 },
+        "1560 〇〇〇〇〇の戦い":            { text: "桶狭間の戦い、奇襲でかつ。", icon: "⚔️", year: 1560 },
+        "1561 〇〇〇〇〇〇の戦い":          { text: "川中島の戦い、名将どうしが激突。", icon: "⚔️", year: 1561 },
+        "1567 〇〇に改名（稲葉山→〜）":    { text: "城下町の名をあらためる（岐阜）。", icon: "🏯", year: 1567 },
+        "1568 〇〇〇〇が京都に入る":        { text: "都をおさえて天下へ進む。", icon: "🏯", year: 1568 }
       },
       "統一へ": {
-        "1570 〇〇〇〇の戦い":              { text: "姉川の戦い。", icon: "⚔️", year: 1570 },                             // あねがわ
-        "1571 〇〇〇〇〇焼き討ち":          { text: "比叡山を攻める。", icon: "🔥", year: 1571 },                         // ひえいざん
-        "1573 〇〇〇〇幕府がおわる":        { text: "室町幕府の終わり。", icon: "🌅", year: 1573 },                       // むろまち
-        "1575 〇〇〇〇の戦い":              { text: "長篠の戦い、鉄砲で勝つ。", icon: "🔫", year: 1575 },                // ながしの
-        "1576 〇〇〇城を築く":              { text: "安土城をつくる。", icon: "🏰", year: 1576 },                         // あづち
-        "1582 〇〇〇〇〇の変":              { text: "本能寺の変。", icon: "🗡️", year: 1582 },                             // ほんのうじ
-        "1582 〇〇〇〇の戦い":              { text: "山崎の戦い。", icon: "⚔️", year: 1582 },                             // やまざき
-        "1583 〇〇〇〇〇の戦い":            { text: "賤ヶ岳の戦い。", icon: "⚔️", year: 1583 },                           // しずがたけ
-        "1584 〇〇〇・〇〇〇〇の戦い":      { text: "小牧・長久手の戦い。", icon: "⚔️", year: 1584 },                     // こまき / ながくて
-        "1585 〇〇〇〇になる":              { text: "関白になる。", icon: "🎖️", year: 1585 },                             // かんぱく
-        "1587 〇〇〇〇〇〇を平定":          { text: "九州をおさめる。", icon: "🗾", year: 1587 },                           // きゅうしゅう
-        "1588 〇〇〇〇〇〇〇令":            { text: "刀狩令を出す。", icon: "📢", year: 1588 },                             // かたながりれい
-        "1590 〇〇〇〇の戦い":              { text: "小田原の戦い。", icon: "⚔️", year: 1590 },                           // おだわら
-        "1591 〇〇〇〇〇〇〇〇が出る":      { text: "身分統制令を出す。", icon: "📜", year: 1591 },                         // みぶんとうせいれい
-        "1592 〇〇〇〇〇〇〇の役":          { text: "朝鮮へ出兵（文禄の役）。", icon: "⛴️", year: 1592 },                  // ぶんろくのえき
-        "1597 〇〇〇〇〇〇〇〇の役":        { text: "ふたたび出兵（慶長の役）。", icon: "⛴️", year: 1597 },               // けいちょうのえき
-        "1598 〇〇〇〇がなくなる":          { text: "秀吉が亡くなる。", icon: "🕊️", year: 1598 },                         // ひでよし
-        "1600 〇〇〇〇〇の戦い":            { text: "関ヶ原の戦い。", icon: "⚔️", year: 1600 }                             // せきがはら
+        "1570 〇〇〇〇の戦い":              { text: "姉川の戦い。", icon: "⚔️", year: 1570 },
+        "1571 〇〇〇〇〇焼き討ち":          { text: "比叡山を攻める。", icon: "🔥", year: 1571 },
+        "1573 〇〇〇〇幕府がおわる":        { text: "室町幕府の終わり。", icon: "🌅", year: 1573 },
+        "1575 〇〇〇〇の戦い":              { text: "長篠の戦い、鉄砲で勝つ。", icon: "🔫", year: 1575 },
+        "1576 〇〇〇城を築く":              { text: "安土城をつくる。", icon: "🏰", year: 1576 },
+        "1582 〇〇〇〇〇の変":              { text: "本能寺の変。", icon: "🗡️", year: 1582 },
+        "1582 〇〇〇〇の戦い":              { text: "山崎の戦い。", icon: "⚔️", year: 1582 },
+        "1583 〇〇〇〇〇の戦い":            { text: "賤ヶ岳の戦い。", icon: "⚔️", year: 1583 },
+        "1584 〇〇〇・〇〇〇〇の戦い":      { text: "小牧・長久手の戦い。", icon: "⚔️", year: 1584 },
+        "1585 〇〇〇〇になる":              { text: "関白になる。", icon: "🎖️", year: 1585 },
+        "1587 〇〇〇〇〇〇を平定":          { text: "九州をおさめる。", icon: "🗾", year: 1587 },
+        "1588 〇〇〇〇〇〇〇令":            { text: "刀狩令を出す。", icon: "📢", year: 1588 },
+        "1590 〇〇〇〇の戦い":              { text: "小田原の戦い。", icon: "⚔️", year: 1590 },
+        "1591 〇〇〇〇〇〇〇〇が出る":      { text: "身分統制令を出す。", icon: "📜", year: 1591 },
+        "1592 〇〇〇〇〇〇〇の役":          { text: "朝鮮へ出兵（文禄の役）。", icon: "⛴️", year: 1592 },
+        "1597 〇〇〇〇〇〇〇〇の役":        { text: "ふたたび出兵（慶長の役）。", icon: "⛴️", year: 1597 },
+        "1598 〇〇〇〇がなくなる":          { text: "秀吉が亡くなる。", icon: "🕊️", year: 1598 },
+        "1600 〇〇〇〇〇の戦い":            { text: "関ヶ原の戦い。", icon: "⚔️", year: 1600 }
       },
       "政策と町づくり": {
-        "1577 〇〇〇〇・〇〇〇をすすめる":  { text: "楽市・楽座をすすめ、商いが活発に。", icon: "🛍️", year: 1577 },      // らくいち / らくざ
-        "1582 〇〇〇〇<ruby>検地<rt>けんち</rt></ruby>がすすむ": { text: "田んぼの広さをはかり、税を決める（太閤検地）。", icon: "📏", year: 1582 }, // たいこう
-        "1583 〇〇〇〇城を築く":            { text: "大阪城を築く。", icon: "🏯", year: 1583 }                              // おおさか
+        "1577 〇〇〇〇・〇〇〇をすすめる":  { text: "楽市・楽座をすすめ、商いが活発に。", icon: "🛍️", year: 1577 },
+        "1582 〇〇〇〇検地がすすむ":        { text: "田んぼの広さをはかり、税を決める（太閤検地）。", icon: "📏", year: 1582 },
+        "1583 〇〇〇〇城を築く":            { text: "大阪城を築く。", icon: "🏯", year: 1583 }
       }
     },
     ruby: {
@@ -619,7 +619,7 @@ const dataSets = {
       "1600 〇〇〇〇〇の戦い":             "〇〇〇〇〇の<ruby>戦<rt>たたか</rt></ruby>い",
 
       "1577 〇〇〇〇・〇〇〇をすすめる":   "〇〇〇〇・〇〇〇を<ruby>勧<rt>すす</rt></ruby>める",
-      "1582 〇〇〇〇<ruby>検地<rt>けんち</rt></ruby>がすすむ": "〇〇〇〇<ruby>検地<rt>けんち</rt></ruby>がすすむ",
+      "1582 〇〇〇〇検地がすすむ":         "〇〇〇〇<ruby>検地<rt>けんち</rt></ruby>がすすむ",
       "1583 〇〇〇〇城を築く":             "〇〇〇〇<ruby>城<rt>じょう</rt></ruby>を<ruby>築<rt>きず</rt></ruby>く"
     },
     blanks: {
@@ -838,7 +838,7 @@ function submitQuiz(){
   }
 
   if(!ok){
-    alert(`ざんねん！せいかいは「${expected.join(" ・ ")}」だよ（〇の部分だけ）`);
+    alert(`ざんねん！せいかいは「${expected.join(" ・ ") }」だよ（〇の部分だけ）`);
     quizInput.focus();
     return;
   }
@@ -881,10 +881,10 @@ quizOk?.addEventListener("click", submitQuiz);
 quizInput?.addEventListener("keydown", e=>{ if(e.key === "Enter") submitQuiz(); });
 
 zukanBtn?.addEventListener("click", ()=>{
-  const active = !zukanPanel.classList.contains("active");
+  const willOpen = !zukanPanel.classList.contains("active");
   zukanPanel.classList.toggle("active");
-  zukanPanel.setAttribute("aria-hidden", active ? "false" : "true");
-  zukanBtn.setAttribute("aria-expanded", String(active));
+  zukanPanel.setAttribute("aria-hidden", willOpen ? "false" : "true");
+  zukanBtn.setAttribute("aria-expanded", String(willOpen));
 });
 closeZukan?.addEventListener("click", ()=>{
   zukanPanel.classList.remove("active");
@@ -977,6 +977,12 @@ renderZukan();
     }
   }
 })();
+</script>
+</body>
+</html>
+
+
+
 
 
 

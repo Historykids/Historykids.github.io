@@ -809,30 +809,24 @@ function openQuiz(card, name, ch){
     ? `空欄は ${expected.length} こ。順番に入力してね`
     : `空欄は 1 こ。例：えど`;
   
-  // ▼▼▼ この行を追加 ▼▼▼
+  // この行で表示を切り替えます
   quizModal.style.display = "flex"; 
   
   quizModal.setAttribute("aria-hidden","false");
   quizInput.value = "";
   setTimeout(()=>quizInput.focus(), 50);
+  
+  // 以前あった classList.add("active") は、
+  // displayを直接操作するので不要になります。
 }
 
-
-  quizModal.classList.add("active");
-  quizModal.setAttribute("aria-hidden","false");
-  quizInput.value = "";
-  setTimeout(()=>quizInput.focus(), 50);
-}
 function closeQuiz(){
-  // ▼▼▼ この行を追加 ▼▼▼
+  // この行で非表示に切り替えます
   quizModal.style.display = "none";
   
   quizModal.setAttribute("aria-hidden","true");
 }
 
-  quizModal.classList.remove("active");
-  quizModal.setAttribute("aria-hidden","true");
-}
 function submitQuiz(){
   const { card, name, ch, expected } = quizCtx;
   if(!card) return;
@@ -995,6 +989,7 @@ renderZukan();
 </script>
 </body>
 </html>
+
 
 
 

@@ -998,16 +998,16 @@ const dataSets = {
 };
 
 /* ========= 共通ユーティリティ ========= */
-const eraSelect = document.getElementById("eraSelect");
-const chapterFilter = document.getElementById("chapterFilter");
-const infoBox = document.getElementById("info");
-const town = document.getElementById("town");
-const zukanPanel = document.getElementById("zukanPanel");
-const zukanList = document.getElementById("zukanList");
-const completeMsg = document.getElementById("completeMsg");
-const zukanBtn = document.getElementById("zukanBtn");
-const closeZukan = document.getElementById("closeZukan");
-const resetBtn = document.getElementById("resetBtn");
+const eraSelect      = document.getElementById("eraSelect");
+const chapterFilter  = document.getElementById("chapterFilter");
+const infoBox        = document.getElementById("info");
+const town           = document.getElementById("town");
+const zukanPanel     = document.getElementById("zukanPanel");
+const zukanList      = document.getElementById("zukanList");
+const completeMsg    = document.getElementById("completeMsg");
+const zukanBtn       = document.getElementById("zukanBtn");
+const closeZukan     = document.getElementById("closeZukan");
+const resetBtn       = document.getElementById("resetBtn");
 
 const quizModal  = document.getElementById("quizModal");
 const quizTitle  = document.getElementById("quizTitle");
@@ -1017,16 +1017,20 @@ const quizOk     = document.getElementById("quizOk");
 const quizCancel = document.getElementById("quizCancel");
 const quizBg     = document.getElementById("quizBg");
 
-let currentEra = "edo";
-let gotCards = {}; // 現在の時代の進捗
+let currentEra = eraSelect ? eraSelect.value : "edo";
+let gotCards = {}; // 現在の時代の進捗（localStorageに保存）
 
-function onlyHiraAndSep(s){ return /^[\u3041-\u3096\s・,，、/／]+$/.test(s); }
+function onlyHiraAndSep(s){
+  return /^[\u3041-\u3096\s・,，、/／]+$/.test(s);
+}
 function splitTokens(ans){
   let s = ans.replace(/[・,，、/／]+/g, ' ');
   s = s.replace(/\s+/g, ' ').trim();
   return s ? s.split(' ') : [];
 }
-function persist(){ try { localStorage.setItem(dataSets[currentEra].LS_KEY, JSON.stringify(gotCards)); } catch(e){} }
+function persist(){
+  try { localStorage.setItem(dataSets[currentEra].LS_KEY, JSON.stringify(gotCards)); } catch(e){}
+}
 function loadProgress(){
   const raw = localStorage.getItem(dataSets[currentEra].LS_KEY);
   try{ gotCards = raw ? JSON.parse(raw) : {}; } catch{ gotCards = {}; }
@@ -1036,7 +1040,7 @@ function loadProgress(){
 function withRubyMasked(fullName){
   const m = dataSets[currentEra].ruby[fullName];
   if(m) {
-    const sp = fullName.indexOf(" ");
+    const sp   = fullName.indexOf(" ");
     const year = fullName.slice(0, sp);
     return `<span class="yr">${year}</span> ${m}`;
   }
@@ -1044,6 +1048,7 @@ function withRubyMasked(fullName){
 }
 
 function buildChapterFilter(){
+  if(!chapterFilter) return;
   chapterFilter.innerHTML = `<option value="ALL">章：ぜんぶ</option>`;
   const chapters = dataSets[currentEra].chapters;
   Object.keys(chapters).forEach(ch=>{
@@ -1053,18 +1058,33 @@ function buildChapterFilter(){
 
 function buildCards(){
   const wrap = document.getElementById("cards");
+  if(!wrap) return;
   wrap.innerHTML = "";
-  const sel = chapterFilter.value;
+  const sel = chapterFilter ? chapterFilter.value : "ALL";
   const chapters = dataSets[currentEra].chapters;
+
   Object.keys(chapters).forEach(ch=>{
     if(sel!=="ALL" && sel!==ch) return;
     for(const name in chapters[ch]){
       const el = document.createElement("div");
       el.className = "card";
       el.dataset.card = name;
+
+      // アクセシビリティ（キーボード操作OK）
+      el.setAttribute('role','button');
+      el.setAttribute('tabindex','0');
+
       if(gotCards[name]) { el.innerHTML = withRubyMasked(name); el.classList.add("done"); }
       else { el.textContent = "？\n" + name.split(" ")[0]; }
+
       el.addEventListener("click", ()=>onCardClick(el, name, ch));
+      el.addEventListener("keydown", (e)=>{
+        if(e.key === "Enter" || e.key === " "){
+          e.preventDefault();
+          onCardClick(el, name, ch);
+        }
+      });
+
       wrap.appendChild(el);
     }
   });
@@ -1134,7 +1154,6 @@ function closeQuiz(){
   quizModal.classList.remove("active");
   quizModal.setAttribute("aria-hidden","true");
 }
-
 function submitQuiz(){
   const { card, name, ch, expected } = quizCtx;
   if(!card) return;
@@ -1165,7 +1184,7 @@ function submitQuiz(){
   const data = dataSets[currentEra].chapters[ch][name];
   card.innerHTML = withRubyMasked(name);
   card.classList.add("done");
-  infoBox.textContent = data.text;
+  infoBox && (infoBox.textContent = data.text);
 
   const b = document.createElement("div");
   b.className = "building";
@@ -1178,7 +1197,7 @@ function submitQuiz(){
   const v = document.createElement("div");
   v.className = "villager";
   v.textContent = Math.random()>0.5 ? "😊" : "👘";
-  v.style.top = Math.floor(Math.random()*(town.clientHeight-40)) + "px";
+  v.style.top = Math.floor(Math.random()*Math.max(40, town.clientHeight-40)) + "px";
   town.appendChild(v);
 
   gotCards[name] = true;
@@ -1192,31 +1211,31 @@ function onCardClick(card, name, ch){
 }
 
 /* ========= イベント ========= */
-quizCancel.addEventListener("click", closeQuiz);
-quizBg.addEventListener("click", closeQuiz);
-quizOk.addEventListener("click", submitQuiz);
-quizInput.addEventListener("keydown", e=>{ if(e.key === "Enter") submitQuiz(); });
+quizCancel?.addEventListener("click", closeQuiz);
+quizBg?.addEventListener("click", closeQuiz);
+quizOk?.addEventListener("click", submitQuiz);
+quizInput?.addEventListener("keydown", e=>{ if(e.key === "Enter") submitQuiz(); });
 
-zukanBtn.addEventListener("click", ()=>{
+zukanBtn?.addEventListener("click", ()=>{
   const active = !zukanPanel.classList.contains("active");
   zukanPanel.classList.toggle("active");
   zukanPanel.setAttribute("aria-hidden", active ? "false" : "true");
   zukanBtn.setAttribute("aria-expanded", String(active));
 });
-closeZukan.addEventListener("click", ()=>{
+closeZukan?.addEventListener("click", ()=>{
   zukanPanel.classList.remove("active");
   zukanPanel.setAttribute("aria-hidden","true");
   zukanBtn.setAttribute("aria-expanded","false");
 });
-chapterFilter.addEventListener("change", buildCards);
+chapterFilter?.addEventListener("change", buildCards);
 
 // リセット
-resetBtn.addEventListener("click", ()=>{
+resetBtn?.addEventListener("click", ()=>{
   if(!confirm(`${dataSets[currentEra].title}の進捗（開いたカード・町づくり）をリセットします。よろしいですか？`)) return;
   localStorage.removeItem(dataSets[currentEra].LS_KEY);
   gotCards = {};
   document.querySelectorAll("#town .building, #town .villager").forEach(el=>el.remove());
-  infoBox.textContent = "時代をえらんでカードをめくろう！ 〇の部分だけを「ひらがな」で答えると開くよ。";
+  if(infoBox) infoBox.textContent = "時代をえらんでカードをめくろう！ 〇の部分だけを「ひらがな」で答えると開くよ。";
   zukanPanel.classList.remove("active");
   zukanPanel.setAttribute("aria-hidden","true");
   zukanBtn.setAttribute("aria-expanded","false");
@@ -1225,26 +1244,30 @@ resetBtn.addEventListener("click", ()=>{
   alert("リセットしました！");
 });
 
-// イントロのクイックボタンで時代切り替え
-document.getElementById("playEdo").addEventListener("click", (e)=>{
-  e.preventDefault();
-  eraSelect.value = "edo";
-  eraSelect.dispatchEvent(new Event("change"));
-  document.getElementById("cards").scrollIntoView({ behavior: "smooth" });
-});
-document.getElementById("playMuromachi").addEventListener("click", (e)=>{
-  e.preventDefault();
-  eraSelect.value = "muromachi";
-  eraSelect.dispatchEvent(new Event("change"));
-  document.getElementById("cards").scrollIntoView({ behavior: "smooth" });
-});
-document.getElementById("playKamakura").addEventListener("click", (e)=>{
-  e.preventDefault();
-  eraSelect.value = "kamakura";
-  eraSelect.dispatchEvent(new Event("change"));
-  document.getElementById("cards").scrollIntoView({ behavior: "smooth" });
-});
-document.getElementById("openZukan").addEventListener("click", (e)=>{
+// イントロのクイックボタンで時代切り替え（PC/スマホ両対応）
+function bindEraLink(sel, era){
+  const el = document.getElementById(sel);
+  if(!el) return;
+  el.addEventListener("click", (e)=>{
+    e.preventDefault();
+    if(eraSelect){ eraSelect.value = era; eraSelect.dispatchEvent(new Event("change")); }
+    document.getElementById("cards")?.scrollIntoView({ behavior: "smooth" });
+  });
+}
+bindEraLink("playEdo", "edo");
+bindEraLink("playMuromachi", "muromachi");
+bindEraLink("playKamakura", "kamakura");
+bindEraLink("playSengoku", "sengoku");
+
+// フッターのショートカット（存在チェックしてから）
+bindEraLink("footEdo", "edo");
+bindEraLink("footMuromachi", "muromachi");
+bindEraLink("footKamakura", "kamakura");
+document.getElementById("footZukan")?.addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("openZukan")?.click(); });
+bindEraLink("footSengoku", "sengoku");
+
+// 図鑑ボタン直リンク
+document.getElementById("openZukan")?.addEventListener("click", (e)=>{
   e.preventDefault();
   zukanPanel.classList.add("active");
   zukanPanel.setAttribute("aria-hidden","false");
@@ -1252,8 +1275,8 @@ document.getElementById("openZukan").addEventListener("click", (e)=>{
   zukanPanel.scrollIntoView({ behavior: "smooth" });
 });
 
-// 時代切替
-eraSelect.addEventListener("change", ()=>{
+// 時代セレクト変更
+eraSelect?.addEventListener("change", ()=>{
   currentEra = eraSelect.value;
   document.querySelectorAll("#town .building, #town .villager").forEach(el=>el.remove());
   loadProgress();
@@ -1281,71 +1304,12 @@ renderZukan();
       b.style.left = (Math.random()*80 + 5) + "%";
       b.style.top = (Math.random()*70 + 5) + "%";
       town.appendChild(b);
+
       const v = document.createElement("div");
       v.className = "villager";
       v.textContent = Math.random()>0.5 ? "😊" : "👘";
-      v.style.top = Math.floor(Math.random()* (town.clientHeight-40)) + "px";
+      v.style.top = Math.floor(Math.random()*Math.max(40, town.clientHeight-40)) + "px";
       town.appendChild(v);
     }
   }
 })();
-</script>
-
-<!-- 固定のバナー広告を使う場合は、.adslot の中身を広告ユニットに置換し、直後で push してください。 -->
-<!-- 例
-<ins class="adsbygoogle"
-     style="display:block;height:60px"
-     data-ad-client="ca-pub-4922140858632050"
-     data-ad-slot="**********"
-     data-ad-format="auto"
-     data-full-width-responsive="true"></ins>
-<script>(adsbygoogle=window.adsbygoogle||[]).push({});</script>
--->
-
-<p style="padding:0 12px;">
-  <strong>子ども向け 歴史 学習</strong>として、まずは
-  <a href="#cards" id="footEdo">江戸のクイズ</a>、
-  <a href="#cards" id="playSengoku" style="display:inline-block;background:#f6d5a4;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;color:#222;">戦国時代で遊ぶ</a>
- <a href="#cards" id="footMuromachi">室町のクイズ</a>、
-  <a href="#cards" id="footKamakura">鎌倉のクイズ</a> から始めよう。図鑑で
-  <a href="#zukanPanel" id="footZukan">年表</a>も見られるよ。
- 
-
-</p>
-<script>
-  // フッターのショートカットも時代切替
-  document.getElementById("footEdo").addEventListener("click", (e)=>{e.preventDefault(); eraSelect.value="edo"; eraSelect.dispatchEvent(new Event("change")); document.getElementById("cards").scrollIntoView({behavior:"smooth"});});
-  document.getElementById("footMuromachi").addEventListener("click", (e)=>{e.preventDefault(); eraSelect.value="muromachi"; eraSelect.dispatchEvent(new Event("change")); document.getElementById("cards").scrollIntoView({behavior:"smooth"});});
-  document.getElementById("footKamakura").addEventListener("click", (e)=>{e.preventDefault(); eraSelect.value="kamakura"; eraSelect.dispatchEvent(new Event("change")); document.getElementById("cards").scrollIntoView({behavior:"smooth"});});
-  document.getElementById("footZukan").addEventListener("click", (e)=>{e.preventDefault(); document.getElementById("openZukan").click();});
-document.getElementById("footSengoku").addEventListener("click", (e) => {
-  e.preventDefault();
-  eraSelect.value = "sengoku";                // セレクトを戦国に切り替え
-  eraSelect.dispatchEvent(new Event("change")); // changeイベントを発火
-  document.getElementById("cards").scrollIntoView({behavior:"smooth"}); // カードにスクロール
-});</script>
-
-</body>
-</html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

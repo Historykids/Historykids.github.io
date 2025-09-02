@@ -13,6 +13,23 @@
 
   <!-- AdSense（1回だけ） -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922140858632050" crossorigin="anonymous"></script>
+  <!-- 1) <head> に追記：構造化データ（Person） -->
+<script type="application/ld+json">
+{
+"@context": "https://schema.org",
+"@type": "Person",
+"name": "サイト管理人名（例：なかの たろう）",
+"jobTitle": "歴史キッズ 運営者",
+"url": "https://historykids.github.io/",
+"image": "https://historykids.github.io/thumbnail.png",
+"sameAs": [
+"https://x.com/your_handle",
+"https://github.com/your_github"
+],
+"inLanguage": "ja"
+}
+</script>
+  
 
   <!-- 構造化データ（WebSite） -->
   <script type="application/ld+json">
@@ -177,6 +194,44 @@
     .card:hover{transform:none}
     .building,.petal{transition:none;animation:none}
   }
+    /* セクションの共通余白 */
+#profile, #contact { background:#fff; margin:10px 12px; padding:16px; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+#profile h2, #contact h2 { margin:0 0 10px 0; font-size:18px; }
+
+
+/* プロフィール */
+.profile-card { display:flex; gap:14px; align-items:flex-start; }
+.profile-avatar { width:88px; height:88px; border-radius:50%; object-fit:cover; box-shadow:0 1px 3px rgba(0,0,0,.12); }
+.profile-meta { display:flex; flex-direction:column; gap:6px; }
+.profile-name { font-weight:800; }
+.profile-list { margin:6px 0 0 18px; }
+.socials { display:flex; gap:8px; flex-wrap:wrap; }
+.chip { display:inline-flex; align-items:center; gap:6px; background:#f3f4f6; border-radius:999px; padding:6px 10px; font-size:13px; text-decoration:none; color:#111; }
+
+
+/* フォーム */
+.form-grid { display:grid; gap:10px; grid-template-columns:1fr; }
+.form-row { display:grid; gap:10px; grid-template-columns:1fr; }
+.form-group label { font-size:13px; font-weight:700; display:block; margin-bottom:4px; }
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group select,
+.form-group textarea { width:100%; border:1px solid #ccc; border-radius:10px; padding:10px 12px; font-size:15px; background:#fff; }
+.form-group textarea { min-height:120px; }
+.form-actions { display:flex; justify-content:flex-end; gap:10px; }
+.btn { border:0; border-radius:10px; padding:10px 14px; font-weight:800; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,.12); }
+.btn-primary { background:#cdeccd; color:#145f14; }
+.btn-secondary { background:#eee; }
+.status { font-size:14px; color:#145f14; margin-top:8px; }
+.status.error { color:#b91c1c; }
+.hp { position:absolute; left:-5000px; width:1px; height:1px; overflow:hidden; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+
+
+@media (min-width: 768px){
+.form-row { grid-template-columns:1fr 1fr; }
+.profile-card { align-items:center; }
+}
   </style>
 </head>
 
@@ -221,6 +276,8 @@
       <a href="#cards" id="playMuromachi" style="display:inline-block;background:#fde68a;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;color:#222;">室町時代で遊ぶ</a>
       <a href="#cards" id="playKamakura" style="display:inline-block;background:#f9e2af;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;color:#222;">鎌倉時代で遊ぶ</a>
       <a href="#zukanPanel" id="openZukan" style="display:inline-block;background:#e5e7eb;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;color:#111;">図鑑（年表）を見る</a>
+      <a href="#profile" style="display:inline-block;background:#e0f2fe;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;color:#111;">プロフィール</a>
+<a href="#contact" style="display:inline-block;background:#dcfce7;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;color:#111;">お問い合わせ</a>
     </nav>
   </section>
 
@@ -236,6 +293,43 @@
     </a>
     <small style="color:#666;">※当サイトはアフィリエイト広告を利用しています</small>
   </div>
+
+  
+  <section id="profile" aria-labelledby="profileTitle">
+<h2 id="profileTitle">プロフィール</h2>
+<div class="profile-card">
+<img src="https://historykids.github.io/thumbnail.png" alt="サイト管理人のアイコン" class="profile-avatar" />
+<div class="profile-meta">
+<div class="profile-name">サイト管理人：<b>しろながす</b></div>
+<p style="margin:0;color:#444">小学生〜中学生が <b>クイズ・年表・カード</b>で歴史に親しめるサイトを目指して開発・運営しています。</p>
+<ul class="profile-list">
+<li>歴史が好きな親の視点から、<b>スマホ１台</b>で学べるUIに</li>
+<li>読みやすい <b>ふりがな</b> と <b>ひらがな回答</b>に対応</li>
+<li>学校の <b>自由研究</b>や <b>テスト対策</b>にも活用</li>
+</ul>
+<div class="socials" aria-label="SNSリンク">
+<a class="chip" href="https://x.com/your_handle" target="_blank" rel="noopener">X（旧Twitter）</a>
+<a class="chip" href="mailto:you@example.com">メール</a>
+<a class="chip" href="https://github.com/historykids" target="_blank" rel="noopener">GitHub</a>
+</div>
+</div>
+</div>
+</section>
+  
+  <section id="contact" aria-labelledby="contactTitle">
+<h2 id="contactTitle">お問い合わせ</h2>
+<p style="margin:0 0 8px;color:#444">ご意見・ご要望・誤字のご指摘など、お気軽にお知らせください。</p>
+
+    <div class="form-group">
+<iframe
+src="https://docs.google.com/forms/d/e/1FAIpQLSdHvqKAszs5j860tNIeesVlE83pMpP_qP9QrNLuJJaZ9g3h5Q/viewform?embedded=true"
+width="100%" height="920" frameborder="0" marginheight="0" marginwidth="0"
+title="お問い合わせフォーム">読み込んでいます…</iframe>
+</div>
+    <p style="margin-top:8px"><a href="https://docs.google.com/forms/d/e/1FAIpQLSdHvqKAszs5j860tNIeesVlE83pMpP_qP9QrNLuJJaZ9g3h5Q/viewform" target="_blank" rel="noopener">フォームを新しいタブで開く</a></p>
+
+
+</section>
 
   <div id="info" role="status" aria-live="polite">時代をえらんでカードをめくろう！ 〇の部分だけを「ひらがな」で答えると開くよ。</div>
   <div id="town" role="img" aria-label="町エリア"></div>
@@ -989,6 +1083,7 @@ renderZukan();
 </script>
 </body>
 </html>
+
 
 
 

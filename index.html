@@ -198,6 +198,13 @@
 #profile, #contact { background:#fff; margin:10px 12px; padding:16px; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
 #profile h2, #contact h2 { margin:0 0 10px 0; font-size:18px; }
 
+/* モーダル共通 */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:100; }
+.modal-overlay.active { display:flex; }
+.modal-box { background:#fff; border-radius:12px; max-width:640px; width:92%; max-height:90vh; overflow:auto; padding:16px; box-shadow:0 6px 24px rgba(0,0,0,.2); position:relative; }
+.modal-box h2 { margin-top:0; font-size:18px; }
+.modal-close { position:absolute; top:10px; right:10px; border:0; background:#eee; border-radius:50%; width:32px; height:32px; cursor:pointer; font-weight:800; }
+
 
 /* プロフィール */
 .profile-card { display:flex; gap:14px; align-items:flex-start; }
@@ -207,31 +214,8 @@
 .profile-list { margin:6px 0 0 18px; }
 .socials { display:flex; gap:8px; flex-wrap:wrap; }
 .chip { display:inline-flex; align-items:center; gap:6px; background:#f3f4f6; border-radius:999px; padding:6px 10px; font-size:13px; text-decoration:none; color:#111; }
+</style>
 
-
-/* フォーム */
-.form-grid { display:grid; gap:10px; grid-template-columns:1fr; }
-.form-row { display:grid; gap:10px; grid-template-columns:1fr; }
-.form-group label { font-size:13px; font-weight:700; display:block; margin-bottom:4px; }
-.form-group input[type="text"],
-.form-group input[type="email"],
-.form-group select,
-.form-group textarea { width:100%; border:1px solid #ccc; border-radius:10px; padding:10px 12px; font-size:15px; background:#fff; }
-.form-group textarea { min-height:120px; }
-.form-actions { display:flex; justify-content:flex-end; gap:10px; }
-.btn { border:0; border-radius:10px; padding:10px 14px; font-weight:800; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,.12); }
-.btn-primary { background:#cdeccd; color:#145f14; }
-.btn-secondary { background:#eee; }
-.status { font-size:14px; color:#145f14; margin-top:8px; }
-.status.error { color:#b91c1c; }
-.hp { position:absolute; left:-5000px; width:1px; height:1px; overflow:hidden; }
-.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
-
-
-@media (min-width: 768px){
-.form-row { grid-template-columns:1fr 1fr; }
-.profile-card { align-items:center; }
-}
   </style>
 </head>
 
@@ -295,12 +279,14 @@
   </div>
 
   
-  <section id="profile" aria-labelledby="profileTitle">
+<div id="profileModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
+<div class="modal-box">
+<button class="modal-close" data-close>×</button>
 <h2 id="profileTitle">プロフィール</h2>
 <div class="profile-card">
 <img src="https://historykids.github.io/thumbnail.png" alt="サイト管理人のアイコン" class="profile-avatar" />
 <div class="profile-meta">
-<div class="profile-name">サイト管理人：<b>しろながす</b></div>
+<div class="profile-name">サイト管理人：<b>（お名前）</b></div>
 <p style="margin:0;color:#444">小学生〜中学生が <b>クイズ・年表・カード</b>で歴史に親しめるサイトを目指して開発・運営しています。</p>
 <ul class="profile-list">
 <li>歴史が好きな親の視点から、<b>スマホ１台</b>で学べるUIに</li>
@@ -314,22 +300,35 @@
 </div>
 </div>
 </div>
-</section>
-  
-  <section id="contact" aria-labelledby="contactTitle">
+</div>
+</div>
+
+  <!-- お問い合わせ モーダル -->
+<div id="contactModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="contactTitle">
+<div class="modal-box">
+<button class="modal-close" data-close>×</button>
 <h2 id="contactTitle">お問い合わせ</h2>
 <p style="margin:0 0 8px;color:#444">ご意見・ご要望・誤字のご指摘など、お気軽にお知らせください。</p>
 
-    <div class="form-group">
-<iframe
-src="https://docs.google.com/forms/d/e/1FAIpQLSdHvqKAszs5j860tNIeesVlE83pMpP_qP9QrNLuJJaZ9g3h5Q/viewform?embedded=true"
-width="100%" height="920" frameborder="0" marginheight="0" marginwidth="0"
-title="お問い合わせフォーム">読み込んでいます…</iframe>
+
+<!-- Googleフォーム埋め込みは邪魔なので、外部リンクだけ用意 -->
+<p><a href="https://docs.google.com/d/e/1FAIpQLSdHvqKAszs5j860tNIeesVlE83pMpP_qP9QrNLuJJaZ9g3h5Q/viewform" target="_blank" rel="noopener" style="display:inline-block;background:#fcd34d;padding:10px 14px;border-radius:8px;font-weight:700;color:#111;text-decoration:none;">Googleフォームを開く</a></p>
+
+
 </div>
-    <p style="margin-top:8px"><a href="https://docs.google.com/forms/d/e/1FAIpQLSdHvqKAszs5j860tNIeesVlE83pMpP_qP9QrNLuJJaZ9g3h5Q/viewform" target="_blank" rel="noopener">フォームを新しいタブで開く</a></p>
-
-
-</section>
+</div>
+  
+ <script>
+(function(){
+const modals = document.querySelectorAll('.modal-overlay');
+document.getElementById('openProfile')?.addEventListener('click', e=>{ e.preventDefault(); document.getElementById('profileModal').classList.add('active'); });
+document.getElementById('openContact')?.addEventListener('click', e=>{ e.preventDefault(); document.getElementById('contactModal').classList.add('active'); });
+modals.forEach(m=>{
+m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('active'); });
+m.querySelectorAll('[data-close]').forEach(btn=>btn.addEventListener('click', ()=>m.classList.remove('active')));
+});
+})();
+</script>
 
   <div id="info" role="status" aria-live="polite">時代をえらんでカードをめくろう！ 〇の部分だけを「ひらがな」で答えると開くよ。</div>
   <div id="town" role="img" aria-label="町エリア"></div>
@@ -1083,6 +1082,7 @@ renderZukan();
 </script>
 </body>
 </html>
+
 
 
 

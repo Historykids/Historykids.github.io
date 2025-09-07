@@ -1181,7 +1181,7 @@ function ensureRenderer(){
   dir.position.set(10, 20, 10); scene.add(dir);
 
   const plane = new THREE.PlaneGeometry(100, 100);
-  const pm = new THREE.MeshBasicMaterial({ color: 0xd7f4d2 });
+  const pm = new THREE.MeshBasicMaterial({ color: 0xd7f4d2, side: THREE.DoubleSide });
   ground = new THREE.Mesh(plane, pm); ground.rotation.x = -Math.PI/2; ground.name="ground"; scene.add(ground);
 
   grid = new THREE.GridHelper(100, 100, 0x000000, 0x000000);
@@ -1329,6 +1329,16 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
     }
   }
 });
+  // 追加: click / touchstart フォールバック（iOS/Safari 対策）
+function tryPlace(ev){
+  if(!placing) return;
+  const res = pickOnGround(ev); if(!res) return;
+  const {x,y}=res.cell; if(!cellValid(x,y)) return;
+  document.dispatchEvent(new CustomEvent("placement:confirm", { detail:{ type:placeType, x, y, rot:placeRot }}));
+  endPlacement();
+}
+renderer.domElement.addEventListener("click", tryPlace, { passive:false });
+renderer.domElement.addEventListener("touchstart", (e)=>{ tryPlace(e); }, { passive:false });
 renderer.domElement.addEventListener("contextmenu", (e)=>{ if(placing){ e.preventDefault(); } });
 window.addEventListener("keydown", (e)=>{ if(!placing) return; if(e.key==="Escape"){ document.dispatchEvent(new Event("placement:cancel")); endPlacement(); } else if(e.key.toLowerCase()==="r"){ placeRot=(placeRot+90)%360; if(preview && hoverCell){ setPreviewAtCell(hoverCell); } }});
 
@@ -1351,4 +1361,5 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 </script>
 </body>
 </html>
+
 

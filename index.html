@@ -762,6 +762,298 @@ const dataSets = {
   }
 };
 
+
+
+  <script>
+/* ========= ここから追加（既存の重複関数があれば置換OK） ========= */
+
+/** ユーティリティ（既存がなければ使う） */
+function onlyHiraAndSep(s){ return /^[\u3041-\u3096\s・,，、/／]+$/.test(s); }
+function splitTokens(ans){ let s=ans.replace(/[・,，、/／]+/g,' ').replace(/\s+/g,' ').trim();return s? s.split(' '):[]; }
+
+/* --- DOM参照（既存と被ってOK） --- */
+const eraSelectEl     = document.getElementById("eraSelect");
+const chapterFilterEl = document.getElementById("chapterFilter");
+const cardsWrap       = document.getElementById("cards");
+const infoBoxEl       = document.getElementById("info");
+const moneyEl         = document.getElementById("moneyValue");
+const zukanPanelEl    = document.getElementById("zukanPanel");
+const zukanBtnEl      = document.getElementById("zukanBtn");
+const closeZukanEl    = document.getElementById("closeZukan");
+const resetBtnEl      = document.getElementById("resetBtn");
+const openShopBtnEl   = document.getElementById("openShopBtn");
+const shopOverlayEl   = document.getElementById("shopOverlay");
+const shopCloseEl     = document.getElementById("shopClose");
+const shopGridEl      = document.getElementById("shopGrid");
+
+/* --- クイズ用DOM（既存HTMLを利用） --- */
+const quizModalEl = document.getElementById("quizModal");
+const quizTitleEl = document.getElementById("quizTitle");
+const quizHintEl  = document.getElementById("quizHint");
+const quizInputEl = document.getElementById("quizInput");
+const quizOkEl    = document.getElementById("quizOk");
+const quizCancelEl= document.getElementById("quizCancel");
+const quizBgEl    = document.getElementById("quizBg");
+
+/* --- 進捗＆所持金 --- */
+let currentEra = eraSelectEl ? eraSelectEl.value : "edo";
+let gotCards   = {}; // { "1603 〇〇...": true, ... }
+let money      = 0;
+
+/* --- 永続化 --- */
+function persist(){
+  try {
+    localStorage.setItem(dataSets[currentEra].LS_KEY, JSON.stringify(gotCards));
+    localStorage.setItem("money_v1", String(money));
+  } catch(e){}
+}
+function loadProgress(){
+  try{
+    gotCards = JSON.parse(localStorage.getItem(dataSets[currentEra].LS_KEY) || "{}");
+  }catch{ gotCards = {}; }
+  money = Number(localStorage.getItem("money_v1") || "0");
+  moneyEl.textContent = money;
+}
+
+/* --- 章プルダウン作成 --- */
+function buildChapterFilter(){
+  if(!chapterFilterEl) return;
+  chapterFilterEl.innerHTML = `<option value="ALL">章：ぜんぶ</option>`;
+  const chapters = dataSets[currentEra].chapters;
+  Object.keys(chapters).forEach(ch=>{
+    const opt = document.createElement("option");
+    opt.value = ch; opt.textContent = ch;
+    chapterFilterEl.appendChild(opt);
+  });
+}
+
+/* --- ルビ表示（既存があればそれを使ってOK） --- */
+function withRubyMasked(fullName){
+  const m = dataSets[currentEra].ruby[fullName];
+  if(m){
+    const sp = fullName.indexOf(" ");
+    const year = fullName.slice(0, sp);
+    return `<span class="yr">${year}</span> ${m}`;
+  }
+  return fullName;
+}
+
+/* --- カード生成 --- */
+function buildCards(){
+  if(!cardsWrap) return;
+  cardsWrap.innerHTML = "";
+  const sel = chapterFilterEl ? chapterFilterEl.value : "ALL";
+  const chapters = dataSets[currentEra].chapters;
+
+  Object.keys(chapters).forEach(ch=>{
+    if(sel !== "ALL" && sel !== ch) return;
+    Object.keys(chapters[ch]).forEach(name=>{
+      const el = document.createElement("div");
+      el.className = "card";
+      el.dataset.card = name;
+
+      // アクセシビリティ
+      el.setAttribute("role","button");
+      el.setAttribute("tabindex","0");
+
+      if(gotCards[name]){
+        el.innerHTML = withRubyMasked(name);
+        el.classList.add("done");
+      }else{
+        // 未クリアは年だけ薄出し
+        el.textContent = "？\n" + name.split(" ")[0];
+      }
+
+      el.addEventListener("click", ()=>onCardClick(el, name));
+      el.addEventListener("keydown", (e)=>{
+        if(e.key==="Enter" || e.key===" "){ e.preventDefault(); onCardClick(el, name); }
+      });
+
+      cardsWrap.appendChild(el);
+    });
+  });
+}
+
+/* --- クイズ処理 --- */
+let currentQuizName = null;
+function openQuiz(name){
+  currentQuizName = name;
+  quizTitleEl.textContent = name;
+  quizHintEl.textContent  = "（例：てんぽう／わしん など ひらがなで）";
+  quizInputEl.value = "";
+  quizModalEl.style.display = "flex";
+  setTimeout(()=>quizInputEl.focus(), 0);
+}
+function closeQuiz(){
+  quizModalEl.style.display = "none";
+  currentQuizName = null;
+}
+function onCardClick(el, name){
+  if(gotCards[name]) return; // クリア済は開かない
+  openQuiz(name);
+}
+function normalizeTokens(arr){
+  return arr.map(s=>s.replace(/\s+/g,'').trim());
+}
+quizOkEl?.addEventListener("click", ()=>{
+  if(!currentQuizName) return;
+  const blanks = dataSets[currentEra].blanks[currentQuizName] || [];
+  const ansRaw = quizInputEl.value || "";
+  if(!onlyHiraAndSep(ansRaw)){
+    alert("ひらがなで入力してね（区切りは スペース / ・ / 、 / ／ でもOK）");
+    return;
+  }
+  const userTokens = normalizeTokens(splitTokens(ansRaw));
+  const needTokens = normalizeTokens(blanks);
+
+  // すべて一致（順不同も許可）
+  const ok = needTokens.length>0 &&
+             needTokens.every(tok => userTokens.includes(tok));
+
+  if(ok){
+    gotCards[currentQuizName] = true;
+    money += 10; // ごほうび
+    moneyEl.textContent = money;
+    persist();
+    buildCards();
+    closeQuiz();
+    infoBoxEl.textContent = "正解！💰がふえたよ。ショップで建物を買って町を発展させよう！";
+  }else{
+    infoBoxEl.textContent = "おしい！もういちど挑戦してみてね。";
+  }
+});
+quizCancelEl?.addEventListener("click", closeQuiz);
+quizBgEl?.addEventListener("click", closeQuiz);
+
+/* --- 図鑑（開閉のみ。中身の描画は必要になったら拡張） --- */
+zukanBtnEl?.addEventListener("click", ()=>{
+  zukanPanelEl.classList.add("active");
+  zukanPanelEl.setAttribute("aria-hidden","false");
+});
+closeZukanEl?.addEventListener("click", ()=>{
+  zukanPanelEl.classList.remove("active");
+  zukanPanelEl.setAttribute("aria-hidden","true");
+});
+
+/* --- リセット --- */
+resetBtnEl?.addEventListener("click", ()=>{
+  if(!confirm("進捗と所持金をリセットしますか？")) return;
+  gotCards = {};
+  money = 0;
+  persist();
+  buildCards();
+  moneyEl.textContent = money;
+  infoBoxEl.textContent = "リセットしました。カードをめくって学ぼう！";
+});
+
+/* --- ショップ品目（最低限） --- */
+const SHOP_ITEMS = [
+  { id:"house",   name:"家",        price:30,  cat:"building",     preview:"🏠" },
+  { id:"shop",    name:"商家",      price:40,  cat:"building",     preview:"🏪" },
+  { id:"castle",  name:"城",        price:120, cat:"building",     preview:"🏯" },
+  { id:"temple",  name:"寺社",      price:70,  cat:"building",     preview:"⛩️" },
+  { id:"tree",    name:"木",        price:8,   cat:"nature",       preview:"🌳" },
+  { id:"field",   name:"畑",        price:12,  cat:"nature",       preview:"🌾" },
+  { id:"water",   name:"水辺",      price:15,  cat:"nature",       preview:"🌊" },
+  { id:"road",    name:"道路",      price:10,  cat:"infrastructure",preview:"🛣️" },
+  { id:"bridge",  name:"橋",        price:25,  cat:"infrastructure",preview:"🌉" },
+  { id:"school",  name:"学校",      price:80,  cat:"building",     preview:"🏫" }
+];
+
+let shopFilter = "ALL";
+function renderShop(){
+  if(!shopGridEl) return;
+  shopGridEl.innerHTML = "";
+  SHOP_ITEMS.filter(it=> shopFilter==="ALL" || it.cat===shopFilter).forEach(it=>{
+    const card = document.createElement("div");
+    card.className = "shop-card";
+    card.innerHTML = `
+      <h4>${it.name}</h4>
+      <div class="preview">${it.preview}</div>
+      <div class="buyrow">
+        <span class="price">💰${it.price} 両</span>
+        <button data-buy="${it.id}">買う</button>
+      </div>`;
+    shopGridEl.appendChild(card);
+  });
+
+  shopGridEl.querySelectorAll("[data-buy]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const id = btn.getAttribute("data-buy");
+      const item = SHOP_ITEMS.find(s=>s.id===id);
+      if(!item) return;
+      if(money < item.price){
+        alert("お金が足りないよ！");
+        return;
+      }
+      money -= item.price;
+      moneyEl.textContent = money;
+      persist();
+      // 町へ「配置」…まずは簡易：購入したら軽いパーティクル
+      sparkle();
+    });
+  });
+}
+function sparkle(){
+  for(let i=0;i<8;i++){
+    const p=document.createElement("div");
+    p.className="petal"; p.textContent="✨";
+    p.style.left = (20+Math.random()*60) + "vw";
+    p.style.animationDuration = (2 + Math.random()*1.5) + "s";
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(), 4000);
+  }
+}
+
+/* --- ショップ開閉＆フィルタ --- */
+openShopBtnEl?.addEventListener("click", ()=>{
+  shopOverlayEl.classList.add("active");
+  renderShop();
+});
+shopCloseEl?.addEventListener("click", ()=>{
+  shopOverlayEl.classList.remove("active");
+});
+shopOverlayEl?.addEventListener("click", (e)=>{
+  if(e.target===shopOverlayEl) shopOverlayEl.classList.remove("active");
+});
+document.querySelectorAll(".toolrow .toolbtn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".toolrow .toolbtn").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    shopFilter = btn.getAttribute("data-filter") || "ALL";
+    renderShop();
+  });
+});
+
+/* --- 時代＆章の変更イベント --- */
+eraSelectEl?.addEventListener("change", ()=>{
+  currentEra = eraSelectEl.value;
+  loadProgress();
+  buildChapterFilter();
+  buildCards();
+});
+chapterFilterEl?.addEventListener("change", buildCards);
+
+/* --- ショートカット（冒頭のナビ） --- */
+document.getElementById("playEdo")?.addEventListener("click", ()=>{ eraSelectEl.value="edo";      eraSelectEl.dispatchEvent(new Event("change")); });
+document.getElementById("playSengoku")?.addEventListener("click", ()=>{ eraSelectEl.value="sengoku"; eraSelectEl.dispatchEvent(new Event("change")); });
+document.getElementById("playMuromachi")?.addEventListener("click", ()=>{ eraSelectEl.value="muromachi";eraSelectEl.dispatchEvent(new Event("change")); });
+document.getElementById("playKamakura")?.addEventListener("click", ()=>{ eraSelectEl.value="kamakura"; eraSelectEl.dispatchEvent(new Event("change")); });
+document.getElementById("openZukan")?.addEventListener("click", (e)=>{ e.preventDefault(); zukanPanelEl.classList.add("active"); });
+
+/* --- 起動 --- */
+function init(){
+  // もしコンソールにエラーが出ていたら、全角カンマ/全角スペース等の打ち込みミスを直してね
+  // 例: オブジェクトの末尾「},　」のような全角が混じるとJSが止まり、カードが出ません
+  currentEra = eraSelectEl ? eraSelectEl.value : "edo";
+  loadProgress();
+  buildChapterFilter();
+  buildCards();
+  // ショップ初期フィルタ
+  document.querySelector('.toolrow .toolbtn[data-filter="ALL"]')?.classList.add("active");
+}
+document.addEventListener("DOMContentLoaded", init);
+
 /* ========= 共通ユーティリティ ========= */
 const eraSelect      = document.getElementById("eraSelect");
 const chapterFilter  = document.getElementById("chapterFilter");
@@ -957,3 +1249,4 @@ tiles: {
     rect: { sx: 448, sy: 64, sw: 64, sh: 64 }
   }
 },
+

@@ -803,6 +803,9 @@ const openShopBtnEl   = document.getElementById("openShopBtn");
 const shopOverlayEl   = document.getElementById("shopOverlay");
 const shopCloseEl     = document.getElementById("shopClose");
 const shopGridEl      = document.getElementById("shopGrid");
+const cityCanvas      = document.getElementById("cityCanvas");
+const cityCtx         = cityCanvas?.getContext("2d");
+const GRID_SIZE       = 32;
 
 /* --- クイズ用DOM（既存HTMLを利用） --- */
 const quizModalEl = document.getElementById("quizModal");
@@ -817,12 +820,13 @@ const quizBgEl    = document.getElementById("quizBg");
 let currentEra = eraSelectEl ? eraSelectEl.value : "edo";
 let gotCards   = {}; // { "1603 〇〇...": true, ... }
 let money      = 0;
+let cityBuildings = [];
 
-/* --- 永続化 --- */
 function persist(){
   try {
     localStorage.setItem(dataSets[currentEra].LS_KEY, JSON.stringify(gotCards));
     localStorage.setItem("money_v1", String(money));
+    localStorage.setItem("city_v1", JSON.stringify(cityBuildings));
   } catch(e){}
 }
 function loadProgress(){
@@ -830,7 +834,56 @@ function loadProgress(){
     gotCards = JSON.parse(localStorage.getItem(dataSets[currentEra].LS_KEY) || "{}");
   }catch{ gotCards = {}; }
   money = Number(localStorage.getItem("money_v1") || "0");
+  try{
+    cityBuildings = JSON.parse(localStorage.getItem("city_v1") || "[]");
+  }catch{ cityBuildings = []; }
   moneyEl.textContent = money;
+  drawCity();
+}
+
+/* --- 街の描画と建物配置 --- */
+function drawCity(){
+  if(!cityCtx) return;
+  // 背景とグリッド
+  cityCtx.fillStyle = "#d7f4d2";
+  cityCtx.fillRect(0,0,cityCanvas.width,cityCanvas.height);
+  cityCtx.strokeStyle = "rgba(0,0,0,0.05)";
+  for(let x=0;x<cityCanvas.width;x+=GRID_SIZE){
+    cityCtx.beginPath();
+    cityCtx.moveTo(x,0); cityCtx.lineTo(x,cityCanvas.height);
+    cityCtx.stroke();
+  }
+  for(let y=0;y<cityCanvas.height;y+=GRID_SIZE){
+    cityCtx.beginPath();
+    cityCtx.moveTo(0,y); cityCtx.lineTo(cityCanvas.width,y);
+    cityCtx.stroke();
+  }
+  // 建物アイコン
+  cityCtx.font = "24px serif";
+  cityCtx.textAlign = "center";
+  cityCtx.textBaseline = "middle";
+  cityBuildings.forEach(b=>{
+    const item = SHOP_ITEMS.find(s=>s.id===b.type);
+    if(item){
+      cityCtx.fillText(item.preview, b.x*GRID_SIZE + GRID_SIZE/2, b.y*GRID_SIZE + GRID_SIZE/2);
+    }
+  });
+}
+
+function addBuildingToCity(type){
+  if(!cityCtx) return;
+  const cols = Math.floor(cityCanvas.width/GRID_SIZE);
+  const rows = Math.floor(cityCanvas.height/GRID_SIZE);
+  const occupied = new Set(cityBuildings.map(b=>`${b.x},${b.y}`));
+  let x, y, tries=0;
+  do{
+    x = Math.floor(Math.random()*cols);
+    y = Math.floor(Math.random()*rows);
+    tries++;
+  }while(occupied.has(`${x},${y}`) && tries < 100);
+  cityBuildings.push({type, x, y});
+  drawCity();
+  persist();
 }
 
 /* --- 章プルダウン作成 --- */
@@ -958,9 +1011,11 @@ resetBtnEl?.addEventListener("click", ()=>{
   if(!confirm("進捗と所持金をリセットしますか？")) return;
   gotCards = {};
   money = 0;
+  cityBuildings = [];
   persist();
   buildCards();
   moneyEl.textContent = money;
+  drawCity();
   infoBoxEl.textContent = "リセットしました。カードをめくって学ぼう！";
 });
 
@@ -1000,18 +1055,18 @@ function renderShop(){
       const id = btn.getAttribute("data-buy");
       const item = SHOP_ITEMS.find(s=>s.id===id);
       if(!item) return;
-      if(money < item.price){
-        alert("お金が足りないよ！");
-        return;
-      }
-      money -= item.price;
-      moneyEl.textContent = money;
-      persist();
-      // 町へ「配置」…まずは簡易：購入したら軽いパーティクル
-      sparkle();
-    });
-  });
-}
+      if(money < item.price){␊
+        alert("お金が足りないよ！");␊
+        return;␊
+      }␊
+      money -= item.price;␊
+      moneyEl.textContent = money;␊
+      addBuildingToCity(item.id);
+      // 町へ配置した後に軽いパーティクル演出
+      sparkle();␊
+    });␊
+  });␊
+}␊
 function sparkle(){
   for(let i=0;i<8;i++){
     const p=document.createElement("div");
@@ -1071,38 +1126,6 @@ function init(){
   document.querySelector('.toolrow .toolbtn[data-filter="ALL"]')?.classList.add("active");
 }
 document.addEventListener("DOMContentLoaded", init);
-
-diff --git a/index.html b/index.html
-index 62531216fe121d9b9c3c5a1687fadc72795edc42..52abce162bf68d0caa4baa87603bc7f8eb28ba1a 100644
---- a/index.html
-+++ b/index.html
-@@ -1050,222 +1050,28 @@ eraSelectEl?.addEventListener("change", ()=>{
-   buildChapterFilter();
-   buildCards();
- });
- chapterFilterEl?.addEventListener("change", buildCards);
- 
- /* --- ショートカット（冒頭のナビ） --- */
- document.getElementById("playEdo")?.addEventListener("click", ()=>{ eraSelectEl.value="edo";      eraSelectEl.dispatchEvent(new Event("change")); });
- document.getElementById("playSengoku")?.addEventListener("click", ()=>{ eraSelectEl.value="sengoku"; eraSelectEl.dispatchEvent(new Event("change")); });
- document.getElementById("playMuromachi")?.addEventListener("click", ()=>{ eraSelectEl.value="muromachi";eraSelectEl.dispatchEvent(new Event("change")); });
- document.getElementById("playKamakura")?.addEventListener("click", ()=>{ eraSelectEl.value="kamakura"; eraSelectEl.dispatchEvent(new Event("change")); });
- document.getElementById("openZukan")?.addEventListener("click", (e)=>{ e.preventDefault(); zukanPanelEl.classList.add("active"); });
- 
- /* --- 起動 --- */
- function init(){
-   // もしコンソールにエラーが出ていたら、全角カンマ/全角スペース等の打ち込みミスを直してね
-   // 例: オブジェクトの末尾「},　」のような全角が混じるとJSが止まり、カードが出ません
-   currentEra = eraSelectEl ? eraSelectEl.value : "edo";
-   loadProgress();
-   buildChapterFilter();
-   buildCards();
-   // ショップ初期フィルタ
-   document.querySelector('.toolrow .toolbtn[data-filter="ALL"]')?.classList.add("active");
- }
- document.addEventListener("DOMContentLoaded", init);
- 
-
 </script>
 </body>
 </html>

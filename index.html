@@ -1156,13 +1156,25 @@ function init(){
   document.querySelector('.toolrow .toolbtn[data-filter="ALL"]')?.classList.add("active");
 }
 document.addEventListener("DOMContentLoaded", init);
+
+  <!-- Three.js をどのURLに解決するかを宣言 -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
 </script>
+
+  
 
 <!-- ===== Three.js レイヤー（モジュール） ===== -->
 <script type="module">
-import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
-import { OrbitControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
-import { GLTFLoader } from "https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
 
 const townEl = document.getElementById("town");
 let renderer, scene, camera, controls, loader, ground, grid;
@@ -1442,6 +1454,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

@@ -1157,8 +1157,9 @@ function init(){
 }
 document.addEventListener("DOMContentLoaded", init);
 
-  <!-- Three.js をどのURLに解決するかを宣言 -->
-<script type="importmap">
+  </script>
+
+  <script type="importmap">
 {
   "imports": {
     "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -1174,6 +1175,7 @@ document.addEventListener("DOMContentLoaded", init);
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
 
 
 const townEl = document.getElementById("town");
@@ -1454,6 +1456,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

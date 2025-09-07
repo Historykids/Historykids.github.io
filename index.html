@@ -779,8 +779,7 @@ const dataSets = {
     }
   }
 };
-
-
+  </script>   <!-- ←これを必ず入れる！ -->
 
   <script>
 /* ========= ここから追加（既存の重複関数があれば置換OK） ========= */
@@ -1037,36 +1036,39 @@ let shopFilter = "ALL";
 function renderShop(){
   if(!shopGridEl) return;
   shopGridEl.innerHTML = "";
-  SHOP_ITEMS.filter(it=> shopFilter==="ALL" || it.cat===shopFilter).forEach(it=>{
-    const card = document.createElement("div");
-    card.className = "shop-card";
-    card.innerHTML = `
-      <h4>${it.name}</h4>
-      <div class="preview">${it.preview}</div>
-      <div class="buyrow">
-        <span class="price">💰${it.price} 両</span>
-        <button data-buy="${it.id}">買う</button>
-      </div>`;
-    shopGridEl.appendChild(card);
-  });
+  SHOP_ITEMS
+    .filter(it => shopFilter === "ALL" || it.cat === shopFilter)
+    .forEach(it => {
+      const card = document.createElement("div");
+      card.className = "shop-card";
+      card.innerHTML = `
+        <h4>${it.name}</h4>
+        <div class="preview">${it.preview}</div>
+        <div class="buyrow">
+          <span class="price">💰${it.price} 両</span>
+          <button data-buy="${it.id}">買う</button>
+        </div>`;
+      shopGridEl.appendChild(card);
+    });
 
-  shopGridEl.querySelectorAll("[data-buy]").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
+  shopGridEl.querySelectorAll("[data-buy]").forEach(btn => {
+    btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-buy");
-      const item = SHOP_ITEMS.find(s=>s.id===id);
+      const item = SHOP_ITEMS.find(s => s.id === id);
       if(!item) return;
-      if(money < item.price){␊
-        alert("お金が足りないよ！");␊
-        return;␊
-      }␊
-      money -= item.price;␊
-      moneyEl.textContent = money;␊
+      if(money < item.price){
+        alert("お金が足りないよ！");
+        return;
+      }
+      money -= item.price;
+      moneyEl.textContent = money;
       addBuildingToCity(item.id);
-      // 町へ配置した後に軽いパーティクル演出
-      sparkle();␊
-    });␊
-  });␊
-}␊
+      sparkle();
+      persist(); // ←忘れずに保存
+    });
+  });
+}
+    
 function sparkle(){
   for(let i=0;i<8;i++){
     const p=document.createElement("div");
@@ -1129,3 +1131,4 @@ document.addEventListener("DOMContentLoaded", init);
 </script>
 </body>
 </html>
+

@@ -886,6 +886,22 @@ function buildChapterFilter(){
   });
 }
 
+  function pickOnGround(ev){
+  setPointerFromEvent(ev);
+  raycaster.setFromCamera(pointer, camera);
+
+  const hit = raycaster.intersectObject(ground, false)[0];
+  if (hit) return { cell: worldToGrid(hit.point.x, hit.point.z), hit };
+
+  // 予備: y=0 の平面
+  const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+  const p3 = new THREE.Vector3();
+  if (raycaster.ray.intersectPlane(plane, p3)) {
+    return { cell: worldToGrid(p3.x, p3.z), hit: null };
+  }
+  return null;
+}
+
 /* ルビ表記 */
 function withRubyMasked(fullName){
   const m = dataSets[currentEra].ruby[fullName];
@@ -1407,6 +1423,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 </script>
 </body>
 </html>
+
 
 
 

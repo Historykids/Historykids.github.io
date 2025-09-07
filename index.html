@@ -1304,11 +1304,34 @@ document.addEventListener("city:reset", ()=>{ clear3D(); });
 document.addEventListener("placement:start", async (ev)=>{
   const { type, cols, rows, occupied=[] } = ev.detail || {};
   COLS = cols ?? COLS; ROWS = rows ?? ROWS;
-  placing=true; placeType=type; placeRot=0;
-  occSet = new Set(occupied.map(([x,y])=>`${x},${y}`));
-  controls.enabled=false; renderer.domElement.style.cursor="crosshair";
-  await ensurePreview(); updatePreviewMaterial(false);
+
+  placing = true; placeType = type; placeRot = 0;
+  occSet = new Set(occupied.map(([x,y]) => `${x},${y}`));
+
+  controls.enabled = false;
+  renderer.domElement.style.cursor = "crosshair";
+
+  await ensurePreview();
+  updatePreviewMaterial(false);
+
+  // ★ 初期表示位置（中央セル → 空きマスを自動検索）
+  const center = { x: Math.floor(COLS/2), y: Math.floor(ROWS/2) };
+  const isFree = (c)=> c.x>=0 && c.y>=0 && c.x<COLS && c.y<ROWS && !occSet.has(`${c.x},${c.y}`);
+
+  let init = center;
+  if (!isFree(init)) {
+    outer: for (let r=1; r<Math.max(COLS,ROWS); r++){
+      for (let dx=-r; dx<=r; dx++){
+        for (let dy=-r; dy<=r; dy++){
+          const c = { x: center.x+dx, y: center.y+dy };
+          if (isFree(c)){ init=c; break outer; }
+        }
+      }
+    }
+  }
+  setPreviewAtCell(init);  // ← ここで必ず見える
 });
+
 document.addEventListener("placement:end",   ()=> endPlacement());
 document.addEventListener("placement:cancel",()=> endPlacement());
 document.addEventListener("placement:rotate",()=>{ if(!placing) return; placeRot=(placeRot+90)%360; if(preview && hoverCell){ setPreviewAtCell(hoverCell); }});
@@ -1372,6 +1395,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 </script>
 </body>
 </html>
+
 
 
 

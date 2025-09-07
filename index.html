@@ -1030,6 +1030,10 @@ function occupiedKey(x,y){ return `${x},${y}`; }
 function occupiedSet(){ return new Set(cityBuildings.map(b=>occupiedKey(b.x,b.y))); }
 
 function startPlacementFlow(item){
+ if(money < item.price){
+    alert("お金が足りないよ！クイズで💰を増やしてからもう一度ためしてね。");
+    return;
+  }
   pendingPurchase = { type: item.id, price: item.price, rot: 0 };
   infoBoxEl.textContent = "置く場所をえらんでね（タップ/クリックで確定、右クリック/Escでキャンセル、R/↻で回転）";
   shopOverlayEl.classList.remove("active");
@@ -1361,5 +1365,6 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 </script>
 </body>
 </html>
+
 
 

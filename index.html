@@ -1357,7 +1357,13 @@ document.addEventListener("placement:start", async (ev)=>{
       }
     }
   }
-  setPreviewAtCell(init);  // ← ここで必ず見える
+ setPreviewAtCell(init);
+
+  // ★ プレビュー位置にカメラを合わせる（視界に必ず入れる）
+  const t = gridToWorld(init.x, init.y);
+  controls.target.copy(t);
+  camera.position.set(t.x + 15, 18, t.z + 22);  // 好みで距離は調整可
+  controls.update();
 });
 
 document.addEventListener("placement:end",   ()=> endPlacement());
@@ -1423,6 +1429,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 </script>
 </body>
 </html>
+
 
 
 

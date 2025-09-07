@@ -338,7 +338,25 @@
     </div>
   </div>
 
+  <!-- ===== ショップ モーダル（追加） ===== -->
+<div id="shopOverlay" class="shop-overlay" role="dialog" aria-modal="true" aria-labelledby="shopTitle">
+  <div class="shop-box">
+    <button id="shopClose" class="shop-close" aria-label="ショップをとじる">×</button>
+    <h2 id="shopTitle" style="margin:0 0 8px 0;font-size:18px;">ショップ</h2>
+    <div class="toolrow">
+      <button class="toolbtn" data-filter="ALL">すべて</button>
+      <button class="toolbtn" data-filter="building">建物</button>
+      <button class="toolbtn" data-filter="nature">自然</button>
+      <button class="toolbtn" data-filter="infrastructure">インフラ</button>
+    </div>
+    <div id="shopGrid" class="shop-grid" aria-live="polite"></div>
+    <p class="shop-tip">クイズに正解すると💰がふえます。買った建物は町に自動で配置されます。</p>
+  </div>
+</div>
+
+
   <div id="info" role="status" aria-live="polite">時代をえらんでカードをめくろう！ 〇の部分だけを「ひらがな」で答えると開くよ。</div>
+
 
   <!-- ======== ここが街（キャンバス化） ======== -->
   <div id="town" role="img" aria-label="町エリア">
@@ -1249,4 +1267,5 @@ tiles: {
     rect: { sx: 448, sy: 64, sw: 64, sh: 64 }
   }
 },
+
 

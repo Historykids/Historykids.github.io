@@ -1276,18 +1276,30 @@ function updatePreviewMaterial(valid){
   restore(preview); apply(preview, valid ? okMat : ngMat);
 }
 async function ensurePreview(){
-  if(preview) return preview;
-   // まずは必ずフォールバック形状を表示
- preview = fallbackMesh(placeType);
-  preview.renderOrder = 999; scene.add(preview);
+  if (preview) return preview;
 
+  // すぐ見えるフォールバック
+  preview = fallbackMesh(placeType);
+  preview.renderOrder = 999;
+  scene.add(preview);
+
+  // GLBがあれば読み込み後に置き換え
   const url = MODEL_URLS[placeType];
-  if(url){
-    try{
+  if (url) {
+    try {
       const gltf = await loader.loadAsync(url);
-      const real = gltf.scene; real.scale.set(0.8,0.8,0.8);
-      scene.add(real); scene.remove(preview); preview = real;
-    }catch(e){ /* フォールバックのままでOK */ }
+      const real = gltf.scene;
+      real.scale.set(0.8, 0.8, 0.8);
+      // 位置と回転を引き継ぐ
+      real.position.copy(preview.position);
+      real.rotation.copy(preview.rotation);
+
+      scene.add(real);
+      scene.remove(preview);
+      preview = real;
+    } catch (e) {
+      console.warn("モデル読込失敗：フォールバック継続", placeType, e);
+    }
   }
   return preview;
 }
@@ -1395,6 +1407,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 </script>
 </body>
 </html>
+
 
 
 

@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+  <!-- Favicon -->
   <link rel="icon" href="/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/favicon-180x180.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="/favicon-512x512.png">
-
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180x180.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512x512.png">
 
   <!-- Google tag (gtag.js) → 1回だけ読み込み、2プロパティへ送信 -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-EZP12GC8W1"></script>
@@ -21,23 +21,23 @@
 
   <!-- AdSense（1回だけ） -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922140858632050" crossorigin="anonymous"></script>
-  <!-- 1) <head> に追記：構造化データ（Person） -->
-<script type="application/ld+json">
-{
-"@context": "https://schema.org",
-"@type": "Person",
-"name": "しろながす",
-"jobTitle": "歴史キッズ 運営者",
-"url": "https://historykids.github.io/",
-"image": "https://historykids.github.io/歴史のキャラクターの紹介.png",
-"sameAs": [
-"https://x.com/your_handle",
-"https://github.com/your_github"
-],
-"inLanguage": "ja"
-}
-</script>
-  
+
+  <!-- 構造化データ（Person） -->
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"Person",
+    "name":"しろながす",
+    "jobTitle":"歴史キッズ 運営者",
+    "url":"https://historykids.github.io/",
+    "image":"https://historykids.github.io/歴史のキャラクターの紹介.png",
+    "sameAs":[
+      "https://x.com/your_handle",
+      "https://github.com/your_github"
+    ],
+    "inLanguage":"ja"
+  }
+  </script>
 
   <!-- 構造化データ（WebSite） -->
   <script type="application/ld+json">
@@ -71,7 +71,6 @@
   <meta name="google-site-verification" content="bgJFyYeBgPsces8Rz5ONG_d-nj8ZEH_fHddcwAXMX0U" />
 
   <meta charset="UTF-8" />
-  <!-- アクセシビリティのためズーム制限を撤廃 -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <!-- SEO -->
@@ -134,12 +133,16 @@
     height:clamp(260px, 44vh, 520px); /* モバイル優先 */
     background:#fff;border-top:2px solid var(--edo-border);border-bottom:2px solid var(--edo-border);overflow:hidden
   }
-  /* PCで少し広めに */
   @media (min-width: 1024px){
     #town{ height:clamp(320px, 50vh, 640px); }
   }
+  /* キャンバスに薄いグリッド感 */
+  #town canvas{
+    display:block;width:100%;height:100%;
+    background-image: radial-gradient(rgba(0,0,0,.04) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
 
-  /* カードエリア：モバイル優先のGrid、PCで列数UP */
   #cards{
     display:grid;gap:10px;padding:10px;
     grid-template-columns:repeat(auto-fill, minmax(92px, 1fr));
@@ -156,8 +159,6 @@
   .card:hover{transform:scale(1.03);box-shadow:0 4px 12px var(--shadow)}
   .card.done{background:#cdeccd;color:#1a5e1a}
 
-  .building{position:absolute;font-size:34px;opacity:0;transform:scale(.8);transition:opacity .7s, transform .7s}
-  .show{opacity:1;transform:scale(1.2)}
   .villager{position:absolute;font-size:20px;animation:walk 8s linear infinite}
   @keyframes walk{0%{left:2%}50%{left:90%}100%{left:2%}}
 
@@ -191,31 +192,21 @@
     position:fixed;inset:0;background:rgba(0,0,0,.65);color:#fff;display:none;
     align-items:center;justify-content:center;z-index:20;text-align:center;padding:20px
   }
-  /* 小画面の横向きだけ警告。PCは表示しない */
   @media (orientation:landscape) and (max-width: 768px){ .landscapeWarn{display:flex} }
 
   ruby rt{font-size:.7em;color:#444}
   .yr{font-weight:800;margin-right:2px}
 
-  /* モーション弱め設定に配慮 */
-  @media (prefers-reduced-motion: reduce){
-    .card:hover{transform:none}
-    .building,.petal{transition:none;animation:none}
-  }
-    /* セクションの共通余白 */
-#profile, #contact { background:#fff; margin:10px 12px; padding:16px; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
-#profile h2, #contact h2 { margin:0 0 10px 0; font-size:18px; }
+  /* セクションの共通余白 */
+  #profile, #contact { background:#fff; margin:10px 12px; padding:16px; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+  #profile h2, #contact h2 { margin:0 0 10px 0; font-size:18px; }
 
-/* モーダル共通 */
-.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:100; }
-.modal-overlay.active { display:flex; }
-.modal-box { background:#fff; border-radius:12px; max-width:640px; width:92%; max-height:90vh; overflow:auto; padding:16px; box-shadow:0 6px 24px rgba(0,0,0,.2); position:relative; }
-.modal-box h2 { margin-top:0; font-size:18px; }
-.modal-close { position:absolute; top:10px; right:10px; border:0; background:#eee; border-radius:50%; width:32px; height:32px; cursor:pointer; font-weight:800; }
-
-
-
-
+  /* モーダル共通 */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:100; }
+  .modal-overlay.active { display:flex; }
+  .modal-box { background:#fff; border-radius:12px; max-width:640px; width:92%; max-height:90vh; overflow:auto; padding:16px; box-shadow:0 6px 24px rgba(0,0,0,.2); position:relative; }
+  .modal-box h2 { margin-top:0; font-size:18px; }
+  .modal-close { position:absolute; top:10px; right:10px; border:0; background:#eee; border-radius:50%; width:32px; height:32px; cursor:pointer; font-weight:800; }
   </style>
 </head>
 
@@ -223,7 +214,7 @@
 <!-- admax -->
 <script src="https://adm.shinobi.jp/o/34d787284f7a6a7e3c604e027b12d460"></script>
 <!-- admax -->
-<!-- admax -->
+
 <div class="wrap">
   <header>
     <h1 class="siteTitle">歴史キッズ｜楽しく学べる！小学生・中学生向け歴史学習サイト</h1>
@@ -264,8 +255,8 @@
       <a href="#cards" id="playMuromachi" style="display:inline-block;background:#fde68a;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;color:#222;">室町時代で遊ぶ</a>
       <a href="#cards" id="playKamakura" style="display:inline-block;background:#f9e2af;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;color:#222;">鎌倉時代で遊ぶ</a>
       <a href="#zukanPanel" id="openZukan" style="display:inline-block;background:#e5e7eb;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;color:#111;">図鑑（年表）を見る</a>
-     <a href="#" id="openProfile" style="display:inline-block;background:#e0f2fe;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;color:#111;">プロフィール</a>
-<a href="#" id="openContact" style="display:inline-block;background:#dcfce7;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;color:#111;">お問い合わせ</a>
+      <a href="#" id="openProfile" style="display:inline-block;background:#e0f2fe;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;color:#111;">プロフィール</a>
+      <a href="#" id="openContact" style="display:inline-block;background:#dcfce7;padding:8px 12px;border-radius:8px;font-weight:700;text-decoration:none;color:#111;">お問い合わせ</a>
     </nav>
   </section>
 
@@ -282,58 +273,46 @@
     <small style="color:#666;">※当サイトはアフィリエイト広告を利用しています</small>
   </div>
 
-  
-<div id="profileModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
-<div class="modal-box">
-<button class="modal-close" data-close>×</button>
-<h2 id="profileTitle">プロフィール</h2>
-<div class="profile-card">
-<img src="https://historykids.github.io/かわいい青いクジラ.png" alt="サイト管理人のアイコン" class="profile-avatar" width="176" height="176" loading="lazy" decoding="async />" />
-<div class="profile-meta">
-<div class="profile-name">サイト管理人：<b>しろながす</b></div>
-<p style="margin:0;color:#444">小学生〜中学生が <b>クイズ・年表・カード</b>で歴史に親しめるサイトを目指して開発・運営しています。</p>
-<ul class="profile-list">
-<li>こどもでも<b>スマホ１台</b>で学べるUIに</li>
-<li>読みやすい <b>ふりがな</b> と <b>ひらがな回答</b>に対応</li>
-<li>学校の <b>自由研究</b>や <b>テスト対策</b>にも活用</li>
-</ul>
-<div class="socials" aria-label="SNSリンク">
-<a class="chip" href="mailto:you@example.com">メール</a>
-</div>
-</div>
-</div>
-</div>
-</div>
+  <!-- プロフィール モーダル -->
+  <div id="profileModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
+    <div class="modal-box">
+      <button class="modal-close" data-close>×</button>
+      <h2 id="profileTitle">プロフィール</h2>
+      <div class="profile-card" style="display:flex;gap:12px;align-items:center;">
+        <img src="https://historykids.github.io/かわいい青いクジラ.png" alt="サイト管理人のアイコン" class="profile-avatar" width="176" height="176" loading="lazy" decoding="async" />
+        <div class="profile-meta">
+          <div class="profile-name">サイト管理人：<b>しろながす</b></div>
+          <p style="margin:0;color:#444">小学生〜中学生が <b>クイズ・年表・カード</b>で歴史に親しめるサイトを目指して開発・運営しています。</p>
+          <ul class="profile-list">
+            <li>こどもでも<b>スマホ１台</b>で学べるUIに</li>
+            <li>読みやすい <b>ふりがな</b> と <b>ひらがな回答</b>に対応</li>
+            <li>学校の <b>自由研究</b>や <b>テスト対策</b>にも活用</li>
+          </ul>
+          <div class="socials" aria-label="SNSリンク">
+            <a class="chip" href="mailto:you@example.com">メール</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- お問い合わせ モーダル -->
-<div id="contactModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="contactTitle">
-<div class="modal-box">
-<button class="modal-close" data-close>×</button>
-<h2 id="contactTitle">お問い合わせ</h2>
-<p style="margin:0 0 8px;color:#444">ご意見・ご要望・誤字のご指摘など、お気軽にお知らせください。</p>
-
-
-<!-- Googleフォーム埋め込みは邪魔なので、外部リンクだけ用意 -->
-<p><a href="https://docs.google.com/forms/d/e/1FAIpQLSdHvqKAszs5j860tNIeesVlE83pMpP_qP9QrNLuJJaZ9g3h5Q/viewform" target="_blank" rel="noopener" style="display:inline-block;background:#fcd34d;padding:10px 14px;border-radius:8px;font-weight:700;color:#111;text-decoration:none;">Googleフォームを開く</a></p>
-
-
-</div>
-</div>
-  
- <script>
-(function(){
-const modals = document.querySelectorAll('.modal-overlay');
-document.getElementById('openProfile')?.addEventListener('click', e=>{ e.preventDefault(); document.getElementById('profileModal').classList.add('active'); });
-document.getElementById('openContact')?.addEventListener('click', e=>{ e.preventDefault(); document.getElementById('contactModal').classList.add('active'); });
-modals.forEach(m=>{
-m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('active'); });
-m.querySelectorAll('[data-close]').forEach(btn=>btn.addEventListener('click', ()=>m.classList.remove('active')));
-});
-})();
-</script>
+  <div id="contactModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="contactTitle">
+    <div class="modal-box">
+      <button class="modal-close" data-close>×</button>
+      <h2 id="contactTitle">お問い合わせ</h2>
+      <p style="margin:0 0 8px;color:#444">ご意見・ご要望・誤字のご指摘など、お気軽にお知らせください。</p>
+      <p><a href="https://docs.google.com/forms/d/e/1FAIpQLSdHvqKAszs5j860tNIeesVlE83pMpP_qP9QrNLuJJaZ9g3h5Q/viewform" target="_blank" rel="noopener" style="display:inline-block;background:#fcd34d;padding:10px 14px;border-radius:8px;font-weight:700;color:#111;text-decoration:none;">Googleフォームを開く</a></p>
+    </div>
+  </div>
 
   <div id="info" role="status" aria-live="polite">時代をえらんでカードをめくろう！ 〇の部分だけを「ひらがな」で答えると開くよ。</div>
-  <div id="town" role="img" aria-label="町エリア"></div>
+
+  <!-- ======== ここが街（キャンバス化） ======== -->
+  <div id="town" role="img" aria-label="町エリア">
+    <canvas id="cityCanvas" width="960" height="540" aria-label="city-builder-canvas"></canvas>
+  </div>
+
   <div id="cards" aria-label="カードエリア"></div>
 
   <section id="zukanPanel" aria-hidden="true">
@@ -345,7 +324,7 @@ m.querySelectorAll('[data-close]').forEach(btn=>btn.addEventListener('click', ()
     <div id="completeMsg"></div>
   </section>
 
-  <!-- 下部の固定バナー枠（必要なら中身を ad ユニットに差し替え） -->
+  <!-- 下部の固定バナー枠 -->
   <div class="adbar" aria-label="広告枠">
     <div class="adslot">広告スペース（<ins class="adsbygoogle">…</ins> を入れる場所）</div>
   </div>
@@ -354,7 +333,7 @@ m.querySelectorAll('[data-close]').forEach(btn=>btn.addEventListener('click', ()
 
 <div class="landscapeWarn">縦向きで遊んでね🔄</div>
 
-<!-- クイズ用モーダル（簡易スタイルはインラインで） -->
+<!-- クイズ用モーダル -->
 <div id="quizModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:30">
   <div class="modal-bg" id="quizBg" style="position:absolute;inset:0;background:rgba(0,0,0,.5)"></div>
   <div class="modal-box" style="position:relative;z-index:1;width:min(92vw,560px);background:#fff;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.2);padding:14px">
@@ -375,10 +354,21 @@ m.querySelectorAll('[data-close]').forEach(btn=>btn.addEventListener('click', ()
 </div>
 
 <script>
+/* ========== モーダル開閉（プロフィール/お問い合わせ） ========== */
+(function(){
+  const modals = document.querySelectorAll('.modal-overlay');
+  document.getElementById('openProfile')?.addEventListener('click', e=>{ e.preventDefault(); document.getElementById('profileModal').classList.add('active'); });
+  document.getElementById('openContact')?.addEventListener('click', e=>{ e.preventDefault(); document.getElementById('contactModal').classList.add('active'); });
+  modals.forEach(m=>{
+    m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('active'); });
+    m.querySelectorAll('[data-close]').forEach(btn=>btn.addEventListener('click', ()=>m.classList.remove('active')));
+  });
+})();
+</script>
+
+<script>
 /* =========================================================
    データセット（江戸／室町／鎌倉／戦国）
-   - 1401 勘合貿易の〇は現状維持
-   - 表示のルビは ruby マップ側で付与（キーはプレーンテキスト）
    ========================================================= */
 const dataSets = {
   /* ---------- 江戸時代 ---------- */
@@ -477,7 +467,7 @@ const dataSets = {
     }
   },
 
-  /* ---------- 室町時代（※ 1401 勘合貿易の〇は現状維持） ---------- */
+  /* ---------- 室町時代 ---------- */
   muromachi: {
     title: "室町時代",
     LS_KEY: "cards_muromachi_complete_v1",
@@ -510,14 +500,12 @@ const dataSets = {
       "1397 〇〇〇〇が建てられる":   "〇〇〇〇が<ruby>建<rt>た</rt></ruby>てられる",
       "1390 〇〇〇〇文化がさかえる": "〇〇〇〇<ruby>文化<rt>ぶんか</rt></ruby>がさかえる",
       "1401 〇〇〇〇貿易がはじまる": "〇〇〇〇<ruby>貿易<rt>ぼうえき</rt></ruby>がはじまる",
-
       "1439 〇〇〇〇〇の乱":         "〇〇〇〇〇の<ruby>乱<rt>らん</rt></ruby>",
       "1441 〇〇〇の乱":             "〇〇〇の<ruby>乱<rt>らん</rt></ruby>",
       "1467 〇〇〇〇の乱":           "〇〇〇〇の<ruby>乱<rt>らん</rt></ruby>",
       "1485 〇〇〇〇国一揆":         "〇〇〇〇<ruby>国<rt>くに</rt></ruby><ruby>一揆<rt>いっき</rt></ruby>",
       "1489 〇〇〇〇が建てられる":   "〇〇〇〇が<ruby>建<rt>た</rt></ruby>てられる",
       "1493 〇〇〇〇の政変":         "〇〇〇〇の<ruby>政変<rt>せいへん</rt></ruby>",
-
       "1543 〇〇〇〇伝来":           "〇〇〇〇<ruby>伝来<rt>でんらい</rt></ruby>",
       "1549 〇〇〇〇教伝来":         "〇〇〇〇<ruby>教<rt>きょう</rt></ruby><ruby>伝来<rt>でんらい</rt></ruby>",
       "1555 〇〇〇〇〇の戦い":       "〇〇〇〇〇の<ruby>戦<rt>たたか</rt></ruby>い",
@@ -529,14 +517,12 @@ const dataSets = {
       "1397 〇〇〇〇が建てられる":   ["きんかく"],
       "1390 〇〇〇〇文化がさかえる": ["きたやま"],
       "1401 〇〇〇〇貿易がはじまる": ["かんごう"],
-
       "1439 〇〇〇〇〇の乱":         ["えいきょう"],
       "1441 〇〇〇の乱":             ["かきつ"],
       "1467 〇〇〇〇の乱":           ["おうにん"],
       "1485 〇〇〇〇国一揆":         ["やましろ"],
       "1489 〇〇〇〇が建てられる":   ["ぎんかく"],
       "1493 〇〇〇〇の政変":         ["めいおう"],
-
       "1543 〇〇〇〇伝来":           ["てっぽう"],
       "1549 〇〇〇〇教伝来":         ["きりすと"],
       "1555 〇〇〇〇〇の戦い":       ["いつくしま"],
@@ -544,7 +530,7 @@ const dataSets = {
     }
   },
 
-  /* ---------- 鎌倉時代（たっぷり収録） ---------- */
+  /* ---------- 鎌倉時代 ---------- */
   kamakura: {
     title: "鎌倉時代",
     LS_KEY: "cards_kamakura_complete_v1",
@@ -587,21 +573,18 @@ const dataSets = {
       "1185 〇〇〇・〇〇〇の設置":   "〇〇〇・〇〇〇の<ruby>設置<rt>せっち</rt></ruby>",
       "1185 〇〇〇〇幕府がはじまる": "〇〇〇〇<ruby>幕府<rt>ばくふ</rt></ruby>がはじまる",
       "1192 〇〇〇〇が将軍に":       "〇〇〇〇が<ruby>将軍<rt>しょうぐん</rt></ruby>に",
-
       "1203 〇〇〇〇政治がはじまる": "〇〇〇〇<ruby>政治<rt>せいじ</rt></ruby>がはじまる",
       "1213 〇〇合戦":               "〇〇<ruby>合戦<rt>かっせん</rt></ruby>",
       "1221 〇〇〇〇の乱":           "〇〇〇〇の<ruby>乱<rt>らん</rt></ruby>",
       "1232 〇〇〇〇〇〇〇〇〇が定まる": "〇〇〇〇〇〇〇〇〇が<ruby>定<rt>さだ</rt></ruby>まる",
       "1247 〇〇〇合戦":             "〇〇〇<ruby>合戦<rt>かっせん</rt></ruby>",
       "1252 〇〇〇〇ができる":       "〇〇〇〇ができる",
-
       "1274 〇〇〇〇の役":           "〇〇〇〇の<ruby>役<rt>えき</rt></ruby>",
       "1281 〇〇〇〇の役":           "〇〇〇〇の<ruby>役<rt>えき</rt></ruby>",
       "1297 〇〇〇〇〇〇が出る":     "〇〇〇〇〇〇が<ruby>出<rt>で</rt></ruby>る",
       "1305 〇〇〇〇騒動":           "〇〇〇〇<ruby>騒動<rt>そうどう</rt></ruby>",
       "1331 〇〇〇〇の乱":           "〇〇〇〇の<ruby>乱<rt>らん</rt></ruby>",
       "1333 〇〇〇〇幕府がほろぶ":   "〇〇〇〇<ruby>幕府<rt>ばくふ</rt></ruby>がほろぶ",
-
       "1175 〇〇〇〇宗が広まる":     "〇〇〇〇<ruby>宗<rt>しゅう</rt></ruby>が広まる",
       "1191 〇〇〇〇宗が伝わる":     "〇〇〇〇<ruby>宗<rt>しゅう</rt></ruby>が<ruby>伝<rt>つた</rt></ruby>わる",
       "1224 〇〇〇〇真宗が広まる":   "〇〇〇〇<ruby>真宗<rt>しんしゅう</rt></ruby>が広まる",
@@ -615,21 +598,18 @@ const dataSets = {
       "1185 〇〇〇・〇〇〇の設置":   ["しゅご","じとう"],
       "1185 〇〇〇〇幕府がはじまる": ["かまくら"],
       "1192 〇〇〇〇が将軍に":       ["よりとも"],
-
       "1203 〇〇〇〇政治がはじまる": ["しっけん"],
       "1213 〇〇合戦":               ["わだ"],
       "1221 〇〇〇〇の乱":           ["じょうきゅう"],
       "1232 〇〇〇〇〇〇〇〇〇が定まる": ["ごせいばいしきもく"],
       "1247 〇〇〇合戦":             ["ほうじ"],
       "1252 〇〇〇〇ができる":       ["だいぶつ"],
-
       "1274 〇〇〇〇の役":           ["ぶんえい"],
       "1281 〇〇〇〇の役":           ["こうあん"],
       "1297 〇〇〇〇〇〇が出る":     ["とくせいれい"],
       "1305 〇〇〇〇騒動":           ["しもつき"],
       "1331 〇〇〇〇の乱":           ["げんこう"],
       "1333 〇〇〇〇幕府がほろぶ":   ["かまくら"],
-
       "1175 〇〇〇〇宗が広まる":     ["じょうど"],
       "1191 〇〇〇〇宗が伝わる":     ["りんざい"],
       "1224 〇〇〇〇真宗が広まる":   ["じょうど"],
@@ -638,7 +618,8 @@ const dataSets = {
       "1253 〇〇〇〇宗が広まる":     ["にちれん"]
     }
   },
-  /* ---------- 戦国時代（多め） ---------- */
+
+  /* ---------- 戦国時代 ---------- */
   sengoku: {
     title: "戦国時代",
     LS_KEY: "cards_sengoku_complete_v1",
@@ -685,7 +666,6 @@ const dataSets = {
     ruby: {
       "1467 〇〇〇〇の乱":                 "〇〇〇〇の<ruby>乱<rt>らん</rt></ruby>",
       "1485 〇〇〇〇国一揆":               "〇〇〇〇<ruby>国<rt>くに</rt></ruby><ruby>一揆<rt>いっき</rt></ruby>",
-
       "1543 〇〇〇〇伝来":                 "〇〇〇〇<ruby>伝来<rt>でんらい</rt></ruby>",
       "1549 〇〇〇〇教伝来":               "〇〇〇〇<ruby>教<rt>きょう</rt></ruby><ruby>伝来<rt>でんらい</rt></ruby>",
       "1555 〇〇〇〇〇の戦い":             "〇〇〇〇〇の<ruby>戦<rt>たたか</rt></ruby>い",
@@ -693,7 +673,6 @@ const dataSets = {
       "1561 〇〇〇〇〇〇の戦い":           "〇〇〇〇〇〇の<ruby>戦<rt>たたか</rt></ruby>い",
       "1567 〇〇に改名（稲葉山→〜）":     "〇〇に<ruby>改名<rt>かいめい</rt></ruby>（<ruby>稲葉山<rt>いなばやま</rt></ruby>→〜）",
       "1568 〇〇〇〇が京都に入る":         "〇〇〇〇が<ruby>京都<rt>きょうと</rt></ruby>に<ruby>入<rt>はい</rt></ruby>る",
-
       "1570 〇〇〇〇の戦い":               "〇〇〇〇の<ruby>戦<rt>たたか</rt></ruby>い",
       "1571 〇〇〇〇〇焼き討ち":           "〇〇〇〇〇<ruby>焼<rt>や</rt></ruby>き<ruby>討<rt>う</rt></ruby>ち",
       "1573 〇〇〇〇幕府がおわる":         "〇〇〇〇<ruby>幕府<rt>ばくふ</rt></ruby>が<ruby>終<rt>お</rt></ruby>わる",
@@ -712,7 +691,6 @@ const dataSets = {
       "1597 〇〇〇〇〇〇〇〇の役":         "〇〇〇〇〇〇〇〇の<ruby>役<rt>えき</rt></ruby>",
       "1598 〇〇〇〇がなくなる":           "〇〇〇〇が<ruby>亡<rt>な</rt></ruby>くなる",
       "1600 〇〇〇〇〇の戦い":             "〇〇〇〇〇の<ruby>戦<rt>たたか</rt></ruby>い",
-
       "1577 〇〇〇〇・〇〇〇をすすめる":   "〇〇〇〇・〇〇〇を<ruby>勧<rt>すす</rt></ruby>める",
       "1582 〇〇〇〇検地がすすむ":         "〇〇〇〇<ruby>検地<rt>けんち</rt></ruby>がすすむ",
       "1583 〇〇〇〇城を築く":             "〇〇〇〇<ruby>城<rt>じょう</rt></ruby>を<ruby>築<rt>きず</rt></ruby>く"
@@ -720,7 +698,6 @@ const dataSets = {
     blanks: {
       "1467 〇〇〇〇の乱":                ["おうにん"],
       "1485 〇〇〇〇国一揆":              ["やましろ"],
-
       "1543 〇〇〇〇伝来":                ["てっぽう"],
       "1549 〇〇〇〇教伝来":              ["きりすと"],
       "1555 〇〇〇〇〇の戦い":            ["いつくしま"],
@@ -728,7 +705,6 @@ const dataSets = {
       "1561 〇〇〇〇〇〇の戦い":          ["かわなかじま"],
       "1567 〇〇に改名（稲葉山→〜）":    ["ぎふ"],
       "1568 〇〇〇〇が京都に入る":        ["のぶなが"],
-
       "1570 〇〇〇〇の戦い":              ["あねがわ"],
       "1571 〇〇〇〇〇焼き討ち":          ["ひえいざん"],
       "1573 〇〇〇〇幕府がおわる":        ["むろまち"],
@@ -747,13 +723,11 @@ const dataSets = {
       "1597 〇〇〇〇〇〇〇〇の役":        ["けいちょうのえき"],
       "1598 〇〇〇〇がなくなる":          ["ひでよし"],
       "1600 〇〇〇〇〇の戦い":            ["せきがはら"],
-
       "1577 〇〇〇〇・〇〇〇をすすめる":  ["らくいち","らくざ"],
       "1582 〇〇〇〇検地がすすむ":        ["たいこう"],
       "1583 〇〇〇〇城を築く":            ["おおさか"]
     }
   }
-
 };
 
 /* ========= 共通ユーティリティ ========= */
@@ -794,8 +768,6 @@ function loadProgress(){
   const raw = localStorage.getItem(dataSets[currentEra].LS_KEY);
   try{ gotCards = raw ? JSON.parse(raw) : {}; } catch{ gotCards = {}; }
 }
-
-/* ========= 表示構築 ========= */
 function withRubyMasked(fullName){
   const m = dataSets[currentEra].ruby[fullName];
   if(m) {
@@ -805,7 +777,6 @@ function withRubyMasked(fullName){
   }
   return fullName;
 }
-
 function buildChapterFilter(){
   if(!chapterFilter) return;
   chapterFilter.innerHTML = `<option value="ALL">章：ぜんぶ</option>`;
@@ -814,7 +785,6 @@ function buildChapterFilter(){
     chapterFilter.innerHTML += `<option value="${ch}">${ch}</option>`;
   });
 }
-
 function buildCards(){
   const wrap = document.getElementById("cards");
   if(!wrap) return;
@@ -848,7 +818,6 @@ function buildCards(){
     }
   });
 }
-
 function renderZukan(){
   zukanList.innerHTML = "";
   let allComplete = true;
@@ -878,7 +847,6 @@ function renderZukan(){
     completeMsg.textContent = "";
   }
 }
-
 function launchPetals(){
   for(let i=0;i<24;i++){
     const p=document.createElement("div");
@@ -891,224 +859,206 @@ function launchPetals(){
   }
 }
 
-/* ========= クイズ（モーダル） ========= */
-let quizCtx = { card:null, name:"", ch:"", expected:[] };
+/* =================== City Sprite Engine（ガチ建物） =================== */
+const CITY = {
+  // ★ スプライト画像を置いたらここ（例：'/assets/tilesheet.png'）。空なら絵文字フォールバック
+  spriteSheetUrl: '/assets/tilesheet.png',
+  tileSize: 48,
+  cols: 20,
+  rows: 12,
+  zoom: 1,
+  grid: [], // 2D array of tile ids
+  tiles: {
+    grass:   { label:'草地',  emoji:'🌿', rect:{sx:0,   sy:0,   sw:64, sh:64} },
+    water:   { label:'水辺',  emoji:'🌊', rect:{sx:64,  sy:0,   sw:64, sh:64} },
+    road:    { label:'道路',  emoji:'🛣️', rect:{sx:128, sy:0,   sw:64, sh:64} },
+    house:   { label:'家',    emoji:'🏠', rect:{sx:0,   sy:64,  sw:64, sh:64} },
+    shop:    { label:'商家',  emoji:'🏪', rect:{sx:64,  sy:64,  sw:64, sh:64} },
+    castle:  { label:'城',    emoji:'🏯', rect:{sx:128, sy:64,  sw:64, sh:64} },
+    temple:  { label:'寺社',  emoji:'⛩️', rect:{sx:192, sy:64,  sw:64, sh:64} },
+    tree:    { label:'木',    emoji:'🌳', rect:{sx:192, sy:0,   sw:64, sh:64} },
+  },
+  sprite: { image:null, loaded:false },
+  lsKey: 'hk_city_map_v1',
+};
 
-function openQuiz(card, name, ch){
-  const expected = dataSets[currentEra].blanks[name];
-  if(!expected){ alert("このカードの空欄答えが未登録です"); return; }
-  quizCtx = { card, name, ch, expected };
+(function initCity(){
+  // グリッド初期化
+  for(let r=0;r<CITY.rows;r++){
+    CITY.grid[r] = [];
+    for(let c=0;c<CITY.cols;c++){
+      // 適当に草地＋木、端に水、中央付近に道路
+      let id = 'grass';
+      if(r===CITY.rows-1 || c===0) id = 'water';
+      if(r===Math.floor(CITY.rows/2)) id = 'road';
+      if(Math.random()<0.07 && id==='grass') id = 'tree';
+      CITY.grid[r][c] = id;
+    }
+  }
+  // お城と家・店を少し配置
+  CITY.grid[Math.floor(CITY.rows/2)-1][Math.floor(CITY.cols/2)] = 'castle';
+  CITY.grid[Math.floor(CITY.rows/2)][Math.floor(CITY.cols/2)-2] = 'shop';
+  CITY.grid[Math.floor(CITY.rows/2)][Math.floor(CITY.cols/2)+2] = 'house';
 
-  quizTitle.innerHTML = withRubyMasked(name);
-  quizHint.textContent = expected.length >= 2
-    ? `空欄は ${expected.length} こ。順番に入力してね`
-    : `空欄は 1 こ。例：えど`;
-  
-  // この行で表示を切り替えます
-  quizModal.style.display = "flex"; 
-  
-  quizModal.setAttribute("aria-hidden","false");
-  quizInput.value = "";
-  setTimeout(()=>quizInput.focus(), 50);
-  
-  // 以前あった classList.add("active") は、
-  // displayを直接操作するので不要になります。
+  // スプライト読み込み（存在しない場合は loaded=false で絵文字描画）
+  if(CITY.spriteSheetUrl){
+    const img = new Image();
+    img.onload = ()=>{ CITY.sprite.image = img; CITY.sprite.loaded = true; drawCity(); };
+    img.onerror = ()=>{ CITY.sprite.loaded = false; drawCity(); };
+    img.src = CITY.spriteSheetUrl;
+  }else{
+    drawCity();
+  }
+
+  // リサイズ対応
+  window.addEventListener('resize', drawCity);
+})();
+
+function drawCity(){
+  const canvas = document.getElementById('cityCanvas');
+  if(!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width  = Math.floor(rect.width  * dpr);
+  canvas.height = Math.floor(rect.height * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0); // CSSピクセル基準で描画
+
+  const size = Math.min(
+    Math.floor(rect.width / CITY.cols),
+    Math.floor(rect.height / CITY.rows)
+  );
+
+  for(let r=0;r<CITY.rows;r++){
+    for(let c=0;c<CITY.cols;c++){
+      const id = CITY.grid[r][c];
+      const tile = CITY.tiles[id];
+      const x = c*size, y = r*size;
+
+      ctx.clearRect(x,y,size,size);
+      // 枠線（うっすら）
+      ctx.strokeStyle = 'rgba(0,0,0,.05)';
+      ctx.strokeRect(x+0.5,y+0.5,size-1,size-1);
+
+      if(CITY.sprite.loaded && CITY.sprite.image && tile.rect){
+        // スプライトが読み込めたら画像描画
+        ctx.drawImage(
+          CITY.sprite.image,
+          tile.rect.sx, tile.rect.sy, tile.rect.sw, tile.rect.sh,
+          x, y, size, size
+        );
+      }else{
+        // フォールバック：絵文字で描画
+        ctx.font = `${Math.floor(size*0.8)}px system-ui, "Apple Color Emoji","Segoe UI Emoji"`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(tile.emoji, x+size/2, y+size/2+1);
+      }
+    }
+  }
 }
 
-function closeQuiz(){
-  // この行で非表示に切り替えます
-  quizModal.style.display = "none";
-  
-  quizModal.setAttribute("aria-hidden","true");
-}
-
-function submitQuiz(){
-  const { card, name, ch, expected } = quizCtx;
-  if(!card) return;
-  const raw = quizInput.value.trim();
-  if(!onlyHiraAndSep(raw)){
-    alert("ひらがな だけで入力してね（区切りは スペース/・/、/，/／ だけOK）");
-    quizInput.focus(); return;
-  }
-  const tokens = splitTokens(raw);
-  const joined = tokens.join("");
-  const expectJoined = expected.join("");
-
-  let ok = false;
-  if(tokens.length === expected.length){
-    ok = tokens.every((t,i)=>t === expected[i]);
-  }else if(tokens.length === 1){
-    ok = joined === expectJoined; // まとめ入力OK
-  }
-
-  if(!ok){
-    alert(`ざんねん！せいかいは「${expected.join(" ・ ") }」だよ（〇の部分だけ）`);
-    quizInput.focus();
-    return;
-  }
-
-  // 正解処理
-  closeQuiz();
-  const data = dataSets[currentEra].chapters[ch][name];
-  card.innerHTML = withRubyMasked(name);
-  card.classList.add("done");
-  infoBox && (infoBox.textContent = data.text);
-
-  const b = document.createElement("div");
-  b.className = "building";
-  b.textContent = data.icon;
-  b.style.left = (Math.random()*80 + 5) + "%";
-  b.style.top  = (Math.random()*70 + 5) + "%";
-  town.appendChild(b);
-  setTimeout(()=>b.classList.add("show"),50);
-
-  const v = document.createElement("div");
-  v.className = "villager";
-  v.textContent = Math.random()>0.5 ? "😊" : "👘";
-  v.style.top = Math.floor(Math.random()*Math.max(40, town.clientHeight-40)) + "px";
-  town.appendChild(v);
-
-  gotCards[name] = true;
-  persist();
+/* ========= 図鑑開閉・操作 ========= */
+zukanBtn?.addEventListener('click', ()=>{
+  zukanPanel.classList.add('active');
+  zukanPanel.setAttribute('aria-hidden','false');
+  zukanBtn.setAttribute('aria-expanded','true');
   renderZukan();
-}
-
-function onCardClick(card, name, ch){
-  if(card.classList.contains("done")) return;
-  openQuiz(card, name, ch);
-}
-
-/* ========= イベント ========= */
-quizCancel?.addEventListener("click", closeQuiz);
-quizBg?.addEventListener("click", closeQuiz);
-quizOk?.addEventListener("click", submitQuiz);
-quizInput?.addEventListener("keydown", e=>{ if(e.key === "Enter") submitQuiz(); });
-
-zukanBtn?.addEventListener("click", ()=>{
-  const willOpen = !zukanPanel.classList.contains("active");
-  zukanPanel.classList.toggle("active");
-  zukanPanel.setAttribute("aria-hidden", willOpen ? "false" : "true");
-  zukanBtn.setAttribute("aria-expanded", String(willOpen));
 });
-closeZukan?.addEventListener("click", ()=>{
-  zukanPanel.classList.remove("active");
-  zukanPanel.setAttribute("aria-hidden","true");
-  zukanBtn.setAttribute("aria-expanded","false");
-});
-chapterFilter?.addEventListener("change", buildCards);
-
-// リセット
-resetBtn?.addEventListener("click", ()=>{
-  if(!confirm(`${dataSets[currentEra].title}の進捗（開いたカード・町づくり）をリセットします。よろしいですか？`)) return;
-  localStorage.removeItem(dataSets[currentEra].LS_KEY);
-  gotCards = {};
-  document.querySelectorAll("#town .building, #town .villager").forEach(el=>el.remove());
-  if(infoBox) infoBox.textContent = "時代をえらんでカードをめくろう！ 〇の部分だけを「ひらがな」で答えると開くよ。";
-  zukanPanel.classList.remove("active");
-  zukanPanel.setAttribute("aria-hidden","true");
-  zukanBtn.setAttribute("aria-expanded","false");
-  buildCards();
-  renderZukan();
-  alert("リセットしました！");
-});
-
-// イントロのクイックボタンで時代切り替え（PC/スマホ両対応）
-function bindEraLink(sel, era){
-  const el = document.getElementById(sel);
-  if(!el) return;
-  el.addEventListener("click", (e)=>{
-    e.preventDefault();
-    if(eraSelect){ eraSelect.value = era; eraSelect.dispatchEvent(new Event("change")); }
-    document.getElementById("cards")?.scrollIntoView({ behavior: "smooth" });
-  });
-}
-bindEraLink("playEdo", "edo");
-bindEraLink("playMuromachi", "muromachi");
-bindEraLink("playKamakura", "kamakura");
-bindEraLink("playSengoku", "sengoku");
-
-// フッターのショートカット（存在チェックしてから）
-bindEraLink("footEdo", "edo");
-bindEraLink("footMuromachi", "muromachi");
-bindEraLink("footKamakura", "kamakura");
-document.getElementById("footZukan")?.addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("openZukan")?.click(); });
-bindEraLink("footSengoku", "sengoku");
-
-// 図鑑ボタン直リンク
-document.getElementById("openZukan")?.addEventListener("click", (e)=>{
+document.getElementById('openZukan')?.addEventListener('click', (e)=>{
   e.preventDefault();
-  zukanPanel.classList.add("active");
-  zukanPanel.setAttribute("aria-hidden","false");
-  zukanBtn.setAttribute("aria-expanded","true");
-  zukanPanel.scrollIntoView({ behavior: "smooth" });
+  zukanPanel.classList.add('active');
+  zukanPanel.setAttribute('aria-hidden','false');
+  zukanBtn.setAttribute('aria-expanded','true');
+  renderZukan();
+});
+closeZukan?.addEventListener('click', ()=>{
+  zukanPanel.classList.remove('active');
+  zukanPanel.setAttribute('aria-hidden','true');
+  zukanBtn.setAttribute('aria-expanded','false');
 });
 
-// 時代セレクト変更
-eraSelect?.addEventListener("change", ()=>{
-  currentEra = eraSelect.value;
-  document.querySelectorAll("#town .building, #town .villager").forEach(el=>el.remove());
+/* ========= 進捗とUI構築 ========= */
+function resetAndBuild(){
   loadProgress();
   buildChapterFilter();
   buildCards();
-  renderZukan();
+}
+eraSelect?.addEventListener('change', ()=>{
+  currentEra = eraSelect.value;
+  resetAndBuild();
+  infoBox.textContent = `${dataSets[currentEra].title}のカードをめくってみよう！`;
+});
+chapterFilter?.addEventListener('change', buildCards);
+resetBtn?.addEventListener('click', ()=>{
+  if(confirm('この時代の進捗をリセットしますか？')){
+    gotCards = {};
+    persist();
+    buildCards();
+    renderZukan();
+  }
 });
 
-/* ========= 初期描画 ========= */
-loadProgress();
-buildChapterFilter();
-buildCards();
-renderZukan();
+/* ========= クイズ（カードクリック時） ========= */
+function onCardClick(el, name, chapter){
+  const ds = dataSets[currentEra];
+  const blanks = ds.blanks[name] || [];
+  quizTitle.innerHTML = withRubyMasked(name);
+  quizHint.textContent = blanks.length>1 ? `（こたえは ${blanks.length} こ／区切りOK）` : '';
+  quizInput.value = '';
+  showQuiz(true);
 
-// 保存復元（建物＆住人）
-(function restoreTown(){
-  const chapters = dataSets[currentEra].chapters;
-  for(const ch in chapters){
-    for(const name in chapters[ch]){
-      if(!gotCards[name]) continue;
-      const item = chapters[ch][name];
-      const b = document.createElement("div");
-      b.className = "building show";
-      b.textContent = item.icon;
-      b.style.left = (Math.random()*80 + 5) + "%";
-      b.style.top = (Math.random()*70 + 5) + "%";
-      town.appendChild(b);
-
-      const v = document.createElement("div");
-      v.className = "villager";
-      v.textContent = Math.random()>0.5 ? "😊" : "👘";
-      v.style.top = Math.floor(Math.random()*Math.max(40, town.clientHeight-40)) + "px";
-      town.appendChild(v);
+  function checkAnswer(){
+    const val = quizInput.value.trim();
+    if(!val){
+      alert('こたえを入力してね！');
+      return;
+    }
+    if(!onlyHiraAndSep(val)){
+      alert('ひらがな だけで入力してね！（区切りは スペース/・/、/／）');
+      return;
+    }
+    const toks = splitTokens(val);
+    if(toks.length !== blanks.length){
+      alert(`こたえの数がちがうよ（${blanks.length} こ）`);
+      return;
+    }
+    const ok = toks.every((t,i)=> t === blanks[i]);
+    if(ok){
+      gotCards[name] = 1;
+      persist();
+      el.classList.add('done');
+      el.innerHTML = withRubyMasked(name);
+      infoBox.textContent = ds.chapters[chapter][name].text;
+      showQuiz(false);
+      // 完了演出
+      launchPetals();
+      renderZukan();
+    }else{
+      alert('ちょっとちがうみたい… もういちど挑戦！');
     }
   }
-})();
+
+  quizOk.onclick = checkAnswer;
+  quizCancel.onclick = ()=>showQuiz(false);
+  quizBg.onclick = ()=>showQuiz(false);
+  quizInput.onkeydown = (e)=>{ if(e.key==='Enter') checkAnswer(); };
+  setTimeout(()=>quizInput.focus(),10);
+}
+function showQuiz(show){
+  quizModal.style.display = show ? 'flex' : 'none';
+  quizModal.setAttribute('aria-hidden', show ? 'false' : 'true');
+}
+
+/* ========= ショートカット：トップの時代ボタン ========= */
+document.getElementById('playEdo')?.addEventListener('click', ()=>{ eraSelect.value='edo'; eraSelect.dispatchEvent(new Event('change')); });
+document.getElementById('playSengoku')?.addEventListener('click', ()=>{ eraSelect.value='sengoku'; eraSelect.dispatchEvent(new Event('change')); });
+document.getElementById('playMuromachi')?.addEventListener('click', ()=>{ eraSelect.value='muromachi'; eraSelect.dispatchEvent(new Event('change')); });
+document.getElementById('playKamakura')?.addEventListener('click', ()=>{ eraSelect.value='kamakura'; eraSelect.dispatchEvent(new Event('change')); });
+
+/* ========= 初期化 ========= */
+resetAndBuild();
+infoBox.textContent = `${dataSets[currentEra].title}のカードをめくってみよう！`;
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

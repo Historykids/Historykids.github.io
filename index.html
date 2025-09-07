@@ -1277,12 +1277,19 @@ function updatePreviewMaterial(valid){
 }
 async function ensurePreview(){
   if(preview) return preview;
+   // まずは必ずフォールバック形状を表示
+ preview = fallbackMesh(placeType);
+  preview.renderOrder = 999; scene.add(preview);
+
   const url = MODEL_URLS[placeType];
   if(url){
-    try{ const gltf = await loader.loadAsync(url); preview = gltf.scene; preview.scale.set(0.8,0.8,0.8); }
-    catch(e){ preview = fallbackMesh(placeType); }
-  }else{ preview = fallbackMesh(placeType); }
-  preview.renderOrder = 999; scene.add(preview); return preview;
+    try{
+      const gltf = await loader.loadAsync(url);
+      const real = gltf.scene; real.scale.set(0.8,0.8,0.8);
+      scene.add(real); scene.remove(preview); preview = real;
+    }catch(e){ /* フォールバックのままでOK */ }
+  }
+  return preview;
 }
 function endPlacement(){
   placing=false; placeType=null; placeRot=0; occSet.clear();
@@ -1365,6 +1372,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 </script>
 </body>
 </html>
+
 
 
 

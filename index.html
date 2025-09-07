@@ -1072,200 +1072,37 @@ function init(){
 }
 document.addEventListener("DOMContentLoaded", init);
 
-/* ========= 共通ユーティリティ ========= */
-const eraSelect      = document.getElementById("eraSelect");
-const chapterFilter  = document.getElementById("chapterFilter");
-const infoBox        = document.getElementById("info");
-const town           = document.getElementById("town");
-const zukanPanel     = document.getElementById("zukanPanel");
-const zukanList      = document.getElementById("zukanList");
-const completeMsg    = document.getElementById("completeMsg");
-const zukanBtn       = document.getElementById("zukanBtn");
-const closeZukan     = document.getElementById("closeZukan");
-const resetBtn       = document.getElementById("resetBtn");
+diff --git a/index.html b/index.html
+index 62531216fe121d9b9c3c5a1687fadc72795edc42..52abce162bf68d0caa4baa87603bc7f8eb28ba1a 100644
+--- a/index.html
++++ b/index.html
+@@ -1050,222 +1050,28 @@ eraSelectEl?.addEventListener("change", ()=>{
+   buildChapterFilter();
+   buildCards();
+ });
+ chapterFilterEl?.addEventListener("change", buildCards);
+ 
+ /* --- ショートカット（冒頭のナビ） --- */
+ document.getElementById("playEdo")?.addEventListener("click", ()=>{ eraSelectEl.value="edo";      eraSelectEl.dispatchEvent(new Event("change")); });
+ document.getElementById("playSengoku")?.addEventListener("click", ()=>{ eraSelectEl.value="sengoku"; eraSelectEl.dispatchEvent(new Event("change")); });
+ document.getElementById("playMuromachi")?.addEventListener("click", ()=>{ eraSelectEl.value="muromachi";eraSelectEl.dispatchEvent(new Event("change")); });
+ document.getElementById("playKamakura")?.addEventListener("click", ()=>{ eraSelectEl.value="kamakura"; eraSelectEl.dispatchEvent(new Event("change")); });
+ document.getElementById("openZukan")?.addEventListener("click", (e)=>{ e.preventDefault(); zukanPanelEl.classList.add("active"); });
+ 
+ /* --- 起動 --- */
+ function init(){
+   // もしコンソールにエラーが出ていたら、全角カンマ/全角スペース等の打ち込みミスを直してね
+   // 例: オブジェクトの末尾「},　」のような全角が混じるとJSが止まり、カードが出ません
+   currentEra = eraSelectEl ? eraSelectEl.value : "edo";
+   loadProgress();
+   buildChapterFilter();
+   buildCards();
+   // ショップ初期フィルタ
+   document.querySelector('.toolrow .toolbtn[data-filter="ALL"]')?.classList.add("active");
+ }
+ document.addEventListener("DOMContentLoaded", init);
+ 
 
-const quizModal  = document.getElementById("quizModal");
-const quizTitle  = document.getElementById("quizTitle");
-const quizHint   = document.getElementById("quizHint");
-const quizInput  = document.getElementById("quizInput");
-const quizOk     = document.getElementById("quizOk");
-const quizCancel = document.getElementById("quizCancel");
-const quizBg     = document.getElementById("quizBg");
-
-let currentEra = eraSelect ? eraSelect.value : "edo";
-let gotCards = {}; // 現在の時代の進捗（localStorageに保存）
-
-function onlyHiraAndSep(s){
-  return /^[\u3041-\u3096\s・,，、/／]+$/.test(s);
-}
-function splitTokens(ans){
-  let s = ans.replace(/[・,，、/／]+/g, ' ');
-  s = s.replace(/\s+/g, ' ').trim();
-  return s ? s.split(' ') : [];
-}
-function persist(){
-  try { localStorage.setItem(dataSets[currentEra].LS_KEY, JSON.stringify(gotCards)); } catch(e){}
-}
-function loadProgress(){
-  const raw = localStorage.getItem(dataSets[currentEra].LS_KEY);
-  try{ gotCards = raw ? JSON.parse(raw) : {}; } catch{ gotCards = {}; }
-}
-function withRubyMasked(fullName){
-  const m = dataSets[currentEra].ruby[fullName];
-  if(m) {
-    const sp   = fullName.indexOf(" ");
-    const year = fullName.slice(0, sp);
-    return `<span class="yr">${year}</span> ${m}`;
-  }
-  return fullName;
-}
-function buildChapterFilter(){
-  if(!chapterFilter) return;
-  chapterFilter.innerHTML = `<option value="ALL">章：ぜんぶ</option>`;
-  const chapters = dataSets[currentEra].chapters;
-  Object.keys(chapters).forEach(ch=>{
-    chapterFilter.innerHTML += `<option value="${ch}">${ch}</option>`;
-  });
-}
-function buildCards(){
-  const wrap = document.getElementById("cards");
-  if(!wrap) return;
-  wrap.innerHTML = "";
-  const sel = chapterFilter ? chapterFilter.value : "ALL";
-  const chapters = dataSets[currentEra].chapters;
-
-  Object.keys(chapters).forEach(ch=>{
-    if(sel!=="ALL" && sel!==ch) return;
-    for(const name in chapters[ch]){
-      const el = document.createElement("div");
-      el.className = "card";
-      el.dataset.card = name;
-
-      // アクセシビリティ（キーボード操作OK）
-      el.setAttribute('role','button');
-      el.setAttribute('tabindex','0');
-
-      if(gotCards[name]) { el.innerHTML = withRubyMasked(name); el.classList.add("done"); }
-      else { el.textContent = "？\n" + name.split(" ")[0]; }
-
-      el.addEventListener("click", ()=>onCardClick(el, name, ch));
-      el.addEventListener("keydown", (e)=>{
-        if(e.key === "Enter" || e.key === " "){
-          e.preventDefault();
-          onCardClick(el, name, ch);
-        }
-      });
-
-      wrap.appendChild(el);
-    }
-  });
-}
-function renderZukan(){
-  zukanList.innerHTML = "";
-  let allComplete = true;
-  const chapters = dataSets[currentEra].chapters;
-  for(const ch in chapters){
-    const section = document.createElement("div");
-    section.className = "zukanSec";
-    section.innerHTML = `<h3>${ch}</h3>`;
-    for(const name in chapters[ch]){
-      const div = document.createElement("div");
-      div.className = "zCard";
-      if(gotCards[name]){
-        div.innerHTML = withRubyMasked(name);
-      }else{
-        div.textContent = "？？？";
-        div.classList.add("locked");
-        allComplete = false;
-      }
-      section.appendChild(div);
-    }
-    zukanList.appendChild(section);
-  }
-  if(allComplete){
-    completeMsg.textContent = `🎉 ${dataSets[currentEra].title}コンプリート！おめでとう！ 🎉`;
-    launchPetals();
-  }else{
-    completeMsg.textContent = "";
-  }
-}
-function launchPetals(){
-  for(let i=0;i<24;i++){
-    const p=document.createElement("div");
-    p.className="petal";
-    p.textContent="🌸";
-    p.style.left = Math.random()*100 + "vw";
-    p.style.animationDuration = (3 + Math.random()*3) + "s";
-    document.body.appendChild(p);
-    setTimeout(()=>p.remove(), 7000);
-  }
-}
-
-/* =================== City Sprite Engine（最初は真っさら） =================== */
-const CITY = {
-  // スプライト画像（任意）：/assets/tilesheet.png を置けば自動使用。なければ絵文字で描画。
-  spriteSheetUrl: '/assets/tilesheet.png',
-  tileSize: 48,
-  cols: 20,
-  rows: 12,
-  zoom: 1,
-  grid: [], // 2D array of {id, rot}
-tiles: {
-  grass: {
-    label: '草地',
-    emoji: '🌿',
-    rect: { sx: 0,   sy: 0,  sw: 64, sh: 64 }
-  },
-  water: {
-    label: '水辺',
-    emoji: '🌊',
-    rect: { sx: 64,  sy: 0,  sw: 64, sh: 64 }
-  },
-  road: {
-    label: '道路',
-    emoji: '🛣️',
-    rect: { sx: 128, sy: 0,  sw: 64, sh: 64 }
-  },
-  house: {
-    label: '家',
-    emoji: '🏠',
-    rect: { sx: 0,   sy: 64, sw: 64, sh: 64 }
-  },
-  shop: {
-    label: '商家',
-    emoji: '🏪',
-    rect: { sx: 64,  sy: 64, sw: 64, sh: 64 }
-  },
-  castle: {
-    label: '城',
-    emoji: '🏯',
-    rect: { sx: 128, sy: 64, sw: 64, sh: 64 }
-  },
-  temple: {
-    label: '寺社',
-    emoji: '⛩️',
-    rect: { sx: 192, sy: 64, sw: 64, sh: 64 }
-  },
-  tree: {
-    label: '木',
-    emoji: '🌳',
-    rect: { sx: 256, sy: 64, sw: 64, sh: 64 }
-  },
-  field: {
-    label: '畑',
-    emoji: '🌾',
-    rect: { sx: 320, sy: 64, sw: 64, sh: 64 }
-  },
-  bridge: {
-    label: '橋',
-    emoji: '🌉',
-    rect: { sx: 384, sy: 64, sw: 64, sh: 64 }
-  },
-  school: {
-    label: '学校',
-    emoji: '🏫',
-    rect: { sx: 448, sy: 64, sw: 64, sh: 64 }
-  }
-},
-
-
+</script>
+</body>
+</html>

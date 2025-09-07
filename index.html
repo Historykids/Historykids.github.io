@@ -91,6 +91,7 @@
   <meta name="twitter:description" content="江戸・戦国・室町・鎌倉の出来事をカードを集めながら学べる、子供向けの歴史学習サイト。" />
   <meta name="twitter:image" content="https://historykids.github.io/thumbnail.png" />
 
+  <!-- ===== Styles ===== -->
   <style>
   :root{
     --edo-yellow:#FCD34D; --edo-info:#FFF8DC; --edo-border:#999;
@@ -122,6 +123,10 @@
     font-weight:700;box-shadow:0 1px 3px var(--shadow);cursor:pointer
   }
   #resetBtn{background:#ffeaea}
+  .moneybox{margin-left:auto;background:#fff;border-radius:10px;padding:6px 10px;
+    box-shadow:0 1px 3px rgba(0,0,0,.1);font-weight:700}
+  #openShopBtn{background:#ffe28a;border:0;border-radius:10px;padding:6px 12px;font-weight:700;
+    box-shadow:0 1px 3px rgba(0,0,0,.12);cursor:pointer}
 
   #intro{padding:10px 12px;background:#fff;}
   #info{
@@ -207,6 +212,27 @@
   .modal-box { background:#fff; border-radius:12px; max-width:640px; width:92%; max-height:90vh; overflow:auto; padding:16px; box-shadow:0 6px 24px rgba(0,0,0,.2); position:relative; }
   .modal-box h2 { margin-top:0; font-size:18px; }
   .modal-close { position:absolute; top:10px; right:10px; border:0; background:#eee; border-radius:50%; width:32px; height:32px; cursor:pointer; font-weight:800; }
+
+  /* ショップモーダル */
+  .shop-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;
+    align-items:center;justify-content:center;z-index:120}
+  .shop-overlay.active{display:flex}
+  .shop-box{background:#fff;border-radius:12px;max-width:760px;width:94%;max-height:90vh;
+    overflow:auto;padding:14px 14px 6px;box-shadow:0 6px 24px rgba(0,0,0,.25);position:relative}
+  .shop-close{position:absolute;top:10px;right:10px;border:0;background:#eee;border-radius:50%;
+    width:32px;height:32px;cursor:pointer;font-weight:800}
+  .shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+  .shop-card{border:1px solid #ddd;border-radius:10px;padding:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .shop-card h4{margin:0 0 6px 0;font-size:15px}
+  .shop-card .preview{font-size:28px;height:36px}
+  .shop-card .buyrow{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:6px}
+  .shop-card button{border:0;border-radius:8px;padding:6px 10px;font-weight:700;cursor:pointer;
+    box-shadow:0 1px 3px rgba(0,0,0,.1)}
+  .shop-card .price{color:#444}
+  .shop-tip{font-size:13px;color:#444;margin:8px 0 0}
+  .toolrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+  .toolrow .toolbtn{border:1px solid #ddd;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
+  .toolrow .toolbtn.active{background:#e6f4ff;border-color:#8ecbff}
   </style>
 </head>
 
@@ -234,6 +260,12 @@
 
       <button id="zukanBtn" aria-controls="zukanPanel" aria-expanded="false">図鑑</button>
       <button id="resetBtn" title="進捗を全部消して最初から">リセット</button>
+
+      <!-- 所持金とショップ -->
+      <div class="moneybox" aria-live="polite">
+        💰 <b id="moneyValue">0</b> 両
+      </div>
+      <button id="openShopBtn" title="ショップを開く">ショップ</button>
     </div>
   </header>
 
@@ -324,7 +356,7 @@
     <div id="completeMsg"></div>
   </section>
 
-  <!-- 下部の固定バナー枠 -->
+  <!-- 下部の固定バナー枠（必要なら中身を ad ユニットに差し替え） -->
   <div class="adbar" aria-label="広告枠">
     <div class="adslot">広告スペース（<ins class="adsbygoogle">…</ins> を入れる場所）</div>
   </div>
@@ -859,206 +891,69 @@ function launchPetals(){
   }
 }
 
-/* =================== City Sprite Engine（ガチ建物） =================== */
+/* =================== City Sprite Engine（最初は真っさら） =================== */
 const CITY = {
-  // ★ スプライト画像を置いたらここ（例：'/assets/tilesheet.png'）。空なら絵文字フォールバック
+  // スプライト画像（任意）：/assets/tilesheet.png を置けば自動使用。なければ絵文字で描画。
   spriteSheetUrl: '/assets/tilesheet.png',
   tileSize: 48,
   cols: 20,
   rows: 12,
   zoom: 1,
-  grid: [], // 2D array of tile ids
-  tiles: {
-    grass:   { label:'草地',  emoji:'🌿', rect:{sx:0,   sy:0,   sw:64, sh:64} },
-    water:   { label:'水辺',  emoji:'🌊', rect:{sx:64,  sy:0,   sw:64, sh:64} },
-    road:    { label:'道路',  emoji:'🛣️', rect:{sx:128, sy:0,   sw:64, sh:64} },
-    house:   { label:'家',    emoji:'🏠', rect:{sx:0,   sy:64,  sw:64, sh:64} },
-    shop:    { label:'商家',  emoji:'🏪', rect:{sx:64,  sy:64,  sw:64, sh:64} },
-    castle:  { label:'城',    emoji:'🏯', rect:{sx:128, sy:64,  sw:64, sh:64} },
-    temple:  { label:'寺社',  emoji:'⛩️', rect:{sx:192, sy:64,  sw:64, sh:64} },
-    tree:    { label:'木',    emoji:'🌳', rect:{sx:192, sy:0,   sw:64, sh:64} },
+  grid: [], // 2D array of {id, rot}
+tiles: {
+  grass: {
+    label: '草地',
+    emoji: '🌿',
+    rect: { sx: 0,   sy: 0,  sw: 64, sh: 64 }
   },
-  sprite: { image:null, loaded:false },
-  lsKey: 'hk_city_map_v1',
-};
-
-(function initCity(){
-  // グリッド初期化
-  for(let r=0;r<CITY.rows;r++){
-    CITY.grid[r] = [];
-    for(let c=0;c<CITY.cols;c++){
-      // 適当に草地＋木、端に水、中央付近に道路
-      let id = 'grass';
-      if(r===CITY.rows-1 || c===0) id = 'water';
-      if(r===Math.floor(CITY.rows/2)) id = 'road';
-      if(Math.random()<0.07 && id==='grass') id = 'tree';
-      CITY.grid[r][c] = id;
-    }
+  water: {
+    label: '水辺',
+    emoji: '🌊',
+    rect: { sx: 64,  sy: 0,  sw: 64, sh: 64 }
+  },
+  road: {
+    label: '道路',
+    emoji: '🛣️',
+    rect: { sx: 128, sy: 0,  sw: 64, sh: 64 }
+  },
+  house: {
+    label: '家',
+    emoji: '🏠',
+    rect: { sx: 0,   sy: 64, sw: 64, sh: 64 }
+  },
+  shop: {
+    label: '商家',
+    emoji: '🏪',
+    rect: { sx: 64,  sy: 64, sw: 64, sh: 64 }
+  },
+  castle: {
+    label: '城',
+    emoji: '🏯',
+    rect: { sx: 128, sy: 64, sw: 64, sh: 64 }
+  },
+  temple: {
+    label: '寺社',
+    emoji: '⛩️',
+    rect: { sx: 192, sy: 64, sw: 64, sh: 64 }
+  },
+  tree: {
+    label: '木',
+    emoji: '🌳',
+    rect: { sx: 256, sy: 64, sw: 64, sh: 64 }
+  },
+  field: {
+    label: '畑',
+    emoji: '🌾',
+    rect: { sx: 320, sy: 64, sw: 64, sh: 64 }
+  },
+  bridge: {
+    label: '橋',
+    emoji: '🌉',
+    rect: { sx: 384, sy: 64, sw: 64, sh: 64 }
+  },
+  school: {
+    label: '学校',
+    emoji: '🏫',
+    rect: { sx: 448, sy: 64, sw: 64, sh: 64 }
   }
-  // お城と家・店を少し配置
-  CITY.grid[Math.floor(CITY.rows/2)-1][Math.floor(CITY.cols/2)] = 'castle';
-  CITY.grid[Math.floor(CITY.rows/2)][Math.floor(CITY.cols/2)-2] = 'shop';
-  CITY.grid[Math.floor(CITY.rows/2)][Math.floor(CITY.cols/2)+2] = 'house';
-
-  // スプライト読み込み（存在しない場合は loaded=false で絵文字描画）
-  if(CITY.spriteSheetUrl){
-    const img = new Image();
-    img.onload = ()=>{ CITY.sprite.image = img; CITY.sprite.loaded = true; drawCity(); };
-    img.onerror = ()=>{ CITY.sprite.loaded = false; drawCity(); };
-    img.src = CITY.spriteSheetUrl;
-  }else{
-    drawCity();
-  }
-
-  // リサイズ対応
-  window.addEventListener('resize', drawCity);
-})();
-
-function drawCity(){
-  const canvas = document.getElementById('cityCanvas');
-  if(!canvas) return;
-  const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width  = Math.floor(rect.width  * dpr);
-  canvas.height = Math.floor(rect.height * dpr);
-  const ctx = canvas.getContext('2d');
-  ctx.setTransform(dpr,0,0,dpr,0,0); // CSSピクセル基準で描画
-
-  const size = Math.min(
-    Math.floor(rect.width / CITY.cols),
-    Math.floor(rect.height / CITY.rows)
-  );
-
-  for(let r=0;r<CITY.rows;r++){
-    for(let c=0;c<CITY.cols;c++){
-      const id = CITY.grid[r][c];
-      const tile = CITY.tiles[id];
-      const x = c*size, y = r*size;
-
-      ctx.clearRect(x,y,size,size);
-      // 枠線（うっすら）
-      ctx.strokeStyle = 'rgba(0,0,0,.05)';
-      ctx.strokeRect(x+0.5,y+0.5,size-1,size-1);
-
-      if(CITY.sprite.loaded && CITY.sprite.image && tile.rect){
-        // スプライトが読み込めたら画像描画
-        ctx.drawImage(
-          CITY.sprite.image,
-          tile.rect.sx, tile.rect.sy, tile.rect.sw, tile.rect.sh,
-          x, y, size, size
-        );
-      }else{
-        // フォールバック：絵文字で描画
-        ctx.font = `${Math.floor(size*0.8)}px system-ui, "Apple Color Emoji","Segoe UI Emoji"`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(tile.emoji, x+size/2, y+size/2+1);
-      }
-    }
-  }
-}
-
-/* ========= 図鑑開閉・操作 ========= */
-zukanBtn?.addEventListener('click', ()=>{
-  zukanPanel.classList.add('active');
-  zukanPanel.setAttribute('aria-hidden','false');
-  zukanBtn.setAttribute('aria-expanded','true');
-  renderZukan();
-});
-document.getElementById('openZukan')?.addEventListener('click', (e)=>{
-  e.preventDefault();
-  zukanPanel.classList.add('active');
-  zukanPanel.setAttribute('aria-hidden','false');
-  zukanBtn.setAttribute('aria-expanded','true');
-  renderZukan();
-});
-closeZukan?.addEventListener('click', ()=>{
-  zukanPanel.classList.remove('active');
-  zukanPanel.setAttribute('aria-hidden','true');
-  zukanBtn.setAttribute('aria-expanded','false');
-});
-
-/* ========= 進捗とUI構築 ========= */
-function resetAndBuild(){
-  loadProgress();
-  buildChapterFilter();
-  buildCards();
-}
-eraSelect?.addEventListener('change', ()=>{
-  currentEra = eraSelect.value;
-  resetAndBuild();
-  infoBox.textContent = `${dataSets[currentEra].title}のカードをめくってみよう！`;
-});
-chapterFilter?.addEventListener('change', buildCards);
-resetBtn?.addEventListener('click', ()=>{
-  if(confirm('この時代の進捗をリセットしますか？')){
-    gotCards = {};
-    persist();
-    buildCards();
-    renderZukan();
-  }
-});
-
-/* ========= クイズ（カードクリック時） ========= */
-function onCardClick(el, name, chapter){
-  const ds = dataSets[currentEra];
-  const blanks = ds.blanks[name] || [];
-  quizTitle.innerHTML = withRubyMasked(name);
-  quizHint.textContent = blanks.length>1 ? `（こたえは ${blanks.length} こ／区切りOK）` : '';
-  quizInput.value = '';
-  showQuiz(true);
-
-  function checkAnswer(){
-    const val = quizInput.value.trim();
-    if(!val){
-      alert('こたえを入力してね！');
-      return;
-    }
-    if(!onlyHiraAndSep(val)){
-      alert('ひらがな だけで入力してね！（区切りは スペース/・/、/／）');
-      return;
-    }
-    const toks = splitTokens(val);
-    if(toks.length !== blanks.length){
-      alert(`こたえの数がちがうよ（${blanks.length} こ）`);
-      return;
-    }
-    const ok = toks.every((t,i)=> t === blanks[i]);
-    if(ok){
-      gotCards[name] = 1;
-      persist();
-      el.classList.add('done');
-      el.innerHTML = withRubyMasked(name);
-      infoBox.textContent = ds.chapters[chapter][name].text;
-      showQuiz(false);
-      // 完了演出
-      launchPetals();
-      renderZukan();
-    }else{
-      alert('ちょっとちがうみたい… もういちど挑戦！');
-    }
-  }
-
-  quizOk.onclick = checkAnswer;
-  quizCancel.onclick = ()=>showQuiz(false);
-  quizBg.onclick = ()=>showQuiz(false);
-  quizInput.onkeydown = (e)=>{ if(e.key==='Enter') checkAnswer(); };
-  setTimeout(()=>quizInput.focus(),10);
-}
-function showQuiz(show){
-  quizModal.style.display = show ? 'flex' : 'none';
-  quizModal.setAttribute('aria-hidden', show ? 'false' : 'true');
-}
-
-/* ========= ショートカット：トップの時代ボタン ========= */
-document.getElementById('playEdo')?.addEventListener('click', ()=>{ eraSelect.value='edo'; eraSelect.dispatchEvent(new Event('change')); });
-document.getElementById('playSengoku')?.addEventListener('click', ()=>{ eraSelect.value='sengoku'; eraSelect.dispatchEvent(new Event('change')); });
-document.getElementById('playMuromachi')?.addEventListener('click', ()=>{ eraSelect.value='muromachi'; eraSelect.dispatchEvent(new Event('change')); });
-document.getElementById('playKamakura')?.addEventListener('click', ()=>{ eraSelect.value='kamakura'; eraSelect.dispatchEvent(new Event('change')); });
-
-/* ========= 初期化 ========= */
-resetAndBuild();
-infoBox.textContent = `${dataSets[currentEra].title}のカードをめくってみよう！`;
-</script>
-</body>
-</html>
+},

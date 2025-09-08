@@ -277,6 +277,26 @@
   .toolrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
   .toolrow .toolbtn{border:1px solid #ddd;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
   .toolrow .toolbtn.active{background:#e6f4ff;border-color:#8ecbff}
+
+
+    /* ===== ジョイスティック ===== */
+.joypad{
+  position: fixed; left: 12px; bottom: 12px; z-index: 220;
+  width: 120px; height: 120px; touch-action: none; user-select: none;
+}
+.joypad .joy-base{
+  position: absolute; inset: 0;
+  border-radius: 999px; background: rgba(255,255,255,.9);
+  box-shadow: 0 4px 16px rgba(0,0,0,.18), inset 0 0 0 2px rgba(0,0,0,.08);
+}
+.joypad .joy-stick{
+  position: absolute; left: 50%; top: 50%; width: 56px; height: 56px;
+  margin-left: -28px; margin-top: -28px; border-radius: 999px;
+  background: rgba(0,0,0,.18); backdrop-filter: blur(2px);
+  box-shadow: 0 2px 10px rgba(0,0,0,.22);
+  transition: transform .05s linear;
+}
+
   </style>
 </head>
 
@@ -402,6 +422,7 @@
   <!-- 配置モード用のスマホHUD -->
   <div id="placeHud" class="place-hud" hidden>
     <button id="btnRotate" type="button" aria-label="回転">回転 ↻</button>
+    <button id="btnOK"     type="button" aria-label="決定">決定 ✅</button><!-- ★追加 -->
     <button id="btnCancel" type="button" aria-label="キャンセル">キャンセル</button>
   </div>
 
@@ -444,6 +465,13 @@
     </div>
   </div>
 </div>
+
+  <!-- スティック（ジョイスティック） -->
+<div id="joypad" class="joypad" aria-label="スティック" hidden>
+  <div class="joy-base"></div>
+  <div class="joy-stick"></div>
+</div>
+
 
 <script>
 /* ========== モーダル開閉（プロフィール/お問い合わせ） ========== */
@@ -1174,6 +1202,116 @@ function init(){
 }
 document.addEventListener("DOMContentLoaded", init);
 
+
+  /* ========== スティック操作（ジョイスティック） ========== */
+const joypadEl  = document.getElementById("joypad");
+const joyStick  = joypadEl?.querySelector(".joy-stick");
+
+let joyActive = false, joyRAF = null, joyDir = {dx:0, dy:0}, joyLastStepAt = 0;
+
+function joyShow(){ if(joypadEl) joypadEl.hidden = false; }
+function joyHide(){ if(joypadEl) joypadEl.hidden = true; }
+
+function quantizeDir(vx, vy){
+  // vx: 右+, vy: 上+（後でy反転する）
+  const mag = Math.hypot(vx, vy);
+  if (mag < 0.15) return {dx:0, dy:0, speed:0}; // デッドゾーン
+
+  // 角度を8方向に量子化
+  const ang = Math.atan2(vy, vx); // -PI..PI
+  const sector = Math.round(ang / (Math.PI/4)); // -4..4
+  const dir8 = (sector + 8) % 8;
+
+  // 8方向 → (dx,dy)
+  const table = [
+    {dx:1, dy:0},   // 0: →
+    {dx:1, dy:1},   // 1: ↗
+    {dx:0, dy:1},   // 2: ↑
+    {dx:-1,dy:1},   // 3: ↖
+    {dx:-1,dy:0},   // 4: ←
+    {dx:-1,dy:-1},  // 5: ↙
+    {dx:0, dy:-1},  // 6: ↓
+    {dx:1, dy:-1}   // 7: ↘
+  ];
+  const {dx, dy} = table[dir8];
+
+  // 速度（外周ほど速い）
+  let speed;
+  if (mag > 0.85) speed = 60;     // ms/step
+  else if (mag > 0.55) speed = 90;
+  else speed = 130;
+
+  // 画面上では上がマイナスに進むので、yはそのまま（THREE側で減少が上）
+  // ここでは {dx,dy} をそのまま渡す（dy:-1が下、+1が上になるよう THREE側で扱う）
+  return {dx, dy, speed};
+}
+
+function joyStepLoop(ts){
+  if(!joyActive){ joyRAF = null; return; }
+  if(!joyDir.speed){ joyRAF = requestAnimationFrame(joyStepLoop); return; }
+
+  if(ts - joyLastStepAt >= joyDir.speed){
+    document.dispatchEvent(new CustomEvent("placement:nudge", { detail: { dx: joyDir.dx, dy: -joyDir.dy }}));
+    // ↑ dy を反転：画面の上方向ドラッグで「手前→上（y-1）」へ
+    joyLastStepAt = ts;
+  }
+  joyRAF = requestAnimationFrame(joyStepLoop);
+}
+
+function joyStart(x, y){
+  joyActive = true; joyLastStepAt = 0;
+  // スティック位置を動かす
+  joyMove(x, y);
+  if(!joyRAF) joyRAF = requestAnimationFrame(joyStepLoop);
+}
+function joyMove(x, y){
+  const rect = joypadEl.getBoundingClientRect();
+  const cx = rect.left + rect.width/2;
+  const cy = rect.top  + rect.height/2;
+  let dx = (x - cx) / (rect.width/2);   // -1..1
+  let dy = (y - cy) / (rect.height/2);  // -1..1
+  const mag = Math.hypot(dx, dy);
+  if(mag > 1){ dx/=mag; dy/=mag; }
+
+  // ノブ見た目
+  if(joyStick){
+    const px = dx * 28, py = dy * 28; // 半径 ~28px
+    joyStick.style.transform = `translate(${px}px, ${py}px)`;
+  }
+
+  joyDir = quantizeDir(dx, -dy); // 画面座標→上が正に見えるよう反転して量子化
+}
+function joyEnd(){
+  joyActive = false; joyDir = {dx:0, dy:0, speed:0};
+  if(joyRAF){ cancelAnimationFrame(joyRAF); joyRAF = null; }
+  if(joyStick){ joyStick.style.transform = "translate(0,0)"; }
+}
+
+// 入力イベント
+if(joypadEl){
+  const onDown = (e)=>{ const p = e.touches ? e.touches[0] : e; joyStart(p.clientX, p.clientY); };
+  const onMove = (e)=>{ if(!joyActive) return; const p = e.touches ? e.touches[0] : e; joyMove(p.clientX, p.clientY); };
+  const onUp   = ()=> joyEnd();
+
+  joypadEl.addEventListener("pointerdown", onDown);
+  joypadEl.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+  joypadEl.addEventListener("touchstart", onDown, {passive:false});
+  joypadEl.addEventListener("touchmove",  onMove, {passive:false});
+  window.addEventListener("touchend", onUp);
+}
+
+// 配置フローと連動（表示/非表示）
+document.addEventListener("placement:start", ()=>{ joyShow(); });
+document.addEventListener("placement:end",   ()=>{ joyHide(); joyEnd(); });
+document.addEventListener("placement:cancel",()=>{ joyHide(); joyEnd(); });
+
+// 「決定」ボタン → THREE 側にOKシグナル
+document.getElementById("btnOK")?.addEventListener("click", ()=>{
+  document.dispatchEvent(new Event("placement:ok"));
+});
+
+
   </script>
 
   <script type="importmap">
@@ -1229,6 +1367,10 @@ function ensureRenderer(){
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.06;
+
+
+  const clamp = (v,min,max)=> Math.max(min, Math.min(max,v));
+
 
   // ★ 盤面中央を注視（最重要）
   const center = gridToWorld(Math.floor(COLS/2), Math.floor(ROWS/2));
@@ -1389,6 +1531,27 @@ function endPlacement(){
 document.addEventListener("city:add",   (ev)=>{ place3D(ev.detail); });
 document.addEventListener("city:reset", ()=>{ clear3D(); });
 
+
+  // スティック操作：1ステップ移動
+document.addEventListener("placement:nudge", (ev)=>{
+  if(!placing || !hoverCell) return;
+  const {dx=0, dy=0} = ev.detail || {};
+  const nx = clamp(hoverCell.x + dx, 0, COLS-1);
+  const ny = clamp(hoverCell.y + dy, 0, ROWS-1);
+  setPreviewAtCell({x:nx, y:ny});
+});
+// 決定ボタン → 座標が有効なら確定
+document.addEventListener("placement:ok", ()=>{
+  if(!placing || !hoverCell) return;
+  const {x,y} = hoverCell;
+  if(!cellValid(x,y)) return; // NGの色のときは置かない
+  document.dispatchEvent(new CustomEvent("placement:confirm", {
+    detail: { type: placeType, x, y, rot: placeRot }
+  }));
+  endPlacement();
+});
+
+
 // 配置開始
 document.addEventListener("placement:start", async (ev)=>{
   const { type, cols, rows, occupied=[] } = ev.detail || {};
@@ -1477,6 +1640,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

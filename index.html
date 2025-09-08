@@ -1338,7 +1338,7 @@ let renderer, scene, camera, controls, loader, ground, grid;
 let placed3D = [];
 let COLS = 30, ROWS = 18;
 const WORLD_SCALE = 1.0;
-
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v)); // ←ここに常駐させる
 function gridToWorld(x, y){
   const ox = Math.floor(COLS/2), oy = Math.floor(ROWS/2);
   return new THREE.Vector3((x-ox)*WORLD_SCALE, 0, (y-oy)*WORLD_SCALE);
@@ -1367,10 +1367,6 @@ function ensureRenderer(){
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.06;
-
-
-  const clamp = (v,min,max)=> Math.max(min, Math.min(max,v));
-
 
   // ★ 盤面中央を注視（最重要）
   const center = gridToWorld(Math.floor(COLS/2), Math.floor(ROWS/2));
@@ -1640,6 +1636,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

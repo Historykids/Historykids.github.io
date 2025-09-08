@@ -902,6 +902,17 @@ function buildChapterFilter(){
   return null;
 }
 
+  function openQuiz(name){
+  currentQuizName = name;
+  quizTitleEl.textContent = name;
+  quizHintEl.textContent  = "（例：てんぽう／わしん など ひらがなで）";
+  quizHintEl.style.color = "#666"; // ★追加：色を毎回リセット
+  quizInputEl.value = "";
+  quizModalEl.style.display = "flex";
+  setTimeout(()=>quizInputEl.focus(), 0);
+}
+
+
 /* ルビ表記 */
 function withRubyMasked(fullName){
   const m = dataSets[currentEra].ruby[fullName];
@@ -979,9 +990,15 @@ quizOkEl?.addEventListener("click", ()=>{
     buildCards();
     closeQuiz();
     infoBoxEl.textContent = "正解！💰がふえたよ。ショップで好きな場所に建物を置いてみよう！";
-  }else{
-    infoBoxEl.textContent = "おしい！もういちど挑戦してみてね。";
-  }
+ }else{
+  const ans = needTokens.join("・");
+  // 画面下のインフォに出す
+  infoBoxEl.textContent = "ざんねん！正解は「" + ans + "」だよ。";
+  // モーダル内にも出す（赤字）
+  quizHintEl.textContent = "→ 正解：" + ans + "（ひらがな）";
+  quizHintEl.style.color = "#c62828";
+  // モーダルは開いたまま（やり直し可能）
+}
 });
 quizCancelEl?.addEventListener("click", closeQuiz);
 quizBgEl?.addEventListener("click", closeQuiz);
@@ -1224,7 +1241,7 @@ function ensureRenderer(){
   scene.add(dir);
 
   const plane = new THREE.PlaneGeometry(100, 100);
-  const pm = new THREE.MeshBasicMaterial({ color: 0xd7f4d2, side: THREE.DoubleSide });
+  const pm = new THREE.MeshBasicMaterial({ color: 0xd7f4d2, side: THREE.FrontSide }); // ★裏面は描画しない
   ground = new THREE.Mesh(plane, pm);
   ground.rotation.x = -Math.PI/2;
   ground.name = "ground";
@@ -1238,6 +1255,10 @@ function ensureRenderer(){
   loader = new GLTFLoader();
 
   renderer.setAnimationLoop(()=>{ controls.update(); renderer.render(scene, camera); });
+
+  controls.minPolarAngle = 0.1;                 // 真上までは行かない
+controls.maxPolarAngle = Math.PI / 2.02;      // 地面より下に潜らない
+// controls.enablePan = false; // 必要ならパン無効（任意）
 
   new ResizeObserver(()=>{
     const w2 = townEl.clientWidth, h2 = townEl.clientHeight;
@@ -1456,6 +1477,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

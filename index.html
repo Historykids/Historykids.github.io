@@ -1364,6 +1364,20 @@ function ensureRenderer(){
   townEl.style.position = "relative";
   townEl.appendChild(renderer.domElement);
 
+  // 追加（レンダラ設定の直後あたり）
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// 追加（ライト作成後）
+dir.castShadow = true;
+dir.shadow.mapSize.set(2048, 2048);
+dir.shadow.camera.near = 1;
+dir.shadow.camera.far  = 80;
+
+// 地面を受け影化（groundを作った直後）
+ground.receiveShadow = true;
+
+
   scene = new THREE.Scene();
 
   camera = new THREE.PerspectiveCamera(50, w/h, 0.1, 1000);
@@ -1373,228 +1387,231 @@ function ensureRenderer(){
   controls.dampingFactor = 0.06;
 
 
-  // ─────────────────────────────────────────────
-// 商屋（町家）ビルダー：格子・梁・瓦・のれん・看板つき
-// ─────────────────────────────────────────────
-function buildMerchantHouse({preview=false} = {}){
-  const g = new THREE.Group();
+// ===== ここから追加（fallbackMesh のすぐ下） =====
 
-  // スケール（1マスに収まるサイズ感）
-  const W = 0.92, D = 0.72, H = 0.62;          // 建屋外形
-  const baseH = 0.04;                           // 石場/基礎
-  const wallH = 0.42;                           // 1階壁
-  const eavesH = 0.02;                          // 桁
-  const roofH = 0.28;                           // 屋根高さ（切妻）
-
-  // マテリアル
-  const matPlaster = new THREE.MeshStandardMaterial({ color: 0xf4f1e9, roughness: 0.9, metalness: 0.0 });
-  const matWood    = new THREE.MeshStandardMaterial({ color: 0x6f4d2e, roughness: 0.75, metalness: 0.05 });
-  const matDark    = new THREE.MeshStandardMaterial({ color: 0x3a2b1e, roughness: 0.7, metalness: 0.05 });
-  const matRoof    = new THREE.MeshStandardMaterial({ color: 0x6e7074, roughness: 0.5, metalness: 0.1 });
-  const matNoren   = new THREE.MeshStandardMaterial({ color: 0x2a4a7a, roughness: 0.8, metalness: 0.0, transparent:true, opacity: preview?0.6:0.95, side:THREE.DoubleSide });
-  const matSign    = new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0.0, map: makeSignTexture("商屋") });
-
-  // 影ヘルパ
-  const shadowize = (obj)=>obj.traverse(n=>{
-    if(n.isMesh){ n.castShadow = true; n.receiveShadow = true; }
+// 影ON/OFFを一括設定
+function setShadowAll(obj, cast=true, receive=true){
+  obj.traverse?.(n=>{
+    if(n.isMesh){ n.castShadow = cast; n.receiveShadow = receive; }
   });
+}
 
-  // 1) 基礎（石場）
-  {
-    const geo = new THREE.BoxGeometry(W, baseH, D);
-    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color:0xb9b7b3, roughness:0.85}));
-    m.position.y = baseH/2;
-    g.add(m);
-  }
+// 素材（色はお好みで）
+const MAT = {
+  wood:   new THREE.MeshStandardMaterial({ color: 0x8a5a2b, roughness: 0.75, metalness: 0.05 }),
+  darkWood:new THREE.MeshStandardMaterial({ color: 0x5b3a1f, roughness: 0.8,  metalness: 0.05 }),
+  paper:  new THREE.MeshStandardMaterial({ color: 0xf3f0e6, roughness: 0.9,  metalness: 0.0, transparent:true, opacity:0.95 }),
+  roof:   new THREE.MeshStandardMaterial({ color: 0x4a5055, roughness: 0.6,  metalness: 0.15 }),
+  tile:   new THREE.MeshStandardMaterial({ color: 0x3f454a, roughness: 0.55, metalness: 0.2 }),
+  stone:  new THREE.MeshStandardMaterial({ color: 0xb9b7b3, roughness: 0.9,  metalness: 0.0 }),
+  copper: new THREE.MeshStandardMaterial({ color: 0x6e8b74, roughness: 0.45, metalness: 0.35 }),
+  sign:   new THREE.MeshStandardMaterial({ color: 0xd9c7a3, roughness: 0.8,  metalness: 0.0 }),
+  red:    new THREE.MeshStandardMaterial({ color: 0xc42727, roughness: 0.75, metalness: 0.05 }),
+  gold:   new THREE.MeshStandardMaterial({ color: 0xb99a3a, roughness: 0.4,  metalness: 0.8 })
+};
 
-  // 2) 本体壁（白漆喰）※前面は開口にするので左右・背面で構成
-  const wallT = 0.02;
-  {
-    const sideGeo = new THREE.BoxGeometry(wallT, wallH, D);
-    const left  = new THREE.Mesh(sideGeo, matPlaster);
-    const right = new THREE.Mesh(sideGeo, matPlaster);
-    left.position.set(-W/2+wallT/2, baseH+wallH/2, 0);
-    right.position.set( W/2-wallT/2, baseH+wallH/2, 0);
+// 小物ユーティリティ
+function addBox(group, w,h,d, mat, x=0,y=0,z=0, rx=0,ry=0,rz=0){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,rz);
+  group.add(m); return m;
+}
+function addCylinder(group, rTop,rBottom,h,radSeg, mat, x=0,y=0,z=0){
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop,rBottom,h,radSeg), mat);
+  m.position.set(x,y,z); group.add(m); return m;
+}
+function addTorus(group, r, tube, radialSeg, tubularSeg, arc, mat, x=0,y=0,z=0, rx=0,ry=0,rz=0){
+  const m = new THREE.Mesh(new THREE.TorusGeometry(r,tube,radialSeg,tubularSeg,arc), mat);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,rz); group.add(m); return m;
+}
 
-    const backGeo = new THREE.BoxGeometry(W, wallH, wallT);
-    const back = new THREE.Mesh(backGeo, matPlaster);
-    back.position.set(0, baseH+wallH/2, -D/2+wallT/2);
+// タイル屋根（軽量版）
+function buildGableRoof(width=1.1, depth=0.8, height=0.28, overhang=0.08){
+  const g = new THREE.Group();
+  const pitch = Math.atan2(height, depth/2);
 
-    g.add(left, right, back);
-  }
+  // 2枚の屋根面
+  const plateD = depth/2 + overhang;
+  const plateW = width + overhang*2;
+  const t = 0.04;
 
-  // 3) 柱・梁（木）
-  {
-    const pst = 0.026; // 柱太さ
-    const nCols = 4;   // 前面の柱列数
-    for(let i=0;i<=nCols;i++){
-      const x = -W/2 + i*(W/nCols);
-      const colGeo = new THREE.BoxGeometry(pst, wallH+eavesH, pst);
-      const col = new THREE.Mesh(colGeo, matWood);
-      col.position.set(x, baseH+(wallH+eavesH)/2, D/2 - pst/2);
-      g.add(col);
-    }
-    // 背面柱
-    const colGeo2 = new THREE.BoxGeometry(pst, wallH+eavesH, pst);
-    const colBackL = new THREE.Mesh(colGeo2, matWood);
-    colBackL.position.set(-W/2+pst/2, baseH+(wallH+eavesH)/2, -D/2+pst/2);
-    const colBackR = colBackL.clone(); colBackR.position.x = W/2-pst/2;
-    g.add(colBackL, colBackR);
+  const left  = addBox(g, plateW, t, plateD, MAT.roof, 0, height, -depth/4);
+  left.rotation.x =  pitch;
+  const right = addBox(g, plateW, t, plateD, MAT.roof, 0, height,  depth/4);
+  right.rotation.x = -pitch;
 
-    // 桁（前面水平梁）
-    const beamGeo = new THREE.BoxGeometry(W+pst*0.6, eavesH, pst*1.2);
-    const beam = new THREE.Mesh(beamGeo, matDark);
-    beam.position.set(0, baseH+wallH+eavesH/2, D/2 - pst/2);
-    g.add(beam);
-  }
+  // 棟
+  addBox(g, width*0.92, 0.05, 0.06, MAT.tile, 0, height+0.03, 0);
 
-  // 4) 格子戸（前面）— 縦格子 InstancedMesh
-  {
-    const barW = 0.01, barD = 0.04, barH = wallH*0.82;
-    const gap  = 0.03;
-    const count = Math.floor((W-0.06) / (barW+gap));
-    const geo = new THREE.BoxGeometry(barW, barH, barD);
-    const inst = new THREE.InstancedMesh(geo, matDark, count);
-    inst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    const y = baseH + barH/2;
-    let i=0;
-    for(let x=-W/2+0.03; x<=W/2-0.03 && i<count; x+= (barW+gap)){
-      const m = new THREE.Matrix4().makeTranslation(x, y, D/2 - 0.02);
-      inst.setMatrixAt(i++, m);
-    }
-    g.add(inst);
+  // 軒（薄い板）
+  addBox(g, plateW, 0.02, plateD, MAT.darkWood, 0, 0.15, -depth/4);
+  addBox(g, plateW, 0.02, plateD, MAT.darkWood, 0, 0.15,  depth/4);
 
-    // 下見板（腰壁）
-    const skirt = new THREE.Mesh(new THREE.BoxGeometry(W-0.04, 0.12, 0.03), matWood);
-    skirt.position.set(0, baseH+0.06, D/2 - 0.015);
-    g.add(skirt);
-  }
-
-  // 5) のれん（緩い垂れ下がり）
-  {
-    const w = W-0.10, h = 0.14;
-    const segW=16, segH=3;
-    const pg = new THREE.PlaneGeometry(w, h, segW, segH);
-    // 垂れ下がりカーブ
-    const pos = pg.attributes.position;
-    for(let i=0;i<pos.count;i++){
-      const x = pos.getX(i);
-      const y = pos.getY(i);
-      const sag = Math.sin(((x/w)+0.5)*Math.PI) * 0.025; // 中央が下がる
-      pos.setY(i, y - sag);
-    }
-    pos.needsUpdate = true;
-    pg.computeVertexNormals();
-
-    const noren = new THREE.Mesh(pg, matNoren);
-    noren.rotation.y = Math.PI; // 表を外に
-    noren.position.set(0, baseH+wallH*0.68, D/2 + 0.001);
-    g.add(noren);
-
-    // のれんの割れ目（薄板で表現）
-    const slit = new THREE.Mesh(new THREE.BoxGeometry(0.006, h, 0.001), new THREE.MeshBasicMaterial({color:0x000000, transparent:true, opacity:0.2}));
-    slit.position.copy(noren.position);
-    g.add(slit);
-  }
-
-  // 6) 看板（キャンバステクスチャ）
-  {
-    const sw = 0.26, sh = 0.10;
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), matSign);
-    sign.position.set(0, baseH+wallH+0.07, D/2+0.02);
-    g.add(sign);
-
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(sw+0.02, 0.015, 0.04), matWood);
-    frame.position.set(0, baseH+wallH+0.05, D/2+0.02);
-    g.add(frame);
-  }
-
-  // 7) 屋根（切妻）＋ 瓦を段状に InstancedMesh
-  {
-    const over = 0.06;                      // 軒の出
-    const rW = W + over*2, rD = D + over*2;
-    const ridgeH = H + roofH;               // 棟高さ
-    const eavesY = baseH + wallH + eavesH;  // 軒桁
-
-    // 左右勾配の板
-    const roofGeo = new THREE.PlaneGeometry(rW, rD/2);
-    const left = new THREE.Mesh(roofGeo, matRoof);
-    const right= new THREE.Mesh(roofGeo, matRoof);
-    left.rotation.x  = -Math.PI/2 + 0.32;
-    right.rotation.x = -Math.PI/2 - 0.32;
-    left.position.set(0, ridgeH-0.02,  D/4);
-    right.position.set(0, ridgeH-0.02, -D/4);
-    g.add(left, right);
-
-    // 棟（のし瓦の感じ）
-    const ridge = new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,W,16,1,true), matRoof);
-    ridge.rotation.z = Math.PI/2;
-    ridge.position.y = ridgeH;
-    g.add(ridge);
-
-    // 軒瓦（段々に並べる）
-    const tileW = rW / 22;
-    const tileT = 0.015;
-    const rows  = 12;
-    const cols  = 22;
-    const tileGeo = new THREE.BoxGeometry(tileW*0.92, tileT, tileW*0.9);
-
-    const tileInst1 = new THREE.InstancedMesh(tileGeo, matRoof, rows*cols);
-    const tileInst2 = new THREE.InstancedMesh(tileGeo, matRoof, rows*cols);
-    tileInst1.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    tileInst2.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-
-    let id1=0, id2=0;
-    for(let r=0;r<rows;r++){
-      const t = r/(rows-1);
-      const z1 =  D/4 - t*(rD/2 - over*0.6);
-      const z2 = -D/4 + t*(rD/2 - over*0.6);
-      const y  = ridgeH - 0.04 - t*0.22;
-      for(let c=0;c<cols;c++){
-        const x = -rW/2 + over*0.5 + (c+0.5)*(rW/cols);
-        const m1 = new THREE.Matrix4().makeTranslation(x, y, z1);
-        const m2 = new THREE.Matrix4().makeTranslation(x, y, z2);
-        tileInst1.setMatrixAt(id1++, m1);
-        tileInst2.setMatrixAt(id2++, m2);
-      }
-    }
-    g.add(tileInst1, tileInst2);
-
-    // 軒裏の薄板（破風の雰囲気）
-    const soffit = new THREE.Mesh(new THREE.BoxGeometry(rW, 0.01, rD), matDark);
-    soffit.position.set(0, eavesY+0.005, 0);
-    g.add(soffit);
-  }
-
-  // 8) 店内の床（暗め）
-  {
-    const fl = new THREE.Mesh(new THREE.BoxGeometry(W-0.04, 0.01, D-0.04), matDark);
-    fl.position.set(0, baseH+0.005, 0);
-    g.add(fl);
-  }
-
-  shadowize(g);
   return g;
 }
 
-// 看板用の簡易キャンバステクスチャ
-function makeSignTexture(text="商屋"){
-  const c = document.createElement("canvas");
-  c.width = 512; c.height = 256;
-  const ctx = c.getContext("2d");
-  ctx.fillStyle = "#f4f1e0";
-  ctx.fillRect(0,0,c.width,c.height);
-  ctx.fillStyle = "#3a2b1e";
-  ctx.font = "bold 140px 'Noto Sans JP', system-ui, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, c.width/2, c.height/2+6);
-  const tex = new THREE.CanvasTexture(c);
-  tex.anisotropy = 4;
-  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
+// 格子窓（障子）
+function buildShoji(width=0.6, height=0.4, depth=0.02, cols=4, rows=3){
+  const g = new THREE.Group();
+  // 枠
+  addBox(g, width, 0.02, depth, MAT.darkWood, 0, height/2, 0);        // 上
+  addBox(g, width, 0.02, depth, MAT.darkWood, 0, 0,           0);        // 下
+  addBox(g, 0.02, height, depth, MAT.darkWood, -width/2, height/2, 0);   // 左
+  addBox(g, 0.02, height, depth, MAT.darkWood,  width/2, height/2, 0);   // 右
+  // 紙
+  addBox(g, width-0.04, height-0.04, depth-0.01, MAT.paper, 0, height/2, -0.001);
+
+  // グリッド
+  for(let c=1;c<cols;c++){
+    const x = -width/2 + (width*c/cols);
+    addBox(g, 0.01, height-0.05, depth, MAT.darkWood, x, height/2, 0);
+  }
+  for(let r=1;r<rows;r++){
+    const y = (height/rows)*r;
+    addBox(g, width-0.05, 0.01, depth, MAT.darkWood, 0, y, 0);
+  }
+  return g;
 }
+
+/* ========== 家（町家ベース） ========== */
+function buildHouse(){
+  const g = new THREE.Group();
+
+  // 基壇
+  addBox(g, 0.92, 0.06, 0.92, MAT.stone, 0, 0.03, 0);
+
+  // 本体
+  addBox(g, 0.8, 0.45, 0.7, MAT.wood, 0, 0.28, 0);
+
+  // 柱
+  const px = 0.38, pz = 0.32, ph = 0.5, pr = 0.05;
+  addBox(g, pr, ph, pr, MAT.darkWood,  px, ph/2,  pz);
+  addBox(g, pr, ph, pr, MAT.darkWood, -px, ph/2,  pz);
+  addBox(g, pr, ph, pr, MAT.darkWood,  px, ph/2, -pz);
+  addBox(g, pr, ph, pr, MAT.darkWood, -px, ph/2, -pz);
+
+  // 障子窓
+  const shoji = buildShoji(0.5, 0.28, 0.02, 4, 3);
+  shoji.position.set(0, 0.35, 0.36);
+  g.add(shoji);
+
+  // 入口（引き戸風）
+  const doorL = buildShoji(0.22, 0.32, 0.02, 3, 3);
+  doorL.position.set(-0.28, 0.33, 0.36);
+  const doorR = buildShoji(0.22, 0.32, 0.02, 3, 3);
+  doorR.position.set( 0.28, 0.33, 0.36);
+  g.add(doorL, doorR);
+
+  // 屋根
+  const roof = buildGableRoof(1.0, 0.86, 0.28, 0.08);
+  g.add(roof);
+
+  // ひさし（細板）
+  addBox(g, 0.86, 0.02, 0.2, MAT.darkWood, 0, 0.55, 0.35);
+
+  setShadowAll(g, true, true);
+  // 1マスに収まるようスケール微調整
+  g.scale.set(0.95, 0.95, 0.95);
+  return g;
+}
+
+/* ========== 商屋（看板・のれん・格子） ========== */
+function buildMerchantHouse(){
+  const g = new THREE.Group();
+
+  // 石畳
+  addBox(g, 0.96, 0.04, 0.96, MAT.stone, 0, 0.02, 0);
+
+  // 店構え（奥行き広め）
+  addBox(g, 0.9, 0.5, 0.78, MAT.wood, 0, 0.3, 0);
+
+  // 格子（正面）
+  for(let i=-4;i<=4;i++){
+    const x = i*0.09;
+    addBox(g, 0.015, 0.32, 0.03, MAT.darkWood, x, 0.30, 0.39);
+  }
+  addBox(g, 0.86, 0.02, 0.03, MAT.darkWood, 0, 0.46, 0.39);
+  addBox(g, 0.86, 0.02, 0.03, MAT.darkWood, 0, 0.14, 0.39);
+
+  // のれん
+  for(let i=-1;i<=1;i++){
+    const w=0.22;
+    addBox(g, w, 0.14, 0.01, MAT.sign, i*w*1.02, 0.42, 0.41);
+  }
+
+  // 看板
+  addBox(g, 0.36, 0.08, 0.04, MAT.sign, 0, 0.58, 0.35);
+
+  // 小ダンボール/樽っぽい置物
+  addBox(g, 0.16, 0.12, 0.16, MAT.darkWood, -0.34, 0.06, 0.25);
+  addCylinder(g, 0.08, 0.09, 0.18, 12, MAT.darkWood, 0.35, 0.09, 0.22);
+
+  // 屋根（深い庇）
+  const roof = buildGableRoof(1.06, 0.94, 0.3, 0.1);
+  g.add(roof);
+
+  // ひさし板
+  addBox(g, 0.92, 0.02, 0.28, MAT.darkWood, 0, 0.54, 0.42);
+
+  setShadowAll(g, true, true);
+  g.scale.set(0.95, 0.95, 0.95);
+  return g;
+}
+
+/* ========== 神社（拝殿+鳥居+灯籠） ========== */
+function buildShrine(){
+  const g = new THREE.Group();
+
+  // 台座（玉砂利イメージ）
+  addBox(g, 0.98, 0.04, 0.98, MAT.stone, 0, 0.02, 0);
+
+  // 拝殿
+  addBox(g, 0.7, 0.42, 0.55, MAT.wood, 0, 0.26, -0.05);
+  // 奥の内陣（少し高く）
+  addBox(g, 0.5, 0.26, 0.3, MAT.darkWood, 0, 0.39, -0.06);
+
+  // 正面柱
+  const px=0.34, ph=0.48, pr=0.05, pz=0.26;
+  addBox(g, pr, ph, pr, MAT.darkWood,  px, ph/2,  pz);
+  addBox(g, pr, ph, pr, MAT.darkWood, -px, ph/2,  pz);
+
+  // 賽銭箱
+  addBox(g, 0.24, 0.12, 0.2, MAT.darkWood, 0, 0.10, 0.22);
+  // しめ縄（トーラス）
+  addTorus(g, 0.14, 0.01, 8, 40, Math.PI, MAT.gold, 0, 0.42, 0.28, 0, Math.PI, 0);
+
+  // 障子扉
+  const door = buildShoji(0.46, 0.26, 0.02, 4, 3);
+  door.position.set(0, 0.36, 0.27);
+  g.add(door);
+
+  // 灯籠（左右）
+  addCylinder(g, 0.02, 0.02, 0.18, 12, MAT.stone,  0.32, 0.09, 0.05);
+  addBox(g,     0.08, 0.02, 0.08, MAT.stone,       0.32, 0.20, 0.05);
+  addCylinder(g, 0.02, 0.02, 0.18, 12, MAT.stone, -0.32, 0.09, 0.05);
+  addBox(g,     0.08, 0.02, 0.08, MAT.stone,      -0.32, 0.20, 0.05);
+
+  // 屋根（銅板風）
+  const roof = buildGableRoof(0.9, 0.76, 0.3, 0.1);
+  roof.traverse(n=>{ if(n.isMesh) n.material = MAT.copper; });
+  g.add(roof);
+
+  // 鳥居（小さめ、前面）
+  const torii = new THREE.Group();
+  // 柱
+  addCylinder(torii, 0.04, 0.04, 0.42, 16, MAT.red, -0.22, 0.21, 0.45);
+  addCylinder(torii, 0.04, 0.04, 0.42, 16, MAT.red,  0.22, 0.21, 0.45);
+  // 貫
+  addBox(torii, 0.5, 0.04, 0.06, MAT.red, 0, 0.36, 0.45);
+  // 笠木
+  addBox(torii, 0.66, 0.05, 0.08, MAT.red, 0, 0.42, 0.45);
+  g.add(torii);
+
+  setShadowAll(g, true, true);
+  g.scale.set(0.95, 0.95, 0.95);
+  return g;
+}
+// ===== 追加ここまで =====
 
 
   // ★ 盤面中央を注視（最重要）
@@ -1638,8 +1655,8 @@ ensureRenderer();
 
 // 任意のモデルURL（なくてもOK）
 const MODEL_URLS = {
-  house:"models/house.glb",   shop:"models/shop.glb",   castle:"models/castle.glb",
-   temple:"models/temple.glb", tree:"models/tree.glb",   field:"models/field.glb",
+  house:,   shop:,   castle:"models/castle.glb",
+   temple:, tree:"models/tree.glb",   field:"models/field.glb",
    water:"models/water.glb",   road:"models/road.glb",   bridge:"models/bridge.glb",
    school:"models/school.glb",
   
@@ -1727,38 +1744,40 @@ function restoreTint(obj){
   });
 }
 
-async function ensurePreview(){
-  if (preview) return preview;
+async function place3D({id, type, x, y, rot=0}){
+  const pos = gridToWorld(x, y);
+  let obj;
 
-   if (placeType === "shop") {
-    preview = buildMerchantHouse({preview:true}); // ← のれんを少し透過
-    preview.renderOrder = 999;
-    scene.add(preview);
-    return preview;
-  }
-  // まずは超見やすいフォールバックを即出す
-  preview = fallbackMesh(placeType, true);
-  preview.renderOrder = 999;
-  scene.add(preview);
-
-  // GLBがあれば差し替え（任意）
-  const url = MODEL_URLS[placeType];
-  if (url) {
-    try{
-      const gltf = await loader.loadAsync(url);
-      const real = gltf.scene;
-      real.scale.set(0.8,0.8,0.8);
-      real.position.copy(preview.position);
-      real.rotation.copy(preview.rotation);
-      scene.add(real);
-      scene.remove(preview);
-      preview = real;
-    }catch(e){
-      // そのままフォールバック継続
+  // 自前プロシージャルに切替
+  if (type === "shop")      obj = buildMerchantHouse();
+  else if (type === "house")  obj = buildHouse();
+  else if (type === "temple") obj = buildShrine();
+  else {
+    // それ以外は従来どおり GLB or フォールバック
+    const url = MODEL_URLS[type];
+    if(url){
+      try{
+        const gltf = await loader.loadAsync(url);
+        obj = gltf.scene;
+        obj.scale.set(0.8,0.8,0.8);
+      }catch{
+        obj = fallbackMesh(type);
+      }
+    }else{
+      obj = fallbackMesh(type);
     }
   }
-  return preview;
+
+  setShadowAll(obj, true, true);
+  obj.position.copy(pos);
+  obj.rotation.y = (rot/90) * Math.PI/2;
+  obj.userData.id  = id || null;
+  obj.userData.rot = rot || 0;
+
+  scene.add(obj);
+  placed3D.push(obj);
 }
+
 function setPreviewAtCell(cell){
   hoverCell = cell;
   const pos = gridToWorld(cell.x, cell.y);
@@ -1889,6 +1908,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

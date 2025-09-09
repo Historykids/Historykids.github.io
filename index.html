@@ -1451,6 +1451,15 @@ function buildShrine(){
   return g;
 }
 
+  // === 向き補正（度じゃなくラジアン）
+const YAW_BASE = {
+  house:  Math.PI,  // 180°
+  shop:   Math.PI,  // 180°
+  temple: Math.PI,  // 180°
+  // 必要なら個別に：bridge: Math.PI/2, road: Math.PI/2 など
+};
+
+
 /* ================= GLB パス ================ */
 const MODEL_URLS = {
   house:  null,  // 自前プロシージャル
@@ -1703,6 +1712,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

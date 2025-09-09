@@ -1590,17 +1590,23 @@ function ensureRenderer(){
   townEl.style.position = "relative";
   townEl.appendChild(renderer.domElement);
 
-  // 追加（レンダラ設定の直後あたり）
+// ★ ここで影設定（ライトを作った“直後”）
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-// 追加（ライト作成後）
 dir.castShadow = true;
 dir.shadow.mapSize.set(2048, 2048);
 dir.shadow.camera.near = 1;
 dir.shadow.camera.far  = 80;
 
-// 地面を受け影化（groundを作った直後）
+// 地面
+const plane = new THREE.PlaneGeometry(100, 100);
+const pm = new THREE.MeshBasicMaterial({ color: 0xd7f4d2, side: THREE.FrontSide });
+ground = new THREE.Mesh(plane, pm);
+ground.rotation.x = -Math.PI/2;
+ground.name = "ground";
+scene.add(ground);
+
+// ★ ground を作った“直後”に受け影ON
 ground.receiveShadow = true;
 
 
@@ -1657,8 +1663,8 @@ ensureRenderer();
 
 // 任意のモデルURL（なくてもOK）
 const MODEL_URLS = {
-  house:,   shop:,   castle:"models/castle.glb",
-   temple:, tree:"models/tree.glb",   field:"models/field.glb",
+  house:null,   shop:null,   castle:"models/castle.glb",
+   temple:null, tree:"models/tree.glb",   field:"models/field.glb",
    water:"models/water.glb",   road:"models/road.glb",   bridge:"models/bridge.glb",
    school:"models/school.glb",
   
@@ -1674,37 +1680,7 @@ function fallbackMesh(type, big=false){
   return mesh;
 }
 
-// 
-async function place3D({id, type, x, y, rot=0}){
-  const pos = gridToWorld(x, y);
-  let obj;
 
-  if (type === "shop") {
-    // ← 商屋だけ Procedural モデルに切り替え
-    obj = buildMerchantHouse();
-  } else {
-    const url = MODEL_URLS[type];
-    if(url){
-      try {
-        const gltf = await loader.loadAsync(url);
-        obj = gltf.scene;
-        obj.scale.set(0.8,0.8,0.8);
-        obj.traverse(n=>{ if(n.isMesh){ n.castShadow=true; n.receiveShadow=true; }});
-      } catch {
-        obj = fallbackMesh(type);
-      }
-    } else {
-      obj = fallbackMesh(type);
-    }
-  }
-
-  obj.position.copy(pos);
-  obj.rotation.y = (rot/90) * Math.PI/2;
-  obj.userData.id = id || null;
-  obj.userData.rot = rot || 0;
-  scene.add(obj);
-  placed3D.push(obj);
-}
 
 
 function clear3D(){ placed3D.forEach(o=>scene.remove(o)); placed3D = []; }
@@ -1910,6 +1886,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

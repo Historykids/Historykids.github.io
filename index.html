@@ -1561,6 +1561,15 @@ function buildShrine(){
 }
 // ===== 追加ここまで =====
 
+  async function ensurePreview(){
+  if (preview) return preview;
+  preview = fallbackMesh(placeType, true);
+  preview.renderOrder = 999;
+  scene.add(preview);
+  return preview;
+}
+
+
 
 
 const townEl = document.getElementById("town");
@@ -1580,8 +1589,10 @@ function worldToGrid(X,Z){
 
 function ensureRenderer(){
   if(renderer) return;
+
   const w = townEl.clientWidth, h = townEl.clientHeight;
 
+  // ─ Renderer
   renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.setSize(w, h);
@@ -1590,24 +1601,64 @@ function ensureRenderer(){
   townEl.style.position = "relative";
   townEl.appendChild(renderer.domElement);
 
-// ★ ここで影設定（ライトを作った“直後”）
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-dir.castShadow = true;
-dir.shadow.mapSize.set(2048, 2048);
-dir.shadow.camera.near = 1;
-dir.shadow.camera.far  = 80;
+  // 影はレンダラで先にON
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-// 地面
-const plane = new THREE.PlaneGeometry(100, 100);
-const pm = new THREE.MeshBasicMaterial({ color: 0xd7f4d2, side: THREE.FrontSide });
-ground = new THREE.Mesh(plane, pm);
-ground.rotation.x = -Math.PI/2;
-ground.name = "ground";
-scene.add(ground);
+  // ─ Scene / Camera / Controls
+  scene  = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(50, w/h, 0.1, 1000);
 
-// ★ ground を作った“直後”に受け影ON
-ground.receiveShadow = true;
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.06;
+
+  const center = gridToWorld(Math.floor(COLS/2), Math.floor(ROWS/2));
+  controls.target.copy(center);
+  camera.position.set(center.x + 15, 18, center.z + 22);
+
+  // ─ Lights
+  scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+  const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+  dir.position.set(10, 20, 10);
+  dir.castShadow = true;                    // ライト作成“直後”に影設定
+  dir.shadow.mapSize.set(2048, 2048);
+  dir.shadow.camera.near = 1;
+  dir.shadow.camera.far  = 80;
+  scene.add(dir);
+
+  // ─ Ground（★ここで“初めて”作る。変数名も被らないように）
+  const groundGeo = new THREE.PlaneGeometry(100, 100);
+  const groundMat = new THREE.MeshBasicMaterial({ color: 0xd7f4d2, side: THREE.FrontSide });
+  ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI/2;
+  ground.name = "ground";
+  ground.receiveShadow = true;              // 地面は受け影
+  scene.add(ground);
+
+  // ─ Grid
+  grid = new THREE.GridHelper(100, 100, 0x000000, 0x000000);
+  grid.material.opacity = 0.08;
+  grid.material.transparent = true;
+  scene.add(grid);
+
+  // ─ Loader
+  loader = new GLTFLoader();
+
+  // ─ Loop
+  renderer.setAnimationLoop(()=>{ controls.update(); renderer.render(scene, camera); });
+
+  controls.minPolarAngle = 0.1;
+  controls.maxPolarAngle = Math.PI / 2.02;
+
+  new ResizeObserver(()=>{
+    const w2 = townEl.clientWidth, h2 = townEl.clientHeight;
+    renderer.setSize(w2, h2);
+    camera.aspect = w2/h2;
+    camera.updateProjectionMatrix();
+  }).observe(townEl);
+}
+
 
 
   scene = new THREE.Scene();
@@ -1663,12 +1714,18 @@ ensureRenderer();
 
 // 任意のモデルURL（なくてもOK）
 const MODEL_URLS = {
-  house:null,   shop:null,   castle:"models/castle.glb",
-   temple:null, tree:"models/tree.glb",   field:"models/field.glb",
-   water:"models/water.glb",   road:"models/road.glb",   bridge:"models/bridge.glb",
-   school:"models/school.glb",
-  
+  house:  null,
+  shop:   null,
+  temple: null,
+  castle: "models/castle.glb",
+  tree:   "models/tree.glb",
+  field:  "models/field.glb",
+  water:  "models/water.glb",
+  road:   "models/road.glb",
+  bridge: "models/bridge.glb",
+  school: "models/school.glb"
 };
+
 
 // ★ 見逃しようがないデカめフォールバック
 function fallbackMesh(type, big=false){
@@ -1886,6 +1943,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

@@ -1355,188 +1355,116 @@ const clamp = (v,min,max)=> Math.max(min, Math.min(max,v));
 function gridToWorld(x, y){ const ox=Math.floor(COLS/2), oy=Math.floor(ROWS/2); return new THREE.Vector3((x-ox)*WORLD_SCALE, 0, (y-oy)*WORLD_SCALE); }
 function worldToGrid(X,Z){ const ox=Math.floor(COLS/2), oy=Math.floor(ROWS/2); return { x: Math.round(X/WORLD_SCALE)+ox, y: Math.round(Z/WORLD_SCALE)+oy }; }
 
-/* ================= マテリアル/小物 ================ */
-function setShadowAll(obj, cast=true, receive=true){ obj.traverse?.(n=>{ if(n.isMesh){ n.castShadow=cast; n.receiveShadow=receive; }}); }
-const MAT = {
-  wood:     new THREE.MeshStandardMaterial({ color: 0x8a5a2b, roughness: 0.75, metalness: 0.05 }),
-  darkWood: new THREE.MeshStandardMaterial({ color: 0x5b3a1f, roughness: 0.80, metalness: 0.05 }),
-  paper:    new THREE.MeshStandardMaterial({ color: 0xf3f0e6, roughness: 0.90, metalness: 0.00, transparent:true, opacity:0.95 }),
-  roof:     new THREE.MeshStandardMaterial({ color: 0x4a5055, roughness: 0.60, metalness: 0.15 }),
-  tile:     new THREE.MeshStandardMaterial({ color: 0x3f454a, roughness: 0.55, metalness: 0.20 }),
-  stone:    new THREE.MeshStandardMaterial({ color: 0xb9b7b3, roughness: 0.90, metalness: 0.00 }),
-  copper:   new THREE.MeshStandardMaterial({ color: 0x6e8b74, roughness: 0.45, metalness: 0.35 }),
-  sign:     new THREE.MeshStandardMaterial({ color: 0xd9c7a3, roughness: 0.80, metalness: 0.00 }),
-  red:      new THREE.MeshStandardMaterial({ color: 0xc42727, roughness: 0.75, metalness: 0.05 }),
-  gold:     new THREE.MeshStandardMaterial({ color: 0xb99a3a, roughness: 0.40, metalness: 0.80 })
-};
-function addBox(g,w,h,d,mat,x=0,y=0,z=0,rx=0,ry=0,rz=0){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat); m.position.set(x,y,z); m.rotation.set(rx,ry,rz); g.add(m); return m; }
-function addCylinder(g,rt,rb,h,seg,mat,x=0,y=0,z=0){ const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg),mat); m.position.set(x,y,z); g.add(m); return m; }
-function addTorus(g,r,tube,rs,ts,arc,mat,x=0,y=0,z=0,rx=0,ry=0,rz=0){ const m=new THREE.Mesh(new THREE.TorusGeometry(r,tube,rs,ts,arc),mat); m.position.set(x,y,z); m.rotation.set(rx,ry,rz); g.add(m); return m; }
-
-/* ================= プロシージャル屋根/障子 ================ */
-function buildGableRoof(width=1.1, depth=0.8, height=0.28, over=0.08){
-  const g = new THREE.Group();
-  const pitch = Math.atan2(height, depth/2);
-  const plateD = depth/2 + over, plateW = width + over*2, t = 0.04;
-  const left  = addBox(g, plateW, t, plateD, MAT.roof, 0, height, -depth/4); left.rotation.x  =  pitch;
-  const right = addBox(g, plateW, t, plateD, MAT.roof, 0, height,  depth/4); right.rotation.x = -pitch;
-  addBox(g, width*0.92, 0.05, 0.06, MAT.tile, 0, height+0.03, 0);
-  addBox(g, plateW, 0.02, plateD, MAT.darkWood, 0, 0.15, -depth/4);
-  addBox(g, plateW, 0.02, plateD, MAT.darkWood, 0, 0.15,  depth/4);
-  return g;
-}
-function buildShoji(width=0.6, height=0.4, depth=0.02, cols=4, rows=3){
-  const g = new THREE.Group();
-  addBox(g, width, 0.02, depth, MAT.darkWood, 0, height/2, 0);
-  addBox(g, width, 0.02, depth, MAT.darkWood, 0, 0, 0);
-  addBox(g, 0.02, height, depth, MAT.darkWood, -width/2, height/2, 0);
-  addBox(g, 0.02, height, depth, MAT.darkWood,  width/2, height/2, 0);
-  addBox(g, width-0.04, height-0.04, depth-0.01, MAT.paper, 0, height/2, -0.001);
-  for(let c=1;c<cols;c++){ const x=-width/2+(width*c/cols); addBox(g, 0.01, height-0.05, depth, MAT.darkWood, x, height/2, 0); }
-  for(let r=1;r<rows;r++){ const y=(height/rows)*r;          addBox(g, width-0.05, 0.01, depth, MAT.darkWood, 0, y, 0); }
-  return g;
-}
-
-/* ================= 家 / 商屋 / 神社 ================ */
-function buildHouse(){
-  const g = new THREE.Group();
-  addBox(g, 0.92, 0.06, 0.92, MAT.stone, 0, 0.03, 0);
-  addBox(g, 0.8, 0.45, 0.7, MAT.wood, 0, 0.28, 0);
-  const px=0.38,pz=0.32,ph=0.5,pr=0.05;
-  addBox(g, pr, ph, pr, MAT.darkWood,  px, ph/2,  pz);
-  addBox(g, pr, ph, pr, MAT.darkWood, -px, ph/2,  pz);
-  addBox(g, pr, ph, pr, MAT.darkWood,  px, ph/2, -pz);
-  addBox(g, pr, ph, pr, MAT.darkWood, -px, ph/2, -pz);
-  const shoji = buildShoji(0.5, 0.28, 0.02, 4, 3); shoji.position.set(0, 0.35, 0.36); g.add(shoji);
-  const doorL = buildShoji(0.22, 0.32, 0.02, 3, 3); doorL.position.set(-0.28, 0.33, 0.36);
-  const doorR = buildShoji(0.22, 0.32, 0.02, 3, 3); doorR.position.set( 0.28, 0.33, 0.36);
-  g.add(doorL, doorR);
-  g.add(buildGableRoof(1.0, 0.86, 0.28, 0.08));
-  addBox(g, 0.86, 0.02, 0.2, MAT.darkWood, 0, 0.55, 0.35);
-  setShadowAll(g, true, true);
-  g.scale.set(0.95,0.95,0.95);
-  return g;
-}
-function buildMerchantHouse(){
-  const g = new THREE.Group();
-  addBox(g, 0.96, 0.04, 0.96, MAT.stone, 0, 0.02, 0);
-  addBox(g, 0.9, 0.5, 0.78, MAT.wood, 0, 0.3, 0);
-  for(let i=-4;i<=4;i++){ const x=i*0.09; addBox(g, 0.015, 0.32, 0.03, MAT.darkWood, x, 0.30, 0.39); }
-  addBox(g, 0.86, 0.02, 0.03, MAT.darkWood, 0, 0.46, 0.39);
-  addBox(g, 0.86, 0.02, 0.03, MAT.darkWood, 0, 0.14, 0.39);
-  for(let i=-1;i<=1;i++){ const w=0.22; addBox(g, w, 0.14, 0.01, MAT.sign, i*w*1.02, 0.42, 0.41); }
-  addBox(g, 0.36, 0.08, 0.04, MAT.sign, 0, 0.58, 0.35);
-  addBox(g, 0.16, 0.12, 0.16, MAT.darkWood, -0.34, 0.06, 0.25);
-  addCylinder(g, 0.08, 0.09, 0.18, 12, MAT.darkWood, 0.35, 0.09, 0.22);
-  g.add(buildGableRoof(1.06, 0.94, 0.3, 0.1));
-  addBox(g, 0.92, 0.02, 0.28, MAT.darkWood, 0, 0.54, 0.42);
-  setShadowAll(g, true, true);
-  g.scale.set(0.95,0.95,0.95);
-  return g;
-}
-function buildShrine(){
-  const g = new THREE.Group();
-  addBox(g, 0.98, 0.04, 0.98, MAT.stone, 0, 0.02, 0);
-  addBox(g, 0.7, 0.42, 0.55, MAT.wood, 0, 0.26, -0.05);
-  addBox(g, 0.5, 0.26, 0.3, MAT.darkWood, 0, 0.39, -0.06);
-  const px=0.34, ph=0.48, pr=0.05, pz=0.26;
-  addBox(g, pr, ph, pr, MAT.darkWood,  px, ph/2,  pz);
-  addBox(g, pr, ph, pr, MAT.darkWood, -px, ph/2,  pz);
-  addBox(g, 0.24, 0.12, 0.2, MAT.darkWood, 0, 0.10, 0.22);
-  addTorus(g, 0.14, 0.01, 8, 40, Math.PI, MAT.gold, 0, 0.42, 0.28, 0, Math.PI, 0);
-  const door = buildShoji(0.46, 0.26, 0.02, 4, 3); door.position.set(0, 0.36, 0.27); g.add(door);
-  addCylinder(g, 0.02, 0.02, 0.18, 12, MAT.stone,  0.32, 0.09, 0.05);
-  addBox(g,     0.08, 0.02, 0.08, MAT.stone,       0.32, 0.20, 0.05);
-  addCylinder(g, 0.02, 0.02, 0.18, 12, MAT.stone, -0.32, 0.09, 0.05);
-  addBox(g,     0.08, 0.02, 0.08, MAT.stone,      -0.32, 0.20, 0.05);
-  const roof = buildGableRoof(0.9, 0.76, 0.3, 0.1); roof.traverse(n=>{ if(n.isMesh) n.material = MAT.copper; }); g.add(roof);
-  const torii = new THREE.Group();
-  addCylinder(torii, 0.04, 0.04, 0.42, 16, MAT.red, -0.22, 0.21, 0.45);
-  addCylinder(torii, 0.04, 0.04, 0.42, 16, MAT.red,  0.22, 0.21, 0.45);
-  addBox(torii, 0.5,  0.04, 0.06, MAT.red, 0, 0.36, 0.45);
-  addBox(torii, 0.66, 0.05, 0.08, MAT.red, 0, 0.42, 0.45);
-  g.add(torii);
-  setShadowAll(g, true, true);
-  g.scale.set(0.95,0.95,0.95);
-  return g;
-}
-
-  // === 城（天守＋石垣＋小櫓） =====================================
-function buildCastle(){
-  const g = new THREE.Group();
-
-  // 追加の素材（白壁・窓の黒）
-  const plaster   = new THREE.MeshStandardMaterial({ color: 0xf5f5f2, roughness: 0.9, metalness: 0.0 });
-  const windowMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9, metalness: 0.0 });
-
-  // 石垣（正方形台形柱）：下広・上狭の四角錐台
-  const ishigaki = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.52, 0.74, 0.24, 4, 1, false),
-    MAT.stone
-  );
-  ishigaki.rotation.y = Math.PI/4;  // 角をXY軸に合わせる
-  ishigaki.position.y = 0.12;
-  g.add(ishigaki);
-
-  // 平場
-  addBox(g, 0.90, 0.04, 0.90, MAT.stone, 0, 0.26, 0);
-
-  // 天守各層（幅・奥行きを段々小さく）
-  const floors = [
-    { w:0.78, d:0.64, h:0.26 }, // 1層
-    { w:0.62, d:0.50, h:0.24 }, // 2層
-    { w:0.48, d:0.38, h:0.22 }  // 3層（最上）
-  ];
-
-  let y = 0.28; // 1層の床高さ
-
-  floors.forEach((f, i)=>{
-    // 白壁の箱
-    addBox(g, f.w, f.h, f.d, plaster, 0, y + f.h/2, 0);
-
-    // 隅木（柱風に濃い木材）
-    const colW=0.04, colZ=0.04, colH=f.h, px=f.w/2-colW/2, pz=f.d/2-colZ/2;
-    addBox(g, colW, colH, colZ, MAT.darkWood,  px, y+colH/2,  pz);
-    addBox(g, colW, colH, colZ, MAT.darkWood, -px, y+colH/2,  pz);
-    addBox(g, colW, colH, colZ, MAT.darkWood,  px, y+colH/2, -pz);
-    addBox(g, colW, colH, colZ, MAT.darkWood, -px, y+colH/2, -pz);
-
-    // 狭間（前後に1つずつ）
-    const slitW=0.06, slitH=0.02, slitZ=0.01;
-    addBox(g, slitW, slitH, slitZ, windowMat, 0, y + f.h*0.55,  f.d/2 + 0.001);
-    addBox(g, slitW, slitH, slitZ, windowMat, 0, y + f.h*0.55, -f.d/2 - 0.001);
-
-    // 屋根（少し張り出し）
-    const roof = buildGableRoof(f.w+0.16, f.d+0.16, 0.24, 0.08);
-    roof.position.y = y + f.h + 0.02;
-    g.add(roof);
-
-    y += f.h + 0.26; // 次の層の床へ（屋根厚みぶん余裕を見て）
-  });
-
-  // 鯱（簡易：金色の小箱）
-  addBox(g, 0.06, 0.08, 0.06, MAT.gold,  floors[2].w/2 - 0.08, y - 0.12, 0);
-  addBox(g, 0.06, 0.08, 0.06, MAT.gold, -floors[2].w/2 + 0.08, y - 0.12, 0);
-
-  // 一層屋根の四隅に小櫓
-  const yYagura = 0.26 + floors[0].h + 0.12;
-  const makeYagura = (sx, sz)=>{
-    const t = new THREE.Group();
-    addBox(t, 0.18, 0.12, 0.14, plaster, 0, 0.06, 0);
-    const r = buildGableRoof(0.28, 0.24, 0.12, 0.04);
-    r.position.y = 0.12;
-    t.add(r);
-    t.position.set(sx*(floors[0].w/2-0.14), yYagura, sz*(floors[0].d/2-0.10));
-    g.add(t);
+  // ===== Procedural Models V2 (front = +Z, origin on ground) =====
+const PM2 = (() => {
+  const MAT = {
+    wood:     new THREE.MeshStandardMaterial({ color: 0x8a5a2b, roughness: 0.75 }),
+    darkWood: new THREE.MeshStandardMaterial({ color: 0x5b3a1f, roughness: 0.8  }),
+    paper:    new THREE.MeshStandardMaterial({ color: 0xf3f0e6, roughness: 0.9, transparent:true, opacity:0.95 }),
+    roof:     new THREE.MeshStandardMaterial({ color: 0x4a5055, roughness: 0.6  }),
+    tile:     new THREE.MeshStandardMaterial({ color: 0x3f454a, roughness: 0.55 }),
+    stone:    new THREE.MeshStandardMaterial({ color: 0xb9b7b3, roughness: 0.9  }),
+    copper:   new THREE.MeshStandardMaterial({ color: 0x6e8b74, roughness: 0.45, metalness:0.35 }),
+    sign:     new THREE.MeshStandardMaterial({ color: 0xd9c7a3, roughness: 0.8  }),
+    red:      new THREE.MeshStandardMaterial({ color: 0xc42727, roughness: 0.75 }),
+    gold:     new THREE.MeshStandardMaterial({ color: 0xb99a3a, roughness: 0.4,  metalness:0.8 }),
+    white:    new THREE.MeshStandardMaterial({ color: 0xf5f5f2, roughness: 0.9  }),
+    black:    new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9  })
   };
-  makeYagura( 1, 1); makeYagura(-1, 1);
-  makeYagura( 1,-1); makeYagura(-1,-1);
+  const addBox=(g,w,h,d,m,x=0,y=0,z=0,rx=0,ry=0,rz=0)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.rotation.set(rx,ry,rz);g.add(o);return o;}
+  const addCyl=(g,rt,rb,h,s,m,x=0,y=0,z=0)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,s),m);o.position.set(x,y,z);g.add(o);return o;}
+  const setShadowAll=(o)=>o.traverse?.(n=>{if(n.isMesh){n.castShadow=n.receiveShadow=true;}})
+  const gable=(W=1.1,D=0.8,H=0.28,OH=0.08)=>{
+    const g=new THREE.Group(), pitch=Math.atan2(H,D/2), t=0.04, pD=D/2+OH, pW=W+OH*2;
+    const a=addBox(g,pW,t,pD,MAT.roof,0,H,-D/4); a.rotation.x=pitch;
+    const b=addBox(g,pW,t,pD,MAT.roof,0,H, D/4); b.rotation.x=-pitch;
+    addBox(g,W*0.92,0.05,0.06,MAT.tile,0,H+0.03,0);
+    return g;
+  };
+  const shoji=(W=0.6,H=0.4,T=0.02,c=4,r=3)=>{
+    const g=new THREE.Group();
+    addBox(g,W,0.02,T,MAT.darkWood,0,H/2,0); addBox(g,W,0.02,T,MAT.darkWood,0,0,0);
+    addBox(g,0.02,H,T,MAT.darkWood,-W/2,H/2,0); addBox(g,0.02,H,T,MAT.darkWood,W/2,H/2,0);
+    addBox(g,W-0.04,H-0.04,T-0.01,MAT.paper,0,H/2,-0.001);
+    for(let i=1;i<c;i++) addBox(g,0.01,H-0.05,T,MAT.darkWood,-W/2+W*i/c,H/2,0);
+    for(let i=1;i<r;i++) addBox(g,W-0.05,0.01,T,MAT.darkWood,0,H*i/r,0);
+    return g;
+  };
 
-  // 見た目調整
-  setShadowAll(g, true, true);
-  g.scale.set(0.95, 0.95, 0.95); // 1マス内に収める
-  return g;
+  function house(){
+    const g=new THREE.Group();
+    addBox(g,0.92,0.06,0.92,MAT.stone,0,0.03,0);
+    addBox(g,0.80,0.45,0.70,MAT.wood,0,0.28,0);
+    const p=0.05,h=0.5,x=0.38,z=0.32; // 柱
+    [[ x, z],[ -x, z],[ x,-z],[-x,-z]].forEach(([px,pz])=>addBox(g,p,h,p,MAT.darkWood,px,h/2,pz));
+    const s=shoji(0.5,0.28,0.02); s.position.set(0,0.35,0.36); g.add(s);
+    const L=shoji(0.22,0.32,0.02); L.position.set(-0.28,0.33,0.36);
+    const R=shoji(0.22,0.32,0.02); R.position.set( 0.28,0.33,0.36); g.add(L,R);
+    g.add(gable(1.0,0.86,0.28,0.08));
+    setShadowAll(g); g.scale.set(0.95,0.95,0.95);
+    return g;
+  }
+  function shop(){
+    const g=new THREE.Group();
+    addBox(g,0.96,0.04,0.96,MAT.stone,0,0.02,0);
+    addBox(g,0.90,0.50,0.78,MAT.wood,0,0.30,0);
+    for(let i=-4;i<=4;i++) addBox(g,0.015,0.32,0.03,MAT.darkWood,i*0.09,0.30,0.39);
+    addBox(g,0.86,0.02,0.03,MAT.darkWood,0,0.46,0.39);
+    addBox(g,0.86,0.02,0.03,MAT.darkWood,0,0.14,0.39);
+    for(let i=-1;i<=1;i++) addBox(g,0.22,0.14,0.01,MAT.sign,i*0.22*1.02,0.42,0.41);
+    addBox(g,0.36,0.08,0.04,MAT.sign,0,0.58,0.35);
+    g.add(gable(1.06,0.94,0.30,0.10));
+    setShadowAll(g); g.scale.set(0.95,0.95,0.95);
+    return g;
+  }
+  function shrine(){
+    const g=new THREE.Group();
+    addBox(g,0.98,0.04,0.98,MAT.stone,0,0.02,0);
+    addBox(g,0.70,0.42,0.55,MAT.wood,0,0.26,-0.05);
+    addBox(g,0.50,0.26,0.30,MAT.darkWood,0,0.39,-0.06);
+    addBox(g,0.24,0.12,0.20,MAT.darkWood,0,0.10,0.22);
+    const door=shoji(0.46,0.26,0.02); door.position.set(0,0.36,0.27); g.add(door);
+    const roof=gable(0.90,0.76,0.30,0.10); roof.traverse(n=>{if(n.isMesh)n.material=MAT.copper}); g.add(roof);
+    // 鳥居（前方 +Z）
+    addCyl(g,0.04,0.04,0.42,16,MAT.red,-0.22,0.21,0.45);
+    addCyl(g,0.04,0.04,0.42,16,MAT.red, 0.22,0.21,0.45);
+    addBox(g,0.50,0.04,0.06,MAT.red,0,0.36,0.45);
+    addBox(g,0.66,0.05,0.08,MAT.red,0,0.42,0.45);
+    setShadowAll(g); g.scale.set(0.95,0.95,0.95);
+    return g;
+  }
+  function castle(){
+    const g=new THREE.Group();
+    const white=MAT.white, black=MAT.black;
+    const ish=new THREE.Mesh(new THREE.CylinderGeometry(0.52,0.74,0.24,4), MAT.stone);
+    ish.rotation.y=Math.PI/4; ish.position.y=0.12; g.add(ish);
+    addBox(g,0.90,0.04,0.90,MAT.stone,0,0.26,0);
+    const floors=[{w:0.78,d:0.64,h:0.26},{w:0.62,d:0.50,h:0.24},{w:0.48,d:0.38,h:0.22}];
+    let y=0.28;
+    floors.forEach(f=>{
+      addBox(g,f.w,f.h,f.d,white,0,y+f.h/2,0);
+      addBox(g,0.06,0.02,0.01,black,0,y+f.h*0.55, f.d/2+0.001);
+      addBox(g,0.06,0.02,0.01,black,0,y+f.h*0.55,-f.d/2-0.001);
+      const r=gable(f.w+0.16,f.d+0.16,0.24,0.08); r.position.y=y+f.h+0.02; g.add(r);
+      y+=f.h+0.26;
+    });
+    addBox(g,0.06,0.08,0.06,MAT.gold, floors[2].w/2-0.08, y-0.12, 0);
+    addBox(g,0.06,0.08,0.06,MAT.gold,-floors[2].w/2+0.08, y-0.12, 0);
+    setShadowAll(g); g.scale.set(0.95,0.95,0.95);
+    return g;
+  }
+  return { house, shop, shrine, castle };
+})();
+
+// place3D で使う（GLBが無ければ V2 にフォールバック）
+function buildProcV2(type){
+  if (type==="house")  return PM2.house();
+  if (type==="shop")   return PM2.shop();
+  if (type==="temple") return PM2.shrine();
+  if (type==="castle") return PM2.castle();
+  return null;
 }
+
 
 
 
@@ -1803,6 +1731,7 @@ hit.rotation.y = base + (next/90) * Math.PI/2;
 
 </body>
 </html>
+
 
 
 

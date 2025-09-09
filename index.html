@@ -1338,11 +1338,15 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
   // 建物ごとの基準ヨー角（正面を+Zに合わせたい）
 function getYawBase(type){
   // 自作プロシージャル系は+X向きで作っているので -90° 補正
-  if (type === "house" || type === "shop" || type === "temple" || type === "castle") {
-    return -Math.PI/2;
-  }
-  return 0;
+ function getYawBase(type){
+  const map = {
+    house: 0, shop: 0, temple: 0, castle: 0,
+    // もし将来+X向きのGLBが混ざるなら、その型だけ -Math.PI/2 を設定
+    // exampleGLB: -Math.PI/2
+  };
+  return map[type] ?? 0;
 }
+
 
 
 /* ================= ユーティリティ ================ */
@@ -1617,30 +1621,31 @@ document.addEventListener("city:reset", ()=>{ clear3D(); });
 /* ================= 1箇所だけの place3D ================ */
 async function place3D({id, type, x, y, rot=0}){
   const pos = gridToWorld(x, y);
-  let obj;
-  if (type === "shop") obj = buildMerchantHouse();
-  else if (type === "house") obj = buildHouse();
-  else if (type === "temple") obj = buildShrine();
-    else if (type === "castle") obj = buildCastle();     // ★追加
-  else {
+  let obj = buildProcV2(type);  // ← まずPM2
+
+  if (!obj) {
     const url = MODEL_URLS[type];
-    if (url){
-      try{ const gltf = await loader.loadAsync(url); obj = gltf.scene; obj.scale.set(0.8,0.8,0.8); }
-      catch{ obj = fallbackMesh(type); }
+    if (url) {
+      try {
+        const gltf = await loader.loadAsync(url);
+        obj = gltf.scene;
+        obj.scale.set(0.8,0.8,0.8);
+      } catch {
+        obj = fallbackMesh(type);
+      }
     } else {
       obj = fallbackMesh(type);
     }
   }
-setShadowAll(obj, true, true);
-  obj.position.copy(pos);
-obj.userData.id   = id || null;
-obj.userData.rot  = rot || 0;
-obj.userData.type = type;                  // ← 追加（後の再回転で使う）
-obj.rotation.y = getYawBase(type) + (rot/90) * Math.PI/2;
 
+  setShadowAll(obj, true, true);
+  obj.position.copy(pos);
+  obj.userData = { id: id || null, rot, type };
+  obj.rotation.y = getYawBase(type) + (rot/90)*Math.PI/2;
   scene.add(obj);
   placed3D.push(obj);
 }
+
 
 /* ================= 配置フロー ================ */
 document.addEventListener("placement:start", async (ev)=>{
@@ -1731,6 +1736,7 @@ hit.rotation.y = base + (next/90) * Math.PI/2;
 
 </body>
 </html>
+
 
 
 

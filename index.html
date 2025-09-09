@@ -1335,6 +1335,18 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+  // 建物ごとの基準ヨー角（正面を+Zに合わせたい）
+function getYawBase(type){
+  // 自作プロシージャル系は+X向きで作っているので -90° 補正
+  if (type === "house" || type === "shop" || type === "temple" || type === "castle") {
+    return -Math.PI/2;
+  }
+  return 0;
+}
+preview.rotation.y = getYawBase(placeType) + (placeRot/90) * Math.PI/2;
+obj.rotation.y = getYawBase(type) + (rot/90) * Math.PI/2;
+
+
 /* ================= ユーティリティ ================ */
 const townEl = document.getElementById("town");
 let renderer, scene, camera, controls, loader, ground, grid;
@@ -1652,21 +1664,7 @@ async function ensurePreview(){
   return preview;
 }
   
-   // 方向の初期値：正面(入口)を +Z に向けたい
-function getYawBase(type){
-  // プロシージャル建物はモデル内で正面が +X 向きになっているので 90°左回り補正
-  if (type === "house" || type === "shop" || type === "temple" || type === "castle") {
-    return -Math.PI/2;   // ← ここがキモ（おかしかったら 0, Math.PI/2, Math.PI を試す）
-  }
-  return 0;
-}
-// プレビュー
-const yaw0 = getYawBase(placeType);
-preview.rotation.y = yaw0 + (placeRot/90) * Math.PI/2;
-
-// 確定配置
-const yaw0 = getYawBase(type);
-obj.rotation.y = yaw0 + (rot/90) * Math.PI/2;
+  
 
 
 function setPreviewAtCell(cell){
@@ -1801,6 +1799,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

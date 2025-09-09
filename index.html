@@ -1621,15 +1621,15 @@ document.addEventListener("city:reset", ()=>{ clear3D(); });
 /* ================= 1箇所だけの place3D ================ */
 async function place3D({id, type, x, y, rot=0}){
   const pos = gridToWorld(x, y);
-  let obj = buildProcV2(type);  // ← まずPM2
+  let obj = buildProcV2(type);           // ① まず自作PM2で作る
 
-  if (!obj) {
+  if (!obj) {                             // ② 無ければGLB or 立方体
     const url = MODEL_URLS[type];
     if (url) {
       try {
         const gltf = await loader.loadAsync(url);
         obj = gltf.scene;
-        obj.scale.set(0.8,0.8,0.8);
+        obj.scale.set(0.8, 0.8, 0.8);
       } catch {
         obj = fallbackMesh(type);
       }
@@ -1641,10 +1641,12 @@ async function place3D({id, type, x, y, rot=0}){
   setShadowAll(obj, true, true);
   obj.position.copy(pos);
   obj.userData = { id: id || null, rot, type };
-  obj.rotation.y = getYawBase(type) + (rot/90)*Math.PI/2;
+  obj.rotation.y = getYawBase(type) + (rot/90) * Math.PI/2;  // ← 基準＋回転
+
   scene.add(obj);
   placed3D.push(obj);
 }
+
 
 
 /* ================= 配置フロー ================ */
@@ -1736,6 +1738,7 @@ hit.rotation.y = base + (next/90) * Math.PI/2;
 
 </body>
 </html>
+
 
 
 

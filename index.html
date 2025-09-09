@@ -1335,59 +1335,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-
-
-const townEl = document.getElementById("town");
-let renderer, scene, camera, controls, loader, ground, grid;
-let placed3D = [];
-let COLS = 30, ROWS = 18;
-const WORLD_SCALE = 1.0;
-const clamp = (v, min, max) => Math.max(min, Math.min(max, v)); // ←ここに常駐させる
-function gridToWorld(x, y){
-  const ox = Math.floor(COLS/2), oy = Math.floor(ROWS/2);
-  return new THREE.Vector3((x-ox)*WORLD_SCALE, 0, (y-oy)*WORLD_SCALE);
-}
-function worldToGrid(X,Z){
-  const ox = Math.floor(COLS/2), oy = Math.floor(ROWS/2);
-  return { x: Math.round(X/WORLD_SCALE)+ox, y: Math.round(Z/WORLD_SCALE)+oy };
-}
-
-function ensureRenderer(){
-  if(renderer) return;
-  const w = townEl.clientWidth, h = townEl.clientHeight;
-
-  renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-  renderer.setSize(w, h);
-  renderer.domElement.style.position = "absolute";
-  renderer.domElement.style.inset = "0";
-  townEl.style.position = "relative";
-  townEl.appendChild(renderer.domElement);
-
-  // 追加（レンダラ設定の直後あたり）
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-// 追加（ライト作成後）
-dir.castShadow = true;
-dir.shadow.mapSize.set(2048, 2048);
-dir.shadow.camera.near = 1;
-dir.shadow.camera.far  = 80;
-
-// 地面を受け影化（groundを作った直後）
-ground.receiveShadow = true;
-
-
-  scene = new THREE.Scene();
-
-  camera = new THREE.PerspectiveCamera(50, w/h, 0.1, 1000);
-
-  controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.06;
-
-
-// ===== ここから追加（fallbackMesh のすぐ下） =====
+  // ===== ここから追加（fallbackMesh のすぐ下） =====
 
 // 影ON/OFFを一括設定
 function setShadowAll(obj, cast=true, receive=true){
@@ -1612,6 +1560,60 @@ function buildShrine(){
   return g;
 }
 // ===== 追加ここまで =====
+
+
+
+const townEl = document.getElementById("town");
+let renderer, scene, camera, controls, loader, ground, grid;
+let placed3D = [];
+let COLS = 30, ROWS = 18;
+const WORLD_SCALE = 1.0;
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v)); // ←ここに常駐させる
+function gridToWorld(x, y){
+  const ox = Math.floor(COLS/2), oy = Math.floor(ROWS/2);
+  return new THREE.Vector3((x-ox)*WORLD_SCALE, 0, (y-oy)*WORLD_SCALE);
+}
+function worldToGrid(X,Z){
+  const ox = Math.floor(COLS/2), oy = Math.floor(ROWS/2);
+  return { x: Math.round(X/WORLD_SCALE)+ox, y: Math.round(Z/WORLD_SCALE)+oy };
+}
+
+function ensureRenderer(){
+  if(renderer) return;
+  const w = townEl.clientWidth, h = townEl.clientHeight;
+
+  renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.setSize(w, h);
+  renderer.domElement.style.position = "absolute";
+  renderer.domElement.style.inset = "0";
+  townEl.style.position = "relative";
+  townEl.appendChild(renderer.domElement);
+
+  // 追加（レンダラ設定の直後あたり）
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// 追加（ライト作成後）
+dir.castShadow = true;
+dir.shadow.mapSize.set(2048, 2048);
+dir.shadow.camera.near = 1;
+dir.shadow.camera.far  = 80;
+
+// 地面を受け影化（groundを作った直後）
+ground.receiveShadow = true;
+
+
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(50, w/h, 0.1, 1000);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.06;
+
+
+
 
 
   // ★ 盤面中央を注視（最重要）
@@ -1908,6 +1910,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

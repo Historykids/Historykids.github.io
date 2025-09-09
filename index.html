@@ -1652,7 +1652,22 @@ async function ensurePreview(){
   return preview;
 }
   
-   const YAW_BASE = { house:Math.PI, shop:Math.PI, temple:Math.PI, castle:Math.PI };
+   // 方向の初期値：正面(入口)を +Z に向けたい
+function getYawBase(type){
+  // プロシージャル建物はモデル内で正面が +X 向きになっているので 90°左回り補正
+  if (type === "house" || type === "shop" || type === "temple" || type === "castle") {
+    return -Math.PI/2;   // ← ここがキモ（おかしかったら 0, Math.PI/2, Math.PI を試す）
+  }
+  return 0;
+}
+// プレビュー
+const yaw0 = getYawBase(placeType);
+preview.rotation.y = yaw0 + (placeRot/90) * Math.PI/2;
+
+// 確定配置
+const yaw0 = getYawBase(type);
+obj.rotation.y = yaw0 + (rot/90) * Math.PI/2;
+
 
 function setPreviewAtCell(cell){
   hoverCell = cell;
@@ -1786,6 +1801,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

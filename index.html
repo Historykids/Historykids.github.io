@@ -918,21 +918,7 @@ function buildChapterFilter(){
   });
 }
 
-  function pickOnGround(ev){
-  setPointerFromEvent(ev);
-  raycaster.setFromCamera(pointer, camera);
-
-  const hit = raycaster.intersectObject(ground, false)[0];
-  if (hit) return { cell: worldToGrid(hit.point.x, hit.point.z), hit };
-
-  // 予備: y=0 の平面
-  const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
-  const p3 = new THREE.Vector3();
-  if (raycaster.ray.intersectPlane(plane, p3)) {
-    return { cell: worldToGrid(p3.x, p3.z), hit: null };
-  }
-  return null;
-}
+ 
 
   function openQuiz(name){
   currentQuizName = name;
@@ -1738,6 +1724,7 @@ hit.rotation.y = base + (next/90) * Math.PI/2;
 
 </body>
 </html>
+
 
 
 

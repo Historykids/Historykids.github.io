@@ -1451,6 +1451,84 @@ function buildShrine(){
   return g;
 }
 
+  // === 城（天守＋石垣＋小櫓） =====================================
+function buildCastle(){
+  const g = new THREE.Group();
+
+  // 追加の素材（白壁・窓の黒）
+  const plaster   = new THREE.MeshStandardMaterial({ color: 0xf5f5f2, roughness: 0.9, metalness: 0.0 });
+  const windowMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9, metalness: 0.0 });
+
+  // 石垣（正方形台形柱）：下広・上狭の四角錐台
+  const ishigaki = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.52, 0.74, 0.24, 4, 1, false),
+    MAT.stone
+  );
+  ishigaki.rotation.y = Math.PI/4;  // 角をXY軸に合わせる
+  ishigaki.position.y = 0.12;
+  g.add(ishigaki);
+
+  // 平場
+  addBox(g, 0.90, 0.04, 0.90, MAT.stone, 0, 0.26, 0);
+
+  // 天守各層（幅・奥行きを段々小さく）
+  const floors = [
+    { w:0.78, d:0.64, h:0.26 }, // 1層
+    { w:0.62, d:0.50, h:0.24 }, // 2層
+    { w:0.48, d:0.38, h:0.22 }  // 3層（最上）
+  ];
+
+  let y = 0.28; // 1層の床高さ
+
+  floors.forEach((f, i)=>{
+    // 白壁の箱
+    addBox(g, f.w, f.h, f.d, plaster, 0, y + f.h/2, 0);
+
+    // 隅木（柱風に濃い木材）
+    const colW=0.04, colZ=0.04, colH=f.h, px=f.w/2-colW/2, pz=f.d/2-colZ/2;
+    addBox(g, colW, colH, colZ, MAT.darkWood,  px, y+colH/2,  pz);
+    addBox(g, colW, colH, colZ, MAT.darkWood, -px, y+colH/2,  pz);
+    addBox(g, colW, colH, colZ, MAT.darkWood,  px, y+colH/2, -pz);
+    addBox(g, colW, colH, colZ, MAT.darkWood, -px, y+colH/2, -pz);
+
+    // 狭間（前後に1つずつ）
+    const slitW=0.06, slitH=0.02, slitZ=0.01;
+    addBox(g, slitW, slitH, slitZ, windowMat, 0, y + f.h*0.55,  f.d/2 + 0.001);
+    addBox(g, slitW, slitH, slitZ, windowMat, 0, y + f.h*0.55, -f.d/2 - 0.001);
+
+    // 屋根（少し張り出し）
+    const roof = buildGableRoof(f.w+0.16, f.d+0.16, 0.24, 0.08);
+    roof.position.y = y + f.h + 0.02;
+    g.add(roof);
+
+    y += f.h + 0.26; // 次の層の床へ（屋根厚みぶん余裕を見て）
+  });
+
+  // 鯱（簡易：金色の小箱）
+  addBox(g, 0.06, 0.08, 0.06, MAT.gold,  floors[2].w/2 - 0.08, y - 0.12, 0);
+  addBox(g, 0.06, 0.08, 0.06, MAT.gold, -floors[2].w/2 + 0.08, y - 0.12, 0);
+
+  // 一層屋根の四隅に小櫓
+  const yYagura = 0.26 + floors[0].h + 0.12;
+  const makeYagura = (sx, sz)=>{
+    const t = new THREE.Group();
+    addBox(t, 0.18, 0.12, 0.14, plaster, 0, 0.06, 0);
+    const r = buildGableRoof(0.28, 0.24, 0.12, 0.04);
+    r.position.y = 0.12;
+    t.add(r);
+    t.position.set(sx*(floors[0].w/2-0.14), yYagura, sz*(floors[0].d/2-0.10));
+    g.add(t);
+  };
+  makeYagura( 1, 1); makeYagura(-1, 1);
+  makeYagura( 1,-1); makeYagura(-1,-1);
+
+  // 見た目調整
+  setShadowAll(g, true, true);
+  g.scale.set(0.95, 0.95, 0.95); // 1マス内に収める
+  return g;
+}
+
+
   // === 向き補正（度じゃなくラジアン）
 const YAW_BASE = {
   house:  Math.PI,  // 180°
@@ -1465,7 +1543,7 @@ const MODEL_URLS = {
   house:  null,  // 自前プロシージャル
   shop:   null,  // 自前プロシージャル
   temple: null,  // 自前プロシージャル
-  castle: "models/castle.glb",
+  castle: null,
   tree:   "models/tree.glb",
   field:  "models/field.glb",
   water:  "models/water.glb",
@@ -1581,6 +1659,9 @@ async function ensurePreview(){
   scene.add(preview);
   return preview;
 }
+  
+   const YAW_BASE = { house:Math.PI, shop:Math.PI, temple:Math.PI, castle:Math.PI };
+
 function setPreviewAtCell(cell){
   hoverCell = cell;
   const pos = gridToWorld(cell.x, cell.y);
@@ -1609,6 +1690,7 @@ async function place3D({id, type, x, y, rot=0}){
   if (type === "shop") obj = buildMerchantHouse();
   else if (type === "house") obj = buildHouse();
   else if (type === "temple") obj = buildShrine();
+    else if (type === "castle") obj = buildCastle();     // ★追加
   else {
     const url = MODEL_URLS[type];
     if (url){
@@ -1712,6 +1794,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

@@ -1343,8 +1343,6 @@ function getYawBase(type){
   }
   return 0;
 }
-preview.rotation.y = getYawBase(placeType) + (placeRot/90) * Math.PI/2;
-obj.rotation.y = getYawBase(type) + (rot/90) * Math.PI/2;
 
 
 /* ================= ユーティリティ ================ */
@@ -1671,7 +1669,7 @@ function setPreviewAtCell(cell){
   hoverCell = cell;
   const pos = gridToWorld(cell.x, cell.y);
   preview.position.copy(pos);
-  preview.rotation.y = (placeRot/90) * Math.PI/2;
+  preview.rotation.y = getYawBase(placeType) + (placeRot/90) * Math.PI/2;
   const valid = cellValid(cell.x, cell.y);
   restoreTint(preview);
   applyTint(preview, valid ? okMat : ngMat);
@@ -1705,11 +1703,13 @@ async function place3D({id, type, x, y, rot=0}){
       obj = fallbackMesh(type);
     }
   }
-  setShadowAll(obj, true, true);
+setShadowAll(obj, true, true);
   obj.position.copy(pos);
-  obj.rotation.y = (rot/90) * Math.PI/2;
-  obj.userData.id  = id || null;
-  obj.userData.rot = rot || 0;
+obj.userData.id   = id || null;
+obj.userData.rot  = rot || 0;
+obj.userData.type = type;                  // ← 追加（後の再回転で使う）
+obj.rotation.y = getYawBase(type) + (rot/90) * Math.PI/2;
+
   scene.add(obj);
   placed3D.push(obj);
 }
@@ -1790,8 +1790,12 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
   ray.setFromCamera(p, camera);
   const hits = ray.intersectObjects(placed3D, true); if(!hits.length) return;
   let hit = hits[0].object; while(hit && !placed3D.includes(hit)) hit = hit.parent; if(!hit) return;
-  const cur = (hit.userData.rot || 0); const next=(cur+90)%360;
-  hit.userData.rot = next; hit.rotation.y = (next/90) * Math.PI/2;
+  const cur = (hit.userData.rot || 0);
+const next = (cur + 90) % 360;
+hit.userData.rot = next;
+const base = getYawBase(hit.userData.type || "");
+hit.rotation.y = base + (next/90) * Math.PI/2;
+
   if(hit.userData.id){ document.dispatchEvent(new CustomEvent("edit:rotate",{ detail:{ id: hit.userData.id, rot: next }})); }
 });
 </script>
@@ -1799,6 +1803,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

@@ -26,9 +26,9 @@
   <link rel="alternate" hreflang="ja" href="https://historykids.github.io/">
   <link rel="alternate" hreflang="x-default" href="https://historykids.github.io/">
 <!-- SEO -->
-  <title>歴史キッズ｜小学生・中学生向け 歴史クイズ・年表問題・図鑑で楽しく学ぶ（江戸・戦国・室町・鎌倉）</title>
-  <meta name="description" content="歴史キッズは小学生・中学生向けの歴史学習サイト。江戸・戦国・室町・鎌倉の出来事を、ひらがなクイズ／年表問題（図鑑）／カード集め＆3D街づくりで楽しく学べます。スマホ最適化・無料。自由研究や受験対策にも役立ちます。" />
-  <meta name="keywords" content="歴史,小学生,中学生,勉強,クイズ,年表,図鑑,問題,江戸,戦国,室町,鎌倉,自由研究,社会,日本史,歴史人物" />
+  <title>歴史キッズ｜小学生・中学生向け 歴史クイズ・年表・図鑑で楽しく学ぶ（江戸・戦国・室町・鎌倉）</title>
+  <meta name="description" content="歴史キッズは小学生・中学生向けの歴史学習サイト。江戸・戦国・室町・鎌倉の出来事を、ひらがなクイズ／年表（図鑑）／カード集め＆3D街づくりで楽しく学べます。スマホ最適化・無料。自由研究や受験対策にも役立ちます。" />
+  <meta name="keywords" content="歴史,小学生,中学生,クイズ,年表,図鑑,江戸,戦国,室町,鎌倉,自由研究,社会,日本史,歴史人物" />
   <link rel="canonical" href="https://historykids.github.io/">
 
   <!-- OGP -->
@@ -277,26 +277,6 @@
   .toolrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
   .toolrow .toolbtn{border:1px solid #ddd;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
   .toolrow .toolbtn.active{background:#e6f4ff;border-color:#8ecbff}
-
-
-    /* ===== ジョイスティック ===== */
-.joypad{
-  position: fixed; left: 12px; bottom: 12px; z-index: 220;
-  width: 120px; height: 120px; touch-action: none; user-select: none;
-}
-.joypad .joy-base{
-  position: absolute; inset: 0;
-  border-radius: 999px; background: rgba(255,255,255,.9);
-  box-shadow: 0 4px 16px rgba(0,0,0,.18), inset 0 0 0 2px rgba(0,0,0,.08);
-}
-.joypad .joy-stick{
-  position: absolute; left: 50%; top: 50%; width: 56px; height: 56px;
-  margin-left: -28px; margin-top: -28px; border-radius: 999px;
-  background: rgba(0,0,0,.18); backdrop-filter: blur(2px);
-  box-shadow: 0 2px 10px rgba(0,0,0,.22);
-  transition: transform .05s linear;
-}
-
   </style>
 </head>
 
@@ -422,7 +402,6 @@
   <!-- 配置モード用のスマホHUD -->
   <div id="placeHud" class="place-hud" hidden>
     <button id="btnRotate" type="button" aria-label="回転">回転 ↻</button>
-    <button id="btnOK"     type="button" aria-label="決定">決定 ✅</button><!-- ★追加 -->
     <button id="btnCancel" type="button" aria-label="キャンセル">キャンセル</button>
   </div>
 
@@ -465,13 +444,6 @@
     </div>
   </div>
 </div>
-
-  <!-- スティック（ジョイスティック） -->
-<div id="joypad" class="joypad" aria-label="スティック" hidden>
-  <div class="joy-base"></div>
-  <div class="joy-stick"></div>
-</div>
-
 
 <script>
 /* ========== モーダル開閉（プロフィール/お問い合わせ） ========== */
@@ -902,10 +874,6 @@ function loadProgress(){
 zukanBtnEl?.addEventListener("click", ()=>{ zukanPanelEl.classList.add("active"); zukanPanelEl.setAttribute("aria-hidden","false"); });
 closeZukanEl?.addEventListener("click", ()=>{ zukanPanelEl.classList.remove("active"); zukanPanelEl.setAttribute("aria-hidden","true"); });
 
-
-
-
-
 /* 章プルダウン */
 function buildChapterFilter(){
   if(!chapterFilterEl) return;
@@ -918,18 +886,21 @@ function buildChapterFilter(){
   });
 }
 
- 
+  function pickOnGround(ev){
+  setPointerFromEvent(ev);
+  raycaster.setFromCamera(pointer, camera);
 
-  function openQuiz(name){
-  currentQuizName = name;
-  quizTitleEl.textContent = name;
-  quizHintEl.textContent  = "（例：てんぽう／わしん など ひらがなで）";
-  quizHintEl.style.color = "#666"; // ★追加：色を毎回リセット
-  quizInputEl.value = "";
-  quizModalEl.style.display = "flex";
-  setTimeout(()=>quizInputEl.focus(), 0);
+  const hit = raycaster.intersectObject(ground, false)[0];
+  if (hit) return { cell: worldToGrid(hit.point.x, hit.point.z), hit };
+
+  // 予備: y=0 の平面
+  const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+  const p3 = new THREE.Vector3();
+  if (raycaster.ray.intersectPlane(plane, p3)) {
+    return { cell: worldToGrid(p3.x, p3.z), hit: null };
+  }
+  return null;
 }
-
 
 /* ルビ表記 */
 function withRubyMasked(fullName){
@@ -1008,15 +979,9 @@ quizOkEl?.addEventListener("click", ()=>{
     buildCards();
     closeQuiz();
     infoBoxEl.textContent = "正解！💰がふえたよ。ショップで好きな場所に建物を置いてみよう！";
- }else{
-  const ans = needTokens.join("・");
-  // 画面下のインフォに出す
-  infoBoxEl.textContent = "ざんねん！正解は「" + ans + "」だよ。";
-  // モーダル内にも出す（赤字）
-  quizHintEl.textContent = "→ 正解：" + ans + "（ひらがな）";
-  quizHintEl.style.color = "#c62828";
-  // モーダルは開いたまま（やり直し可能）
-}
+  }else{
+    infoBoxEl.textContent = "おしい！もういちど挑戦してみてね。";
+  }
 });
 quizCancelEl?.addEventListener("click", closeQuiz);
 quizBgEl?.addEventListener("click", closeQuiz);
@@ -1192,116 +1157,6 @@ function init(){
 }
 document.addEventListener("DOMContentLoaded", init);
 
-
-  /* ========== スティック操作（ジョイスティック） ========== */
-const joypadEl  = document.getElementById("joypad");
-const joyStick  = joypadEl?.querySelector(".joy-stick");
-
-let joyActive = false, joyRAF = null, joyDir = {dx:0, dy:0}, joyLastStepAt = 0;
-
-function joyShow(){ if(joypadEl) joypadEl.hidden = false; }
-function joyHide(){ if(joypadEl) joypadEl.hidden = true; }
-
-function quantizeDir(vx, vy){
-  // vx: 右+, vy: 上+（後でy反転する）
-  const mag = Math.hypot(vx, vy);
-  if (mag < 0.15) return {dx:0, dy:0, speed:0}; // デッドゾーン
-
-  // 角度を8方向に量子化
-  const ang = Math.atan2(vy, vx); // -PI..PI
-  const sector = Math.round(ang / (Math.PI/4)); // -4..4
-  const dir8 = (sector + 8) % 8;
-
-  // 8方向 → (dx,dy)
-  const table = [
-    {dx:1, dy:0},   // 0: →
-    {dx:1, dy:1},   // 1: ↗
-    {dx:0, dy:1},   // 2: ↑
-    {dx:-1,dy:1},   // 3: ↖
-    {dx:-1,dy:0},   // 4: ←
-    {dx:-1,dy:-1},  // 5: ↙
-    {dx:0, dy:-1},  // 6: ↓
-    {dx:1, dy:-1}   // 7: ↘
-  ];
-  const {dx, dy} = table[dir8];
-
-  // 速度（外周ほど速い）
-  let speed;
-  if (mag > 0.85) speed = 60;     // ms/step
-  else if (mag > 0.55) speed = 90;
-  else speed = 130;
-
-  // 画面上では上がマイナスに進むので、yはそのまま（THREE側で減少が上）
-  // ここでは {dx,dy} をそのまま渡す（dy:-1が下、+1が上になるよう THREE側で扱う）
-  return {dx, dy, speed};
-}
-
-function joyStepLoop(ts){
-  if(!joyActive){ joyRAF = null; return; }
-  if(!joyDir.speed){ joyRAF = requestAnimationFrame(joyStepLoop); return; }
-
-  if(ts - joyLastStepAt >= joyDir.speed){
-    document.dispatchEvent(new CustomEvent("placement:nudge", { detail: { dx: joyDir.dx, dy: -joyDir.dy }}));
-    // ↑ dy を反転：画面の上方向ドラッグで「手前→上（y-1）」へ
-    joyLastStepAt = ts;
-  }
-  joyRAF = requestAnimationFrame(joyStepLoop);
-}
-
-function joyStart(x, y){
-  joyActive = true; joyLastStepAt = 0;
-  // スティック位置を動かす
-  joyMove(x, y);
-  if(!joyRAF) joyRAF = requestAnimationFrame(joyStepLoop);
-}
-function joyMove(x, y){
-  const rect = joypadEl.getBoundingClientRect();
-  const cx = rect.left + rect.width/2;
-  const cy = rect.top  + rect.height/2;
-  let dx = (x - cx) / (rect.width/2);   // -1..1
-  let dy = (y - cy) / (rect.height/2);  // -1..1
-  const mag = Math.hypot(dx, dy);
-  if(mag > 1){ dx/=mag; dy/=mag; }
-
-  // ノブ見た目
-  if(joyStick){
-    const px = dx * 28, py = dy * 28; // 半径 ~28px
-    joyStick.style.transform = `translate(${px}px, ${py}px)`;
-  }
-
-  joyDir = quantizeDir(dx, -dy); // 画面座標→上が正に見えるよう反転して量子化
-}
-function joyEnd(){
-  joyActive = false; joyDir = {dx:0, dy:0, speed:0};
-  if(joyRAF){ cancelAnimationFrame(joyRAF); joyRAF = null; }
-  if(joyStick){ joyStick.style.transform = "translate(0,0)"; }
-}
-
-// 入力イベント
-if(joypadEl){
-  const onDown = (e)=>{ const p = e.touches ? e.touches[0] : e; joyStart(p.clientX, p.clientY); };
-  const onMove = (e)=>{ if(!joyActive) return; const p = e.touches ? e.touches[0] : e; joyMove(p.clientX, p.clientY); };
-  const onUp   = ()=> joyEnd();
-
-  joypadEl.addEventListener("pointerdown", onDown);
-  joypadEl.addEventListener("pointermove", onMove);
-  window.addEventListener("pointerup", onUp);
-  joypadEl.addEventListener("touchstart", onDown, {passive:false});
-  joypadEl.addEventListener("touchmove",  onMove, {passive:false});
-  window.addEventListener("touchend", onUp);
-}
-
-// 配置フローと連動（表示/非表示）
-document.addEventListener("placement:start", ()=>{ joyShow(); });
-document.addEventListener("placement:end",   ()=>{ joyHide(); joyEnd(); });
-document.addEventListener("placement:cancel",()=>{ joyHide(); joyEnd(); });
-
-// 「決定」ボタン → THREE 側にOKシグナル
-document.getElementById("btnOK")?.addEventListener("click", ()=>{
-  document.dispatchEvent(new Event("placement:ok"));
-});
-
-
   </script>
 
   <script type="importmap">
@@ -1321,175 +1176,23 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-/* ============= 共通ユーティリティ ============= */
-// 正面は +Z を向く想定（必要なら型ごとに基準ヨー角を変える）
-function getYawBase(type){
-  const map = { house:0, shop:0, temple:0, castle:0 };
-  return map[type] ?? 0;
-}
-function setShadowAll(obj, cast=true, receive=true){
-  obj.traverse?.(n => { if(n.isMesh){ n.castShadow = cast; n.receiveShadow = receive; }});
-}
+
+
 const townEl = document.getElementById("town");
 let renderer, scene, camera, controls, loader, ground, grid;
 let placed3D = [];
 let COLS = 30, ROWS = 18;
 const WORLD_SCALE = 1.0;
-const clamp = (v,min,max)=> Math.max(min, Math.min(max,v));
-function gridToWorld(x, y){ const ox=Math.floor(COLS/2), oy=Math.floor(ROWS/2); return new THREE.Vector3((x-ox)*WORLD_SCALE, 0, (y-oy)*WORLD_SCALE); }
-function worldToGrid(X,Z){ const ox=Math.floor(COLS/2), oy=Math.floor(ROWS/2); return { x: Math.round(X/WORLD_SCALE)+ox, y: Math.round(Z/WORLD_SCALE)+oy }; }
 
-/* ============= Procedural Models V2 ============= */
-// front = +Z, 原点は地面上。屋根の上下を修正済みの gable().
-const PM2 = (() => {
-  const MAT = {
-    wood:     new THREE.MeshStandardMaterial({ color: 0x8a5a2b, roughness: 0.75 }),
-    darkWood: new THREE.MeshStandardMaterial({ color: 0x5b3a1f, roughness: 0.80 }),
-    paper:    new THREE.MeshStandardMaterial({ color: 0xf3f0e6, roughness: 0.90, transparent:true, opacity:0.95 }),
-    roof:     new THREE.MeshStandardMaterial({ color: 0x4a5055, roughness: 0.60 }),
-    tile:     new THREE.MeshStandardMaterial({ color: 0x3f454a, roughness: 0.55 }),
-    stone:    new THREE.MeshStandardMaterial({ color: 0xb9b7b3, roughness: 0.90 }),
-    copper:   new THREE.MeshStandardMaterial({ color: 0x6e8b74, roughness: 0.45, metalness:0.35 }),
-    sign:     new THREE.MeshStandardMaterial({ color: 0xd9c7a3, roughness: 0.80 }),
-    red:      new THREE.MeshStandardMaterial({ color: 0xc42727, roughness: 0.75 }),
-    gold:     new THREE.MeshStandardMaterial({ color: 0xb99a3a, roughness: 0.40, metalness:0.80 }),
-    white:    new THREE.MeshStandardMaterial({ color: 0xf5f5f2, roughness: 0.90 }),
-    black:    new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.90 })
-  };
-  const addBox=(g,w,h,d,m,x=0,y=0,z=0,rx=0,ry=0,rz=0)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.rotation.set(rx,ry,rz);g.add(o);return o;}
-  const addCyl=(g,rt,rb,h,s,m,x=0,y=0,z=0)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,s),m);o.position.set(x,y,z);g.add(o);return o;}
-
-  // ★屋根（上下逆修正済み）：棟を原点にし、前(+Z)が+pitch、後(-Z)が -pitch
-  const gable = (W=1.1, D=0.8, R=0.28, OH=0.08, T=0.04) => {
-    const g = new THREE.Group();
-    const halfD = D/2;
-    const pitch = Math.atan2(R, halfD);
-    const plateDeep = halfD + OH;
-    const plateW = W + OH*2;
-
-    // 前面板（+Z 側）は +pitch
-    const geoF = new THREE.BoxGeometry(plateW, T, plateDeep);
-    geoF.translate(0, 0,  plateDeep/2);
-    const front = new THREE.Mesh(geoF, MAT.roof);
-    front.rotation.x = +pitch;
-    g.add(front);
-
-    // 背面板（-Z 側）は -pitch
-    const geoB = new THREE.BoxGeometry(plateW, T, plateDeep);
-    geoB.translate(0, 0, -plateDeep/2);
-    const back = new THREE.Mesh(geoB, MAT.roof);
-    back.rotation.x = -pitch;
-    g.add(back);
-
-    // 棟瓦
-    const ridge = new THREE.Mesh(new THREE.BoxGeometry(W*0.92, T*1.2, 0.06), MAT.tile);
-    ridge.position.set(0, T/2, 0);
-    g.add(ridge);
-
-    setShadowAll(g);
-    return g; // 原点は棟
-  };
-
-  const shoji=(W=0.6,H=0.4,T=0.02,c=4,r=3)=>{
-    const g=new THREE.Group();
-    addBox(g,W,0.02,T,MAT.darkWood,0,H/2,0); addBox(g,W,0.02,T,MAT.darkWood,0,0,0);
-    addBox(g,0.02,H,T,MAT.darkWood,-W/2,H/2,0); addBox(g,0.02,H,T,MAT.darkWood,W/2,H/2,0);
-    addBox(g,W-0.04,H-0.04,T-0.01,MAT.paper,0,H/2,-0.001);
-    for(let i=1;i<c;i++) addBox(g,0.01,H-0.05,T,MAT.darkWood,-W/2+W*i/c,H/2,0);
-    for(let i=1;i<r;i++) addBox(g,W-0.05,0.01,T,MAT.darkWood,0,H*i/r,0);
-    return g;
-  };
-
-  function house(){
-    const g=new THREE.Group();
-    addBox(g,0.92,0.06,0.92,MAT.stone,0,0.03,0);
-    addBox(g,0.80,0.45,0.70,MAT.wood,0,0.28,0);
-    const p=0.05,h=0.5,x=0.38,z=0.32;
-    [[ x, z],[-x, z],[ x,-z],[-x,-z]].forEach(([px,pz])=>addBox(g,p,h,p,MAT.darkWood,px,h/2,pz));
-    const s=shoji(0.5,0.28,0.02); s.position.set(0,0.35,0.36); g.add(s);
-    const L=shoji(0.22,0.32,0.02); L.position.set(-0.28,0.33,0.36);
-    const R=shoji(0.22,0.32,0.02); R.position.set( 0.28,0.33,0.36); g.add(L,R);
-    const r = gable(1.0,0.86,0.28,0.08); r.position.y = 0.45+0.02; g.add(r);
-    setShadowAll(g); g.scale.set(0.95,0.95,0.95);
-    return g;
-  }
-  function shop(){
-    const g=new THREE.Group();
-    addBox(g,0.96,0.04,0.96,MAT.stone,0,0.02,0);
-    addBox(g,0.90,0.50,0.78,MAT.wood,0,0.30,0);
-    for(let i=-4;i<=4;i++) addBox(g,0.015,0.32,0.03,MAT.darkWood,i*0.09,0.30,0.39);
-    addBox(g,0.86,0.02,0.03,MAT.darkWood,0,0.46,0.39);
-    addBox(g,0.86,0.02,0.03,MAT.darkWood,0,0.14,0.39);
-    for(let i=-1;i<=1;i++) addBox(g,0.22,0.14,0.01,MAT.sign,i*0.22*1.02,0.42,0.41);
-    addBox(g,0.36,0.08,0.04,MAT.sign,0,0.58,0.35);
-    const r = gable(1.06,0.94,0.30,0.10); r.position.y = 0.50+0.02; g.add(r);
-    setShadowAll(g); g.scale.set(0.95,0.95,0.95);
-    return g;
-  }
-  function shrine(){
-    const g=new THREE.Group();
-    addBox(g,0.98,0.04,0.98,MAT.stone,0,0.02,0);
-    addBox(g,0.70,0.42,0.55,MAT.wood,0,0.26,-0.05);
-    addBox(g,0.50,0.26,0.30,MAT.darkWood,0,0.39,-0.06);
-    addBox(g,0.24,0.12,0.20,MAT.darkWood,0,0.10,0.22);
-    const door=shoji(0.46,0.26,0.02); door.position.set(0,0.36,0.27); g.add(door);
-    const r = gable(0.90,0.76,0.30,0.10); r.traverse(n=>{ if(n.isMesh) n.material = MAT.copper; }); r.position.y = 0.42+0.26+0.02; g.add(r);
-    // 鳥居（前方 +Z）
-    addCyl(g,0.04,0.04,0.42,16,MAT.red,-0.22,0.21,0.45);
-    addCyl(g,0.04,0.04,0.42,16,MAT.red, 0.22,0.21,0.45);
-    addBox(g,0.50,0.04,0.06,MAT.red,0,0.36,0.45);
-    addBox(g,0.66,0.05,0.08,MAT.red,0,0.42,0.45);
-    setShadowAll(g); g.scale.set(0.95,0.95,0.95);
-    return g;
-  }
-  function castle(){
-    const g=new THREE.Group();
-    const ish=new THREE.Mesh(new THREE.CylinderGeometry(0.52,0.74,0.24,4), new THREE.MeshStandardMaterial({color:0xb9b7b3,roughness:0.9}));
-    ish.rotation.y=Math.PI/4; ish.position.y=0.12; g.add(ish);
-    addBox(g,0.90,0.04,0.90,new THREE.MeshStandardMaterial({color:0xb9b7b3,roughness:0.9}),0,0.26,0);
-    const floors=[{w:0.78,d:0.64,h:0.26},{w:0.62,d:0.50,h:0.24},{w:0.48,d:0.38,h:0.22}];
-    let y=0.28;
-    floors.forEach(f=>{
-      addBox(g,f.w,f.h,f.d,new THREE.MeshStandardMaterial({color:0xf5f5f2,roughness:0.9}),0,y+f.h/2,0);
-      addBox(g,0.06,0.02,0.01,new THREE.MeshStandardMaterial({color:0x222222,roughness:0.9}),0,y+f.h*0.55, f.d/2+0.001);
-      addBox(g,0.06,0.02,0.01,new THREE.MeshStandardMaterial({color:0x222222,roughness:0.9}),0,y+f.h*0.55,-f.d/2-0.001);
-      const r = gable(f.w+0.16,f.d+0.16,0.24,0.08); r.position.y = y + f.h + 0.02; g.add(r);
-      y += f.h + 0.26;
-    });
-    addBox(g,0.06,0.08,0.06,new THREE.MeshStandardMaterial({color:0xb99a3a,roughness:0.4,metalness:0.8}),  floors[2].w/2-0.08, y-0.12, 0);
-    addBox(g,0.06,0.08,0.06,new THREE.MeshStandardMaterial({color:0xb99a3a,roughness:0.4,metalness:0.8}), -floors[2].w/2+0.08, y-0.12, 0);
-    setShadowAll(g); g.scale.set(0.95,0.95,0.95);
-    return g;
-  }
-  return { house, shop, shrine, castle };
-})();
-
-function buildProcV2(type){
-  if (type==="house")  return PM2.house();
-  if (type==="shop")   return PM2.shop();
-  if (type==="temple") return PM2.shrine();
-  if (type==="castle") return PM2.castle();
-  return null;
+function gridToWorld(x, y){
+  const ox = Math.floor(COLS/2), oy = Math.floor(ROWS/2);
+  return new THREE.Vector3((x-ox)*WORLD_SCALE, 0, (y-oy)*WORLD_SCALE);
+}
+function worldToGrid(X,Z){
+  const ox = Math.floor(COLS/2), oy = Math.floor(ROWS/2);
+  return { x: Math.round(X/WORLD_SCALE)+ox, y: Math.round(Z/WORLD_SCALE)+oy };
 }
 
-/* ============= GLB パス（外部モデル使う場合） ============= */
-const MODEL_URLS = {
-  house:null, shop:null, temple:null, castle:null,
-  tree:"models/tree.glb", field:"models/field.glb", water:"models/water.glb",
-  road:"models/road.glb", bridge:"models/bridge.glb", school:"models/school.glb"
-};
-
-/* ============= Fallback Box ============= */
-function fallbackMesh(type, big=false){
-  const s = big ? 1.6 : 0.9;
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(s, s, s),
-                              new THREE.MeshStandardMaterial({ color: 0x2ecc71, metalness:0.1, roughness:0.8 }));
-  mesh.position.y = s/2;
-  setShadowAll(mesh, true, true);
-  return mesh;
-}
-
-/* ============= レンダラ初期化（地面＝野原） ============= */
 function ensureRenderer(){
   if(renderer) return;
   const w = townEl.clientWidth, h = townEl.clientHeight;
@@ -1502,39 +1205,31 @@ function ensureRenderer(){
   townEl.style.position = "relative";
   townEl.appendChild(renderer.domElement);
 
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  scene = new THREE.Scene();
 
-  scene  = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(50, w/h, 0.1, 1000);
 
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.06;
 
+  // ★ 盤面中央を注視（最重要）
   const center = gridToWorld(Math.floor(COLS/2), Math.floor(ROWS/2));
   controls.target.copy(center);
   camera.position.set(center.x + 15, 18, center.z + 22);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-  const dir = new THREE.DirectionalLight(0xffffff, 1.1);
+  scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+  const dir = new THREE.DirectionalLight(0xffffff, 1.2);
   dir.position.set(10, 20, 10);
-  dir.castShadow = true;
-  dir.shadow.mapSize.set(2048, 2048);
-  dir.shadow.camera.near = 1;
-  dir.shadow.camera.far  = 80;
   scene.add(dir);
 
-  // 野原（やわらかいグリーン）＆影を受ける
-  const groundGeo = new THREE.PlaneGeometry(100, 100);
-  const groundMat = new THREE.MeshStandardMaterial({ color: 0xa7d67c, roughness: 1.0 });
-  ground = new THREE.Mesh(groundGeo, groundMat);
+  const plane = new THREE.PlaneGeometry(100, 100);
+  const pm = new THREE.MeshBasicMaterial({ color: 0xd7f4d2, side: THREE.DoubleSide });
+  ground = new THREE.Mesh(plane, pm);
   ground.rotation.x = -Math.PI/2;
   ground.name = "ground";
-  ground.receiveShadow = true;
   scene.add(ground);
 
-  // 薄いグリッド（目安）
   grid = new THREE.GridHelper(100, 100, 0x000000, 0x000000);
   grid.material.opacity = 0.08;
   grid.material.transparent = true;
@@ -1543,8 +1238,6 @@ function ensureRenderer(){
   loader = new GLTFLoader();
 
   renderer.setAnimationLoop(()=>{ controls.update(); renderer.render(scene, camera); });
-  controls.minPolarAngle = 0.1;
-  controls.maxPolarAngle = Math.PI / 2.02;
 
   new ResizeObserver(()=>{
     const w2 = townEl.clientWidth, h2 = townEl.clientHeight;
@@ -1555,13 +1248,50 @@ function ensureRenderer(){
 }
 ensureRenderer();
 
-/* ============= 配置プレビュー ============= */
+// 任意のモデルURL（なくてもOK）
+const MODEL_URLS = {
+  house:"/models/house.glb", shop:"/models/shop.glb", castle:"/models/castle.glb",
+  temple:"/models/temple.glb", tree:"/models/tree.glb", field:"/models/field.glb",
+  water:"/models/water.glb", road:"/models/road.glb", bridge:"/models/bridge.glb",
+  school:"/models/school.glb",
+};
+
+// ★ 見逃しようがないデカめフォールバック
+function fallbackMesh(type, big=false){
+  const s = big ? 1.6 : 0.9;
+  const g = new THREE.BoxGeometry(s, s, s);
+  const m = new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x0, metalness:0.1, roughness:0.8 });
+  const mesh = new THREE.Mesh(g, m);
+  mesh.position.y = s/2;
+  return mesh;
+}
+
+async function place3D({id, type, x, y, rot=0}){
+  const pos = gridToWorld(x, y);
+  let obj; const url = MODEL_URLS[type];
+  if(url){
+    try { const gltf = await loader.loadAsync(url); obj = gltf.scene; obj.scale.set(0.8,0.8,0.8); }
+    catch { obj = fallbackMesh(type); }
+  }else{
+    obj = fallbackMesh(type);
+  }
+  obj.position.copy(pos);
+  obj.rotation.y = (rot/90) * Math.PI/2;
+  obj.userData.id = id || null;
+  obj.userData.rot = rot || 0;
+  scene.add(obj);
+  placed3D.push(obj);
+}
+
+function clear3D(){ placed3D.forEach(o=>scene.remove(o)); placed3D = []; }
+
+// ========= 配置モード =========
 let placing=false, preview=null, placeType=null, placeRot=0;
 let occSet = new Set();
-const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
+const raycaster=new THREE.Raycaster(), pointer=new THREE.Vector2();
 let hoverCell = {x:-1,y:-1};
-const okMat = new THREE.MeshBasicMaterial({ color:0x2e7d32, transparent:true, opacity:0.5 });
-const ngMat = new THREE.MeshBasicMaterial({ color:0xc62828, transparent:true, opacity:0.5 });
+const okMat=new THREE.MeshBasicMaterial({ color:0x2e7d32, transparent:true, opacity:0.5 });
+const ngMat=new THREE.MeshBasicMaterial({ color:0xc62828, transparent:true, opacity:0.5 });
 
 function setPointerFromEvent(ev){
   const rect = renderer.domElement.getBoundingClientRect();
@@ -1577,25 +1307,56 @@ function pickOnGround(ev){
   return { cell: worldToGrid(hit.point.x, hit.point.z) };
 }
 function cellValid(x,y){ return (x>=0 && y>=0 && x<COLS && y<ROWS) && !occSet.has(`${x},${y}`); }
-function applyTint(obj,mat){ obj.traverse?.(n=>{ if(n.isMesh){ if(!n.userData._origMat) n.userData._origMat=n.material; n.material=mat; }}); }
-function restoreTint(obj){ obj.traverse?.(n=>{ if(n.isMesh && n.userData._origMat){ n.material=n.userData._origMat; delete n.userData._origMat; }}); }
+
+function applyTint(obj,mat){
+  obj.traverse?.(n=>{
+    if(n.isMesh){
+      if(!n.userData._origMat) n.userData._origMat = n.material;
+      n.material = mat;
+    }
+  });
+}
+function restoreTint(obj){
+  obj.traverse?.(n=>{
+    if(n.isMesh && n.userData._origMat){ n.material = n.userData._origMat; delete n.userData._origMat; }
+  });
+}
 
 async function ensurePreview(){
   if (preview) return preview;
+  // まずは超見やすいフォールバックを即出す
   preview = fallbackMesh(placeType, true);
   preview.renderOrder = 999;
   scene.add(preview);
+
+  // GLBがあれば差し替え（任意）
+  const url = MODEL_URLS[placeType];
+  if (url) {
+    try{
+      const gltf = await loader.loadAsync(url);
+      const real = gltf.scene;
+      real.scale.set(0.8,0.8,0.8);
+      real.position.copy(preview.position);
+      real.rotation.copy(preview.rotation);
+      scene.add(real);
+      scene.remove(preview);
+      preview = real;
+    }catch(e){
+      // そのままフォールバック継続
+    }
+  }
   return preview;
 }
 function setPreviewAtCell(cell){
   hoverCell = cell;
   const pos = gridToWorld(cell.x, cell.y);
   preview.position.copy(pos);
-  preview.rotation.y = getYawBase(placeType) + (placeRot/90) * Math.PI/2;
+  preview.rotation.y = (placeRot/90) * Math.PI/2;
   const valid = cellValid(cell.x, cell.y);
   restoreTint(preview);
   applyTint(preview, valid ? okMat : ngMat);
 }
+
 function endPlacement(){
   placing=false; placeType=null; placeRot=0; occSet.clear();
   if(preview){ scene.remove(preview); preview=null; }
@@ -1603,41 +1364,24 @@ function endPlacement(){
   controls.enabled = true;
 }
 
-/* ============= 追加・削除ハンドラ & 1点配置 ============= */
-function clear3D(){ placed3D.forEach(o=>scene.remove(o)); placed3D = []; }
+// ========= Main ↔ Three.js 連携 =========
 document.addEventListener("city:add",   (ev)=>{ place3D(ev.detail); });
 document.addEventListener("city:reset", ()=>{ clear3D(); });
 
-async function place3D({id, type, x, y, rot=0}){
-  const pos = gridToWorld(x, y);
-  let obj = buildProcV2(type);
-  if (!obj) {
-    const url = MODEL_URLS[type];
-    if (url) {
-      try { const gltf = await loader.loadAsync(url); obj = gltf.scene; obj.scale.set(0.8,0.8,0.8); }
-      catch { obj = fallbackMesh(type); }
-    } else {
-      obj = fallbackMesh(type);
-    }
-  }
-  setShadowAll(obj, true, true);
-  obj.position.copy(pos);
-  obj.userData = { id: id || null, rot, type };
-  obj.rotation.y = getYawBase(type) + (rot/90) * Math.PI/2;
-  scene.add(obj);
-  placed3D.push(obj);
-}
-
-/* ============= 配置フロー ============= */
+// 配置開始
 document.addEventListener("placement:start", async (ev)=>{
   const { type, cols, rows, occupied=[] } = ev.detail || {};
   COLS = cols ?? COLS; ROWS = rows ?? ROWS;
+
   placing = true; placeType = type; placeRot = 0;
   occSet = new Set(occupied.map(([x,y]) => `${x},${y}`));
+
   controls.enabled = false;
   renderer.domElement.style.cursor = "crosshair";
+
   await ensurePreview();
 
+  // 中央 or 近傍の空きマスを必ず見つける
   const center = { x: Math.floor(COLS/2), y: Math.floor(ROWS/2) };
   const isFree = (c)=> c.x>=0 && c.y>=0 && c.x<COLS && c.y<ROWS && !occSet.has(`${c.x},${c.y}`);
   let init = center;
@@ -1652,31 +1396,26 @@ document.addEventListener("placement:start", async (ev)=>{
     }
   }
   setPreviewAtCell(init);
+
+  // ★ カメラをプレビューに寄せる（ここがキモ）
   const t = gridToWorld(init.x, init.y);
   controls.target.copy(t);
   camera.position.set(t.x + 15, 18, t.z + 22);
   controls.update();
 });
+
+// 配置終了/キャンセル/回転
 document.addEventListener("placement:end",   ()=> endPlacement());
 document.addEventListener("placement:cancel",()=> endPlacement());
 document.addEventListener("placement:rotate",()=>{ if(!placing) return; placeRot=(placeRot+90)%360; if(preview && hoverCell){ setPreviewAtCell(hoverCell); } });
-document.addEventListener("placement:nudge", (ev)=>{
-  if(!placing || !hoverCell) return;
-  const {dx=0, dy=0} = ev.detail || {};
-  const nx = clamp(hoverCell.x + dx, 0, COLS-1);
-  const ny = clamp(hoverCell.y + dy, 0, ROWS-1);
-  setPreviewAtCell({x:nx, y:ny});
-});
-document.addEventListener("placement:ok", ()=>{
-  if(!placing || !hoverCell) return;
-  const {x,y} = hoverCell;
-  if(!cellValid(x,y)) return;
-  document.dispatchEvent(new CustomEvent("placement:confirm", { detail: { type: placeType, x, y, rot: placeRot }}));
-  endPlacement();
-});
 
-/* ============= 入力 ============= */
-renderer.domElement.addEventListener("pointermove", (ev)=>{ if(!placing) return; const r = pickOnGround(ev); if(!r) return; setPreviewAtCell(r.cell); }, { passive:true });
+// 入力
+renderer.domElement.addEventListener("pointermove", (ev)=>{
+  if(!placing) return;
+  const r = pickOnGround(ev); if(!r) return;
+  setPreviewAtCell(r.cell);
+}, { passive:true });
+
 function tryPlace(ev){
   if(!placing) return;
   const r = pickOnGround(ev); if(!r) return;
@@ -1685,49 +1424,37 @@ function tryPlace(ev){
   document.dispatchEvent(new CustomEvent("placement:confirm",{ detail:{ type:placeType, x, y, rot:placeRot }}));
   endPlacement();
 }
-renderer.domElement.addEventListener("pointerdown", (ev)=>{ if(placing && ev.button===2){ ev.preventDefault(); document.dispatchEvent(new Event("placement:cancel")); endPlacement(); }});
+renderer.domElement.addEventListener("pointerdown", (ev)=>{
+  if(placing && ev.button===2){ ev.preventDefault(); document.dispatchEvent(new Event("placement:cancel")); endPlacement(); }
+});
 renderer.domElement.addEventListener("click", tryPlace, { passive:false });
 renderer.domElement.addEventListener("touchstart", (e)=>{ tryPlace(e); }, { passive:false });
-renderer.domElement.addEventListener("contextmenu", (e)=>{ if(placing){ e.preventDefault(); }});
+renderer.domElement.addEventListener("contextmenu", (e)=>{ if(placing){ e.preventDefault(); } });
 
-/* ============= 設置後 回転（ダブルタップ/ダブルクリック） ============= */
+// 設置後の回転（ダブルクリック/ダブルタップ）
 let lastTap=0; const dblTapGap=300;
 renderer.domElement.addEventListener("pointerdown", (ev)=>{
   if(placing) return;
   const now=performance.now(); const isDouble=(now-lastTap)<dblTapGap; lastTap=now;
   if(!isDouble) return;
+
   const ray=new THREE.Raycaster();
   const rect = renderer.domElement.getBoundingClientRect();
   const cx = ((ev.clientX ?? (ev.touches?.[0]?.clientX || 0)) - rect.left) / rect.width;
   const cy = ((ev.clientY ?? (ev.touches?.[0]?.clientY || 0)) - rect.top) / rect.height;
   const p = new THREE.Vector2(cx*2-1, -(cy*2-1));
   ray.setFromCamera(p, camera);
+
   const hits = ray.intersectObjects(placed3D, true); if(!hits.length) return;
   let hit = hits[0].object; while(hit && !placed3D.includes(hit)) hit = hit.parent; if(!hit) return;
-  const cur = (hit.userData.rot || 0);
-  const next = (cur + 90) % 360;
-  hit.userData.rot = next;
-  const base = getYawBase(hit.userData.type || "");
-  hit.rotation.y = base + (next/90) * Math.PI/2;
+
+  const cur = (hit.userData.rot || 0); const next=(cur+90)%360;
+  hit.userData.rot = next; hit.rotation.y = (next/90) * Math.PI/2;
   if(hit.userData.id){ document.dispatchEvent(new CustomEvent("edit:rotate",{ detail:{ id: hit.userData.id, rot: next }})); }
 });
 </script>
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

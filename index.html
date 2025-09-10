@@ -1321,25 +1321,15 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-// 建物の基準ヨー角（正面は +Z）
+/* ============= 共通ユーティリティ ============= */
+// 正面は +Z を向く想定（必要なら型ごとに基準ヨー角を変える）
 function getYawBase(type){
-  const map = { house: 0, shop: 0, temple: 0, castle: 0 };
+  const map = { house:0, shop:0, temple:0, castle:0 };
   return map[type] ?? 0;
 }
-// 影ON/OFFを一括設定（グローバル版）
 function setShadowAll(obj, cast=true, receive=true){
-  obj.traverse?.(n=>{
-    if(n.isMesh){
-      n.castShadow   = cast;
-      n.receiveShadow= receive;
-    }
-  });
+  obj.traverse?.(n => { if(n.isMesh){ n.castShadow = cast; n.receiveShadow = receive; }});
 }
-
-
-
-
-/* ================= ユーティリティ ================ */
 const townEl = document.getElementById("town");
 let renderer, scene, camera, controls, loader, ground, grid;
 let placed3D = [];
@@ -1349,32 +1339,57 @@ const clamp = (v,min,max)=> Math.max(min, Math.min(max,v));
 function gridToWorld(x, y){ const ox=Math.floor(COLS/2), oy=Math.floor(ROWS/2); return new THREE.Vector3((x-ox)*WORLD_SCALE, 0, (y-oy)*WORLD_SCALE); }
 function worldToGrid(X,Z){ const ox=Math.floor(COLS/2), oy=Math.floor(ROWS/2); return { x: Math.round(X/WORLD_SCALE)+ox, y: Math.round(Z/WORLD_SCALE)+oy }; }
 
-  // ===== Procedural Models V2 (front = +Z, origin on ground) =====
+/* ============= Procedural Models V2 ============= */
+// front = +Z, 原点は地面上。屋根の上下を修正済みの gable().
 const PM2 = (() => {
   const MAT = {
     wood:     new THREE.MeshStandardMaterial({ color: 0x8a5a2b, roughness: 0.75 }),
-    darkWood: new THREE.MeshStandardMaterial({ color: 0x5b3a1f, roughness: 0.8  }),
-    paper:    new THREE.MeshStandardMaterial({ color: 0xf3f0e6, roughness: 0.9, transparent:true, opacity:0.95 }),
-    roof:     new THREE.MeshStandardMaterial({ color: 0x4a5055, roughness: 0.6  }),
+    darkWood: new THREE.MeshStandardMaterial({ color: 0x5b3a1f, roughness: 0.80 }),
+    paper:    new THREE.MeshStandardMaterial({ color: 0xf3f0e6, roughness: 0.90, transparent:true, opacity:0.95 }),
+    roof:     new THREE.MeshStandardMaterial({ color: 0x4a5055, roughness: 0.60 }),
     tile:     new THREE.MeshStandardMaterial({ color: 0x3f454a, roughness: 0.55 }),
-    stone:    new THREE.MeshStandardMaterial({ color: 0xb9b7b3, roughness: 0.9  }),
+    stone:    new THREE.MeshStandardMaterial({ color: 0xb9b7b3, roughness: 0.90 }),
     copper:   new THREE.MeshStandardMaterial({ color: 0x6e8b74, roughness: 0.45, metalness:0.35 }),
-    sign:     new THREE.MeshStandardMaterial({ color: 0xd9c7a3, roughness: 0.8  }),
+    sign:     new THREE.MeshStandardMaterial({ color: 0xd9c7a3, roughness: 0.80 }),
     red:      new THREE.MeshStandardMaterial({ color: 0xc42727, roughness: 0.75 }),
-    gold:     new THREE.MeshStandardMaterial({ color: 0xb99a3a, roughness: 0.4,  metalness:0.8 }),
-    white:    new THREE.MeshStandardMaterial({ color: 0xf5f5f2, roughness: 0.9  }),
-    black:    new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9  })
+    gold:     new THREE.MeshStandardMaterial({ color: 0xb99a3a, roughness: 0.40, metalness:0.80 }),
+    white:    new THREE.MeshStandardMaterial({ color: 0xf5f5f2, roughness: 0.90 }),
+    black:    new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.90 })
   };
   const addBox=(g,w,h,d,m,x=0,y=0,z=0,rx=0,ry=0,rz=0)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.rotation.set(rx,ry,rz);g.add(o);return o;}
   const addCyl=(g,rt,rb,h,s,m,x=0,y=0,z=0)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,s),m);o.position.set(x,y,z);g.add(o);return o;}
-  const setShadowAll=(o)=>o.traverse?.(n=>{if(n.isMesh){n.castShadow=n.receiveShadow=true;}})
-  const gable=(W=1.1,D=0.8,H=0.28,OH=0.08)=>{
-    const g=new THREE.Group(), pitch=Math.atan2(H,D/2), t=0.04, pD=D/2+OH, pW=W+OH*2;
-    const a=addBox(g,pW,t,pD,MAT.roof,0,H,-D/4); a.rotation.x=pitch;
-    const b=addBox(g,pW,t,pD,MAT.roof,0,H, D/4); b.rotation.x=-pitch;
-    addBox(g,W*0.92,0.05,0.06,MAT.tile,0,H+0.03,0);
-    return g;
+
+  // ★屋根（上下逆修正済み）：棟を原点にし、前(+Z)が+pitch、後(-Z)が -pitch
+  const gable = (W=1.1, D=0.8, R=0.28, OH=0.08, T=0.04) => {
+    const g = new THREE.Group();
+    const halfD = D/2;
+    const pitch = Math.atan2(R, halfD);
+    const plateDeep = halfD + OH;
+    const plateW = W + OH*2;
+
+    // 前面板（+Z 側）は +pitch
+    const geoF = new THREE.BoxGeometry(plateW, T, plateDeep);
+    geoF.translate(0, 0,  plateDeep/2);
+    const front = new THREE.Mesh(geoF, MAT.roof);
+    front.rotation.x = +pitch;
+    g.add(front);
+
+    // 背面板（-Z 側）は -pitch
+    const geoB = new THREE.BoxGeometry(plateW, T, plateDeep);
+    geoB.translate(0, 0, -plateDeep/2);
+    const back = new THREE.Mesh(geoB, MAT.roof);
+    back.rotation.x = -pitch;
+    g.add(back);
+
+    // 棟瓦
+    const ridge = new THREE.Mesh(new THREE.BoxGeometry(W*0.92, T*1.2, 0.06), MAT.tile);
+    ridge.position.set(0, T/2, 0);
+    g.add(ridge);
+
+    setShadowAll(g);
+    return g; // 原点は棟
   };
+
   const shoji=(W=0.6,H=0.4,T=0.02,c=4,r=3)=>{
     const g=new THREE.Group();
     addBox(g,W,0.02,T,MAT.darkWood,0,H/2,0); addBox(g,W,0.02,T,MAT.darkWood,0,0,0);
@@ -1389,12 +1404,12 @@ const PM2 = (() => {
     const g=new THREE.Group();
     addBox(g,0.92,0.06,0.92,MAT.stone,0,0.03,0);
     addBox(g,0.80,0.45,0.70,MAT.wood,0,0.28,0);
-    const p=0.05,h=0.5,x=0.38,z=0.32; // 柱
-    [[ x, z],[ -x, z],[ x,-z],[-x,-z]].forEach(([px,pz])=>addBox(g,p,h,p,MAT.darkWood,px,h/2,pz));
+    const p=0.05,h=0.5,x=0.38,z=0.32;
+    [[ x, z],[-x, z],[ x,-z],[-x,-z]].forEach(([px,pz])=>addBox(g,p,h,p,MAT.darkWood,px,h/2,pz));
     const s=shoji(0.5,0.28,0.02); s.position.set(0,0.35,0.36); g.add(s);
     const L=shoji(0.22,0.32,0.02); L.position.set(-0.28,0.33,0.36);
     const R=shoji(0.22,0.32,0.02); R.position.set( 0.28,0.33,0.36); g.add(L,R);
-    g.add(gable(1.0,0.86,0.28,0.08));
+    const r = gable(1.0,0.86,0.28,0.08); r.position.y = 0.45+0.02; g.add(r);
     setShadowAll(g); g.scale.set(0.95,0.95,0.95);
     return g;
   }
@@ -1407,7 +1422,7 @@ const PM2 = (() => {
     addBox(g,0.86,0.02,0.03,MAT.darkWood,0,0.14,0.39);
     for(let i=-1;i<=1;i++) addBox(g,0.22,0.14,0.01,MAT.sign,i*0.22*1.02,0.42,0.41);
     addBox(g,0.36,0.08,0.04,MAT.sign,0,0.58,0.35);
-    g.add(gable(1.06,0.94,0.30,0.10));
+    const r = gable(1.06,0.94,0.30,0.10); r.position.y = 0.50+0.02; g.add(r);
     setShadowAll(g); g.scale.set(0.95,0.95,0.95);
     return g;
   }
@@ -1418,7 +1433,7 @@ const PM2 = (() => {
     addBox(g,0.50,0.26,0.30,MAT.darkWood,0,0.39,-0.06);
     addBox(g,0.24,0.12,0.20,MAT.darkWood,0,0.10,0.22);
     const door=shoji(0.46,0.26,0.02); door.position.set(0,0.36,0.27); g.add(door);
-    const roof=gable(0.90,0.76,0.30,0.10); roof.traverse(n=>{if(n.isMesh)n.material=MAT.copper}); g.add(roof);
+    const r = gable(0.90,0.76,0.30,0.10); r.traverse(n=>{ if(n.isMesh) n.material = MAT.copper; }); r.position.y = 0.42+0.26+0.02; g.add(r);
     // 鳥居（前方 +Z）
     addCyl(g,0.04,0.04,0.42,16,MAT.red,-0.22,0.21,0.45);
     addCyl(g,0.04,0.04,0.42,16,MAT.red, 0.22,0.21,0.45);
@@ -1427,50 +1442,28 @@ const PM2 = (() => {
     setShadowAll(g); g.scale.set(0.95,0.95,0.95);
     return g;
   }
-function castle(){
-  const g=new THREE.Group();
-  const white=MAT.white, black=MAT.black;
-
-  // 石垣
-  const ish=new THREE.Mesh(new THREE.CylinderGeometry(0.52,0.74,0.24,4), MAT.stone);
-  ish.rotation.y=Math.PI/4; ish.position.y=0.12; g.add(ish);
-
-  // 平場
-  addBox(g,0.90,0.04,0.90,MAT.stone,0,0.26,0);
-
-  // 各層
-  const floors=[{w:0.78,d:0.64,h:0.26},{w:0.62,d:0.50,h:0.24},{w:0.48,d:0.38,h:0.22}];
-  let y=0.28; // 1層目の床から開始
-
-  floors.forEach((f,i)=>{
-    // 本体
-    addBox(g,f.w,f.h,f.d,white,0,y+f.h/2,0);
-
-    // 狭間（小窓）
-    addBox(g,0.06,0.02,0.01,black,0,y+f.h*0.55, f.d/2+0.001);
-    addBox(g,0.06,0.02,0.01,black,0,y+f.h*0.55,-f.d/2-0.001);
-
-    // 屋根（すぐ上に載せる）
-    const r=gable(f.w+0.16,f.d+0.16,0.18,0.06);
-    r.position.y=y+f.h;  // ←ここで床＋高さのすぐ上に載せる
-    g.add(r);
-
-    y += f.h; // 階高だけ積み上げる
-  });
-
-  // 金鯱
-  addBox(g,0.06,0.08,0.06,MAT.gold, floors[2].w/2-0.08, y+0.02, 0);
-  addBox(g,0.06,0.08,0.06,MAT.gold,-floors[2].w/2+0.08, y+0.02, 0);
-
-  setShadowAll(g); g.scale.set(0.95,0.95,0.95);
-  return g;
-}
-
-
+  function castle(){
+    const g=new THREE.Group();
+    const ish=new THREE.Mesh(new THREE.CylinderGeometry(0.52,0.74,0.24,4), new THREE.MeshStandardMaterial({color:0xb9b7b3,roughness:0.9}));
+    ish.rotation.y=Math.PI/4; ish.position.y=0.12; g.add(ish);
+    addBox(g,0.90,0.04,0.90,new THREE.MeshStandardMaterial({color:0xb9b7b3,roughness:0.9}),0,0.26,0);
+    const floors=[{w:0.78,d:0.64,h:0.26},{w:0.62,d:0.50,h:0.24},{w:0.48,d:0.38,h:0.22}];
+    let y=0.28;
+    floors.forEach(f=>{
+      addBox(g,f.w,f.h,f.d,new THREE.MeshStandardMaterial({color:0xf5f5f2,roughness:0.9}),0,y+f.h/2,0);
+      addBox(g,0.06,0.02,0.01,new THREE.MeshStandardMaterial({color:0x222222,roughness:0.9}),0,y+f.h*0.55, f.d/2+0.001);
+      addBox(g,0.06,0.02,0.01,new THREE.MeshStandardMaterial({color:0x222222,roughness:0.9}),0,y+f.h*0.55,-f.d/2-0.001);
+      const r = gable(f.w+0.16,f.d+0.16,0.24,0.08); r.position.y = y + f.h + 0.02; g.add(r);
+      y += f.h + 0.26;
+    });
+    addBox(g,0.06,0.08,0.06,new THREE.MeshStandardMaterial({color:0xb99a3a,roughness:0.4,metalness:0.8}),  floors[2].w/2-0.08, y-0.12, 0);
+    addBox(g,0.06,0.08,0.06,new THREE.MeshStandardMaterial({color:0xb99a3a,roughness:0.4,metalness:0.8}), -floors[2].w/2+0.08, y-0.12, 0);
+    setShadowAll(g); g.scale.set(0.95,0.95,0.95);
+    return g;
+  }
   return { house, shop, shrine, castle };
 })();
 
-// place3D で使う（GLBが無ければ V2 にフォールバック）
 function buildProcV2(type){
   if (type==="house")  return PM2.house();
   if (type==="shop")   return PM2.shop();
@@ -1479,35 +1472,24 @@ function buildProcV2(type){
   return null;
 }
 
-
-
-
-/* ================= GLB パス ================ */
+/* ============= GLB パス（外部モデル使う場合） ============= */
 const MODEL_URLS = {
-  house:  null,  // 自前プロシージャル
-  shop:   null,  // 自前プロシージャル
-  temple: null,  // 自前プロシージャル
-  castle: null,
-  tree:   "models/tree.glb",
-  field:  "models/field.glb",
-  water:  "models/water.glb",
-  road:   "models/road.glb",
-  bridge: "models/bridge.glb",
-  school: "models/school.glb"
+  house:null, shop:null, temple:null, castle:null,
+  tree:"models/tree.glb", field:"models/field.glb", water:"models/water.glb",
+  road:"models/road.glb", bridge:"models/bridge.glb", school:"models/school.glb"
 };
 
-/* ================= Fallback立方体 ================ */
+/* ============= Fallback Box ============= */
 function fallbackMesh(type, big=false){
   const s = big ? 1.6 : 0.9;
-  const g = new THREE.BoxGeometry(s, s, s);
-  const m = new THREE.MeshStandardMaterial({ color: 0x2ecc71, metalness:0.1, roughness:0.8 });
-  const mesh = new THREE.Mesh(g, m);
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(s, s, s),
+                              new THREE.MeshStandardMaterial({ color: 0x2ecc71, metalness:0.1, roughness:0.8 }));
   mesh.position.y = s/2;
   setShadowAll(mesh, true, true);
   return mesh;
 }
 
-/* ================= レンダラ初期化 ================ */
+/* ============= レンダラ初期化（地面＝野原） ============= */
 function ensureRenderer(){
   if(renderer) return;
   const w = townEl.clientWidth, h = townEl.clientHeight;
@@ -1534,8 +1516,8 @@ function ensureRenderer(){
   controls.target.copy(center);
   camera.position.set(center.x + 15, 18, center.z + 22);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 1.0));
-  const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+  const dir = new THREE.DirectionalLight(0xffffff, 1.1);
   dir.position.set(10, 20, 10);
   dir.castShadow = true;
   dir.shadow.mapSize.set(2048, 2048);
@@ -1543,14 +1525,16 @@ function ensureRenderer(){
   dir.shadow.camera.far  = 80;
   scene.add(dir);
 
+  // 野原（やわらかいグリーン）＆影を受ける
   const groundGeo = new THREE.PlaneGeometry(100, 100);
-  const groundMat = new THREE.MeshBasicMaterial({ color: 0xd7f4d2, side: THREE.FrontSide });
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0xa7d67c, roughness: 1.0 });
   ground = new THREE.Mesh(groundGeo, groundMat);
   ground.rotation.x = -Math.PI/2;
   ground.name = "ground";
   ground.receiveShadow = true;
   scene.add(ground);
 
+  // 薄いグリッド（目安）
   grid = new THREE.GridHelper(100, 100, 0x000000, 0x000000);
   grid.material.opacity = 0.08;
   grid.material.transparent = true;
@@ -1571,7 +1555,7 @@ function ensureRenderer(){
 }
 ensureRenderer();
 
-/* ================= プレビューと配置 ================ */
+/* ============= 配置プレビュー ============= */
 let placing=false, preview=null, placeType=null, placeRot=0;
 let occSet = new Set();
 const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
@@ -1603,10 +1587,6 @@ async function ensurePreview(){
   scene.add(preview);
   return preview;
 }
-  
-  
-
-
 function setPreviewAtCell(cell){
   hoverCell = cell;
   const pos = gridToWorld(cell.x, cell.y);
@@ -1623,43 +1603,32 @@ function endPlacement(){
   controls.enabled = true;
 }
 
-/* ================= 追加・削除ハンドラ ================ */
+/* ============= 追加・削除ハンドラ & 1点配置 ============= */
 function clear3D(){ placed3D.forEach(o=>scene.remove(o)); placed3D = []; }
 document.addEventListener("city:add",   (ev)=>{ place3D(ev.detail); });
 document.addEventListener("city:reset", ()=>{ clear3D(); });
 
-/* ================= 1箇所だけの place3D ================ */
 async function place3D({id, type, x, y, rot=0}){
   const pos = gridToWorld(x, y);
-  let obj = buildProcV2(type);           // ① まず自作PM2で作る
-
-  if (!obj) {                             // ② 無ければGLB or 立方体
+  let obj = buildProcV2(type);
+  if (!obj) {
     const url = MODEL_URLS[type];
     if (url) {
-      try {
-        const gltf = await loader.loadAsync(url);
-        obj = gltf.scene;
-        obj.scale.set(0.8, 0.8, 0.8);
-      } catch {
-        obj = fallbackMesh(type);
-      }
+      try { const gltf = await loader.loadAsync(url); obj = gltf.scene; obj.scale.set(0.8,0.8,0.8); }
+      catch { obj = fallbackMesh(type); }
     } else {
       obj = fallbackMesh(type);
     }
   }
-
   setShadowAll(obj, true, true);
   obj.position.copy(pos);
   obj.userData = { id: id || null, rot, type };
-  obj.rotation.y = getYawBase(type) + (rot/90) * Math.PI/2;  // ← 基準＋回転
-
+  obj.rotation.y = getYawBase(type) + (rot/90) * Math.PI/2;
   scene.add(obj);
   placed3D.push(obj);
 }
 
-
-
-/* ================= 配置フロー ================ */
+/* ============= 配置フロー ============= */
 document.addEventListener("placement:start", async (ev)=>{
   const { type, cols, rows, occupied=[] } = ev.detail || {};
   COLS = cols ?? COLS; ROWS = rows ?? ROWS;
@@ -1706,7 +1675,7 @@ document.addEventListener("placement:ok", ()=>{
   endPlacement();
 });
 
-/* ================= クリック入力 ================ */
+/* ============= 入力 ============= */
 renderer.domElement.addEventListener("pointermove", (ev)=>{ if(!placing) return; const r = pickOnGround(ev); if(!r) return; setPreviewAtCell(r.cell); }, { passive:true });
 function tryPlace(ev){
   if(!placing) return;
@@ -1721,7 +1690,7 @@ renderer.domElement.addEventListener("click", tryPlace, { passive:false });
 renderer.domElement.addEventListener("touchstart", (e)=>{ tryPlace(e); }, { passive:false });
 renderer.domElement.addEventListener("contextmenu", (e)=>{ if(placing){ e.preventDefault(); }});
 
-/* ================= 設置後の回転（ダブルタップ） ================ */
+/* ============= 設置後 回転（ダブルタップ/ダブルクリック） ============= */
 let lastTap=0; const dblTapGap=300;
 renderer.domElement.addEventListener("pointerdown", (ev)=>{
   if(placing) return;
@@ -1736,18 +1705,17 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
   const hits = ray.intersectObjects(placed3D, true); if(!hits.length) return;
   let hit = hits[0].object; while(hit && !placed3D.includes(hit)) hit = hit.parent; if(!hit) return;
   const cur = (hit.userData.rot || 0);
-const next = (cur + 90) % 360;
-hit.userData.rot = next;
-const base = getYawBase(hit.userData.type || "");
-hit.rotation.y = base + (next/90) * Math.PI/2;
-
+  const next = (cur + 90) % 360;
+  hit.userData.rot = next;
+  const base = getYawBase(hit.userData.type || "");
+  hit.rotation.y = base + (next/90) * Math.PI/2;
   if(hit.userData.id){ document.dispatchEvent(new CustomEvent("edit:rotate",{ detail:{ id: hit.userData.id, rot: next }})); }
 });
 </script>
 
-
 </body>
 </html>
+
 
 
 

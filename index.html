@@ -1321,17 +1321,21 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-  // 建物ごとの基準ヨー角（正面を+Zに合わせたい）
+// 建物の基準ヨー角（正面は +Z）
 function getYawBase(type){
-  // 自作プロシージャル系は+X向きで作っているので -90° 補正
- function getYawBase(type){
-  const map = {
-    house: 0, shop: 0, temple: 0, castle: 0,
-    // もし将来+X向きのGLBが混ざるなら、その型だけ -Math.PI/2 を設定
-    // exampleGLB: -Math.PI/2
-  };
+  const map = { house: 0, shop: 0, temple: 0, castle: 0 };
   return map[type] ?? 0;
 }
+// 影ON/OFFを一括設定（グローバル版）
+function setShadowAll(obj, cast=true, receive=true){
+  obj.traverse?.(n=>{
+    if(n.isMesh){
+      n.castShadow   = cast;
+      n.receiveShadow= receive;
+    }
+  });
+}
+
 
 
 
@@ -1724,6 +1728,7 @@ hit.rotation.y = base + (next/90) * Math.PI/2;
 
 </body>
 </html>
+
 
 
 

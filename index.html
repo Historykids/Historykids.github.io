@@ -1427,53 +1427,45 @@ const PM2 = (() => {
     setShadowAll(g); g.scale.set(0.95,0.95,0.95);
     return g;
   }
- // === 城（天守＋石垣） front = +Z / 原点=地面 ===
-function buildCastle(){
-  const g = new THREE.Group();
+function castle(){
+  const g=new THREE.Group();
+  const white=MAT.white, black=MAT.black;
 
-  const plaster   = new THREE.MeshStandardMaterial({ color: 0xf5f5f2, roughness: 0.9 });
-  const windowMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
-
-  // 石垣（四角錐台をCylinder(4角)で代用）
-  const ishigaki = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.52, 0.74, 0.24, 4),
-    MAT.stone
-  );
-  ishigaki.rotation.y = Math.PI/4;
-  ishigaki.position.y = 0.12;
-  g.add(ishigaki);
+  // 石垣
+  const ish=new THREE.Mesh(new THREE.CylinderGeometry(0.52,0.74,0.24,4), MAT.stone);
+  ish.rotation.y=Math.PI/4; ish.position.y=0.12; g.add(ish);
 
   // 平場
-  addBox(g, 0.90, 0.04, 0.90, MAT.stone, 0, 0.26, 0);
+  addBox(g,0.90,0.04,0.90,MAT.stone,0,0.26,0);
 
-  // 天守（3層）
-  const floors = [
-    { w:0.78, d:0.64, h:0.26 },
-    { w:0.62, d:0.50, h:0.24 },
-    { w:0.48, d:0.38, h:0.22 }
-  ];
-  let y = 0.28;
-  floors.forEach(f=>{
-    // 白壁
-    addBox(g, f.w, f.h, f.d, plaster, 0, y + f.h/2, 0);
-    // 狭間（前後）
-    addBox(g, 0.06, 0.02, 0.01, windowMat, 0, y + f.h*0.55,  f.d/2 + 0.001);
-    addBox(g, 0.06, 0.02, 0.01, windowMat, 0, y + f.h*0.55, -f.d/2 - 0.001);
-    // 屋根
-    const r = buildGableRoof(f.w+0.16, f.d+0.16, 0.24, 0.08);
-    r.position.y = y + f.h + 0.02;
+  // 各層
+  const floors=[{w:0.78,d:0.64,h:0.26},{w:0.62,d:0.50,h:0.24},{w:0.48,d:0.38,h:0.22}];
+  let y=0.28; // 1層目の床から開始
+
+  floors.forEach((f,i)=>{
+    // 本体
+    addBox(g,f.w,f.h,f.d,white,0,y+f.h/2,0);
+
+    // 狭間（小窓）
+    addBox(g,0.06,0.02,0.01,black,0,y+f.h*0.55, f.d/2+0.001);
+    addBox(g,0.06,0.02,0.01,black,0,y+f.h*0.55,-f.d/2-0.001);
+
+    // 屋根（すぐ上に載せる）
+    const r=gable(f.w+0.16,f.d+0.16,0.18,0.06);
+    r.position.y=y+f.h;  // ←ここで床＋高さのすぐ上に載せる
     g.add(r);
-    y += f.h + 0.26;
+
+    y += f.h; // 階高だけ積み上げる
   });
 
-  // 鯱（簡易）
-  addBox(g, 0.06, 0.08, 0.06, MAT.gold,  floors[2].w/2 - 0.08, y - 0.12, 0);
-  addBox(g, 0.06, 0.08, 0.06, MAT.gold, -floors[2].w/2 + 0.08, y - 0.12, 0);
+  // 金鯱
+  addBox(g,0.06,0.08,0.06,MAT.gold, floors[2].w/2-0.08, y+0.02, 0);
+  addBox(g,0.06,0.08,0.06,MAT.gold,-floors[2].w/2+0.08, y+0.02, 0);
 
-  g.traverse(n=>{ if(n.isMesh){ n.castShadow = n.receiveShadow = true; }});
-  g.scale.set(0.95, 0.95, 0.95); // 1マスに収める
+  setShadowAll(g); g.scale.set(0.95,0.95,0.95);
   return g;
 }
+
 
   return { house, shop, shrine, castle };
 })();
@@ -1756,6 +1748,7 @@ hit.rotation.y = base + (next/90) * Math.PI/2;
 
 </body>
 </html>
+
 
 
 

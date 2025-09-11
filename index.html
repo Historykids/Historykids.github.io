@@ -1346,6 +1346,15 @@ function worldToGrid(X,Z){
   const ox = Math.floor(COLS/2), oy = Math.floor(ROWS/2);
   return { x: Math.round(X/WORLD_SCALE)+ox, y: Math.round(Z/WORLD_SCALE)+oy };
 }
+// ★ 1) 追加：地面に載せるユーティリティ（Three.js モジュール内の上の方に）
+const EPS_Y = 0.01; // ごくわずか持ち上げて z-fighting 回避
+function snapBaseY(obj, targetY = 0){
+  obj.updateWorldMatrix(true, true);
+  const box = new THREE.Box3().setFromObject(obj);
+  const dy  = (targetY + EPS_Y) - box.min.y; // 底面を targetY に合わせる
+  obj.position.y += dy;
+  obj.updateWorldMatrix(true, true);
+}
 
 function ensureRenderer(){
   if(renderer) return;
@@ -1366,6 +1375,21 @@ function ensureRenderer(){
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.06;
+  // ★ 4) 既存設定のすぐ下あたりに追記（ensureRenderer 内）
+controls.maxPolarAngle = Math.PI / 2 - 0.01; // 水平ちょい上まで
+controls.minPolarAngle = 0.1;
+controls.screenSpacePanning = false;          // 画面座標ではなく世界座標でパン
+
+// ターゲット/Y位置のクランプ：地面より下に行かせない
+controls.addEventListener('change', () => {
+  const minTargetY = 0.1;
+  if (controls.target.y < minTargetY) {
+    const dy = minTargetY - controls.target.y;
+    controls.target.y += dy;
+    camera.position.y = Math.max(camera.position.y + dy, minTargetY + 0.01);
+  }
+});
+
 
   // ★ 盤面中央を注視（最重要）
   const center = gridToWorld(Math.floor(COLS/2), Math.floor(ROWS/2));
@@ -1425,6 +1449,7 @@ function fallbackMesh(type, big=false){
   return mesh;
 }
 
+// ★place3D 
 async function place3D({id, type, x, y, rot=0}){
   const pos = gridToWorld(x, y);
   let obj; const url = MODEL_URLS[type];
@@ -1436,11 +1461,16 @@ async function place3D({id, type, x, y, rot=0}){
   }
   obj.position.copy(pos);
   obj.rotation.y = (rot/90) * Math.PI/2;
+
+  // ▼ここが重要：必ず底面を地面にスナップ
+  snapBaseY(obj, 0);
+
   obj.userData.id = id || null;
   obj.userData.rot = rot || 0;
   scene.add(obj);
   placed3D.push(obj);
 }
+
 
 function clear3D(){ placed3D.forEach(o=>scene.remove(o)); placed3D = []; }
 
@@ -1481,14 +1511,13 @@ function restoreTint(obj){
   });
 }
 
+// ★ 3) 修正：ensurePreview 内（プレビューも沈まないように）
 async function ensurePreview(){
   if (preview) return preview;
-  // まずは超見やすいフォールバックを即出す
   preview = fallbackMesh(placeType, true);
-  preview.renderOrder = 999;
   scene.add(preview);
+  snapBaseY(preview, 0); // まずはフォールバックを地面に載せる
 
-  // GLBがあれば差し替え（任意）
   const url = MODEL_URLS[placeType];
   if (url) {
     try{
@@ -1500,12 +1529,13 @@ async function ensurePreview(){
       scene.add(real);
       scene.remove(preview);
       preview = real;
-    }catch(e){
-      // そのままフォールバック継続
-    }
+
+      snapBaseY(preview, 0); // 本物に差し替え後も必ずスナップ
+    }catch(e){}
   }
   return preview;
 }
+
 function setPreviewAtCell(cell){
   hoverCell = cell;
   const pos = gridToWorld(cell.x, cell.y);
@@ -1636,6 +1666,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

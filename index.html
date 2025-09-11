@@ -507,7 +507,7 @@ const dataSets = {
       },
       "中期": {
         "1688 〇〇〇〇文化がさかえる": { text: "町人の文化が花ひらく。歌舞伎や浮世絵が人気。", icon: "🎭", year: 1688 },
-        "1716 〇〇〇〇の改革":         { text: "吉宗がくらしと財政を立て直す工夫をはじめる。", icon: "📜", year: 1716 },
+        "1716 〇〇〇〇〇の改革":         { text: "吉宗がくらしと財政を立て直す工夫をはじめる。", icon: "📜", year: 1716 },
         "1720 〇〇〇〇をとりいれる":   { text: "海外の学びが広がり、知識がふえる。", icon: "📚", year: 1720 },
         "1720 〇〇〇〇〇のしくみ":     { text: "火事にそなえる町人の組ができる。", icon: "🚒", year: 1720 },
         "1730 〇〇のながれを整える":   { text: "商いのきまりをととのえ、町を元気に。", icon: "🧺", year: 1730 },
@@ -538,7 +538,7 @@ const dataSets = {
       "1657 〇〇〇〇の大火": "〇〇〇〇の<ruby>大火<rt>たいか</rt></ruby>",
       "1657 〇〇〇〇〇〇へ移転": "〇〇〇〇〇〇へ<ruby>移転<rt>いてん</rt></ruby>",
       "1688 〇〇〇〇文化がさかえる": "〇〇〇〇<ruby>文化<rt>ぶんか</rt></ruby>がさかえる",
-      "1716 〇〇〇〇の改革": "〇〇〇〇の<ruby>改革<rt>かいかく</rt></ruby>",
+      "1716 〇〇〇〇〇の改革": "〇〇〇〇〇の<ruby>改革<rt>かいかく</rt></ruby>",
       "1720 〇〇〇〇をとりいれる": "〇〇〇〇をとりいれる",
       "1720 〇〇〇〇〇のしくみ": "〇〇〇〇〇のしくみ",
       "1730 〇〇のながれを整える": "〇〇のながれを<ruby>整える<rt>ととのえる</rt></ruby>",
@@ -566,7 +566,7 @@ const dataSets = {
       "1657 〇〇〇〇の大火": ["めいれき"],
       "1657 〇〇〇〇〇〇へ移転": ["しんよしわら"],
       "1688 〇〇〇〇文化がさかえる": ["げんろく"],
-      "1716 〇〇〇〇の改革": ["きょうほ"],
+      "1716 〇〇〇〇〇の改革": ["きょうほう"],
       "1720 〇〇〇〇をとりいれる": ["ようしょ"],
       "1720 〇〇〇〇〇のしくみ": ["まちびけし"],
       "1730 〇〇のながれを整える": ["もの"],
@@ -1433,7 +1433,7 @@ ensureRenderer();
 // 任意のモデルURL（なくてもOK）
 const MODEL_URLS = {
   house:"models/japanese_house.glb",   shop:"models/shop.glb",   castle:"models/castle.glb",
-   temple:"models/japanese_temple.glb", tree:"models/anime_nature_tree_01.glb",   field:"models/field.glb",
+   temple:"models/japanese_torii_gate.glb", tree:"models/anime_nature_tree_01.glb",   field:"models/field.glb",
    water:"models/water.glb",   road:"models/road.glb",   bridge:"models/bridge.glb",
    school:"models/school.glb",
   
@@ -1666,6 +1666,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

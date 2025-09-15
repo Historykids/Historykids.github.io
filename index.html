@@ -1431,13 +1431,20 @@ controls.maxPolarAngle = Math.PI / 2.02;      // 地面より下に潜らない
 ensureRenderer();
 
 // 任意のモデルURL（なくてもOK）
+// 任意のモデルURL
 const MODEL_URLS = {
-  house:"models/japanese_house.glb",   shop:"models/shop.glb",   castle:"models/castle.glb",
-   temple:"models/japanese_torii_gate.glb", tree:"models/anime_nature_tree_01.glb",   field:"models/field.glb",
-   water:"models/water.glb",   road:"models/road.glb",   bridge:"models/bridge.glb",
-   school:"models/school.glb",
-  
+  house:  "/assets/_m/house.2a9f3.glb",
+  shop:   "/assets/_m/shop.glb",          // ないなら残してOK（フォールバック表示される）
+  castle: "/assets/_m/castle.glb",        // 同上
+  temple: "/assets/_m/torii.79bd1.glb",   // ← 鳥居
+  tree:   "/assets/_m/tree.b41c0.glb",
+  field:  "/assets/_m/field.glb",
+  water:  "/assets/_m/water.glb",
+  road:   "/assets/_m/road.glb",
+  bridge: "/assets/_m/bridge.glb",
+  school: "/assets/_m/school.glb",
 };
+
 
 // ★ 見逃しようがないデカめフォールバック
 function fallbackMesh(type, big=false){
@@ -1666,6 +1673,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

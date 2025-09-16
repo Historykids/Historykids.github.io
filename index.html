@@ -289,16 +289,17 @@
   .hero-highlights{display:grid;gap:8px;}
   .hero-highlights h2{
     margin:0;
-    font-size:clamp(16px,2.6vw,20px);
+    font-size:clamp(12px,1.4vw,14px);
+    line-height:1.4;
     display:flex;
     align-items:center;
-    gap:8px;
-    padding:8px 12px;
+    gap:6px;
+    padding:4px 10px;
     border-radius:14px;
     background:linear-gradient(120deg,rgba(252,211,77,.28),rgba(255,255,255,.9));
     box-shadow:0 1px 0 rgba(255,255,255,.7) inset;
   }
-  .hero-highlights h2::before{content:"✨";font-size:18px;}
+  .hero-highlights h2::before{content:"✨";font-size:14px;}
   .hero-actions{
     display:flex;
     gap:8px;
@@ -326,16 +327,6 @@
   .cta.soft{background:linear-gradient(130deg,#e0f2fe,#bfdbfe);color:#1d4ed8;}
   .cta.success{background:linear-gradient(130deg,#dcfce7,#bbf7d0);color:#166534;}
   .cta.highlight{background:linear-gradient(120deg,#ffd814,#fbbf24);color:#4a3300;}
-  #intro .hero-illustration{position:relative;z-index:1;display:flex;justify-content:center;}
-  #intro .hero-illustration img{
-    width:min(100%,320px);
-    border-radius:20px;
-    box-shadow:0 20px 40px rgba(15,23,42,.18);
-    background:var(--surface-soft);
-  }
-  @media (min-width: 900px){
-    #intro{grid-template-columns: minmax(0, 1fr) minmax(220px,320px);}
-  }
   .promoBar{
     background:var(--surface);
     border-radius:20px;
@@ -583,11 +574,8 @@
           <a href="#" id="openProfile" class="cta soft">プロフィール</a>
           <a href="#" id="openContact" class="cta success">お問い合わせ</a>
         </nav>
-      </div>
-      <figure class="hero-illustration">
-        <img src="./歴史のキャラクターの紹介.png" alt="歴史キャラクターのイラスト" width="320" height="320" decoding="async" />
-      </figure>
-    </section>
+         </div>
+     </section>
 
     <!-- PR -->
     <aside class="promoBar" role="note" aria-label="おすすめの本（PR）">
@@ -1907,6 +1895,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

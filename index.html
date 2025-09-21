@@ -15,6 +15,13 @@
   <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin>
 
  <link rel="manifest" href="/manifest.webmanifest" type="application/manifest+json">
+ <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    });
+  }
+</script>
  
   <!-- Favicon -->
   <link rel="icon" href="/favicon.ico">
@@ -1897,6 +1904,7 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 
 </body>
 </html>
+
 
 
 

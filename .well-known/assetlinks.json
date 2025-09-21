@@ -3,8 +3,10 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "your.package.name",
-      "sha256_cert_fingerprints": ["AA:BB:CC:...:ZZ"]
+      "package_name": "com.historykids.app",
+      "sha256_cert_fingerprints": [
+        "5A:82:AE:74:E3:9D:37:86:19:96:27:38:16:F7:A9:20:2E:A1:38:DF:5F:CA:44:7D:B4:FF:DB:BA:7E:F5:4A:1A"
+      ]
     }
   }
 ]

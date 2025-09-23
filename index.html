@@ -1432,8 +1432,8 @@ document.getElementById("playMuromachi")?.addEventListener("click", ()=>{ eraSel
 document.getElementById("playKamakura")?.addEventListener("click", ()=>{ eraSelectEl.value="kamakura"; eraSelectEl.dispatchEvent(new Event("change")); });
 
 /* スマホHUD連携 */
-document.addEventListener("placement:start", ()=>{ placeHud.hidden = false; });
-document.addEventListener("placement:end",   ()=>{ placeHud.hidden = true;  });
+setHidden('xxx', true);
+setHidden('yyy', false);
 document.addEventListener("placement:cancel",()=>{ placeHud.hidden = true;  });
 btnRotate?.addEventListener("click", ()=>{ document.dispatchEvent(new Event("placement:rotate")); });
 btnCancel?.addEventListener("click", ()=>{ document.dispatchEvent(new Event("placement:cancel")); });
@@ -1573,6 +1573,22 @@ document.getElementById("btnOK")?.addEventListener("click", ()=>{
 
 <!-- ===== Three.js レイヤー（モジュール） ===== -->
 <script type="module">
+
+ // --- 安全に hidden を切り替えるヘルパー（要素が無くても落ちない）---
+function setHidden(idOrEl, value){
+  const el = typeof idOrEl === 'string' ? document.getElementById(idOrEl) : idOrEl;
+  if (!el) { console.warn('[UI missing]', idOrEl); return false; }
+  el.hidden = !!value;
+  return true;
+}
+// classの表示/非表示を使う版（お好みで）
+function setShown(idOrEl, shown){
+  const el = typeof idOrEl === 'string' ? document.getElementById(idOrEl) : idOrEl;
+  if (!el) { console.warn('[UI missing]', idOrEl); return false; }
+  if (shown) el.removeAttribute('hidden'); else el.setAttribute('hidden','');
+  return true;
+}
+
 /* ========= 依存 ========= */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -1993,6 +2009,7 @@ window.city3D = {
 
 </body>
 </html>
+
 
 
 

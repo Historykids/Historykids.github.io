@@ -1821,6 +1821,20 @@ async function place3D({id, type, x, y, rot=0}){
 }
 function clear3D(){ placed3D.forEach(o=>scene.remove(o)); placed3D = []; }
 
+
+ /* ========= メインUIとのイベント連携 ========= */
+document.addEventListener("city:reset", () => {
+  if (tControls) tControls.detach();
+  clearSelected();
+  clear3D();
+});
+document.addEventListener("city:add", (ev) => {
+  const detail = ev?.detail;
+  if (!detail) return;
+  place3D(detail).catch(err => console.error("[city:add] failed to place model", err));
+});
+
+
 /* ========= 共通レイキャスター ========= */
 const raycaster = new THREE.Raycaster();
 const pointer   = new THREE.Vector2();
@@ -2076,6 +2090,7 @@ window.city3D = {
 
 </body>
 </html>
+
 
 
 

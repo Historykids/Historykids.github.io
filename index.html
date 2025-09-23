@@ -1416,7 +1416,7 @@ function startPlacementFlow(item){
     return;
   }
   pendingPurchase = { type: item.id, price: item.price, rot: 0 };
-  infoBoxEl.textContent = "置く場所をえらんでね（タップ/クリックで確定、右クリック/Escでキャンセル、R/↻で回転）";
+ infoBoxEl.textContent = "置く場所をえらんで、「この場所におく」ボタンかマップをタップして決定しよう！（↻で回転、右クリック/Escでキャンセル）";
   shopOverlayEl.classList.remove("active");
 
   // 3Dレイヤーへ開始通知（占有マスと盤面サイズを渡す）
@@ -2076,6 +2076,7 @@ window.city3D = {
 
 </body>
 </html>
+
 
 
 

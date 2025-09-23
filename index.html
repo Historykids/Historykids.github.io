@@ -386,18 +386,34 @@
     background-size: 20px 20px; }
 
   .place-hud{
-    position: fixed; right: 12px; bottom: 12px; z-index: 200;
-    display: flex; gap: 8px; padding: 10px; border-radius: 14px;
-    background: rgba(255,255,255,.92); box-shadow: 0 12px 30px rgba(15,23,42,.18);
+    position:fixed; right:16px; bottom:16px; z-index:200;
+    display:flex; flex-direction:column; gap:10px; align-items:stretch;
+    width:min(280px, 92vw);
+    padding:14px 16px;
+    border-radius:18px;
+    background:rgba(255,255,255,.95);
+    border:1px solid rgba(148,163,184,.35);
+    box-shadow:0 16px 36px rgba(15,23,42,.2);
   }
+  .place-hud__title{
+    font-weight:700; font-size:14px; color:#1f2937; display:flex; align-items:center; gap:6px;
+  }
+  .place-hud__title::before{content:"🏗️";}
+  .place-hud__hint{margin:0; font-size:13px; color:#4b5563; line-height:1.5;}
+  .place-hud__actions{display:flex; gap:8px; flex-wrap:wrap;}
   .place-hud button{
-    border: 0; border-radius: 12px; padding: 10px 14px; font-weight: 700;
-    box-shadow: 0 3px 8px rgba(15,23,42,.16); cursor: pointer;
-    transition:transform .2s,box-shadow .2s;
+    flex:1 1 100px;
+    border:0; border-radius:12px; padding:10px 12px; font-weight:700;
+    box-shadow:0 3px 10px rgba(15,23,42,.16); cursor:pointer;
+    transition:transform .2s, box-shadow .2s, background .2s;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    background:#f8fafc; color:#1e293b;
   }
-  .place-hud button:hover{transform:translateY(-1px);}
-  .place-hud #btnRotate{ background:#e0f2fe; }
-  .place-hud #btnCancel{ background:#fee2e2; }
+  .place-hud button:hover{transform:translateY(-1px); box-shadow:0 6px 14px rgba(15,23,42,.18);}
+  .place-hud button span.icon{font-size:16px;}
+  .place-hud #btnRotate{background:linear-gradient(130deg,#e0f2fe,#bae6fd); color:#0f4c75;}
+  .place-hud #btnOK{background:linear-gradient(130deg,#bef264,#86efac); color:#14532d;}
+  .place-hud #btnCancel{background:linear-gradient(130deg,#fee2e2,#fecaca); color:#7f1d1d;}
 
   #cards{
     display:grid;gap:12px;padding:18px;
@@ -500,23 +516,45 @@
   .toolrow .toolbtn{border:1px solid rgba(15,23,42,.12);background:#fff;border-radius:10px;padding:6px 10px;cursor:pointer;transition:background .2s,border-color .2s,box-shadow .2s}
   .toolrow .toolbtn.active{background:#e6f4ff;border-color:#8ecbff;box-shadow:0 3px 8px rgba(15,23,42,.12)}
 
-  /* ===== ツールバー ===== */
-   #ui-toolbar{
-  position: fixed; z-index: 9999; top: 16px; right: 16px;
-  display: flex; gap: 8px; align-items: center;
-  background: rgba(255,255,255,.9);
-  border: 1px solid #e5e7eb; border-radius: 12px; padding: 8px 10px;
-  box-shadow: 0 6px 20px rgba(0,0,0,.12);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
-}
-#ui-toolbar button{
-  appearance: none; border: 1px solid #e5e7eb; border-radius: 10px;
-  background: #fff; padding: 6px 10px; cursor: pointer; font-size: 14px;
-}
-#ui-toolbar button.active{ background: #fcd34d; border-color: #f59e0b; }
-#ui-toolbar #ui-hint{ margin-left: 4px; font-size: 13px; color: #374151; }
-canvas { outline: none; } /* ドラッグ時の青枠防止 */
-
+ /* ===== ツールバー ===== */
+  #ui-toolbar{
+    position:fixed; z-index:9999; top:16px; right:16px;
+    display:flex; flex-direction:column; gap:12px; align-items:stretch;
+    width:min(260px, 90vw);
+    background:rgba(255,255,255,.95);
+    border:1px solid rgba(148,163,184,.3);
+    border-radius:18px; padding:14px;
+    box-shadow:0 14px 32px rgba(15,23,42,.18);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;
+  }
+  #ui-toolbar .toolbar-title{
+    font-size:13px; font-weight:700; letter-spacing:.04em; color:#1f2937;
+    display:flex; align-items:center; gap:6px;
+  }
+  #ui-toolbar .toolbar-title::before{content:"🏙️"; font-size:16px;}
+  #ui-toolbar .toolbar-buttons{display:flex; gap:8px; flex-wrap:wrap;}
+  #ui-toolbar button{
+    appearance:none; border:1px solid rgba(148,163,184,.6);
+    border-radius:12px; padding:8px 12px;
+    background:#fff; cursor:pointer; font-size:14px; font-weight:700;
+    display:flex; align-items:center; gap:6px; color:#1f2937;
+    transition:transform .2s, box-shadow .2s, border-color .2s, background .2s;
+  }
+  #ui-toolbar button .tool-icon{font-size:18px;}
+  #ui-toolbar button.active{
+    background:linear-gradient(130deg,#fde68a,#facc15);
+    border-color:#f59e0b; box-shadow:0 8px 18px rgba(250,204,21,.35);
+  }
+  #ui-toolbar button:hover{transform:translateY(-1px);}
+  #ui-toolbar #ui-hint{
+    font-size:12px; color:#475569; line-height:1.5;
+    background:#f8fafc; border-radius:12px;
+    padding:8px 10px; border:1px dashed rgba(148,163,184,.6);
+  }
+  #ui-hint .hint-label{font-weight:600; margin-right:4px;}
+  #ui-hint .hint-main{font-weight:700; margin-right:6px;}
+  #ui-hint .hint-desc{display:block; margin-top:2px; font-weight:500;}
+  canvas { outline:none; } /* ドラッグ時の青枠防止 */
 
 
     /* ===== ジョイスティック ===== */
@@ -615,11 +653,46 @@ canvas { outline: none; } /* ドラッグ時の青枠防止 */
   <a href="/Credits.html" rel="nofollow">3D Model Credits</a>
 </footer>
    <!-- 🔧 ツールバー -->
-<div id="ui-toolbar">
-  <button id="btn-select" class="active" title="クリックで建物を選択">選択</button>
-  <button id="btn-move"   title="選択した建物をドラッグで移動">移動</button>
-  <button id="btn-delete" title="選択orクリックした建物を削除">削除</button>
-  <span id="ui-hint">モード: 選択</span>
+<div id="ui-toolbar" role="toolbar" aria-label="建物の操作ツール">
+  <div class="toolbar-title">建物の操作</div>
+  <div class="toolbar-buttons">
+    <button id="btn-select" class="active" type="button" aria-pressed="true" title="建物をタップしてえらぶ">
+      <span class="tool-icon" aria-hidden="true">🖱️</span>
+      <span class="tool-label">えらぶ</span>
+    </button>
+    <button id="btn-move" type="button" aria-pressed="false" title="選んだ建物をドラッグで移動">
+      <span class="tool-icon" aria-hidden="true">↔️</span>
+      <span class="tool-label">うごかす</span>
+    </button>
+    <button id="btn-delete" type="button" aria-pressed="false" title="いらない建物をけす">
+      <span class="tool-icon" aria-hidden="true">🗑️</span>
+      <span class="tool-label">けす</span>
+    </button>
+  </div>
+  <div id="ui-hint">
+    <span class="hint-label">モード:</span>
+    <span class="hint-main">🖱️ えらぶ</span>
+    <span class="hint-desc">建物をタップして選ぼう</span>
+  </div>
+</div>
+
+<div id="placeHud" class="place-hud" hidden aria-live="polite">
+  <div class="place-hud__title">建物を配置中</div>
+  <p class="place-hud__hint">マップで置く場所を決めてから「この場所におく」で決定しよう。↻で回転、✖️でキャンセルできるよ。</p>
+  <div class="place-hud__actions">
+    <button id="btnRotate" type="button">
+      <span class="icon" aria-hidden="true">↻</span>
+      <span>回転する</span>
+    </button>
+    <button id="btnOK" type="button">
+      <span class="icon" aria-hidden="true">✅</span>
+      <span>この場所におく</span>
+    </button>
+    <button id="btnCancel" type="button">
+      <span class="icon" aria-hidden="true">✖️</span>
+      <span>やめる</span>
+    </button>
+  </div>
 </div>
 
  <!-- ======== ここが街（3D） ======== -->
@@ -1121,6 +1194,7 @@ const shopGridEl      = document.getElementById("shopGrid");
 /* スマホHUD */
 const placeHud  = document.getElementById("placeHud");
 const btnRotate = document.getElementById("btnRotate");
+const btnOk     = document.getElementById("btnOK");
 const btnCancel = document.getElementById("btnCancel");
 
 /* 進捗＆所持金 */
@@ -1553,9 +1627,9 @@ document.addEventListener("placement:end",   ()=>{ joyHide(); joyEnd(); });
 document.addEventListener("placement:cancel",()=>{ joyHide(); joyEnd(); });
 
 // 「決定」ボタン → THREE 側にOKシグナル
-document.getElementById("btnOK")?.addEventListener("click", ()=>{
-  document.dispatchEvent(new Event("placement:ok"));
-});
+btnOk?.addEventListener("click", ()=>{
+  document.dispatchEvent(new Event("placement:ok"));␊
+});␊
 
 
   </script>
@@ -1598,37 +1672,6 @@ function setShown(idOrEl, shown){
   return true;
 }
 
-
-/* ========= 画面UI（ツールバー）をJSから注入 ========= */
-(() => {
-  const css = `
-  #ui-toolbar{
-    position: fixed; z-index: 9999; top: 16px; right: 16px;
-    display: flex; gap: 8px; align-items: center;
-    background: rgba(255,255,255,.92);
-    border: 1px solid #e5e7eb; border-radius: 12px; padding: 8px 10px;
-    box-shadow: 0 6px 20px rgba(0,0,0,.12);
-    font-family: system-ui, -apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;
-  }
-  #ui-toolbar button{
-    appearance: none; border: 1px solid #e5e7eb; border-radius: 10px;
-    background: #fff; padding: 6px 10px; cursor: pointer; font-size: 14px;
-  }
-  #ui-toolbar button.active{ background: #fcd34d; border-color: #f59e0b; }
-  #ui-toolbar #ui-hint{ margin-left: 4px; font-size: 13px; color: #374151; }
-  canvas { outline: none; }
-  `;
-  const style = document.createElement('style'); style.textContent = css; document.head.appendChild(style);
-
-  const bar = document.createElement('div'); bar.id = 'ui-toolbar';
-  bar.innerHTML = `
-    <button id="btn-select" class="active" title="建物を選択">選択</button>
-    <button id="btn-move"   title="選択した建物をドラッグで移動">移動</button>
-    <button id="btn-delete" title="クリックした建物を削除">削除</button>
-    <span id="ui-hint">モード: 選択</span>
-  `;
-  document.body.appendChild(bar);
-})();
 
 /* ========= Three.js セットアップ ========= */
 const townEl = document.getElementById("town");
@@ -1911,10 +1954,18 @@ function tryPlace(ev){
 }
 renderer.domElement.addEventListener("click", tryPlace, { passive:false });
 
+document.addEventListener("placement:ok", ()=>{
+  if(!placing || !hoverCell) return;
+  const { x, y } = hoverCell;
+  if(!cellValid(x,y)) return;
+  document.dispatchEvent(new CustomEvent("placement:confirm", { detail:{ type:placeType, x, y, rot:placeRot }}));
+  endPlacement();
+});
+
 // 右クリックでキャンセル
 renderer.domElement.addEventListener("pointerdown", (ev)=>{
   if(placing && ev.button===2){ ev.preventDefault(); document.dispatchEvent(new Event("placement:cancel")); endPlacement(); }
-});
+ });
 renderer.domElement.addEventListener("contextmenu", (e)=>{ if(placing){ e.preventDefault(); } });
 
  // スティック操作：1ステップ移動
@@ -1956,19 +2007,31 @@ const $btnMove   = document.getElementById('btn-move');
 const $btnDelete = document.getElementById('btn-delete');
 const $hint      = document.getElementById('ui-hint');
 
+const MODE_INFO = {
+  select: { icon:'🖱️', label:'えらぶ', desc:'建物をタップして選ぼう' },
+  move:   { icon:'↔️', label:'うごかす', desc:'選んだ建物をドラッグで動かせるよ' },
+  delete: { icon:'🗑️', label:'けす', desc:'クリックした建物を消せるよ' }
+};
+const MODE_BUTTONS = { select:$btnSelect, move:$btnMove, delete:$btnDelete };
+
 function setEditMode(m){
   editMode = m;
-  [$btnSelect,$btnMove,$btnDelete].forEach(b=>b.classList.remove('active'));
-  if(m==='select') $btnSelect.classList.add('active');
-  if(m==='move')   $btnMove.classList.add('active');
-  if(m==='delete') $btnDelete.classList.add('active');
-  $hint.textContent = `モード: ${m==='select'?'選択': m==='move'?'移動':'削除'}`;
+  Object.entries(MODE_BUTTONS).forEach(([mode, btn])=>{
+    if(!btn) return;
+    const active = mode === m;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+  if($hint){
+    const info = MODE_INFO[m] || MODE_INFO.select;
+    $hint.innerHTML = `<span class="hint-label">モード:</span><span class="hint-main">${info.icon} ${info.label}</span><span class="hint-desc">${info.desc}</span>`;
+  }
   if (tControls && m!=='move') tControls.detach();
   renderer.domElement.style.cursor = (m==='delete') ? 'not-allowed' : 'default';
 }
-$btnSelect.onclick = ()=> setEditMode('select');
-$btnMove.onclick   = ()=> { setEditMode('move');  if(selected && tControls) tControls.attach(selected); };
-$btnDelete.onclick = ()=> setEditMode('delete');
+$btnSelect?.addEventListener('click', ()=> setEditMode('select'));
+$btnMove?.addEventListener('click', ()=>{ setEditMode('move'); if(selected && tControls) tControls.attach(selected); });
+$btnDelete?.addEventListener('click', ()=> setEditMode('delete'));
 setEditMode('select');
 
 /* === 配置モードでない時の編集クリック === */
@@ -2013,6 +2076,7 @@ window.city3D = {
 
 </body>
 </html>
+
 
 
 

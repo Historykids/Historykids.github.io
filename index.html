@@ -1614,6 +1614,7 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js';
 const townEl = document.getElementById("town");
 let renderer, scene, camera, controls, loader, ground, grid;
 let placed3D = []; // 設置済みオブジェクトのルート配列
+let tControls = null;   // TransformControls は後で代入
 
 let COLS = 30, ROWS = 18;
 const WORLD_SCALE = 1.0;
@@ -1757,185 +1758,9 @@ async function place3D({id, type, x, y, rot=0}){
 }
 function clear3D(){ placed3D.forEach(o=>scene.remove(o)); placed3D = []; }
 
-/* ========= 配置モード ========= */
-let placing=false, preview=null, placeType=null, placeRot=0;
-let occSet = new Set();
-const raycaster=new THREE.Raycaster(), pointer=new THREE.Vector2();
-let hoverCell = {x:-1,y:-1};
-const okMat=new THREE.MeshBasicMaterial({ color:0x2e7d32, transparent:true, opacity:0.5 });
-const ngMat=new THREE.MeshBasicMaterial({ color:0xc62828, transparent:true, opacity:0.5 });
-
-function setPointerFromEvent(ev){
-  const rect = renderer.domElement.getBoundingClientRect();
-  const cx = ((ev.clientX ?? (ev.touches?.[0]?.clientX || 0)) - rect.left) / rect.width;
-  const cy = ((ev.clientY ?? (ev.touches?.[0]?.clientY || 0)) - rect.top) / rect.height;
-  pointer.x = cx * 2 - 1; pointer.y = -(cy * 2 - 1);
-}
-function pickOnGround(ev){
-  setPointerFromEvent(ev);
-  raycaster.setFromCamera(pointer, camera);
-  const hit = raycaster.intersectObject(ground, false)[0];
-  if(!hit) return null;
-  return { cell: worldToGrid(hit.point.x, hit.point.z) };
-}
-function cellValid(x,y){ return (x>=0 && y>=0 && x<COLS && y<ROWS) && !occSet.has(`${x},${y}`); }
-
-function applyTint(obj,mat){
-  obj.traverse?.(n=>{
-    if(n.isMesh){
-      if(!n.userData._origMat) n.userData._origMat = n.material;
-      n.material = mat;
-    }
-  });
-}
-function restoreTint(obj){
-  obj.traverse?.(n=>{
-    if(n.isMesh && n.userData._origMat){ n.material = n.userData._origMat; delete n.userData._origMat; }
-  });
-}
-
-async function ensurePreview(){
-  if (preview) return preview;
-  preview = fallbackMesh(placeType, true);
-  scene.add(preview);
-  snapBaseY(preview, 0);
-
-  const url = MODEL_URLS[placeType];
-  if (url) {
-    try{
-      const gltf = await loader.loadAsync(url);
-      const real = gltf.scene;
-      real.scale.set(0.8,0.8,0.8);
-      real.position.copy(preview.position);
-      real.rotation.copy(preview.rotation);
-      scene.add(real);
-      scene.remove(preview);
-      preview = real;
-      snapBaseY(preview, 0);
-    }catch(e){}
-  }
-  return preview;
-}
-function setPreviewAtCell(cell){
-  hoverCell = cell;
-  const pos = gridToWorld(cell.x, cell.y);
-  preview.position.copy(pos);
-  preview.rotation.y = (placeRot/90) * Math.PI/2;
-  const valid = cellValid(cell.x, cell.y);
-  restoreTint(preview);
-  applyTint(preview, valid ? okMat : ngMat);
-}
-function endPlacement(){
-  placing=false; placeType=null; placeRot=0; occSet.clear();
-  if(preview){ scene.remove(preview); preview=null; }
-  renderer.domElement.style.cursor="default";
-  controls.enabled = true;
-}
-
-/* ========= Main ↔ Three.js 連携 ========= */
-document.addEventListener("city:add",   (ev)=>{ place3D(ev.detail); });
-document.addEventListener("city:reset", ()=>{ clear3D(); });
-
-document.addEventListener("placement:nudge", (ev)=>{
-  if(!placing || !hoverCell) return;
-  const {dx=0, dy=0} = ev.detail || {};
-  const nx = clamp(hoverCell.x + dx, 0, COLS-1);
-  const ny = clamp(hoverCell.y + dy, 0, ROWS-1);
-  setPreviewAtCell({x:nx, y:ny});
-});
-document.addEventListener("placement:ok", ()=>{
-  if(!placing || !hoverCell) return;
-  const {x,y} = hoverCell;
-  if(!cellValid(x,y)) return;
-  document.dispatchEvent(new CustomEvent("placement:confirm", {
-    detail: { type: placeType, x, y, rot: placeRot }
-  }));
-  endPlacement();
-});
-
-document.addEventListener("placement:start", async (ev)=>{
-  const { type, cols, rows, occupied=[] } = ev.detail || {};
-  COLS = cols ?? COLS; ROWS = rows ?? ROWS;
-
-  placing = true; placeType = type; placeRot = 0;
-  occSet = new Set(occupied.map(([x,y]) => `${x},${y}`));
-
-  controls.enabled = false;
-  renderer.domElement.style.cursor = "crosshair";
-
-  await ensurePreview();
-
-  const center = { x: Math.floor(COLS/2), y: Math.floor(ROWS/2) };
-  const isFree = (c)=> c.x>=0 && c.y>=0 && c.x<COLS && c.y<ROWS && !occSet.has(`${c.x},${c.y}`);
-  let init = center;
-  if (!isFree(init)) {
-    outer: for (let r=1; r<Math.max(COLS,ROWS); r++){
-      for (let dx=-r; dx<=r; dx++){
-        for (let dy=-r; dy<=r; dy++){
-          const c = { x: center.x+dx, y: center.y+dy };
-          if (isFree(c)){ init=c; break outer; }
-        }
-      }
-    }
-  }
-  setPreviewAtCell(init);
-
-  const t = gridToWorld(init.x, init.y);
-  controls.target.copy(t);
-  camera.position.set(t.x + 15, 18, t.z + 22);
-  controls.update();
-});
-document.addEventListener("placement:end",   ()=> endPlacement());
-document.addEventListener("placement:cancel",()=> endPlacement());
-document.addEventListener("placement:rotate",()=>{ if(!placing) return; placeRot=(placeRot+90)%360; if(preview && hoverCell){ setPreviewAtCell(hoverCell); } });
-
-renderer.domElement.addEventListener("pointermove", (ev)=>{
-  if(!placing) return;
-  const r = pickOnGround(ev); if(!r) return;
-  setPreviewAtCell(r.cell);
-}, { passive:true });
-
-function tryPlace(ev){
-  if(!placing) return;
-  const r = pickOnGround(ev); if(!r) return;
-  const {x,y}=r.cell;
-  if(!cellValid(x,y)) return;
-  document.dispatchEvent(new CustomEvent("placement:confirm",{ detail:{ type:placeType, x, y, rot:placeRot }}));
-  endPlacement();
-}
-renderer.domElement.addEventListener("pointerdown", (ev)=>{
-  if(placing && ev.button===2){ ev.preventDefault(); document.dispatchEvent(new Event("placement:cancel")); endPlacement(); }
-});
-renderer.domElement.addEventListener("click", tryPlace, { passive:false });
-renderer.domElement.addEventListener("touchstart", (e)=>{ tryPlace(e); }, { passive:false });
-renderer.domElement.addEventListener("contextmenu", (e)=>{ if(placing){ e.preventDefault(); } });
-
-/* ========= 設置後の回転（ダブルタップ/ダブルクリック） ========= */
-let lastTap=0; const dblTapGap=300;
-renderer.domElement.addEventListener("pointerdown", (ev)=>{
-  if(placing) return;
-  const now=performance.now(); const isDouble=(now-lastTap)<dblTapGap; lastTap=now;
-  if(!isDouble) return;
-
-  const rect = renderer.domElement.getBoundingClientRect();
-  const cx = ((ev.clientX ?? (ev.touches?.[0]?.clientX || 0)) - rect.left) / rect.width;
-  const cy = ((ev.clientY ?? (ev.touches?.[0]?.clientY || 0)) - rect.top) / rect.height;
-  const p = new THREE.Vector2(cx*2-1, -(cy*2-1));
-  const ray=new THREE.Raycaster();
-  ray.setFromCamera(p, camera);
-
-  const hits = ray.intersectObjects(placed3D, true); if(!hits.length) return;
-  let hit = hits[0].object; while(hit && !placed3D.includes(hit)) hit = hit.parent; if(!hit) return;
-
-  const cur = (hit.userData.rot || 0); const next=(cur+90)%360;
-  hit.userData.rot = next; hit.rotation.y = (next/90) * Math.PI/2;
-  if(hit.userData.id){ document.dispatchEvent(new CustomEvent("edit:rotate",{ detail:{ id: hit.userData.id, rot: next }})); }
-});
-
 /* ========= 編集モード（選択／移動／削除） ========= */
 let editMode = 'select';     // 'select' | 'move' | 'delete'
 let selected = null;
-let tControls;               // ensureRenderer で代入済み
 
 function markSelected(obj){
   clearSelected();
@@ -1970,18 +1795,17 @@ function setEditMode(m){
   if(m==='move')   $btnMove.classList.add('active');
   if(m==='delete') $btnDelete.classList.add('active');
   $hint.textContent = `モード: ${m==='select'?'選択': m==='move'?'移動':'削除'}`;
-  if(m!=='move') tControls.detach();
+  if (tControls && m!=='move') tControls.detach();
   renderer.domElement.style.cursor = (m==='delete') ? 'not-allowed' : 'default';
 }
 $btnSelect.onclick = ()=> setEditMode('select');
-$btnMove.onclick   = ()=> { setEditMode('move');  if(selected) tControls.attach(selected); };
+$btnMove.onclick   = ()=> { setEditMode('move');  if(selected && tControls) tControls.attach(selected); };
 $btnDelete.onclick = ()=> setEditMode('delete');
 setEditMode('select');
 
 /* === 配置モードでない時の編集クリック === */
+const raycaster=new THREE.Raycaster(), pointer=new THREE.Vector2();
 renderer.domElement.addEventListener('pointerup', (ev)=>{
-  if(placing) return;
-
   const rect = renderer.domElement.getBoundingClientRect();
   const cx = (ev.clientX - rect.left) / rect.width;
   const cy = (ev.clientY - rect.top)  / rect.height;
@@ -1990,7 +1814,7 @@ renderer.domElement.addEventListener('pointerup', (ev)=>{
   const hits = raycaster.intersectObjects(placed3D, true);
 
   if(!hits.length){
-    clearSelected(); tControls.detach(); return;
+    clearSelected(); if (tControls) tControls.detach(); return;
   }
   let hit = hits[0].object;
   while(hit && !placed3D.includes(hit)) hit = hit.parent;
@@ -2000,26 +1824,27 @@ renderer.domElement.addEventListener('pointerup', (ev)=>{
     scene.remove(hit);
     placed3D = placed3D.filter(o=>o!==hit);
     if(hit.userData?.id) document.dispatchEvent(new CustomEvent('edit:delete', { detail:{ id: hit.userData.id }}));
-    if(selected===hit){ clearSelected(); tControls.detach(); }
+    if(selected===hit){ clearSelected(); if (tControls) tControls.detach(); }
     return;
   }
 
-  // 選択／移動
   markSelected(hit);
-  if(editMode==='move') tControls.attach(hit);
+  if(editMode==='move' && tControls) tControls.attach(hit);
 });
 
-/* ========= 公開API（必要なら外部から呼べるように） ========= */
+/* ========= 公開API ========= */
 window.city3D = {
   place3D, clear3D,
-  setEditMode,             // 'select' | 'move' | 'delete'
+  setEditMode,
   getSelected: ()=>selected
 };
 </script>
 
 
+
 </body>
 </html>
+
 
 
 

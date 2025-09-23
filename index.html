@@ -1574,26 +1574,30 @@ document.getElementById("btnOK")?.addEventListener("click", ()=>{
 <!-- ===== Three.js レイヤー（モジュール） ===== -->
 <script type="module">
 
- // --- 安全に hidden を切り替えるヘルパー（要素が無くても落ちない）---
-function setHidden(idOrEl, value){
-  const el = typeof idOrEl === 'string' ? document.getElementById(idOrEl) : idOrEl;
-  if (!el) { console.warn('[UI missing]', idOrEl); return false; }
-  el.hidden = !!value;
-  return true;
-}
-// classの表示/非表示を使う版（お好みで）
-function setShown(idOrEl, shown){
-  const el = typeof idOrEl === 'string' ? document.getElementById(idOrEl) : idOrEl;
-  if (!el) { console.warn('[UI missing]', idOrEl); return false; }
-  if (shown) el.removeAttribute('hidden'); else el.setAttribute('hidden','');
-  return true;
-}
-
 /* ========= 依存 ========= */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
+
+ // === UI安全ヘルパー（importのすぐ下に置く） ===
+const $ = (id) => document.getElementById(id);
+
+function setHidden(idOrEl, value){
+  const el = typeof idOrEl === 'string' ? $(idOrEl) : idOrEl;
+  if (!el) { console.warn('[UI missing]', idOrEl); return false; }
+  el.hidden = !!value;
+  return true;
+}
+
+function setShown(idOrEl, shown){
+  const el = typeof idOrEl === 'string' ? $(idOrEl) : idOrEl;
+  if (!el) { console.warn('[UI missing]', idOrEl); return false; }
+  if (shown) el.removeAttribute('hidden');
+  else el.setAttribute('hidden','');
+  return true;
+}
+
 
 /* ========= 画面UI（ツールバー）をJSから注入 ========= */
 (() => {
@@ -2009,6 +2013,7 @@ window.city3D = {
 
 </body>
 </html>
+
 
 
 

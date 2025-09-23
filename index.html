@@ -1897,6 +1897,15 @@ renderer.domElement.addEventListener("pointerdown", (ev)=>{
 });
 renderer.domElement.addEventListener("contextmenu", (e)=>{ if(placing){ e.preventDefault(); } });
 
+ // スティック操作：1ステップ移動
+document.addEventListener("placement:nudge", (ev)=>{
+  if(!placing || !hoverCell) return;
+  const {dx=0, dy=0} = ev.detail || {};
+  const nx = clamp(hoverCell.x + dx, 0, COLS-1);
+  const ny = clamp(hoverCell.y + dy, 0, ROWS-1);
+  setPreviewAtCell({x:nx, y:ny});
+});
+
 /* ========= 編集モード（選択／移動／削除） ========= */
 let editMode = 'select';     // 'select' | 'move' | 'delete'
 let selected = null;
@@ -1984,6 +1993,7 @@ window.city3D = {
 
 </body>
 </html>
+
 
 
 

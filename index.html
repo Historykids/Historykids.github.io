@@ -517,7 +517,7 @@
   .toolrow .toolbtn.active{background:#e6f4ff;border-color:#8ecbff;box-shadow:0 3px 8px rgba(15,23,42,.12)}
 
  /* ===== ツールバー ===== */
-  #ui-toolbar{
+ #ui-toolbar{
     position:fixed; z-index:9999; top:16px; right:16px;
     display:flex; flex-direction:column; gap:12px; align-items:stretch;
     width:min(260px, 90vw);
@@ -527,30 +527,43 @@
     box-shadow:0 14px 32px rgba(15,23,42,.18);
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;
   }
-  #ui-toolbar .toolbar-title{
-    font-size:13px; font-weight:700; letter-spacing:.04em; color:#1f2937;
-    display:flex; align-items:center; gap:6px;
+  #ui-toolbar .toolbar-toggle{
+    appearance:none; border:1px solid rgba(148,163,184,.6);
+    border-radius:12px; padding:10px 12px;
+    background:#fff; cursor:pointer; font-size:14px; font-weight:700;
+    display:flex; align-items:center; justify-content:space-between; gap:8px; color:#1f2937;
+    transition:transform .2s, box-shadow .2s, border-color .2s, background .2s;
   }
-  #ui-toolbar .toolbar-title::before{content:"🏙️"; font-size:16px;}
+  #ui-toolbar .toolbar-toggle:hover{transform:translateY(-1px); box-shadow:0 8px 18px rgba(15,23,42,.16);}
+  #ui-toolbar .toolbar-toggle__label{display:flex; align-items:center; gap:6px; letter-spacing:.04em;}
+  #ui-toolbar .toolbar-toggle__label::before{content:"🏙️"; font-size:18px;}
+  #ui-toolbar .toolbar-toggle__chevron{font-size:14px; color:#475569; transition:transform .2s;}
+  #ui-toolbar.open .toolbar-toggle{
+    background:linear-gradient(130deg,#fef3c7,#fde68a);
+    border-color:#f59e0b; box-shadow:0 8px 18px rgba(250,204,21,.25);
+  }
+  #ui-toolbar.open .toolbar-toggle .toolbar-toggle__chevron{transform:rotate(180deg);}
   #ui-toolbar .toolbar-buttons{display:flex; gap:8px; flex-wrap:wrap;}
-  #ui-toolbar button{
+  #ui-toolbar .toolbar-buttons[hidden]{display:none;}
+  #ui-toolbar .toolbar-buttons button{
     appearance:none; border:1px solid rgba(148,163,184,.6);
     border-radius:12px; padding:8px 12px;
     background:#fff; cursor:pointer; font-size:14px; font-weight:700;
     display:flex; align-items:center; gap:6px; color:#1f2937;
     transition:transform .2s, box-shadow .2s, border-color .2s, background .2s;
   }
-  #ui-toolbar button .tool-icon{font-size:18px;}
-  #ui-toolbar button.active{
+  #ui-toolbar .toolbar-buttons button .tool-icon{font-size:18px;}
+  #ui-toolbar .toolbar-buttons button.active{
     background:linear-gradient(130deg,#fde68a,#facc15);
     border-color:#f59e0b; box-shadow:0 8px 18px rgba(250,204,21,.35);
   }
-  #ui-toolbar button:hover{transform:translateY(-1px);}
+  #ui-toolbar .toolbar-buttons button:hover{transform:translateY(-1px);}
   #ui-toolbar #ui-hint{
     font-size:12px; color:#475569; line-height:1.5;
     background:#f8fafc; border-radius:12px;
     padding:8px 10px; border:1px dashed rgba(148,163,184,.6);
   }
+  #ui-toolbar #ui-hint[hidden]{display:none;}
   #ui-hint .hint-label{font-weight:600; margin-right:4px;}
   #ui-hint .hint-main{font-weight:700; margin-right:6px;}
   #ui-hint .hint-desc{display:block; margin-top:2px; font-weight:500;}
@@ -653,9 +666,12 @@
   <a href="/Credits.html" rel="nofollow">3D Model Credits</a>
 </footer>
    <!-- 🔧 ツールバー -->
-<div id="ui-toolbar" role="toolbar" aria-label="建物の操作ツール">
-  <div class="toolbar-title">建物の操作</div>
-  <div class="toolbar-buttons">
+<div id="ui-toolbar">
+  <button id="toolbarToggle" class="toolbar-toggle" type="button" aria-expanded="false" aria-controls="toolbarButtons">
+    <span class="toolbar-toggle__label">建物を操作</span>
+    <span class="toolbar-toggle__chevron" aria-hidden="true">▾</span>
+  </button>
+  <div id="toolbarButtons" class="toolbar-buttons" role="toolbar" aria-label="建物の操作ツール" hidden>
     <button id="btn-select" class="active" type="button" aria-pressed="true" title="建物をタップしてえらぶ">
       <span class="tool-icon" aria-hidden="true">🖱️</span>
       <span class="tool-label">えらぶ</span>
@@ -669,7 +685,7 @@
       <span class="tool-label">けす</span>
     </button>
   </div>
-  <div id="ui-hint">
+  <div id="ui-hint" hidden>
     <span class="hint-label">モード:</span>
     <span class="hint-main">🖱️ えらぶ</span>
     <span class="hint-desc">建物をタップして選ぼう</span>
@@ -1196,6 +1212,10 @@ const placeHud  = document.getElementById("placeHud");
 const btnRotate = document.getElementById("btnRotate");
 const btnOk     = document.getElementById("btnOK");
 const btnCancel = document.getElementById("btnCancel");
+const toolbarEl      = document.getElementById("ui-toolbar");
+const toolbarButtons = document.getElementById("toolbarButtons");
+const toolbarToggle  = document.getElementById("toolbarToggle");
+const toolbarHint    = document.getElementById("ui-hint");
 
 /* 進捗＆所持金 */
 const COLS = 30, ROWS = 18;
@@ -1505,13 +1525,31 @@ document.getElementById("playSengoku")?.addEventListener("click", ()=>{ eraSelec
 document.getElementById("playMuromachi")?.addEventListener("click", ()=>{ eraSelectEl.value="muromachi";eraSelectEl.dispatchEvent(new Event("change")); });
 document.getElementById("playKamakura")?.addEventListener("click", ()=>{ eraSelectEl.value="kamakura"; eraSelectEl.dispatchEvent(new Event("change")); });
 
+ /* 建物操作ツールバー */
+function setToolbarOpen(open){
+  if(!toolbarEl || !toolbarToggle) return;
+  toolbarEl.classList.toggle("open", !!open);
+  toolbarToggle.setAttribute("aria-expanded", open ? "true" : "false");
+  if(toolbarButtons) toolbarButtons.hidden = !open;
+  if(toolbarHint) toolbarHint.hidden = !open;
+}
+if(toolbarEl && toolbarToggle){
+  setToolbarOpen(false);
+  toolbarToggle.addEventListener("click", ()=>{
+    const next = !toolbarEl.classList.contains("open");
+    setToolbarOpen(next);
+  });
+  toolbarButtons?.addEventListener("keydown", (ev)=>{
+    if(ev.key === "Escape"){ setToolbarOpen(false); toolbarToggle.focus(); }
+  });
+}
+
 /* スマホHUD連携 */
-setHidden('xxx', true);
-setHidden('yyy', false);
-document.addEventListener("placement:cancel",()=>{ placeHud.hidden = true;  });
+document.addEventListener("placement:start", ()=>{ if(placeHud) placeHud.hidden = false; });
+document.addEventListener("placement:end",   ()=>{ if(placeHud) placeHud.hidden = true;  });
+document.addEventListener("placement:cancel",()=>{ if(placeHud) placeHud.hidden = true;  });
 btnRotate?.addEventListener("click", ()=>{ document.dispatchEvent(new Event("placement:rotate")); });
 btnCancel?.addEventListener("click", ()=>{ document.dispatchEvent(new Event("placement:cancel")); });
-
 /* 起動 */
 function init(){
   currentEra = eraSelectEl ? eraSelectEl.value : "edo";
@@ -2090,6 +2128,7 @@ window.city3D = {
 
 </body>
 </html>
+
 
 
 

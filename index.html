@@ -1665,9 +1665,10 @@ document.addEventListener("placement:end",   ()=>{ joyHide(); joyEnd(); });
 document.addEventListener("placement:cancel",()=>{ joyHide(); joyEnd(); });
 
 // 「決定」ボタン → THREE 側にOKシグナル
-btnOk?.addEventListener("click", ()=>{␊
+btnOk?.addEventListener("click", ()=>{
   document.dispatchEvent(new Event("placement:ok"));
 });
+
 
 
   </script>
@@ -2128,6 +2129,7 @@ window.city3D = {
 
 </body>
 </html>
+
 
 
 

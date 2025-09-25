@@ -1545,7 +1545,8 @@ if(toolbarEl && toolbarToggle){
 }
 
 /* スマホHUD連携 */
-document.addEventListener("placement:start", ()=>{ if(placeHud) placeHud.hidden = false; });
+document.addEventListener("placement:start", ()=>{ if(placeHud) placeHud.hidden = true;  });
+document.addEventListener("placement:preview",()=>{ if(placeHud) placeHud.hidden = false; });
 document.addEventListener("placement:end",   ()=>{ if(placeHud) placeHud.hidden = true;  });
 document.addEventListener("placement:cancel",()=>{ if(placeHud) placeHud.hidden = true;  });
 btnRotate?.addEventListener("click", ()=>{ document.dispatchEvent(new Event("placement:rotate")); });
@@ -1942,6 +1943,7 @@ function setPreviewAtCell(cell){
   const valid = cellValid(cell.x, cell.y);
   restoreTint(preview);
   applyTint(preview, valid ? okMat : ngMat);
+  document.dispatchEvent(new Event("placement:preview"));
 }
 function endPlacement(){
   placing=false; placeType=null; placeRot=0; occSet.clear();
@@ -2129,6 +2131,7 @@ window.city3D = {
 
 </body>
 </html>
+
 
 
 

@@ -1533,22 +1533,28 @@ function setToolbarOpen(open){
   if(toolbarButtons) toolbarButtons.hidden = !open;
   if(toolbarHint) toolbarHint.hidden = !open;
 }
-if(toolbarEl && toolbarToggle){
+if (toolbarEl && toolbarToggle) {
   setToolbarOpen(false);
-  toolbarToggle.addEventListener("click", ()=>{
+  toolbarToggle.addEventListener("click", () => {
     const next = !toolbarEl.classList.contains("open");
     setToolbarOpen(next);
+    if (!next) setEditMode('select'); // ★追加：閉じたら「えらぶ」に戻す
   });
-  toolbarButtons?.addEventListener("keydown", (ev)=>{
-    if(ev.key === "Escape"){ setToolbarOpen(false); toolbarToggle.focus(); }
+  toolbarButtons?.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") {
+      setToolbarOpen(false);
+      setEditMode('select');          // ★追加：Escで閉じた時も「えらぶ」
+      toolbarToggle.focus();
+    }
   });
 }
 
-/* スマホHUD連携 */
-document.addEventListener("placement:start", ()=>{ if(placeHud) placeHud.hidden = true;  });
+
+/* スマホHUD連携（プレビュー中のみ表示） */
+document.addEventListener("placement:start",  ()=>{ if(placeHud) placeHud.hidden = true;  });
 document.addEventListener("placement:preview",()=>{ if(placeHud) placeHud.hidden = false; });
-document.addEventListener("placement:end",   ()=>{ if(placeHud) placeHud.hidden = true;  });
-document.addEventListener("placement:cancel",()=>{ if(placeHud) placeHud.hidden = true;  });
+document.addEventListener("placement:end",    ()=>{ if(placeHud) placeHud.hidden = true;  });
+document.addEventListener("placement:cancel", ()=>{ if(placeHud) placeHud.hidden = true;  });
 btnRotate?.addEventListener("click", ()=>{ document.dispatchEvent(new Event("placement:rotate")); });
 btnCancel?.addEventListener("click", ()=>{ document.dispatchEvent(new Event("placement:cancel")); });
 /* 起動 */
@@ -2131,6 +2137,7 @@ window.city3D = {
 
 </body>
 </html>
+
 
 
 

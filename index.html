@@ -1538,21 +1538,22 @@ if (toolbarEl && toolbarToggle) {
   toolbarToggle.addEventListener("click", () => {
     const next = !toolbarEl.classList.contains("open");
     setToolbarOpen(next);
-    if (!next) setEditMode('select'); // ★追加：閉じたら「えらぶ」に戻す
+    if (!next) setEditMode('select');   // ← 追加：閉じたら必ず「えらぶ」
   });
   toolbarButtons?.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape") {
       setToolbarOpen(false);
-      setEditMode('select');          // ★追加：Escで閉じた時も「えらぶ」
+      setEditMode('select');            // ← 追加：Escで閉じた時も「えらぶ」
       toolbarToggle.focus();
     }
   });
 }
 
 
+
 /* スマホHUD連携（プレビュー中のみ表示） */
-document.addEventListener("placement:start",  ()=>{ if(placeHud) placeHud.hidden = true;  });
-document.addEventListener("placement:preview",()=>{ if(placeHud) placeHud.hidden = false; });
+/* スマホHUD連携（ジョイスティックと同じ挙動に統一） */
+document.addEventListener("placement:start",  ()=>{ if(placeHud) placeHud.hidden = false; });
 document.addEventListener("placement:end",    ()=>{ if(placeHud) placeHud.hidden = true;  });
 document.addEventListener("placement:cancel", ()=>{ if(placeHud) placeHud.hidden = true;  });
 btnRotate?.addEventListener("click", ()=>{ document.dispatchEvent(new Event("placement:rotate")); });
@@ -2137,6 +2138,7 @@ window.city3D = {
 
 </body>
 </html>
+
 
 
 

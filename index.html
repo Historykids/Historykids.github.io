@@ -1695,60 +1695,37 @@ btnOk?.addEventListener("click", ()=>{
 
 <!-- ===== Three.js レイヤー（モジュール） ===== -->
 <script type="module">
-
 /* ========= 依存 ========= */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 
- // === UI安全ヘルパー（importのすぐ下に置く） ===
+/* ========= DOM 参照 ========= */
+const townEl    = document.getElementById('town');
+const placeHud  = document.getElementById('placeHud');   // ★ プレビュー中だけ表示
+const toolbarEl = document.getElementById('ui-toolbar');  // ★ 閉じたら「えらぶ」に戻す監視
+
+/* ========= 便利関数 ========= */
 const $ = (id) => document.getElementById(id);
-
-function setHidden(idOrEl, value){
-  const el = typeof idOrEl === 'string' ? $(idOrEl) : idOrEl;
-  if (!el) { console.warn('[UI missing]', idOrEl); return false; }
-  el.hidden = !!value;
-  return true;
-}
-
-function setShown(idOrEl, shown){
-  const el = typeof idOrEl === 'string' ? $(idOrEl) : idOrEl;
-  if (!el) { console.warn('[UI missing]', idOrEl); return false; }
-  if (shown) el.removeAttribute('hidden');
-  else el.setAttribute('hidden','');
-  return true;
-}
-
-
-/* ========= Three.js セットアップ ========= */
-const townEl = document.getElementById("town");
-let renderer, scene, camera, controls, loader, ground, grid;
-let placed3D = [];                  // 設置済みオブジェクトの“ルート”配列
-let tControls = null;               // TransformControls は ensureRenderer 内で生成
-
-let COLS = 30, ROWS = 18;
-const WORLD_SCALE = 1.0;
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 
+/* ========= 盤面/グリッド ========= */
+let COLS = 30, ROWS = 18;
+const WORLD_SCALE = 1.0;
 function gridToWorld(x, y){
   const ox = Math.floor(COLS/2), oy = Math.floor(ROWS/2);
   return new THREE.Vector3((x-ox)*WORLD_SCALE, 0, (y-oy)*WORLD_SCALE);
 }
-function worldToGrid(X,Z){
+function worldToGrid(X, Z){
   const ox = Math.floor(COLS/2), oy = Math.floor(ROWS/2);
   return { x: Math.round(X/WORLD_SCALE)+ox, y: Math.round(Z/WORLD_SCALE)+oy };
 }
 
-/* === 地面に載せるユーティリティ === */
-const EPS_Y = 0.01;
-function snapBaseY(obj, targetY = 0){
-  obj.updateWorldMatrix(true, true);
-  const box = new THREE.Box3().setFromObject(obj);
-  const dy  = (targetY + EPS_Y) - box.min.y;
-  obj.position.y += dy;
-  obj.updateWorldMatrix(true, true);
-}
+/* ========= Three.js 基本セットアップ ========= */
+let renderer, scene, camera, controls, loader, ground, grid;
+let tControls = null;         // TransformControls
+let placed3D = [];            // 設置済み 3D オブジェクト
 
 function ensureRenderer(){
   if(renderer) return;
@@ -1765,7 +1742,6 @@ function ensureRenderer(){
   scene = new THREE.Scene();
 
   camera = new THREE.PerspectiveCamera(50, w/h, 0.1, 1000);
-
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.06;
@@ -1781,15 +1757,18 @@ function ensureRenderer(){
     }
   });
 
+  // 初期視点
   const center = gridToWorld(Math.floor(COLS/2), Math.floor(ROWS/2));
   controls.target.copy(center);
   camera.position.set(center.x + 15, 18, center.z + 22);
 
+  // ライト
   scene.add(new THREE.AmbientLight(0xffffff, 1.0));
   const dir = new THREE.DirectionalLight(0xffffff, 1.2);
   dir.position.set(10, 20, 10);
   scene.add(dir);
 
+  // 地面 & グリッド
   const plane = new THREE.PlaneGeometry(100, 100);
   const pm = new THREE.MeshBasicMaterial({ color: 0xd7f4d2, side: THREE.FrontSide });
   ground = new THREE.Mesh(plane, pm);
@@ -1806,9 +1785,6 @@ function ensureRenderer(){
 
   renderer.setAnimationLoop(()=>{ controls.update(); renderer.render(scene, camera); });
 
-  controls.minPolarAngle = 0.1;
-  controls.maxPolarAngle = Math.PI / 2.02;
-
   new ResizeObserver(()=>{
     const w2 = townEl.clientWidth, h2 = townEl.clientHeight;
     renderer.setSize(w2, h2);
@@ -1816,7 +1792,7 @@ function ensureRenderer(){
     camera.updateProjectionMatrix();
   }).observe(townEl);
 
-  /* === 移動ハンドル（TransformControls） === */
+  // TransformControls
   tControls = new TransformControls(camera, renderer.domElement);
   tControls.setMode('translate');
   tControls.addEventListener('dragging-changed', e => { controls.enabled = !e.value; });
@@ -1837,8 +1813,16 @@ const MODEL_URLS = {
   school: "/assets/_m/s7c7h9o89ol.glb",
 };
 
-/* ========= フォールバック ========= */
-function fallbackMesh(type, big=false){
+/* ========= 補助 ========= */
+const EPS_Y = 0.01;
+function snapBaseY(obj, targetY = 0){
+  obj.updateWorldMatrix(true, true);
+  const box = new THREE.Box3().setFromObject(obj);
+  const dy  = (targetY + EPS_Y) - box.min.y;
+  obj.position.y += dy;
+  obj.updateWorldMatrix(true, true);
+}
+function fallbackMesh(big=false){
   const s = big ? 1.6 : 0.9;
   const g = new THREE.BoxGeometry(s, s, s);
   const m = new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x0, metalness:0.1, roughness:0.8 });
@@ -1847,15 +1831,15 @@ function fallbackMesh(type, big=false){
   return mesh;
 }
 
-/* ========= 設置 ========= */
+/* ========= 既存オブジェクトの配置/同期 ========= */
 async function place3D({id, type, x, y, rot=0}){
   const pos = gridToWorld(x, y);
   let obj; const url = MODEL_URLS[type];
   if(url){
     try { const gltf = await loader.loadAsync(url); obj = gltf.scene; obj.scale.set(0.8,0.8,0.8); }
-    catch { obj = fallbackMesh(type); }
+    catch { obj = fallbackMesh(); }
   }else{
-    obj = fallbackMesh(type);
+    obj = fallbackMesh();
   }
   obj.position.copy(pos);
   obj.rotation.y = (rot/90) * Math.PI/2;
@@ -1869,31 +1853,9 @@ async function place3D({id, type, x, y, rot=0}){
 }
 function clear3D(){ placed3D.forEach(o=>scene.remove(o)); placed3D = []; }
 
-
- /* ========= メインUIとのイベント連携 ========= */
-document.addEventListener("city:reset", () => {
-  if (tControls) tControls.detach();
-  clearSelected();
-  clear3D();
-});
-document.addEventListener("city:add", (ev) => {
-  const detail = ev?.detail;
-  if (!detail) return;
-  place3D(detail).catch(err => console.error("[city:add] failed to place model", err));
-});
-
-
-/* ========= 共通レイキャスター ========= */
+/* ========= 進入レイキャスト ========= */
 const raycaster = new THREE.Raycaster();
 const pointer   = new THREE.Vector2();
-
-/* ========= 配置モード（プレビュー付き） ========= */
-let placing=false, preview=null, placeType=null, placeRot=0;
-let occSet = new Set();
-let hoverCell = {x:-1,y:-1};
-const okMat=new THREE.MeshBasicMaterial({ color:0x2e7d32, transparent:true, opacity:0.5 });
-const ngMat=new THREE.MeshBasicMaterial({ color:0xc62828, transparent:true, opacity:0.5 });
-
 function setPointerFromEvent(ev){
   const rect = renderer.domElement.getBoundingClientRect();
   const cx = ((ev.clientX ?? (ev.touches?.[0]?.clientX || 0)) - rect.left) / rect.width;
@@ -1907,6 +1869,15 @@ function pickOnGround(ev){
   if(!hit) return null;
   return { cell: worldToGrid(hit.point.x, hit.point.z) };
 }
+
+/* ========= 配置（プレビュー） ========= */
+let placing=false, preview=null, placeType=null, placeRot=0;
+let occSet = new Set();
+let hoverCell = {x:-1,y:-1};
+
+const okMat=new THREE.MeshBasicMaterial({ color:0x2e7d32, transparent:true, opacity:0.5 });
+const ngMat=new THREE.MeshBasicMaterial({ color:0xc62828, transparent:true, opacity:0.5 });
+
 function cellValid(x,y){ return (x>=0 && y>=0 && x<COLS && y<ROWS) && !occSet.has(`${x},${y}`); }
 
 function applyTint(obj,mat){
@@ -1922,11 +1893,14 @@ function restoreTint(obj){
     if(n.isMesh && n.userData._origMat){ n.material = n.userData._origMat; delete n.userData._origMat; }
   });
 }
+
 async function ensurePreview(){
   if (preview) return preview;
-  preview = fallbackMesh(placeType, true);
+  // まずフォールバックで即表示
+  preview = fallbackMesh(true);
   scene.add(preview);
   snapBaseY(preview, 0);
+  // GLB があれば差替え
   const url = MODEL_URLS[placeType];
   if (url) {
     try{
@@ -1958,9 +1932,24 @@ function endPlacement(){
   if(preview){ scene.remove(preview); preview=null; }
   renderer.domElement.style.cursor="default";
   controls.enabled = true;
+  // ★ プレビューを抜けたら必ず HUD を隠す
+  placeHud?.setAttribute('hidden','');
 }
 
-/* ========= 配置イベント ========= */
+/* ========= 外部イベント連携 ========= */
+// 街の同期
+document.addEventListener("city:reset", () => {
+  if (tControls) tControls.detach();
+  clearSelected();
+  clear3D();
+});
+document.addEventListener("city:add", (ev) => {
+  const detail = ev?.detail;
+  if (!detail) return;
+  place3D(detail).catch(err => console.error("[city:add] failed", err));
+});
+
+// 配置フロー
 document.addEventListener("placement:start", async (ev)=>{
   const { type, cols, rows, occupied=[] } = ev.detail || {};
   COLS = cols ?? COLS; ROWS = rows ?? ROWS;
@@ -1973,7 +1962,7 @@ document.addEventListener("placement:start", async (ev)=>{
 
   await ensurePreview();
 
-  // 中央から近傍の空きマスを探す
+  // 近傍の空きマスを探して配置
   const center = { x: Math.floor(COLS/2), y: Math.floor(ROWS/2) };
   const isFree = (c)=> c.x>=0 && c.y>=0 && c.x<COLS && c.y<ROWS && !occSet.has(`${c.x},${c.y}`);
   let init = center;
@@ -1989,24 +1978,25 @@ document.addEventListener("placement:start", async (ev)=>{
   }
   setPreviewAtCell(init);
 
-  // カメラ寄せ
+  // 視点寄せ
   const t = gridToWorld(init.x, init.y);
   controls.target.copy(t);
   camera.position.set(t.x + 15, 18, t.z + 22);
   controls.update();
+
+  // ★ プレビュー開始＝HUD表示
+  placeHud?.removeAttribute('hidden');
 });
 document.addEventListener("placement:end",   ()=> endPlacement());
 document.addEventListener("placement:cancel",()=> endPlacement());
 document.addEventListener("placement:rotate",()=>{ if(!placing) return; placeRot=(placeRot+90)%360; if(preview && hoverCell){ setPreviewAtCell(hoverCell); } });
 
-// マウス移動でプレビュー追従
 renderer.domElement.addEventListener("pointermove", (ev)=>{
   if(!placing) return;
   const r = pickOnGround(ev); if(!r) return;
   setPreviewAtCell(r.cell);
 }, { passive:true });
 
-// クリックで確定
 function tryPlace(ev){
   if(!placing) return;
   const r = pickOnGround(ev); if(!r) return;
@@ -2025,13 +2015,7 @@ document.addEventListener("placement:ok", ()=>{
   endPlacement();
 });
 
-// 右クリックでキャンセル
-renderer.domElement.addEventListener("pointerdown", (ev)=>{
-  if(placing && ev.button===2){ ev.preventDefault(); document.dispatchEvent(new Event("placement:cancel")); endPlacement(); }
- });
-renderer.domElement.addEventListener("contextmenu", (e)=>{ if(placing){ e.preventDefault(); } });
-
- // スティック操作：1ステップ移動
+// スティック微移動（外側から来る）
 document.addEventListener("placement:nudge", (ev)=>{
   if(!placing || !hoverCell) return;
   const {dx=0, dy=0} = ev.detail || {};
@@ -2040,7 +2024,7 @@ document.addEventListener("placement:nudge", (ev)=>{
   setPreviewAtCell({x:nx, y:ny});
 });
 
-/* ========= 編集モード（選択／移動／削除） ========= */
+/* ========= 編集モード（選択/移動/削除） ========= */
 let editMode = 'select';     // 'select' | 'move' | 'delete'
 let selected = null;
 
@@ -2065,39 +2049,12 @@ function clearSelected(){
   selected = null;
 }
 
-const $btnSelect = document.getElementById('btn-select');
-const $btnMove   = document.getElementById('btn-move');
-const $btnDelete = document.getElementById('btn-delete');
-const $hint      = document.getElementById('ui-hint');
-
-const MODE_INFO = {
-  select: { icon:'🖱️', label:'えらぶ', desc:'建物をタップして選ぼう' },
-  move:   { icon:'↔️', label:'うごかす', desc:'選んだ建物をドラッグで動かせるよ' },
-  delete: { icon:'🗑️', label:'けす', desc:'クリックした建物を消せるよ' }
-};
-const MODE_BUTTONS = { select:$btnSelect, move:$btnMove, delete:$btnDelete };
-
 function setEditMode(m){
   editMode = m;
-  Object.entries(MODE_BUTTONS).forEach(([mode, btn])=>{
-    if(!btn) return;
-    const active = mode === m;
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-  });
-  if($hint){
-    const info = MODE_INFO[m] || MODE_INFO.select;
-    $hint.innerHTML = `<span class="hint-label">モード:</span><span class="hint-main">${info.icon} ${info.label}</span><span class="hint-desc">${info.desc}</span>`;
-  }
   if (tControls && m!=='move') tControls.detach();
   renderer.domElement.style.cursor = (m==='delete') ? 'not-allowed' : 'default';
 }
-$btnSelect?.addEventListener('click', ()=> setEditMode('select'));
-$btnMove?.addEventListener('click', ()=>{ setEditMode('move'); if(selected && tControls) tControls.attach(selected); });
-$btnDelete?.addEventListener('click', ()=> setEditMode('delete'));
-setEditMode('select');
 
-/* === 配置モードでない時の編集クリック === */
 renderer.domElement.addEventListener('pointerup', (ev)=>{
   if(placing) return; // 配置中は編集しない
 
@@ -2127,69 +2084,29 @@ renderer.domElement.addEventListener('pointerup', (ev)=>{
   if(editMode==='move' && tControls) tControls.attach(hit);
 });
 
+/* ========= ツールバーの「閉じる」監視（保険） =========
+   外側で setToolbarOpen(false) 時に戻すのが本筋だが、
+   念のためここでも #ui-toolbar の open クラスを監視し、
+   閉じられたら「えらぶ」に戻す。
+*/
+if (toolbarEl) {
+  const mo = new MutationObserver(() => {
+    const open = toolbarEl.classList.contains('open');
+    if (!open) setEditMode('select');
+  });
+  mo.observe(toolbarEl, { attributes: true, attributeFilter: ['class'] });
+}
+
 /* ========= 公開API ========= */
 window.city3D = {
   place3D, clear3D,
   setEditMode,
   getSelected: ()=>selected
 };
+
+// 起動時に念のため HUD は隠しておく
+placeHud?.setAttribute('hidden','');
+
 </script>
-
-
-
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

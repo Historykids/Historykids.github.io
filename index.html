@@ -1538,16 +1538,17 @@ if (toolbarEl && toolbarToggle) {
   toolbarToggle.addEventListener("click", () => {
     const next = !toolbarEl.classList.contains("open");
     setToolbarOpen(next);
-    if (!next) setEditMode('select');   // ← 追加：閉じたら必ず「えらぶ」
+    if (!next) window.city3D?.setEditMode?.('select'); // ← 追加：閉じたら必ず「えらぶ」
   });
   toolbarButtons?.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape") {
       setToolbarOpen(false);
-      setEditMode('select');            // ← 追加：Escで閉じた時も「えらぶ」
+      window.city3D?.setEditMode?.('select');          // ← 追加：Esc で閉じても「えらぶ」
       toolbarToggle.focus();
     }
   });
 }
+
 
 
 
@@ -2138,6 +2139,7 @@ window.city3D = {
 
 </body>
 </html>
+
 
 
 

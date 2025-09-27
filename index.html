@@ -1706,7 +1706,10 @@ if (toolbarEl && toolbarToggle) {
 
 
 // プレビューが出た時だけHUDを表示。確定/終了/キャンセルで非表示。
-document.addEventListener("placement:start",   ()=>{ if(placeHud) placeHud.hidden = true;  });
+ document.addEventListener("placement:start", ()=>{
+   if(placeHud) placeHud.hidden = true;
+   setToolbarOpen(false);     // ← 追加：配置開始時に「建物を操作」パネルを閉じる
+ });
 document.addEventListener("placement:preview", ()=>{ if(placeHud) placeHud.hidden = false; });
 document.addEventListener("placement:end",     ()=>{ if(placeHud) placeHud.hidden = true;  });
 document.addEventListener("placement:confirm", ()=>{ if(placeHud) placeHud.hidden = true;  });
@@ -2397,6 +2400,7 @@ document.addEventListener('placement:cancel', ()=> setHidden(placeHud, true));
 
 </body>
 </html>
+
 
 
 

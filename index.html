@@ -696,6 +696,29 @@ html.noscroll, html.noscroll body{
   #ui-toolbar{ top: auto !important; }
 }
 
+/* 最小HUD：決定ボタンのみ */
+.place-hud{
+  position: fixed; right: 12px; bottom: 16px; z-index: 200;
+  background: rgba(255,255,255,.95);
+  border: 1px solid rgba(148,163,184,.35);
+  border-radius: 16px; padding: 10px; box-shadow: 0 12px 28px rgba(15,23,42,.2);
+}
+.place-hud__confirm{
+  appearance: none; border: 0; border-radius: 12px;
+  background: linear-gradient(130deg,#bef264,#86efac);
+  color: #14532d; font-weight: 800; font-size: 16px;
+  padding: 12px 16px; min-width: 180px; min-height: 44px; cursor: pointer;
+  box-shadow: 0 6px 14px rgba(15,23,42,.18);
+}
+
+/* モバイルで広告やSafeAreaと干渉しないよう底上げ */
+@media (max-width:680px){
+  .place-hud{
+    right: 12px;
+    bottom: calc(env(safe-area-inset-bottom) + 100px);
+    width: auto;
+  }
+}
 
   </style>
 </head>
@@ -800,23 +823,9 @@ html.noscroll, html.noscroll body{
 </div>
 
 <div id="placeHud" class="place-hud" hidden aria-live="polite">
-  <div class="place-hud__title">建物を配置中</div>
-  <p class="place-hud__hint">マップで置く場所を決めてから「この場所におく」で決定しよう。↻で回転、✖️でキャンセルできるよ。</p>
-  <div class="place-hud__actions">
-    <button id="btnRotate" type="button">
-      <span class="icon" aria-hidden="true">↻</span>
-      <span>回転する</span>
-    </button>
-    <button id="btnOK" type="button">
-      <span class="icon" aria-hidden="true">✅</span>
-      <span>この場所におく</span>
-    </button>
-    <button id="btnCancel" type="button">
-      <span class="icon" aria-hidden="true">✖️</span>
-      <span>やめる</span>
-    </button>
-  </div>
+  <button id="btnPlaceConfirm" type="button" class="place-hud__confirm">✅ 建物を決定</button>
 </div>
+
 
  <!-- ======== ここが街（3D） ======== -->
   <div id="town" role="img" aria-label="町エリア"></div>
@@ -1315,14 +1324,14 @@ const shopCloseEl     = document.getElementById("shopClose");
 const shopGridEl      = document.getElementById("shopGrid");
 
 /* スマホHUD */
-const placeHud  = document.getElementById("placeHud");
-const btnRotate = document.getElementById("btnRotate");
-const btnOk     = document.getElementById("btnOK");
-const btnCancel = document.getElementById("btnCancel");
+/* スマホHUD（最小：決定ボタンのみ） */
+const placeHud        = document.getElementById("placeHud");
+const btnPlaceConfirm = document.getElementById("btnPlaceConfirm");
 const toolbarEl      = document.getElementById("ui-toolbar");
 const toolbarButtons = document.getElementById("toolbarButtons");
 const toolbarToggle  = document.getElementById("toolbarToggle");
 const toolbarHint    = document.getElementById("ui-hint");
+
 
 /* 進捗＆所持金 */
 const COLS = 30, ROWS = 18;
@@ -1538,12 +1547,12 @@ function occupiedKey(x,y){ return `${x},${y}`; }
 function occupiedSet(){ return new Set(cityBuildings.map(b=>occupiedKey(b.x,b.y))); }
 
 function startPlacementFlow(item){
- if(money < item.price){
+  if(money < item.price){
     alert("お金が足りないよ！クイズで💰を増やしてからもう一度ためしてね。");
     return;
   }
   pendingPurchase = { type: item.id, price: item.price, rot: 0 };
- infoBoxEl.textContent = "置く場所をえらんで、「この場所におく」ボタンかマップをタップして決定しよう！（↻で回転、右クリック/Escでキャンセル）";
+  infoBoxEl.textContent = "位置を決めて『建物を決定』を押そう。";
   shopOverlayEl.classList.remove("active");
 
   // 3Dレイヤーへ開始通知（占有マスと盤面サイズを渡す）
@@ -1659,13 +1668,18 @@ if (toolbarEl && toolbarToggle) {
 
 
 
-/* スマホHUD連携（プレビュー中のみ表示） */
-/* スマホHUD連携（ジョイスティックと同じ挙動に統一） */
-document.addEventListener("placement:start",  ()=>{ if(placeHud) placeHud.hidden = false; });
-document.addEventListener("placement:end",    ()=>{ if(placeHud) placeHud.hidden = true;  });
-document.addEventListener("placement:cancel", ()=>{ if(placeHud) placeHud.hidden = true;  });
-btnRotate?.addEventListener("click", ()=>{ document.dispatchEvent(new Event("placement:rotate")); });
-btnCancel?.addEventListener("click", ()=>{ document.dispatchEvent(new Event("placement:cancel")); });
+// プレビューが出た時だけHUDを表示。確定/終了/キャンセルで非表示。
+document.addEventListener("placement:start",   ()=>{ if(placeHud) placeHud.hidden = true;  });
+document.addEventListener("placement:preview", ()=>{ if(placeHud) placeHud.hidden = false; });
+document.addEventListener("placement:end",     ()=>{ if(placeHud) placeHud.hidden = true;  });
+document.addEventListener("placement:confirm", ()=>{ if(placeHud) placeHud.hidden = true;  });
+document.addEventListener("placement:cancel",  ()=>{ if(placeHud) placeHud.hidden = true;  });
+
+// 「建物を決定」→ 既存の確定フローを呼ぶ
+btnPlaceConfirm?.addEventListener("click", ()=>{
+  document.dispatchEvent(new Event("placement:ok"));
+});
+
 /* 起動 */
 function init(){
   currentEra = eraSelectEl ? eraSelectEl.value : "edo";
@@ -2346,6 +2360,7 @@ document.addEventListener('placement:cancel', ()=> setHidden(placeHud, true));
 
 </body>
 </html>
+
 
 
 

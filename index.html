@@ -2149,7 +2149,26 @@ document.addEventListener('placement:cancel', ()=> setHidden(placeHud, true));
 
 </script>
 
+ <script>
+(function(){
+  const toolbar = document.getElementById('ui-toolbar');
+  const header  = document.querySelector('header');
+
+  function placeToolbar(){
+    if(!toolbar || !header) return;
+    const isMobile = window.matchMedia('(max-width: 680px)').matches;
+    toolbar.style.top = isMobile ? (header.offsetHeight + 12) + 'px' : '16px';
+  }
+
+  // ヘッダーの高さが変わっても追随
+  window.addEventListener('resize', placeToolbar);
+  placeToolbar();
+})();
+</script>
+
+
 </body>
 </html>
+
 
 

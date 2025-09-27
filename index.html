@@ -590,6 +590,113 @@
 
   .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:30;}
 
+   /* ===== スマホ最適化（<=680px） ===== */
+@media (max-width: 680px){
+  /* ヘッダー内の操作を押しやすく */
+  header .controls{
+    gap: 10px;
+  }
+  header select,
+  header button{
+    min-height: 44px;       /* 親指タップ基準 */
+    font-size: 15px;
+    padding: 10px 14px;
+  }
+  .moneybox{ padding: 8px 12px; }
+
+  /* カードは少し大きめ＆間隔確保 */
+  #cards{
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+    gap: 12px;
+    padding: 14px;
+  }
+  .card{
+    height: 130px;
+    font-size: 16px;
+  }
+
+  /* クイズ入力も太めに */
+  #quizInput{
+    font-size: 18px;
+    min-height: 44px;
+  }
+
+  /* ツールバーは画面右下“下部固定”に移動（広告バーを避ける） */
+  #ui-toolbar{
+    position: fixed;
+    top: auto;                 /* ← 上固定を解除 */
+    bottom: calc(env(safe-area-inset-bottom) + 84px);
+    right: 12px;
+    left: auto;
+    width: min(260px, 90vw);
+  }
+
+  /* 配置中HUDも広告バーをまたがないよう上げる */
+  .place-hud{
+    bottom: calc(env(safe-area-inset-bottom) + 120px);
+    right: 12px;
+    width: min(92vw, 340px);
+  }
+
+  /* ジョイスティックも少し大きく＆広告を避ける */
+  .joypad{
+    width: 140px; height: 140px;
+    left: 10px;
+    bottom: calc(env(safe-area-inset-bottom) + 72px);
+  }
+
+  /* ショップはボトムシート化して重なり回避＆操作しやすく */
+  .shop-overlay.active{
+    align-items: flex-end;
+  }
+  .shop-box{
+    width: 100%;
+    max-width: none;
+    max-height: min(86vh, 720px);
+    border-radius: 16px 16px 0 0;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+  .shop-box h2{
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    padding: 12px 4px 10px 2px;
+    z-index: 1;
+  }
+  .toolrow{
+    position: sticky;
+    top: 44px;                /* タイトルの下に吸着 */
+    background: var(--surface);
+    padding: 10px 6px;
+    z-index: 1;
+  }
+  .shop-grid{
+    padding-top: 6px;
+  }
+  .shop-card button{
+    min-height: 40px;
+  }
+
+  /* 図鑑パネルも操作しやすい余白に */
+  #zukanHead{
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+  }
+}
+
+/* モーダルやシート表示中は背面スクロール禁止用 */
+html.noscroll, html.noscroll body{
+  height: 100%;
+  overflow: hidden !important;
+}
+
+/* もし上部固定スクリプトで top が書かれても、下部固定を優先 */
+@media (max-width: 680px){
+  #ui-toolbar{ top: auto !important; }
+}
+
+
   </style>
 </head>
 
@@ -2150,25 +2257,96 @@ document.addEventListener('placement:cancel', ()=> setHidden(placeHud, true));
 </script>
 
  <script>
+/* ===== モバイル体験の小改善セット ===== */
 (function(){
-  const toolbar = document.getElementById('ui-toolbar');
-  const header  = document.querySelector('header');
+  // 背面スクロールロック
+  function lockScroll(on){ document.documentElement.classList.toggle('noscroll', !!on); }
 
-  function placeToolbar(){
-    if(!toolbar || !header) return;
-    const isMobile = window.matchMedia('(max-width: 680px)').matches;
-    toolbar.style.top = isMobile ? (header.offsetHeight + 12) + 'px' : '16px';
+  // 既存DOMの参照（あなたのコードですでにあるID）
+  const shopOverlayEl = document.getElementById('shopOverlay');
+  const shopCloseEl   = document.getElementById('shopClose');
+  const openShopBtnEl = document.getElementById('openShopBtn');
+  const zukanPanelEl  = document.getElementById('zukanPanel');
+  const zukanBtnEl    = document.getElementById('zukanBtn');
+  const closeZukanEl  = document.getElementById('closeZukan');
+  const toolbarEl     = document.getElementById('ui-toolbar');
+  const toolbarToggle = document.getElementById('toolbarToggle');
+
+  // あなたの setToolbarOpen がある前提（ない場合は安全に無視）
+  function safeSetToolbarOpen(open){
+    try{ if (typeof setToolbarOpen === 'function') setToolbarOpen(open); }catch(e){}
   }
 
-  // ヘッダーの高さが変わっても追随
-  window.addEventListener('resize', placeToolbar);
-  placeToolbar();
+  /* --- ショップを開いたら：背面スクロール禁止＆ツールバー閉じる --- */
+  if(openShopBtnEl){
+    openShopBtnEl.addEventListener('click', ()=>{ lockScroll(true); safeSetToolbarOpen(false); }, { passive:true });
+  }
+  if(shopCloseEl){
+    shopCloseEl.addEventListener('click', ()=> lockScroll(false), { passive:true });
+  }
+  if(shopOverlayEl){
+    shopOverlayEl.addEventListener('click', (e)=>{
+      if(e.target === shopOverlayEl){ lockScroll(false); }
+    });
+  }
+
+  /* --- 図鑑パネル（スライド）でも背面スクロールを止める --- */
+  if(zukanBtnEl && zukanPanelEl){
+    zukanBtnEl.addEventListener('click', ()=> lockScroll(true), { passive:true });
+  }
+  if(closeZukanEl){
+    closeZukanEl.addEventListener('click', ()=> lockScroll(false), { passive:true });
+  }
+
+  /* --- プロフィール／お問い合わせモーダルでもスクロールロック --- */
+  document.querySelectorAll('.modal-overlay').forEach(modal=>{
+    modal.addEventListener('click', (e)=>{
+      if(e.target === modal){ lockScroll(false); }
+    });
+    // ボタンで閉じる時も解除（data-close があなたの実装）
+    modal.querySelectorAll('[data-close]').forEach(btn=>{
+      btn.addEventListener('click', ()=> lockScroll(false), { passive:true });
+    });
+  });
+
+  /* --- ツールバー：閉じたらモードを「えらぶ」に戻す（アクセシビリティ向上） --- */
+  if(toolbarEl && toolbarToggle){
+    toolbarToggle.addEventListener('click', ()=>{
+      // 開→閉になった瞬間に select へ
+      const willClose = toolbarEl.classList.contains('open'); // 押下前の状態
+      if(willClose){
+        try{
+          if (typeof setEditMode === 'function') setEditMode('select');
+        }catch(e){}
+      }
+    });
+  }
+
+  /* --- iOSのセーフエリア反映で、初期配置の重なりを避ける --- */
+  function adjustFloating(){
+    const isMobile = matchMedia('(max-width:680px)').matches;
+    const adbar = document.querySelector('.adbar');
+    if(!isMobile || !adbar) return;
+    // 余白はCSSの env() で主に対応。ここでは将来の高さ変更に追随。
+    const adH = adbar.getBoundingClientRect().height || 56;
+    const hud = document.getElementById('placeHud');
+    if(hud){ hud.style.bottom = `calc(${adH + 64}px)`; }
+    const joy = document.getElementById('joypad');
+    if(joy){ joy.style.bottom = `calc(${adH + 40}px)`; }
+  }
+  window.addEventListener('resize', adjustFloating);
+  window.addEventListener('orientationchange', adjustFloating);
+  setTimeout(adjustFloating, 0);
 })();
 </script>
 
 
+
+
+
 </body>
 </html>
+
 
 
 

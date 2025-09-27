@@ -1706,6 +1706,57 @@ const townEl    = document.getElementById('town');
 const placeHud  = document.getElementById('placeHud');   // ★ プレビュー中だけ表示
 const toolbarEl = document.getElementById('ui-toolbar');  // ★ 閉じたら「えらぶ」に戻す監視
 
+
+ // === 追加: ツールバーのボタン/ヒントを配線 ===
+const btnSelect = document.getElementById('btn-select');
+const btnMove   = document.getElementById('btn-move');
+const btnDelete = document.getElementById('btn-delete');
+const hintEl    = document.getElementById('ui-hint');
+
+const MODE_INFO = {
+  select: { icon:'🖱️', label:'えらぶ',  desc:'建物をタップして選ぼう' },
+  move:   { icon:'↔️', label:'うごかす', desc:'選んだ建物をドラッグで動かせるよ' },
+  delete: { icon:'🗑️', label:'けす',    desc:'クリックした建物を消せるよ' }
+};
+
+function updateToolbarUI(m){
+  btnSelect?.classList.toggle('active', m==='select');
+  btnMove  ?.classList.toggle('active', m==='move');
+  btnDelete?.classList.toggle('active', m==='delete');
+  btnSelect?.setAttribute('aria-pressed', m==='select' ? 'true' : 'false');
+  btnMove  ?.setAttribute('aria-pressed', m==='move'   ? 'true' : 'false');
+  btnDelete?.setAttribute('aria-pressed', m==='delete' ? 'true' : 'false');
+  if (hintEl){
+    hintEl.hidden = false;
+    const info = MODE_INFO[m];
+    hintEl.innerHTML =
+      `<span class="hint-label">モード:</span>
+       <span class="hint-main">${info.icon} ${info.label}</span>
+       <span class="hint-desc">${info.desc}</span>`;
+  }
+}
+
+function setEditModeUI(m){
+  setEditMode(m);                 // ← 既存の内部状態切替
+  updateToolbarUI(m);             // ← 見た目も同期
+}
+
+btnSelect?.addEventListener('click', ()=> setEditModeUI('select'));
+btnMove  ?.addEventListener('click', ()=> { setEditModeUI('move'); if (selected && tControls) tControls.attach(selected); });
+btnDelete?.addEventListener('click', ()=> setEditModeUI('delete'));
+
+// 起動時は「えらぶ」
+setEditModeUI('select');
+
+// （前回入れた監視の修正）ツールバーを閉じたら必ず「えらぶ」に戻す
+if (toolbarEl) {
+  const mo = new MutationObserver(() => {
+    const open = toolbarEl.classList.contains('open');
+    if (!open) setEditModeUI('select');
+  });
+  mo.observe(toolbarEl, { attributes: true, attributeFilter: ['class'] });
+}
+
 /* ========= 便利関数 ========= */
 const $ = (id) => document.getElementById(id);
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
@@ -2110,3 +2161,4 @@ placeHud?.setAttribute('hidden','');
 </script>
 </body>
 </html>
+

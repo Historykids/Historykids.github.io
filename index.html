@@ -720,6 +720,40 @@ html.noscroll, html.noscroll body{
   }
 }
 
+
+   /* === Mobile overlap fix === */
+@media (max-width: 640px){
+  /* HUDを下部センターに。iOS安全域にも配慮 */
+  .place-hud{
+    right: auto !important;
+    left: 50% !important;
+    transform: translateX(-50%);
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    width: min(94vw, 420px);
+  }
+
+  /* ツールバーは高さを抑えてスクロール可能に */
+  #ui-toolbar{
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    right: 12px;
+    max-height: 60vh;
+    overflow: auto;
+  }
+
+  /* ツールバー展開中は、万一縦が極端に狭い端末でもHUDを右下→左下へ逃がす */
+  body.toolbar-open .place-hud{
+    left: 12px !important;
+    transform: none;
+  }
+
+  /* 広告バーがある場合にHUDが隠れないよう余白を足す（必要に応じて調整） */
+  .adbar{ min-height: 56px; }
+  .place-hud{
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px) + 56px);
+  }
+}
+
+
   </style>
 </head>
 
@@ -1648,6 +1682,9 @@ function setToolbarOpen(open){
   toolbarToggle.setAttribute("aria-expanded", open ? "true" : "false");
   if(toolbarButtons) toolbarButtons.hidden = !open;
   if(toolbarHint) toolbarHint.hidden = !open;
+
+
+  document.body.classList.toggle('toolbar-open', !!open);
 }
 if (toolbarEl && toolbarToggle) {
   setToolbarOpen(false);
@@ -2360,6 +2397,7 @@ document.addEventListener('placement:cancel', ()=> setHidden(placeHud, true));
 
 </body>
 </html>
+
 
 
 

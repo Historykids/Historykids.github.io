@@ -1927,7 +1927,7 @@ import { TransformControls } from "three/addons/controls/TransformControls.js";
 })();
 
   // ショップの開閉に合わせて FAB を自動で隠す（重なり回避）
-  const shopOverlay = document.getElementById("shopOverlay");
+ const shopOverlay = document.getElementById("shopOverlay");
   if (shopOverlay){
     const toggleFabs = (show)=>{
       const a = document.getElementById("hk-place");
@@ -1937,7 +1937,6 @@ import { TransformControls } from "three/addons/controls/TransformControls.js";
     new MutationObserver(()=>{ toggleFabs(!shopOverlay.classList.contains("active")); })
       .observe(shopOverlay, { attributes:true, attributeFilter:["class"] });
   }
-})();
 
 /* ============= 小トースト ============= */
 function toast(msg, ms=1200){
@@ -2319,6 +2318,7 @@ window.city3D = { setEditMode };
 
 </body>
 </html>
+
 
 
 

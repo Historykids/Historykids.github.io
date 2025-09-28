@@ -2258,6 +2258,7 @@ document.addEventListener("placement:ok", ()=>{
 });
 
 
+/* ============= 配置ボタンだけの挙動 ============= */
 const placeBtn = document.getElementById("hk-place");
 
 placeBtn?.addEventListener("click", ()=>{
@@ -2269,12 +2270,9 @@ placeBtn?.addEventListener("click", ()=>{
   }
 });
 
+// ※ 他スクリプトから編集モードを変えられるよう公開（白いツールバー用）
+window.city3D = { setEditMode };
 
-opsBtn?.addEventListener("click", ()=>{
-  const show = opsPanel.style.display !== "block";
-  opsPanel.style.display = show ? "block" : "none";
-  if (!show) setEditMode("select"); // とじたら“えらぶ”
-});
 
 // パネル内操作
 opsPanel?.addEventListener("click",(e)=>{
@@ -2321,6 +2319,7 @@ window.city3D = { setEditMode };
 
 </body>
 </html>
+
 
 
 

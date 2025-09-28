@@ -517,8 +517,8 @@
   .toolrow .toolbtn.active{background:#e6f4ff;border-color:#8ecbff;box-shadow:0 3px 8px rgba(15,23,42,.12)}
 
  /* ===== ツールバー ===== */
- #ui-toolbar{
-    position:fixed; z-index:9999; top:16px; right:16px;
+#ui-toolbar{
+  position:fixed; z-index:9999; right:16px; bottom:16px; top:auto;
     display:flex; flex-direction:column; gap:12px; align-items:stretch;
     width:min(260px, 90vw);
     background:rgba(255,255,255,.95);
@@ -723,14 +723,15 @@ html.noscroll, html.noscroll body{
 
    /* === Mobile overlap fix === */
 @media (max-width: 640px){
-  /* HUDを下部センターに。iOS安全域にも配慮 */
-  .place-hud{
-    right: auto !important;
-    left: 50% !important;
-    transform: translateX(-50%);
-    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-    width: min(94vw, 420px);
+  #ui-toolbar{
+    top: auto;
+    right: 12px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px) + 56px); /* adbar分を回避 */
+    max-height: 60vh;
+    overflow: auto;
   }
+}
+
 
   /* ツールバーは高さを抑えてスクロール可能に */
   #ui-toolbar{
@@ -2306,6 +2307,7 @@ window.city3D = { setEditMode };
 
 </body>
 </html>
+
 
 
 

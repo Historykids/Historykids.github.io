@@ -1405,9 +1405,7 @@ function buildChapterFilter(){
   });
 }
 
-  function pickOnGround(ev){
-  setPointerFromEvent(ev);
-  raycaster.setFromCamera(pointer, camera);
+
 
   const hit = raycaster.intersectObject(ground, false)[0];
   if (hit) return { cell: worldToGrid(hit.point.x, hit.point.z), hit };
@@ -1421,11 +1419,11 @@ function buildChapterFilter(){
   return null;
 }
 
-  function openQuiz(name){
+ function openQuiz(name){
   currentQuizName = name;
   quizTitleEl.textContent = name;
   quizHintEl.textContent  = "（例：てんぽう／わしん など ひらがなで）";
-  quizHintEl.style.color = "#666"; // ★追加：色を毎回リセット
+  quizHintEl.style.color  = "#666";
   quizInputEl.value = "";
   quizModalEl.style.display = "flex";
   setTimeout(()=>quizInputEl.focus(), 0);
@@ -1834,10 +1832,7 @@ document.addEventListener("placement:start", ()=>{ joyShow(); });
 document.addEventListener("placement:end",   ()=>{ joyHide(); joyEnd(); });
 document.addEventListener("placement:cancel",()=>{ joyHide(); joyEnd(); });
 
-// 「決定」ボタン → THREE 側にOKシグナル
-btnOk?.addEventListener("click", ()=>{
-  document.dispatchEvent(new Event("placement:ok"));
-});
+
 
 
 
@@ -2293,6 +2288,7 @@ window.city3D = { setEditMode };
 
 </body>
 </html>
+
 
 
 

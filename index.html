@@ -1891,7 +1891,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader }  from "three/addons/loaders/GLTFLoader.js";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
 
-/* ============= 最小UI注入（左=配置 / 右=操作） ============= */
+/* ============= 最小UI注入（左=配置のみ） ============= */
 (function injectUI(){
   const css = `
   .hk-fab{
@@ -1900,47 +1900,31 @@ import { TransformControls } from "three/addons/controls/TransformControls.js";
     min-height:44px; font-size:15px;
   }
   #hk-place{left:12px; right:auto; bottom:calc(env(safe-area-inset-bottom) + 84px); background:#16a34a; color:#fff}
-  #hk-ops  {right:12px; left:auto; bottom:calc(env(safe-area-inset-bottom) + 84px); background:#2563eb; color:#fff}
-  .hk-panel{
-    position:fixed; right:12px; bottom:calc(env(safe-area-inset-bottom) + 140px); z-index:9999; background:#fff;
-    border:1px solid rgba(15,23,42,.15); border-radius:14px; box-shadow:0 16px 40px rgba(15,23,42,.22);
-    padding:10px; display:none
-  }
-  .hk-panel button{
-    display:block; width:160px; margin:6px 0; padding:8px 10px; border-radius:10px; border:1px solid #e5e7eb;
-    background:#f8fafc; font-weight:700; cursor:pointer
-  }
-  .hk-panel button.active{background:#fde68a; border-color:#f59e0b}
-  .hk-toast{
-    position:fixed; right:12px; bottom:calc(env(safe-area-inset-bottom) + 200px); z-index:9999;
-    background:#111827; color:#fff; padding:8px 10px; border-radius:10px; font-weight:700;
-    box-shadow:0 10px 24px rgba(0,0,0,.3); opacity:.95; display:none
-  }
   @media (max-width:640px){
     #hk-place{bottom:calc(env(safe-area-inset-bottom) + 84px)}
-    #hk-ops{bottom:calc(env(safe-area-inset-bottom) + 84px)}
-    .hk-panel{right:12px; bottom:calc(env(safe-area-inset-bottom) + 140px)}
   }`;
   const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
 
+  // 緑ボタンだけ生成
   if(!document.getElementById("hk-place")){
-    const b=document.createElement("button"); b.id="hk-place"; b.className="hk-fab"; b.textContent="建物の配置を決定"; document.body.appendChild(b);}
-  if(!document.getElementById("hk-ops")){
-    const b=document.createElement("button"); b.id="hk-ops"; b.className="hk-fab"; b.textContent="建物を操作"; document.body.appendChild(b);
+    const b=document.createElement("button");
+    b.id="hk-place";
+    b.className="hk-fab";
+    b.textContent="建物の配置を決定";
+    document.body.appendChild(b);
   }
-  if(!document.getElementById("hk-ops-panel")){
-    const p=document.createElement("div"); p.id="hk-ops-panel"; p.className="hk-panel";
-    p.innerHTML = `
-      <button data-mode="select" aria-pressed="true">🖱 えらぶ</button>
-      <button data-mode="move"   aria-pressed="false">↔ うごかす</button>
-      <button data-mode="delete" aria-pressed="false">🗑 けす</button>
-      <button data-close>とじる</button>
-    `;
-    document.body.appendChild(p);
+
+  // ショップ表示中は緑ボタンを隠す（重なり回避）
+  const shopOverlay = document.getElementById("shopOverlay");
+  if (shopOverlay){
+    const toggleFab = (show)=>{
+      const a = document.getElementById("hk-place");
+      if(a) a.style.display = show ? "" : "none";
+    };
+    new MutationObserver(()=>{ toggleFab(!shopOverlay.classList.contains("active")); })
+      .observe(shopOverlay, { attributes:true, attributeFilter:["class"] });
   }
-  if(!document.getElementById("hk-toast")){
-    const t=document.createElement("div"); t.id="hk-toast"; t.className="hk-toast"; document.body.appendChild(t);
-  }
+})();
 
   // ショップの開閉に合わせて FAB を自動で隠す（重なり回避）
   const shopOverlay = document.getElementById("shopOverlay");
@@ -2273,10 +2257,8 @@ document.addEventListener("placement:ok", ()=>{
   endPlacement();
 });
 
-/* ============= 2ボタンの挙動 ============= */
+
 const placeBtn = document.getElementById("hk-place");
-const opsBtn   = document.getElementById("hk-ops");
-const opsPanel = document.getElementById("hk-ops-panel");
 
 placeBtn?.addEventListener("click", ()=>{
   // 配置中なら確定、そうでなければショップを開く
@@ -2286,6 +2268,7 @@ placeBtn?.addEventListener("click", ()=>{
     document.getElementById("openShopBtn")?.click();
   }
 });
+
 
 opsBtn?.addEventListener("click", ()=>{
   const show = opsPanel.style.display !== "block";
@@ -2322,20 +2305,7 @@ setEditMode("select");
 window.city3D = { setEditMode };
 
 
-// パネル内操作
-opsPanel?.addEventListener("click",(e)=>{
-  const t=e.target;
-  if(t.matches("[data-close]")){ opsPanel.style.display="none"; setEditMode("select"); return; }
-  if(t.matches("button[data-mode]")){
-    const m=t.getAttribute("data-mode"); setEditMode(m);
-  }
-});
 
-// パネル外クリックで閉じる→自動で“えらぶ”
-document.addEventListener("click",(e)=>{
-  const isOps = e.target.closest?.("#hk-ops") || e.target.closest?.("#hk-ops-panel");
-  if(!isOps && opsPanel.style.display==="block"){ opsPanel.style.display="none"; setEditMode("select"); }
-});
 
 // デフォルトは“えらぶ”
 setEditMode("select");
@@ -2351,6 +2321,7 @@ window.city3D = { setEditMode };
 
 </body>
 </html>
+
 
 
 

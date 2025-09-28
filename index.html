@@ -1694,6 +1694,49 @@ if (toolbarEl && toolbarToggle) {
 
 
 
+/* === 白い「建物を操作」バーのボタンを city3D に連動させる === */
+(function wireToolbarButtons(){
+  const btnSel    = document.getElementById('btn-select');
+  const btnMove   = document.getElementById('btn-move');
+  const btnDelete = document.getElementById('btn-delete');
+  const hintBox   = document.getElementById('ui-hint');
+
+  function setUiMode(mode){
+    // Three.js 側のモード変更
+    window.city3D?.setEditMode?.(mode);
+
+    // 見た目（active / aria-pressed）更新
+    const map = { select: btnSel, move: btnMove, delete: btnDelete };
+    [btnSel, btnMove, btnDelete].forEach(b=>{
+      if(!b) return;
+      const on = (b === map[mode]);
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+
+    // ヒント文更新（任意）
+    if(hintBox){
+      const main = hintBox.querySelector('.hint-main');
+      const desc = hintBox.querySelector('.hint-desc');
+      if(main && desc){
+        if(mode==='select'){ main.textContent='🖱️ えらぶ';  desc.textContent='建物をタップして選ぼう'; }
+        if(mode==='move'){   main.textContent='↔️ うごかす'; desc.textContent='選んだ建物をドラッグで移動'; }
+        if(mode==='delete'){ main.textContent='🗑️ けす';    desc.textContent='タップした建物を削除'; }
+      }
+    }
+  }
+
+  btnSel   ?.addEventListener('click', ()=> setUiMode('select'));
+  btnMove  ?.addEventListener('click', ()=> setUiMode('move'));
+  btnDelete?.addEventListener('click', ()=> setUiMode('delete'));
+
+  // 初期状態は「えらぶ」に寄せる（表示時の見た目も同期）
+  setUiMode('select');
+})();
+
+
+
+
 
 // プレビューが出た時だけHUDを表示。確定/終了/キャンセルで非表示。
  document.addEventListener("placement:start", ()=>{
@@ -2307,6 +2350,7 @@ window.city3D = { setEditMode };
 
 </body>
 </html>
+
 
 
 

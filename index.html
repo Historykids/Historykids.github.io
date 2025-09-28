@@ -2245,14 +2245,11 @@ placeBtn?.addEventListener("click", ()=>{
     document.dispatchEvent(new Event("placement:ok"));
     return;
   }
-  // まだ配置モードでなければ従来通り開始導線を用意
-  if(window.startPlacementFlow){
-    window.startPlacementFlow({ id:"house", name:"家", price:0, cat:"building", preview:"🏠" });
-    return;
-  }
-  const occ = placed3D.map(o=>o.userData.cell).filter(Boolean).map(c=>[c.x,c.y]);
-  beginPlacement({ type:"house", occupied:occ });
+  placeBtn?.addEventListener("click", ()=>{
+ 
+  document.getElementById("openShopBtn")?.click();
 });
+
  
 opsBtn?.addEventListener("click", ()=>{
   const show = opsPanel.style.display!=="block";
@@ -2289,6 +2286,7 @@ window.city3D = { setEditMode };
 
 </body>
 </html>
+
 
 
 

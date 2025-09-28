@@ -1884,9 +1884,8 @@ import { TransformControls } from "three/addons/controls/TransformControls.js";
   }`;
   const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
 
-  if(!document.getElementById("hk-place")){
-    const b=document.createElement("button"); b.id="hk-place"; b.className="hk-fab"; b.textContent="建物を配置"; document.body.appendChild(b);
-  }
+  if(!document.getElementById("hk-place")){␊
+    const b=document.createElement("button"); b.id="hk-place"; b.className="hk-fab"; b.textContent="建物の配置を決定"; document.body.appendChild(b);}
   if(!document.getElementById("hk-ops")){
     const b=document.createElement("button"); b.id="hk-ops"; b.className="hk-fab"; b.textContent="建物を操作"; document.body.appendChild(b);
   }
@@ -2241,7 +2240,12 @@ const opsBtn   = document.getElementById("hk-ops");
 const opsPanel = document.getElementById("hk-ops-panel");
 
 placeBtn?.addEventListener("click", ()=>{
-  // 既存ショップ導線があればそれを使う（0円の仮アイテムで配置開始）
+  // 配置中なら確定フローを呼び出す
+  if(placing){
+    document.dispatchEvent(new Event("placement:ok"));
+    return;
+  }
+  // まだ配置モードでなければ従来通り開始導線を用意
   if(window.startPlacementFlow){
     window.startPlacementFlow({ id:"house", name:"家", price:0, cat:"building", preview:"🏠" });
     return;
@@ -2249,7 +2253,7 @@ placeBtn?.addEventListener("click", ()=>{
   const occ = placed3D.map(o=>o.userData.cell).filter(Boolean).map(c=>[c.x,c.y]);
   beginPlacement({ type:"house", occupied:occ });
 });
-
+ 
 opsBtn?.addEventListener("click", ()=>{
   const show = opsPanel.style.display!=="block";
   opsPanel.style.display = show? "block":"none";
@@ -2285,6 +2289,7 @@ window.city3D = { setEditMode };
 
 </body>
 </html>
+
 
 
 

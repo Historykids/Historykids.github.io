@@ -1855,201 +1855,227 @@ btnOk?.addEventListener("click", ()=>{
   
 
 <script type="module">
-/* ========= 依存 ========= */
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { TransformControls } from 'three/addons/controls/TransformControls.js';
+/* ===================== 依存 ===================== */
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { TransformControls } from "three/addons/controls/TransformControls.js";
 
-/* ========= ヘルパ ========= */
-const $ = (id) => document.getElementById(id);
-const setHidden = (el, v=true) => { if(el) el.hidden = !!v; };
-const setShown  = (el, v=true) => { if(el) el.hidden = !v; };
+/* ===================== 最小ボタンUI注入 ===================== */
+(function injectMinimalButtons(){
+  const css = `
+    .hk-fab{position:fixed; z-index:9999; padding:11px 14px; border:0; border-radius:999px;
+      font-weight:800; box-shadow:0 10px 24px rgba(15,23,42,.18); cursor:pointer; user-select:none;}
+    #hk-place{left:12px; bottom:84px; background:#22c55e; color:#fff;}
+    #hk-ops{right:12px; bottom:84px; background:#3b82f6; color:#fff;}
+    .hk-toast{position:fixed; right:12px; bottom:136px; z-index:9999; background:#111827; color:#fff;
+      padding:8px 10px; border-radius:10px; font-weight:700; box-shadow:0 10px 24px rgba(0,0,0,.28); opacity:.95; display:none;}
+    @media (max-width: 640px){
+      #hk-place{bottom:84px} #hk-ops{bottom:84px}
+    }`;
+  const style = document.createElement("style");
+  style.textContent = css; document.head.appendChild(style);
 
-const townEl    = $('town');
-const placeHud  = $('placeHud');
-const toolbarEl = $('ui-toolbar');    // 「建物を操作」枠
-const btnSel    = $('btn-select');
-const btnMov    = $('btn-move');
-const btnDel    = $('btn-delete');
-const uiHint    = $('ui-hint');
+  if(!document.getElementById("hk-place")){
+    const b = document.createElement("button");
+    b.id="hk-place"; b.className="hk-fab"; b.textContent="建物を配置";
+    document.body.appendChild(b);
+  }
+  if(!document.getElementById("hk-ops")){
+    const b = document.createElement("button");
+    b.id="hk-ops"; b.className="hk-fab"; b.textContent="建物を操作";
+    document.body.appendChild(b);
+  }
+  if(!document.getElementById("hk-toast")){
+    const t = document.createElement("div");
+    t.id="hk-toast"; t.className="hk-toast";
+    document.body.appendChild(t);
+  }
+})();
 
-/* ========= 状態 ========= */
-let renderer, scene, camera, controls, loader, ground, grid, tControls;
-let placed3D = []; // ルートオブジェクト群
-let selected = null;
+/* ===== 小さなトースト ===== */
+function toast(msg, ms=1200){
+  const el = document.getElementById("hk-toast");
+  if(!el) return;
+  el.textContent = msg; el.style.display="block";
+  clearTimeout(el._tid); el._tid = setTimeout(()=> el.style.display="none", ms);
+}
 
-let COLS = 30, ROWS = 18;
-const WORLD_SCALE = 1.0;
-const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+/* ===================== 3D基盤 ===================== */
+const townEl = document.getElementById("town");
+let renderer, scene, camera, controls, ground, grid, tControls, loader;
+const raycaster = new THREE.Raycaster();
+const pointer   = new THREE.Vector2();
 
-function gridToWorld(x, y){
-  const ox = Math.floor(COLS/2), oy = Math.floor(ROWS/2);
-  return new THREE.Vector3((x-ox)*WORLD_SCALE, 0, (y-oy)*WORLD_SCALE);
+const COLS=30, ROWS=18, SCALE=1.0;
+const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+const k = (x,y)=>`${x},${y}`;
+const centerCell = { x:Math.floor(COLS/2), y:Math.floor(ROWS/2) };
+
+function gridToWorld(x,y){
+  const ox=centerCell.x, oy=centerCell.y;
+  return new THREE.Vector3((x-ox)*SCALE, 0, (y-oy)*SCALE);
 }
 function worldToGrid(X,Z){
-  const ox = Math.floor(COLS/2), oy = Math.floor(ROWS/2);
-  return { x: Math.round(X/WORLD_SCALE)+ox, y: Math.round(Z/WORLD_SCALE)+oy };
+  const ox=centerCell.x, oy=centerCell.y;
+  return { x:Math.round(X/SCALE)+ox, y:Math.round(Z/SCALE)+oy };
 }
 
-/* ========= レンダラ初期化 ========= */
-function ensureRenderer(){
-  if(renderer) return;
+/* ====== 配置済み3D管理 ====== */
+let placed3D = [];      // Threeオブジェクトのルート配列
+function allOccupiedExcept(targetId=null){
+  const s = new Set();
+  placed3D.forEach(o=>{
+    if(targetId && o.userData.id===targetId) return;
+    if(o.userData.cell) s.add(k(o.userData.cell.x, o.userData.cell.y));
+  });
+  return s;
+}
 
+/* ====== Three初期化 ====== */
+function ensure3D(){
+  if(renderer) return;
   const w = townEl.clientWidth, h = townEl.clientHeight;
   renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-  renderer.setSize(w, h);
-  renderer.domElement.style.position = 'absolute';
-  renderer.domElement.style.inset = '0';
-  townEl.style.position = 'relative';
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+  renderer.setSize(w,h);
+  renderer.domElement.style.position="absolute";
+  renderer.domElement.style.inset="0";
+  townEl.style.position="relative";
   townEl.appendChild(renderer.domElement);
 
-  scene  = new THREE.Scene();
+  scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(50, w/h, 0.1, 1000);
+  const c = gridToWorld(centerCell.x, centerCell.y);
+  camera.position.set(c.x+15, 18, c.z+22);
 
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
-  controls.dampingFactor = 0.06;
-  controls.maxPolarAngle = Math.PI/2 - 0.01;
-  controls.minPolarAngle = 0.1;
-
-  const center = gridToWorld(Math.floor(COLS/2), Math.floor(ROWS/2));
-  controls.target.copy(center);
-  camera.position.set(center.x + 15, 18, center.z + 22);
+  controls.dampingFactor = .08;
+  controls.maxPolarAngle = Math.PI/2 - .02;
 
   scene.add(new THREE.AmbientLight(0xffffff, 1.0));
-  const dir = new THREE.DirectionalLight(0xffffff, 1.2);
-  dir.position.set(10,20,10);
-  scene.add(dir);
+  const dir = new THREE.DirectionalLight(0xffffff, 1.15);
+  dir.position.set(10,20,10); scene.add(dir);
 
   const plane = new THREE.PlaneGeometry(100,100);
-  const pm = new THREE.MeshBasicMaterial({ color: 0xd7f4d2, side: THREE.FrontSide });
-  ground = new THREE.Mesh(plane, pm);
-  ground.rotation.x = -Math.PI/2;
-  ground.name = 'ground';
-  scene.add(ground);
+  ground = new THREE.Mesh(plane, new THREE.MeshBasicMaterial({ color:0xd7f4d2 }));
+  ground.rotation.x = -Math.PI/2; ground.name="ground"; scene.add(ground);
 
-  grid = new THREE.GridHelper(100, 100, 0x000000, 0x000000);
-  grid.material.opacity = 0.08;
-  grid.material.transparent = true;
+  grid = new THREE.GridHelper(100,100,0x000000,0x000000);
+  grid.material.opacity=.08; grid.material.transparent=true;
   scene.add(grid);
 
   loader = new GLTFLoader();
 
-  renderer.setAnimationLoop(()=>{ controls.update(); renderer.render(scene, camera); });
+  tControls = new TransformControls(camera, renderer.domElement);
+  tControls.setMode("translate");
+  tControls.addEventListener("dragging-changed", e=>{ controls.enabled = !e.value; });
+  tControls.addEventListener("mouseUp", ()=>{
+    if(!selected) return;
+    const old = selected.userData.cell ? { ...selected.userData.cell } : null;
+    const c = worldToGrid(selected.position.x, selected.position.z);
+    c.x = clamp(c.x,0,COLS-1); c.y = clamp(c.y,0,ROWS-1);
+
+    const occ = allOccupiedExcept(selected.userData.id);
+    if(occ.has(k(c.x,c.y))){
+      // 重なりなら元のマスへ戻す
+      if(old){
+        const p0 = gridToWorld(old.x, old.y);
+        selected.position.set(p0.x, selected.position.y, p0.z);
+      }
+      toast("そのマスは使えないよ");
+      return;
+    }
+    // スナップして保存
+    const p = gridToWorld(c.x,c.y);
+    selected.position.set(p.x, selected.position.y, p.z);
+    selected.userData.cell = { x:c.x, y:c.y };
+  });
+  scene.add(tControls);
+
+  controls.target.copy(c);
+
+  renderer.setAnimationLoop(()=>{ controls.update(); renderer.render(scene,camera); });
 
   new ResizeObserver(()=>{
     const w2 = townEl.clientWidth, h2 = townEl.clientHeight;
-    renderer.setSize(w2, h2);
-    camera.aspect = w2/h2;
-    camera.updateProjectionMatrix();
+    renderer.setSize(w2,h2); camera.aspect = w2/h2; camera.updateProjectionMatrix();
   }).observe(townEl);
-
-  // TransformControls（移動ハンドル）
-  tControls = new TransformControls(camera, renderer.domElement);
-  tControls.setMode('translate');
-  tControls.addEventListener('dragging-changed', e => { controls.enabled = !e.value; });
-  scene.add(tControls);
 }
-ensureRenderer();
+ensure3D();
 
-/* ========= モデルURL ========= */
+/* ===================== モデル周り ===================== */
 const MODEL_URLS = {
-  house:  '/assets/_m/house.2a9f3.glb',
-  shop:   '/assets/_m/j8ap2an8eses0ho1p.glb',
-  castle: '/assets/_m/ja76386p2an8esecas6t9le.glb',
-  temple: '/assets/_m/japanese.tem3pl4e1383.glb',
-  tree:   '/assets/_m/t6r7e9e.glb',
-  field:  '/assets/_m/f2i342el2d.glb',
-  road:   '/assets/_m/w8a9l0k9w7a2y.glb',
-  bridge: '/assets/_m/b7r89i6d8g9e.glb',
-  school: '/assets/_m/s7c7h9o89ol.glb',
+  house:  "/assets/_m/house.2a9f3.glb",
+  shop:   "/assets/_m/j8ap2an8eses0ho1p.glb",
+  castle: "/assets/_m/ja76386p2an8esecas6t9le.glb",
+  temple: "/assets/_m/japanese.tem3pl4e1383.glb",
+  tree:   "/assets/_m/t6r7e9e.glb",
+  field:  "/assets/_m/f2i342el2d.glb",
+  road:   "/assets/_m/w8a9l0k9w7a2y.glb",
+  bridge: "/assets/_m/b7r89i6d8g9e.glb",
+  school: "/assets/_m/s7c7h9o89ol.glb",
 };
-
-/* ========= フォールバック ========= */
-function fallbackMesh(big=false){
-  const s = big ? 1.6 : 0.9;
-  const g = new THREE.BoxGeometry(s, s, s);
-  const m = new THREE.MeshStandardMaterial({ color: 0x2ecc71, metalness: 0.1, roughness: 0.8 });
-  const mesh = new THREE.Mesh(g, m);
-  mesh.position.y = s/2;
+function fallbackBox(size=.9, color=0x2ecc71){
+  const g=new THREE.BoxGeometry(size,size,size);
+  const m=new THREE.MeshStandardMaterial({ color, metalness:.1, roughness:.8 });
+  const mesh=new THREE.Mesh(g,m);
+  mesh.position.y = size/2;
   return mesh;
 }
-const EPS_Y = 0.01;
-function snapBaseY(obj, targetY = 0){
-  obj.updateWorldMatrix(true, true);
-  const box = new THREE.Box3().setFromObject(obj);
-  const dy  = (targetY + EPS_Y) - box.min.y;
+function snapBaseY(obj, y=0){
+  obj.updateWorldMatrix(true,true);
+  const b = new THREE.Box3().setFromObject(obj);
+  const dy = (y+0.01) - b.min.y;
   obj.position.y += dy;
-  obj.updateWorldMatrix(true, true);
 }
 
-/* ========= 追加/全消去 ========= */
-async function place3D({id, type, x, y, rot=0}){
-  const pos = gridToWorld(x, y);
-  let obj, url = MODEL_URLS[type];
+/* place3D: city:add を受け取って実体を置く */
+async function place3D({ id, type="house", x, y, rot=0 }){
+  const pos = gridToWorld(x,y);
+  let root;
+  const url = MODEL_URLS[type];
   if(url){
-    try{
-      const gltf = await loader.loadAsync(url);
-      obj = gltf.scene;
-      obj.scale.set(0.8,0.8,0.8);
-    }catch{ obj = fallbackMesh(); }
+    try{ const gltf = await loader.loadAsync(url); root = gltf.scene; root.scale.set(.8,.8,.8); }
+    catch{ root = fallbackBox(.9, 0x3b82f6); }
   }else{
-    obj = fallbackMesh();
+    root = fallbackBox(.9, 0x3b82f6);
   }
-  obj.position.copy(pos);
-  obj.rotation.y = (rot/90) * Math.PI/2;
-  snapBaseY(obj, 0);
-  obj.userData.id  = id  || null;
-  obj.userData.rot = rot || 0;
-
-  scene.add(obj);
-  placed3D.push(obj);
+  root.position.copy(pos);
+  root.rotation.y = (rot/90) * Math.PI/2;
+  root.userData.id = id || (Date.now().toString(36));
+  root.userData.type = type;
+  root.userData.cell = { x, y };
+  root.userData.rot  = rot;
+  snapBaseY(root, 0);
+  scene.add(root);
+  placed3D.push(root);
 }
 
-function clear3D(){
-  placed3D.forEach(o=>scene.remove(o));
-  placed3D = [];
-}
+/* ===================== 配置プレビュー（外部イベント駆動） ===================== */
+let placing=false, preview=null, placeType="house", placeRot=0;
+let occSet = new Set(); // 配置対象の占有マス（外部から渡される）
+const okMat=new THREE.MeshBasicMaterial({ color:0x2e7d32, transparent:true, opacity:.5 });
+const ngMat=new THREE.MeshBasicMaterial({ color:0xc62828, transparent:true, opacity:.5 });
+let hoverCell = { x:-1, y:-1 };
 
-/* ========= イベント橋渡し（メインロジック連携） ========= */
-document.addEventListener('city:reset', () => {
-  if (tControls) tControls.detach();
-  clearSelected();
-  clear3D();
-});
-document.addEventListener('city:add', (ev) => {
-  const d = ev?.detail; if(!d) return;
-  place3D(d).catch(console.error);
-});
-
-/* ========= レイキャスト ========= */
-const raycaster = new THREE.Raycaster();
-const pointer   = new THREE.Vector2();
-function setPointerFromEvent(ev){
-  const rect = renderer.domElement.getBoundingClientRect();
-  const cx = ((ev.clientX ?? (ev.touches?.[0]?.clientX || 0)) - rect.left) / rect.width;
-  const cy = ((ev.clientY ?? (ev.touches?.[0]?.clientY || 0)) - rect.top) / rect.height;
-  pointer.x = cx * 2 - 1; pointer.y = -(cy * 2 - 1);
+function setPointer(ev){
+  const r = renderer.domElement.getBoundingClientRect();
+  const cx = ((ev.clientX ?? (ev.touches?.[0]?.clientX||0)) - r.left) / r.width;
+  const cy = ((ev.clientY ?? (ev.touches?.[0]?.clientY||0)) - r.top)  / r.height;
+  pointer.x = cx*2-1; pointer.y = -(cy*2-1);
 }
 function pickOnGround(ev){
-  setPointerFromEvent(ev);
+  setPointer(ev);
   raycaster.setFromCamera(pointer, camera);
   const hit = raycaster.intersectObject(ground, false)[0];
   if(!hit) return null;
-  return { cell: worldToGrid(hit.point.x, hit.point.z) };
+  return worldToGrid(hit.point.x, hit.point.z);
 }
+function cellValid(x,y){ return x>=0 && y>=0 && x<COLS && y<ROWS && !occSet.has(k(x,y)); }
 
-/* ========= 配置モード ========= */
-let placing=false, preview=null, placeType=null, placeRot=0;
-let occSet = new Set();
-let hoverCell = {x:-1,y:-1};
-
-const okMat=new THREE.MeshBasicMaterial({ color:0x2e7d32, transparent:true, opacity:0.5 });
-const ngMat=new THREE.MeshBasicMaterial({ color:0xc62828, transparent:true, opacity:0.5 });
-
-function applyTint(obj,mat){
+function applyTint(obj, mat){
   obj.traverse?.(n=>{
     if(n.isMesh){
       if(!n.userData._origMat) n.userData._origMat = n.material;
@@ -2067,332 +2093,201 @@ function restoreTint(obj){
 }
 async function ensurePreview(){
   if(preview) return preview;
-  preview = fallbackMesh(true);
+  // 先に箱、ロードできたら差し替え（ラグ回避）
+  preview = fallbackBox(1.2, 0x22c55e);
   scene.add(preview);
-  snapBaseY(preview, 0);
+  snapBaseY(preview,0);
   const url = MODEL_URLS[placeType];
   if(url){
     try{
       const gltf = await loader.loadAsync(url);
-      const real = gltf.scene;
-      real.scale.set(0.8,0.8,0.8);
+      const real = gltf.scene; real.scale.set(.8,.8,.8);
       real.position.copy(preview.position);
       real.rotation.copy(preview.rotation);
-      scene.add(real);
-      scene.remove(preview);
-      preview = real;
-      snapBaseY(preview, 0);
-    }catch(e){}
+      scene.add(real); scene.remove(preview); preview = real; snapBaseY(preview,0);
+    }catch{}
   }
   return preview;
 }
-function cellValid(x,y){ return (x>=0 && y>=0 && x<COLS && y<ROWS) && !occSet.has(`${x},${y}`); }
-
-function setPreviewAtCell(cell){
+function setPreviewAt(cell){
   hoverCell = cell;
-  const pos = gridToWorld(cell.x, cell.y);
-  preview.position.copy(pos);
+  const p = gridToWorld(cell.x, cell.y);
+  preview.position.set(p.x, preview.position.y, p.z);
   preview.rotation.y = (placeRot/90) * Math.PI/2;
-  const valid = cellValid(cell.x, cell.y);
   restoreTint(preview);
-  applyTint(preview, valid ? okMat : ngMat);
-  document.dispatchEvent(new Event('placement:preview'));  // ← HUD表示トリガ
-  setShown(placeHud, true); // ← プレビュー中だけ表示
-}
-function endPlacement(){
-  placing=false; placeType=null; placeRot=0; occSet.clear();
-  if(preview){ scene.remove(preview); preview=null; }
-  renderer.domElement.style.cursor='default';
-  controls.enabled = true;
-  setHidden(placeHud, true); // ← プレビュー終了で非表示
-}
-
-/* 配置イベント */
-document.addEventListener('placement:start', async (ev)=>{
-  const { type, cols, rows, occupied=[] } = ev.detail || {};
-  COLS = cols ?? COLS; ROWS = rows ?? ROWS;
-  placing = true; placeType = type; placeRot = 0;
-  occSet = new Set(occupied.map(([x,y])=>`${x},${y}`));
-
+  applyTint(preview, cellValid(cell.x,cell.y) ? okMat : ngMat);
   controls.enabled = false;
-  renderer.domElement.style.cursor='crosshair';
-
-  await ensurePreview();
-
-  // 近い空きマス
-  const center = { x: Math.floor(COLS/2), y: Math.floor(ROWS/2) };
-  const isFree = (c)=> c.x>=0 && c.y>=0 && c.x<COLS && c.y<ROWS && !occSet.has(`${c.x},${c.y}`);
-  let init = center;
-  if (!isFree(init)) {
-    outer: for (let r=1; r<Math.max(COLS,ROWS); r++){
-      for (let dx=-r; dx<=r; dx++){
-        for (let dy=-r; dy<=r; dy++){
-          const c = { x:center.x+dx, y:center.y+dy };
-          if(isFree(c)){ init=c; break outer; }
+}
+function beginPlacement({ type="house", occupied=[], cols=COLS, rows=ROWS }){
+  placing = true; placeType = type; placeRot = 0;
+  occSet = new Set(occupied.map(([x,y])=>k(x,y)));
+  ensurePreview().then(()=>{
+    // 初期位置：中央から近い空きマス
+    let init = { ...centerCell };
+    const free = (c)=> c.x>=0 && c.y>=0 && c.x<cols && c.y<rows && !occSet.has(k(c.x,c.y));
+    if(!free(init)){
+      outer: for(let r=1;r<Math.max(cols,rows);r++){
+        for(let dx=-r;dx<=r;dx++){
+          for(let dy=-r;dy<=r;dy++){
+            const c={x:centerCell.x+dx, y:centerCell.y+dy};
+            if(free(c)){ init=c; break outer; }
+          }
         }
       }
     }
-  }
-  setHidden(placeHud, true); // start 直後はまだプレビュー前
-  setPreviewAtCell(init);
-
-  // カメラ寄せ
-  const t = gridToWorld(init.x, init.y);
-  controls.target.copy(t);
-  camera.position.set(t.x + 15, 18, t.z + 22);
-  controls.update();
-});
-document.addEventListener('placement:end',    ()=> endPlacement());
-document.addEventListener('placement:cancel', ()=> endPlacement());
-document.addEventListener('placement:rotate', ()=>{ if(!placing) return; placeRot=(placeRot+90)%360; if(preview && hoverCell){ setPreviewAtCell(hoverCell); } });
-
-// クリックで確定
-function tryPlace(ev){
-  if(!placing) return;
-  const r = pickOnGround(ev); if(!r) return;
-  const {x,y} = r.cell;
-  if(!cellValid(x,y)) return;
-  document.dispatchEvent(new CustomEvent('placement:confirm',{ detail:{ type:placeType, x, y, rot:placeRot }}));
-  endPlacement();
+    setPreviewAt(init);
+    // カメラ寄せ
+    const t = gridToWorld(init.x, init.y);
+    controls.target.copy(t);
+    camera.position.set(t.x+15, 18, t.z+22);
+    controls.update();
+    toast("置く場所をタップしてね");
+  });
 }
-renderer.domElement.addEventListener('click', tryPlace, { passive:false });
+function endPlacement(){
+  placing=false; occSet.clear(); placeType="house"; placeRot=0;
+  controls.enabled = true;
+  if(preview){ scene.remove(preview); preview=null; }
+}
 
-// マウス移動でプレビュー追従
-renderer.domElement.addEventListener('pointermove', (ev)=>{
-  if(!placing) return;
-  const r = pickOnGround(ev); if(!r) return;
-  setPreviewAtCell(r.cell);
+/* ====== Three面の操作 ====== */
+renderer.domElement.addEventListener("pointermove",(ev)=>{
+  if(!placing || !preview) return;
+  const c = pickOnGround(ev); if(!c) return;
+  c.x = clamp(c.x,0,COLS-1); c.y = clamp(c.y,0,ROWS-1);
+  setPreviewAt(c);
 }, { passive:true });
 
-// OKボタン（スマホHUD）経由の確定
-document.addEventListener('placement:ok', ()=>{
-  if(!placing || !hoverCell) return;
-  const { x, y } = hoverCell;
-  if(!cellValid(x,y)) return;
-  document.dispatchEvent(new CustomEvent('placement:confirm', { detail:{ type:placeType, x, y, rot:placeRot }}));
-  endPlacement();
-});
-
-// 右クリックでキャンセル
-renderer.domElement.addEventListener('pointerdown', (ev)=>{
-  if(placing && ev.button===2){ ev.preventDefault(); document.dispatchEvent(new Event('placement:cancel')); endPlacement(); }
-});
-renderer.domElement.addEventListener('contextmenu', (e)=>{ if(placing){ e.preventDefault(); } });
-
-// スティックからの微調整
-document.addEventListener('placement:nudge', (ev)=>{
-  if(!placing || !hoverCell) return;
-  const {dx=0, dy=0} = ev.detail || {};
-  const nx = clamp(hoverCell.x + dx, 0, COLS-1);
-  const ny = clamp(hoverCell.y + dy, 0, ROWS-1);
-  setPreviewAtCell({x:nx, y:ny});
-});
-
-/* ========= 編集モード（選択/移動/削除） ========= */
-let editMode = 'select'; // 'select' | 'move' | 'delete'
-
-const MODE_INFO = {
-  select: { icon:'🖱️', label:'えらぶ',   desc:'建物をタップして選ぼう' },
-  move:   { icon:'↔️', label:'うごかす', desc:'選んだ建物をドラッグで動かせるよ' },
-  delete: { icon:'🗑️', label:'けす',     desc:'クリックした建物を消せるよ' }
-};
-
-function updateModeUI(){
-  // ボタンの見た目
-  [btnSel,btnMov,btnDel].forEach(b=>b?.classList.remove('active'));
-  if(editMode==='select') btnSel?.classList.add('active');
-  if(editMode==='move')   btnMov?.classList.add('active');
-  if(editMode==='delete') btnDel?.classList.add('active');
-
-  btnSel?.setAttribute('aria-pressed', String(editMode==='select'));
-  btnMov?.setAttribute('aria-pressed', String(editMode==='move'));
-  btnDel?.setAttribute('aria-pressed', String(editMode==='delete'));
-
-  if(uiHint){
-    const i = MODE_INFO[editMode];
-    uiHint.innerHTML =
-      `<span class="hint-label">モード:</span>` +
-      `<span class="hint-main">${i.icon} ${i.label}</span>` +
-      `<span class="hint-desc">${i.desc}</span>`;
-    setShown(uiHint, true);
+renderer.domElement.addEventListener("click",(ev)=>{
+  // 配置確定
+  if(placing){
+    const c = pickOnGround(ev); if(!c) return;
+    if(!cellValid(c.x,c.y)) return;
+    // アプリ側に確定通知 → persist → city:add が返ってくる
+    document.dispatchEvent(new CustomEvent("placement:confirm", { detail:{ type:placeType, x:c.x, y:c.y, rot:placeRot }}));
+    document.dispatchEvent(new Event("placement:end"));
+    endPlacement();
+    return;
   }
-  // カーソル
-  renderer.domElement.style.cursor = (editMode==='delete') ? 'not-allowed' : 'default';
-  // ハンドル
-  if (tControls && editMode!=='move') tControls.detach();
-}
+  // 編集ヒット
+  const r = renderer.domElement.getBoundingClientRect();
+  const cx = (ev.clientX - r.left) / r.width;
+  const cy = (ev.clientY - r.top)  / r.height;
+  const p = new THREE.Vector2(cx*2-1, -(cy*2-1));
+  raycaster.setFromCamera(p, camera);
+  const hits = raycaster.intersectObjects(placed3D, true);
+  if(!hits.length){ clearSelected(); return; }
+  let hit = hits[0].object;
+  while(hit && !placed3D.includes(hit)) hit = hit.parent;
+  if(!hit) return;
+
+  if(editMode==="delete"){
+    const id = hit.userData?.id;
+    scene.remove(hit);
+    placed3D = placed3D.filter(o=>o!==hit);
+    clearSelected();
+    document.dispatchEvent(new CustomEvent("edit:delete", { detail:{ id } }));
+    return;
+  }
+
+  select(hit);
+  if(editMode==="move") tControls.attach(selected);
+});
+
+/* ========== 編集（選ぶ／動かす／けす） ========== */
+let editMode = "select"; // ← 先に定義してTDZ回避
+let selected = null;
+
 function setEditMode(m){
   editMode = m;
-  updateModeUI();
+  if(m!=="move") tControls.detach();
+  renderer.domElement.style.cursor = (m==="delete") ? "not-allowed" : "default";
+  toast(`モード：${m==="select"?"えらぶ":m==="move"?"うごかす":"けす"}`);
 }
-setEditMode('select');
-
-btnSel?.addEventListener('click', ()=> setEditMode('select'));
-btnMov?.addEventListener('click', ()=> { setEditMode('move'); if(selected && tControls) tControls.attach(selected); });
-btnDel?.addEventListener('click', ()=> setEditMode('delete'));
-
-function markSelected(obj){
+function select(obj){
   clearSelected();
   selected = obj;
   selected.traverse?.(n=>{
-    if(n.isMesh && n.material && 'emissive' in n.material){
-      n.userData.__origEmissive = n.material.emissive.clone();
-      n.material.emissive.setHex(0xFF8800);
+    if(n.isMesh && n.material){
+      n.userData.__emi = n.material.emissive?.clone?.() || null;
+      if("emissive" in n.material){ n.material.emissive.setHex(0xff8800); }
     }
   });
 }
 function clearSelected(){
   if(!selected) return;
   selected.traverse?.(n=>{
-    if(n.isMesh && n.material && n.userData.__origEmissive){
-      n.material.emissive.copy(n.userData.__origEmissive);
-      delete n.userData.__origEmissive;
+    if(n.isMesh && n.material && n.userData.__emi){
+      n.material.emissive.copy(n.userData.__emi);
+      n.userData.__emi=null;
     }
   });
-  selected = null;
+  tControls.detach();
+  selected=null;
 }
 
-// キャンバス上で選択/削除/移動
-renderer.domElement.addEventListener('pointerup', (ev)=>{
-  if(placing) return; // 配置中は編集しない
-
-  // ヒット判定
-  const rect = renderer.domElement.getBoundingClientRect();
-  const cx = (ev.clientX - rect.left) / rect.width;
-  const cy = (ev.clientY - rect.top)  / rect.height;
-  const p = new THREE.Vector2(cx*2-1, -(cy*2-1));
-  raycaster.setFromCamera(p, camera);
-  const hits = raycaster.intersectObjects(placed3D, true);
-
-  if(!hits.length){
-    clearSelected(); if(tControls) tControls.detach(); return;
+/* Rキー回転／Deleteキー削除／Esc配置キャンセル */
+window.addEventListener("keydown",(e)=>{
+  if(e.key==="Escape" && placing){ document.dispatchEvent(new Event("placement:cancel")); endPlacement(); }
+  if(e.key.toLowerCase()==="r" && selected){
+    selected.userData.rot = ((selected.userData.rot||0)+90)%360;
+    selected.rotation.y = (selected.userData.rot/90)*Math.PI/2;
+    document.dispatchEvent(new CustomEvent("edit:rotate", { detail:{ id:selected.userData.id, rot:selected.userData.rot }}));
   }
-  let hit = hits[0].object;
-  while(hit && !placed3D.includes(hit)) hit = hit.parent;
-  if(!hit) return;
-
-  if(editMode==='delete'){
-    scene.remove(hit);
-    placed3D = placed3D.filter(o=>o!==hit);
-    if(hit.userData?.id){
-      document.dispatchEvent(new CustomEvent('edit:delete', { detail:{ id: hit.userData.id }}));
-    }
-    if(selected===hit){ clearSelected(); if(tControls) tControls.detach(); }
-    return;
+  if(e.key==="Delete" && selected){
+    const id = selected.userData?.id;
+    scene.remove(selected);
+    placed3D = placed3D.filter(o=>o!==selected);
+    clearSelected();
+    document.dispatchEvent(new CustomEvent("edit:delete", { detail:{ id } }));
   }
-
-  markSelected(hit);
-  if(editMode==='move' && tControls) tControls.attach(hit);
 });
 
-/* ========= 「建物を操作」を閉じたら自動で 'select' ========= */
-/* #ui-toolbar の class 変化を監視して、open が外れたら select に戻す */
-if (toolbarEl){
-  const mo = new MutationObserver(()=>{
-    const isOpen = toolbarEl.classList.contains('open');
-    if(!isOpen) setEditMode('select');
-  });
-  mo.observe(toolbarEl, { attributes:true, attributeFilter:['class'] });
-}
+/* ===================== アプリ連携イベント ===================== */
+document.addEventListener("city:reset", ()=>{
+  placed3D.forEach(o=>scene.remove(o));
+  placed3D = [];
+  clearSelected();
+  tControls.detach();
+});
+document.addEventListener("city:add", (ev)=>{
+  const d = ev?.detail; if(!d) return;
+  place3D(d).catch(console.error);
+});
 
-/* ========= 公開API ========= */
-window.city3D = {
-  place3D, clear3D,
-  setEditMode: (m)=> setEditMode(m),
-  getSelected : ()=> selected
-};
+document.addEventListener("placement:start", (ev)=>{
+  const d = ev?.detail || {};
+  beginPlacement(d);
+});
+document.addEventListener("placement:end",   ()=> endPlacement());
+document.addEventListener("placement:cancel",()=> endPlacement());
 
-/* ========= 配置HUDの表示制御（再確認） ========= */
-document.addEventListener('placement:start',  ()=> setHidden(placeHud, true));
-document.addEventListener('placement:preview',()=> setShown(placeHud, true));
-document.addEventListener('placement:end',    ()=> setHidden(placeHud, true));
-document.addEventListener('placement:cancel', ()=> setHidden(placeHud, true));
+/* ===================== 最小2ボタンの挙動 ===================== */
+const placeBtn = document.getElementById("hk-place");
+const opsBtn   = document.getElementById("hk-ops");
 
+placeBtn?.addEventListener("click", ()=>{
+  // ショップ連携があればそれを利用（price:0 の仮アイテム）
+  if(window.startPlacementFlow){
+    window.startPlacementFlow({ id:"house", name:"家", price:0, cat:"building", preview:"🏠" });
+    return;
+  }
+  // 連携がなければ内部フォールバック：現在の占有から配置開始
+  const occ = placed3D.map(o=>o.userData.cell).filter(Boolean).map(c=>[c.x,c.y]);
+  beginPlacement({ type:"house", occupied:occ, cols:COLS, rows:ROWS });
+});
+
+const modes = ["select","move","delete"];
+let modeIndex = 0;
+opsBtn?.addEventListener("click", ()=>{
+  modeIndex = (modeIndex+1) % modes.length;
+  setEditMode(modes[modeIndex]);
+});
+
+/* デフォルトは「えらぶ」 */
+setEditMode("select");
 </script>
 
- <script>
-/* ===== モバイル体験の小改善セット ===== */
-(function(){
-  // 背面スクロールロック
-  function lockScroll(on){ document.documentElement.classList.toggle('noscroll', !!on); }
-
-  // 既存DOMの参照（あなたのコードですでにあるID）
-  const shopOverlayEl = document.getElementById('shopOverlay');
-  const shopCloseEl   = document.getElementById('shopClose');
-  const openShopBtnEl = document.getElementById('openShopBtn');
-  const zukanPanelEl  = document.getElementById('zukanPanel');
-  const zukanBtnEl    = document.getElementById('zukanBtn');
-  const closeZukanEl  = document.getElementById('closeZukan');
-  const toolbarEl     = document.getElementById('ui-toolbar');
-  const toolbarToggle = document.getElementById('toolbarToggle');
-
-  // あなたの setToolbarOpen がある前提（ない場合は安全に無視）
-  function safeSetToolbarOpen(open){
-    try{ if (typeof setToolbarOpen === 'function') setToolbarOpen(open); }catch(e){}
-  }
-
-  /* --- ショップを開いたら：背面スクロール禁止＆ツールバー閉じる --- */
-  if(openShopBtnEl){
-    openShopBtnEl.addEventListener('click', ()=>{ lockScroll(true); safeSetToolbarOpen(false); }, { passive:true });
-  }
-  if(shopCloseEl){
-    shopCloseEl.addEventListener('click', ()=> lockScroll(false), { passive:true });
-  }
-  if(shopOverlayEl){
-    shopOverlayEl.addEventListener('click', (e)=>{
-      if(e.target === shopOverlayEl){ lockScroll(false); }
-    });
-  }
-
-  /* --- 図鑑パネル（スライド）でも背面スクロールを止める --- */
-  if(zukanBtnEl && zukanPanelEl){
-    zukanBtnEl.addEventListener('click', ()=> lockScroll(true), { passive:true });
-  }
-  if(closeZukanEl){
-    closeZukanEl.addEventListener('click', ()=> lockScroll(false), { passive:true });
-  }
-
-  /* --- プロフィール／お問い合わせモーダルでもスクロールロック --- */
-  document.querySelectorAll('.modal-overlay').forEach(modal=>{
-    modal.addEventListener('click', (e)=>{
-      if(e.target === modal){ lockScroll(false); }
-    });
-    // ボタンで閉じる時も解除（data-close があなたの実装）
-    modal.querySelectorAll('[data-close]').forEach(btn=>{
-      btn.addEventListener('click', ()=> lockScroll(false), { passive:true });
-    });
-  });
-
-  /* --- ツールバー：閉じたらモードを「えらぶ」に戻す（アクセシビリティ向上） --- */
-  if(toolbarEl && toolbarToggle){
-    toolbarToggle.addEventListener('click', ()=>{
-      // 開→閉になった瞬間に select へ
-      const willClose = toolbarEl.classList.contains('open'); // 押下前の状態
-      if(willClose){
-        try{
-          if (typeof setEditMode === 'function') setEditMode('select');
-        }catch(e){}
-      }
-    });
-  }
-
-  /* --- iOSのセーフエリア反映で、初期配置の重なりを避ける --- */
-  function adjustFloating(){
-    const isMobile = matchMedia('(max-width:680px)').matches;
-    const adbar = document.querySelector('.adbar');
-    if(!isMobile || !adbar) return;
-    // 余白はCSSの env() で主に対応。ここでは将来の高さ変更に追随。
-    const adH = adbar.getBoundingClientRect().height || 56;
-    const hud = document.getElementById('placeHud');
-    if(hud){ hud.style.bottom = `calc(${adH + 64}px)`; }
-    const joy = document.getElementById('joypad');
-    if(joy){ joy.style.bottom = `calc(${adH + 40}px)`; }
-  }
-  window.addEventListener('resize', adjustFloating);
-  window.addEventListener('orientationchange', adjustFloating);
-  setTimeout(adjustFloating, 0);
-})();
-</script>
 
 
 
@@ -2400,6 +2295,7 @@ document.addEventListener('placement:cancel', ()=> setHidden(placeHud, true));
 
 </body>
 </html>
+
 
 
 

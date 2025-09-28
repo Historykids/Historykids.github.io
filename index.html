@@ -1855,7 +1855,6 @@ btnOk?.addEventListener("click", ()=>{
   
 
 <script type="module">
-/* ============= 依存 ============= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader }  from "three/addons/loaders/GLTFLoader.js";
@@ -1864,20 +1863,32 @@ import { TransformControls } from "three/addons/controls/TransformControls.js";
 /* ============= 最小UI注入（左=配置 / 右=操作） ============= */
 (function injectUI(){
   const css = `
-  .hk-fab{position:fixed; z-index:9999; padding:11px 14px; border:0; border-radius:999px;
-    font-weight:800; box-shadow:0 10px 24px rgba(15,23,42,.18); cursor:pointer; user-select:none}
-  #hk-place{left:12px; right:auto; bottom:84px; background:#16a34a; color:#fff}
-  #hk-ops{right:12px; left:auto; bottom:84px; background:#2563eb; color:#fff}
-  .hk-panel{position:fixed; right:12px; bottom:140px; z-index:9999; background:#fff; border:1px solid rgba(15,23,42,.15);
-    border-radius:14px; box-shadow:0 16px 40px rgba(15,23,42,.22); padding:10px; display:none}
-  .hk-panel button{display:block; width:160px; margin:6px 0; padding:8px 10px; border-radius:10px; border:1px solid #e5e7eb;
-    background:#f8fafc; font-weight:700; cursor:pointer}
+  .hk-fab{
+    position:fixed; z-index:9999; padding:11px 14px; border:0; border-radius:999px;
+    font-weight:800; box-shadow:0 10px 24px rgba(15,23,42,.18); cursor:pointer; user-select:none;
+    min-height:44px; font-size:15px;
+  }
+  #hk-place{left:12px; right:auto; bottom:calc(env(safe-area-inset-bottom) + 84px); background:#16a34a; color:#fff}
+  #hk-ops  {right:12px; left:auto; bottom:calc(env(safe-area-inset-bottom) + 84px); background:#2563eb; color:#fff}
+  .hk-panel{
+    position:fixed; right:12px; bottom:calc(env(safe-area-inset-bottom) + 140px); z-index:9999; background:#fff;
+    border:1px solid rgba(15,23,42,.15); border-radius:14px; box-shadow:0 16px 40px rgba(15,23,42,.22);
+    padding:10px; display:none
+  }
+  .hk-panel button{
+    display:block; width:160px; margin:6px 0; padding:8px 10px; border-radius:10px; border:1px solid #e5e7eb;
+    background:#f8fafc; font-weight:700; cursor:pointer
+  }
   .hk-panel button.active{background:#fde68a; border-color:#f59e0b}
-  .hk-toast{position:fixed; right:12px; bottom:200px; z-index:9999; background:#111827; color:#fff; padding:8px 10px;
-    border-radius:10px; font-weight:700; box-shadow:0 10px 24px rgba(0,0,0,.3); opacity:.95; display:none}
+  .hk-toast{
+    position:fixed; right:12px; bottom:calc(env(safe-area-inset-bottom) + 200px); z-index:9999;
+    background:#111827; color:#fff; padding:8px 10px; border-radius:10px; font-weight:700;
+    box-shadow:0 10px 24px rgba(0,0,0,.3); opacity:.95; display:none
+  }
   @media (max-width:640px){
-    #hk-place{bottom:84px} #hk-ops{bottom:84px}
-    .hk-panel{right:12px; bottom:140px}
+    #hk-place{bottom:calc(env(safe-area-inset-bottom) + 84px)}
+    #hk-ops{bottom:calc(env(safe-area-inset-bottom) + 84px)}
+    .hk-panel{right:12px; bottom:calc(env(safe-area-inset-bottom) + 140px)}
   }`;
   const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
 
@@ -1890,15 +1901,27 @@ import { TransformControls } from "three/addons/controls/TransformControls.js";
   if(!document.getElementById("hk-ops-panel")){
     const p=document.createElement("div"); p.id="hk-ops-panel"; p.className="hk-panel";
     p.innerHTML = `
-      <button data-mode="select">🖱 えらぶ</button>
-      <button data-mode="move">↔ うごかす</button>
-      <button data-mode="delete">🗑 けす</button>
+      <button data-mode="select" aria-pressed="true">🖱 えらぶ</button>
+      <button data-mode="move"   aria-pressed="false">↔ うごかす</button>
+      <button data-mode="delete" aria-pressed="false">🗑 けす</button>
       <button data-close>とじる</button>
     `;
     document.body.appendChild(p);
   }
   if(!document.getElementById("hk-toast")){
     const t=document.createElement("div"); t.id="hk-toast"; t.className="hk-toast"; document.body.appendChild(t);
+  }
+
+  // ショップの開閉に合わせて FAB を自動で隠す（重なり回避）
+  const shopOverlay = document.getElementById("shopOverlay");
+  if (shopOverlay){
+    const toggleFabs = (show)=>{
+      const a = document.getElementById("hk-place");
+      const b = document.getElementById("hk-ops");
+      [a,b].forEach(el => { if(el) el.style.display = show ? "" : "none"; });
+    };
+    new MutationObserver(()=>{ toggleFabs(!shopOverlay.classList.contains("active")); })
+      .observe(shopOverlay, { attributes:true, attributeFilter:["class"] });
   }
 })();
 
@@ -1923,8 +1946,8 @@ const key = (x,y)=>`${x},${y}`;
 function gridToWorld(x,y){ const ox=center.x, oy=center.y; return new THREE.Vector3((x-ox)*SCALE, 0, (y-oy)*SCALE); }
 function worldToGrid(X,Z){ const ox=center.x, oy=center.y; return { x:Math.round(X/SCALE)+ox, y:Math.round(Z/SCALE)+oy }; }
 
-let placed3D = []; // 配置済みルート
-let editMode = "select"; // ← 先に宣言（TDZ回避）
+let placed3D = [];
+let editMode = "select";        // ← 先に宣言（TDZ回避）
 let selected = null;
 
 function ensure3D(){
@@ -1967,7 +1990,6 @@ function ensure3D(){
     const occ = occupiedExcept(selected.userData.id);
     if(occ.has(key(c.x,c.y))){
       toast("そのマスは使えないよ");
-      // 元のセルへ戻す
       const old = selected.userData.cell;
       if(old){ const p0 = gridToWorld(old.x, old.y); selected.position.set(p0.x, selected.position.y, p0.z); }
       return;
@@ -2014,7 +2036,7 @@ async function place3D({ id, type="house", x, y, rot=0 }){
   let root; const url = MODEL_URLS[type];
   if(url){
     try{ const gltf = await loader.loadAsync(url); root = gltf.scene; root.scale.set(.8,.8,.8); }
-    catch{ root = fallbackBox(.9, 0x16a34a); }
+    catch(e){ console.warn("GLB load failed:", type, e); root = fallbackBox(.9, 0x16a34a); }
   }else root = fallbackBox(.9, 0x16a34a);
   root.position.copy(pos);
   root.rotation.y = (rot/90)*Math.PI/2;
@@ -2083,6 +2105,8 @@ function setPreviewAt(cell){
   preview.rotation.y = (placeRot/90)*Math.PI/2;
   untint(preview); tint(preview, cellOK(cell.x,cell.y)? okMat:ngMat);
   controls.enabled=false;
+  // ★ HUD表示用：UI側が待ってるイベントを投げる
+  document.dispatchEvent(new Event("placement:preview"));
 }
 function beginPlacement({ type="house", occupied=[] }){
   placing=true; placeType=type; placeRot=0;
@@ -2163,10 +2187,12 @@ function setEditMode(m){
   editMode=m;
   if(m!=="move") tControls.detach();
   renderer.domElement.style.cursor = (m==="delete")? "not-allowed":"default";
-  // パネルのボタン見た目更新
+  // パネルのボタン見た目更新 + aria-pressed
   const p=document.getElementById("hk-ops-panel");
   p?.querySelectorAll("button[data-mode]").forEach(b=>{
-    b.classList.toggle("active", b.getAttribute("data-mode")===m);
+    const on = b.getAttribute("data-mode")===m;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
   });
   toast(`モード：${m==="select"?"えらぶ":m==="move"?"うごかす":"けす"}`);
 }
@@ -2198,13 +2224,32 @@ document.addEventListener("placement:start",(ev)=>{
 document.addEventListener("placement:end",  ()=> endPlacement());
 document.addEventListener("placement:cancel",()=> endPlacement());
 
+// ★ 追加：ジョイスティック/ボタン連携
+document.addEventListener("placement:nudge", (ev)=>{
+  if(!placing || !preview) return;
+  const { dx=0, dy=0 } = ev.detail || {};
+  const nx = clamp(hoverCell.x + dx, 0, COLS-1);
+  const ny = clamp(hoverCell.y + dy, 0, ROWS-1);
+  setPreviewAt({ x:nx, y:ny });
+});
+document.addEventListener("placement:ok", ()=>{
+  if(!placing || !preview) return;
+  const c = hoverCell;
+  if(!cellOK(c.x,c.y)) { toast("そのマスは使えないよ"); return; }
+  document.dispatchEvent(new CustomEvent("placement:confirm", { detail:{
+    type: placeType, x: c.x, y: c.y, rot: placeRot
+  }}));
+  document.dispatchEvent(new Event("placement:end"));
+  endPlacement();
+});
+
 /* ============= 2ボタンの挙動 ============= */
 const placeBtn = document.getElementById("hk-place");
 const opsBtn   = document.getElementById("hk-ops");
 const opsPanel = document.getElementById("hk-ops-panel");
 
 placeBtn?.addEventListener("click", ()=>{
-  // 既存ショップとの連携があればそれを使う（0円の仮アイテム）
+  // 既存ショップ導線があればそれを使う（0円の仮アイテムで配置開始）
   if(window.startPlacementFlow){
     window.startPlacementFlow({ id:"house", name:"家", price:0, cat:"building", preview:"🏠" });
     return;
@@ -2216,7 +2261,7 @@ placeBtn?.addEventListener("click", ()=>{
 opsBtn?.addEventListener("click", ()=>{
   const show = opsPanel.style.display!=="block";
   opsPanel.style.display = show? "block":"none";
-  if(!show){ setEditMode("select"); } // ← とじたら自動で“えらぶ”に戻る
+  if(!show){ setEditMode("select"); } // ← とじたら自動で“えらぶ”
 });
 
 // パネル内操作
@@ -2234,8 +2279,11 @@ document.addEventListener("click",(e)=>{
   if(!isOps && opsPanel.style.display==="block"){ opsPanel.style.display="none"; setEditMode("select"); }
 });
 
-/* デフォルトは“えらぶ” */
+// デフォルトは“えらぶ”
 setEditMode("select");
+
+// 他スクリプトからモード変更できるよう公開
+window.city3D = { setEditMode };
 </script>
 
 
@@ -2245,6 +2293,7 @@ setEditMode("select");
 
 </body>
 </html>
+
 
 
 

@@ -2241,22 +2241,48 @@ const opsBtn   = document.getElementById("hk-ops");
 const opsPanel = document.getElementById("hk-ops-panel");
 
 placeBtn?.addEventListener("click", ()=>{
-  // 配置中なら確定フローを呼び出す
-  if(placing){
+  // 配置中なら確定、そうでなければショップを開く
+  if (placing) {
     document.dispatchEvent(new Event("placement:ok"));
-    return;
+  } else {
+    document.getElementById("openShopBtn")?.click();
   }
-  placeBtn?.addEventListener("click", ()=>{
- 
-  document.getElementById("openShopBtn")?.click();
 });
 
- 
 opsBtn?.addEventListener("click", ()=>{
-  const show = opsPanel.style.display!=="block";
-  opsPanel.style.display = show? "block":"none";
-  if(!show){ setEditMode("select"); } // ← とじたら自動で“えらぶ”
+  const show = opsPanel.style.display !== "block";
+  opsPanel.style.display = show ? "block" : "none";
+  if (!show) setEditMode("select"); // とじたら“えらぶ”
 });
+
+// パネル内操作
+opsPanel?.addEventListener("click",(e)=>{
+  const t = e.target;
+  if(t.matches("[data-close]")){
+    opsPanel.style.display="none";
+    setEditMode("select");
+    return;
+  }
+  if(t.matches("button[data-mode]")){
+    setEditMode(t.getAttribute("data-mode"));
+  }
+});
+
+// パネル外クリックで閉じる→自動で“えらぶ”
+document.addEventListener("click",(e)=>{
+  const isOps = e.target.closest?.("#hk-ops") || e.target.closest?.("#hk-ops-panel");
+  if(!isOps && opsPanel.style.display==="block"){
+    opsPanel.style.display="none";
+    setEditMode("select");
+  }
+});
+
+// デフォルトは“えらぶ”
+setEditMode("select");
+
+// 他スクリプトからモード変更できるよう公開
+window.city3D = { setEditMode };
+
 
 // パネル内操作
 opsPanel?.addEventListener("click",(e)=>{
@@ -2287,6 +2313,7 @@ window.city3D = { setEditMode };
 
 </body>
 </html>
+
 
 
 

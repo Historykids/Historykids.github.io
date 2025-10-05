@@ -1687,6 +1687,11 @@ if (toolbarEl && toolbarToggle) {
   toolbarToggle.addEventListener("click", () => {
     const next = !toolbarEl.classList.contains("open");
     setToolbarOpen(next);
+   if (!next) {
+  document.getElementById('btn-select')?.click();   // UIも“えらぶ”表示へ
+  window.city3D?.setEditMode?.('select');           // 3D側のモードも“select”へ
+}
+
     if (!next) window.city3D?.setEditMode?.('select'); // ← 追加：閉じたら必ず「えらぶ」
   });
   toolbarButtons?.addEventListener("keydown", (ev) => {
@@ -2331,6 +2336,7 @@ window.city3D = { setEditMode };
 
 </body>
 </html>
+
 
 
 

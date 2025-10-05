@@ -2280,28 +2280,33 @@ placeBtn?.addEventListener("click", ()=>{
 window.city3D = { setEditMode };
 
 
-// パネル内操作
- const opsPanel = document.getElementById("hk-ops-panel");
-opsPanel?.addEventListener("click",(e)=>{
-  const t = e.target;
-  if(t.matches("[data-close]")){
-    opsPanel.style.display="none";
-    setEditMode("select");
-    return;
-  }
-  if(t.matches("button[data-mode]")){
-    setEditMode(t.getAttribute("data-mode"));
-  }
-});
+// 追加：最初に1回だけ定義
+const opsPanel = document.getElementById('hk-ops-panel');
 
-// パネル外クリックで閉じる→自動で“えらぶ”
-document.addEventListener("click",(e)=>{
-  const isOps = e.target.closest?.("#hk-ops") || e.target.closest?.("#hk-ops-panel");
-  if(!isOps && opsPanel.style.display==="block"){
-    opsPanel.style.display="none";
-    setEditMode("select");
-  }
-});
+if (opsPanel) {
+  // パネル内操作
+  opsPanel.addEventListener("click",(e)=>{
+    const t = e.target;
+    if(t.matches("[data-close]")){
+      opsPanel.style.display="none";
+      setEditMode("select");
+      return;
+    }
+    if(t.matches("button[data-mode]")){
+      setEditMode(t.getAttribute("data-mode"));
+    }
+  });
+
+  // パネル外クリックで閉じる→自動で“えらぶ”
+  document.addEventListener("click",(e)=>{
+    const isOps = e.target.closest?.("#hk-ops") || e.target.closest?.("#hk-ops-panel");
+    if(!isOps && opsPanel && opsPanel.style.display==="block"){
+      opsPanel.style.display="none";
+      setEditMode("select");
+    }
+  });
+}
+
 
 // デフォルトは“えらぶ”
 setEditMode("select");
@@ -2326,6 +2331,7 @@ window.city3D = { setEditMode };
 
 </body>
 </html>
+
 
 
 

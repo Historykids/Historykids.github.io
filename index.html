@@ -1677,6 +1677,11 @@ function setToolbarOpen(open){
 
   document.body.classList.toggle('toolbar-open', !!open);
 }
+   if (!open) {
+    window.city3D?.setEditMode?.('select');                 // Three側
+    document.dispatchEvent(new Event('city3d:force-select'));// 白ツールバー側
+  }
+
 if (toolbarEl && toolbarToggle) {
   setToolbarOpen(false);
   toolbarToggle.addEventListener("click", () => {
@@ -1687,6 +1692,7 @@ if (toolbarEl && toolbarToggle) {
   toolbarButtons?.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape") {
       setToolbarOpen(false);
+       document.dispatchEvent(new Event('city3d:force-select'))
       window.city3D?.setEditMode?.('select');          // ← 追加：Esc で閉じても「えらぶ」
       toolbarToggle.focus();
     }
@@ -1733,6 +1739,7 @@ if (toolbarEl && toolbarToggle) {
 
   // 初期状態は「えらぶ」に寄せる（表示時の見た目も同期）
   setUiMode('select');
+  document.addEventListener('city3d:force-select', () => setUiMode('select'));
 })();
 
 
@@ -2274,6 +2281,7 @@ window.city3D = { setEditMode };
 
 
 // パネル内操作
+ const opsPanel = document.getElementById("hk-ops-panel");
 opsPanel?.addEventListener("click",(e)=>{
   const t = e.target;
   if(t.matches("[data-close]")){
@@ -2318,6 +2326,7 @@ window.city3D = { setEditMode };
 
 </body>
 </html>
+
 
 
 

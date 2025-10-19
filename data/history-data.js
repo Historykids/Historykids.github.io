@@ -1,4 +1,3 @@
-<script>
 const dataSets = {
   /* ---------- 江戸時代 ---------- */
   edo: {
@@ -358,5 +357,26 @@ const dataSets = {
     }
   }
 };
-window.DATASETS = dataSets;
-</script>
+window.HK_Questions = function buildQuestions(options = {}) {
+  const { era = "ALL", mix = "ALL" } = options;
+  const eras = era === "ALL" ? Object.keys(dataSets) : [era];
+  const qs = [];
+  for (const e of eras) {
+    const ds = dataSets[e];
+    for (const [chapter, items] of Object.entries(ds.chapters)) {
+      for (const [title, meta] of Object.entries(items)) {
+        const blanks = ds.blanks[title] || [];
+        qs.push({
+          eraKey: e,
+          eraTitle: ds.title,
+          chapter,
+          question: title,           // 例: "1841 〇〇〇〇の改革"
+          answer: blanks.join("・"), // 例: "てんぽう"
+          year: meta.year ?? null,
+          icon: meta.icon ?? "❓",
+        });
+      }
+    }
+  }
+  return qs;
+};

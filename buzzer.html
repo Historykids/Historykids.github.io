@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>歴史キッズ｜早押しチャレンジ（別サイト）</title>
+<style>
+  :root{ --ink:#1f2937; --bg:#fffdf7; --accent:#f59e0b; }
+  body{ margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif; background:var(--bg); color:var(--ink); }
+  header{ padding:14px 16px; background:#ffe8b4; border-bottom:1px solid #f6d99a; }
+  main{ max-width:900px; margin:20px auto; padding:0 12px; display:grid; gap:14px; }
+  .row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  select,button,input{ border-radius:12px; border:1px solid #cbd5e1; padding:10px 12px; font-weight:700; }
+  button{ background:#fff; cursor:pointer; }
+  button.primary{ background:linear-gradient(130deg,#fde68a,#f59e0b); border-color:#f59e0b; color:#5b3a00; }
+  .card{ background:#fff; border:1px solid #e5e7eb; border-radius:16px; box-shadow:0 10px 24px rgba(15,23,42,.08); padding:16px; }
+  .qbox{ font-size:18px; line-height:1.6; }
+  .qmeta{ color:#475569; font-size:14px; margin-top:6px; }
+  .big{ font-size:32px; font-weight:800; letter-spacing:.02em; }
+  .ok{ color:#166534; }
+  .ng{ color:#b91c1c; }
+  .time{ font-variant-numeric: tabular-nums; }
+  .pill{ display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; background:#fff7e5; border:1px solid #f6bf64; font-weight:700; }
+  .center{ text-align:center; }
+  .hint{ color:#64748b; font-size:13px; }
+  .grid{ display:grid; gap:12px; }
+</style>
+<!-- 問題データ -->
+<script src="./dataset.js"></script>
+
+<!-- Firebase（互換API：v8風で動きます） -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+  // ★あなたの設定を組み込み済み
+  const firebaseConfig = {
+    apiKey: "AIzaSyBMcXnMxiHXg2ybI2aNrpJozN_MlDpH0lA",
+    authDomain: "historykids-62240.firebaseapp.com",
+    projectId: "historykids-62240",
+    storageBucket: "historykids-62240.firebasestorage.app",
+    messagingSenderId: "73567574639",
+    appId: "1:73567574639:web:c5e91d53c479a55b708b9a",
+    measurementId: "G-09Q3X0D49C"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+</script>
+</head>
+<body>
+<header>
+  <div class="row">
+    <strong>歴史キッズ｜早押しチャレンジ</strong>
+    <span class="pill">別ページ（元サイトとはスコア分離）</span>
+  </div>
+</header>
+
+<main class="grid">
+  <section class="card">
+    <div class="row">
+      <label>日次/週次：</label>
+      <select id="period">
+        <option value="daily">日次</option>
+        <option value="weekly">週次</option>
+      </select>
+
+      <label>出題：</label>
+      <select id="mix">
+        <option value="allchap">全章ミックス</option>
+        <option value="allera">時代ミックス</option>
+      </select>
+
+      <label>固定時代：</label>
+      <select id="era">
+        <option value="ALL">（ミックス時は無視）ALL</option>
+        <option value="edo">江戸</option>
+        <option value="muromachi">室町</option>
+        <option value="kamakura">鎌倉</option>
+        <option value="sengoku">戦国</option>
+      </select>
+
+      <label>問題数：</label>
+      <select id="qcount">
+        <option>5</option><option selected>10</option><option>20</option>
+      </select>
+
+      <button id="start" class="primary">スタート</button>
+    </div>
+    <p class="hint">※「日次/週次」はランキング集計キーに使われます（同じ設定の人同士で競う）。</p>
+  </section>
+
+  <section id="play" class="card" hidden>
+    <div class="row" style="justify-content:space-between;">
+      <div>問題 <b id="idx">1</b>/<span id="total">10</span></div>
+      <div>経過：<span id="elapsed" class="time">0.000</span> 秒</div>
+    </div>
+    <div class="qbox" id="qtext" style="margin-top:8px"></div>
+    <div class="qmeta" id="qmeta"></div>
+
+    <div class="row" style="margin-top:12px;">
+      <input id="ans" type="text" inputmode="text" placeholder="ひらがなで回答（例：てんぽう）" style="flex:1;"/>
+      <button id="hit" class="primary">早押し！</button>
+    </div>
+    <p class="hint">※ 〇の部分だけを <b>ひらがな</b> で。複数は「・/、/スペース」で可。</p>
+
+    <div id="judge" class="big center" style="margin-top:8px;"></div>
+  </section>
+
+  <section id="finish" class="card center" hidden>
+    <div class="big">結果</div>
+    <p>タイム：<b class="time" id="final">0.000</b> 秒</p>
+    <div class="row center" style="justify-content:center; gap:8px;">
+      <input id="player" type="text" placeholder="名前（任意）" />
+      <button id="submit" class="primary">ランキングに送信</button>
+    </div>
+    <p class="hint">※ 名前はあとからランキングに公開されます。空欄でも送信OK。</p>
+    <p><a href="./ranking.html" target="_blank">ランキングを見る →</a></p>
+  </section>
+</main>
+
+<script>
+  // ========= ユーティリティ =========
+  const onlyHiraAndSep = s => /^[\u3041-\u3096\s・,，、/／]+$/.test(s);
+  const splitTokens = s => s.replace(/[・,，、/／]+/g,' ').trim().split(/\s+/).filter(Boolean);
+  const norm = s => s.replace(/\s+/g,'').trim();
+  const shuffle = a => { for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; };
+  const fmt = ms => (ms/1000).toFixed(3);
+
+  function todayKey(){ // YYYY-MM-DD
+    const d=new Date(); d.setHours(0,0,0,0);
+    return d.toISOString().slice(0,10);
+  }
+  function isoWeekKey(){ // YYYY-Www
+    const d = new Date(); d.setHours(0,0,0,0);
+    const dayNum = (d.getUTCDay()+6)%7;
+    d.setUTCDate(d.getUTCDate()-dayNum+3);
+    const firstThu = new Date(Date.UTC(d.getUTCFullYear(),0,4));
+    const week = 1 + Math.round((d - firstThu) / 604800000);
+    return `${d.getUTCFullYear()}-W${String(week).padStart(2,'0')}`;
+  }
+
+  // ========= 状態 =========
+  let qs=[], cur=0, t0=0, elapsed=0, timer=null, resultMs=0;
+  const el = s => document.getElementById(s);
+
+  function pickQuestions({period, mix, era, qcount}){
+    const base = (mix === "allera")
+      ? window.HK_Questions({ era: "ALL" })
+      : window.HK_Questions({ era });
+    return shuffle(base).slice(0, Number(qcount));
+  }
+
+  function show(idx){
+    const q = qs[idx];
+    el('idx').textContent = idx+1;
+    el('total').textContent = qs.length;
+    el('qtext').textContent = q.question;
+    el('qmeta').textContent = `${q.eraTitle}｜${q.chapter} ${q.icon}`;
+    el('ans').value = '';
+    el('judge').textContent = '';
+    el('ans').focus();
+  }
+
+  function startTimer(){
+    t0 = performance.now();
+    timer = setInterval(()=>{
+      elapsed = performance.now()-t0;
+      el('elapsed').textContent = fmt(elapsed/1); // /1でms→msそのまま
+    }, 16);
+  }
+  function stopTimer(){
+    clearInterval(timer); timer=null;
+    elapsed = performance.now()-t0;
+    return elapsed;
+  }
+
+  // ========= フロー =========
+  el('start').addEventListener('click', ()=>{
+    const period = el('period').value; // daily | weekly
+    const mix = el('mix').value;       // allchap | allera
+    const era = el('era').value;       // fixed era or ALL
+    const qcount = el('qcount').value;
+
+    qs = pickQuestions({period, mix, era, qcount});
+    if(qs.length === 0){ alert('問題が見つかりません（dataset.jsが読み込めているか確認してください）'); return; }
+
+    cur = 0; elapsed = 0; resultMs = 0;
+    el('play').hidden = false;
+    el('finish').hidden = true;
+    show(cur);
+    startTimer();
+  });
+
+  function judgeAnswer(){
+    const q = qs[cur];
+    const blanks = q.answer ? splitTokens(q.answer) : [];
+    const user = el('ans').value || '';
+    if(!onlyHiraAndSep(user)){ el('judge').textContent = 'ひらがなで入力してね'; el('judge').className = 'big ng center'; return false; }
+    const u = splitTokens(user).map(norm);
+    const need = blanks.map(norm);
+    const ok = need.length>0 && need.every(tok => u.includes(tok));
+    if(ok){
+      el('judge').textContent = '正解！'; el('judge').className = 'big ok center';
+      cur++;
+      if(cur >= qs.length){
+        resultMs = stopTimer();
+        el('final').textContent = fmt(resultMs);
+        el('finish').hidden = false;
+        el('play').hidden = true;
+      }else{
+        show(cur);
+      }
+    }else{
+      el('judge').textContent = `ざんねん…（正: ${q.answer}）`; el('judge').className = 'big ng center';
+    }
+    return ok;
+  }
+
+  el('hit').addEventListener('click', judgeAnswer);
+  el('ans').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ judgeAnswer(); } });
+
+  // ========= 送信 =========
+  el('submit').addEventListener('click', async ()=>{
+    const name = (el('player').value || '').slice(0,24);
+    const period = el('period').value;
+    const mix = el('mix').value;
+    const era = el('era').value;
+    const payload = {
+      name: name || '名無し',
+      ms: Math.round(resultMs),
+      period,               // "daily" or "weekly"
+      mode: mix,            // "allchap" or "allera"
+      era,                  // 固定選択（mix=allera のときは "ALL" のはず）
+      dateKey: todayKey(),  // 日次キー
+      weekKey: isoWeekKey(),// 週次キー（ISO週）
+      count: qs.length,
+      ts: firebase.firestore.FieldValue.serverTimestamp(),
+      app: "hk-buzzer-v1"   // 元サイトと区別するタグ
+    };
+    try{
+      await db.collection("hk_fast_scores").add(payload);
+      alert('送信しました！ランキングへどうぞ');
+      location.href = "./ranking.html";
+    }catch(e){
+      console.error(e);
+      alert('送信に失敗しました。ネットやルール設定を確認してください。');
+    }
+  });
+</script>
+</body>
+</html>

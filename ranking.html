@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>早押しランキング｜歴史キッズ（別ページ）</title>
+<style>
+  body{ margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",sans-serif; background:#fffdf7; color:#1f2937; }
+  header{ padding:14px 16px; background:#ffe8b4; border-bottom:1px solid #f6d99a; }
+  main{ max-width:900px; margin:20px auto; padding:0 12px; display:grid; gap:14px; }
+  select,button{ border-radius:12px; border:1px solid #cbd5e1; padding:10px 12px; font-weight:700; background:#fff; }
+  .card{ background:#fff; border:1px solid #e5e7eb; border-radius:16px; box-shadow:0 10px 24px rgba(15,23,42,.08); padding:16px; }
+  table{ width:100%; border-collapse:separate; border-spacing:0 8px; }
+  th,td{ padding:10px 12px; text-align:left; }
+  tr{ background:#fff; border:1px solid #e5e7eb; }
+  tr td:first-child{ font-weight:800; }
+  .time{ font-variant-numeric: tabular-nums; }
+  .pill{ display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; background:#fff7e5; border:1px solid #f6bf64; font-weight:700; }
+</style>
+
+<!-- Firebase（互換API） -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBMcXnMxiHXg2ybI2aNrpJozN_MlDpH0lA",
+    authDomain: "historykids-62240.firebaseapp.com",
+    projectId: "historykids-62240",
+    storageBucket: "historykids-62240.firebasestorage.app",
+    messagingSenderId: "73567574639",
+    appId: "1:73567574639:web:c5e91d53c479a55b708b9a",
+    measurementId: "G-09Q3X0D49C"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+</script>
+</head>
+<body>
+<header>
+  <div class="row">
+    <strong>早押しランキング</strong>
+    <span class="pill">別ページ（元サイトとはスコア分離）</span>
+  </div>
+</header>
+
+<main>
+  <section class="card">
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <label>表示：</label>
+      <select id="period">
+        <option value="daily">日次</option>
+        <option value="weekly">週次</option>
+      </select>
+
+      <label>モード：</label>
+      <select id="mode">
+        <option value="allchap">全章ミックス</option>
+        <option value="allera">時代ミックス</option>
+      </select>
+
+      <label>時代：</label>
+      <select id="era">
+        <option value="ALL">ALL（ミックス時）</option>
+        <option value="edo">江戸</option>
+        <option value="muromachi">室町</option>
+        <option value="kamakura">鎌倉</option>
+        <option value="sengoku">戦国</option>
+      </select>
+
+      <button id="reload">更新</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <table id="tbl">
+      <thead>
+        <tr>
+          <th>#</th><th>名前</th><th>タイム</th><th>問題数</th><th>記録時刻</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+  const tbody = document.getElementById('tbody');
+
+  function todayKey(){ const d=new Date(); d.setHours(0,0,0,0); return d.toISOString().slice(0,10); }
+  function isoWeekKey(){
+    const d = new Date(); d.setHours(0,0,0,0);
+    const dayNum = (d.getUTCDay()+6)%7;
+    d.setUTCDate(d.getUTCDate()-dayNum+3);
+    const firstThu = new Date(Date.UTC(d.getUTCFullYear(),0,4));
+    const week = 1 + Math.round((d - firstThu) / 604800000);
+    return `${d.getUTCFullYear()}-W${String(week).padStart(2,'0')}`;
+  }
+  const fmt = ms => (ms/1000).toFixed(3);
+
+  async function load(){
+    const period = document.getElementById('period').value;  // daily|weekly
+    const mode   = document.getElementById('mode').value;    // allchap|allera
+    const era    = document.getElementById('era').value;     // era key or ALL
+
+    let q = db.collection("hk_fast_scores")
+      .where("app","==","hk-buzzer-v1")
+      .where("period","==",period)
+      .where("mode","==",mode);
+
+    if(period === "daily") q = q.where("dateKey","==",todayKey());
+    else q = q.where("weekKey","==",isoWeekKey());
+
+    // 固定時代で絞りたい場合（mode=allchap のときのみ有効）
+    if(mode === "allchap" && era !== "ALL"){
+      q = q.where("era","==",era);
+    }
+
+    // 速い順
+    q = q.orderBy("ms","asc").limit(50);
+
+    const snap = await q.get();
+    tbody.innerHTML = "";
+    let rank = 1;
+    snap.forEach(doc=>{
+      const d = doc.data();
+      const tr = document.createElement('tr');
+      const dt = d.ts?.toDate?.() || null;
+      tr.innerHTML = `
+        <td>${rank++}</td>
+        <td>${d.name ?? '名無し'}</td>
+        <td class="time">${fmt(d.ms)}</td>
+        <td>${d.count ?? '-'}</td>
+        <td>${dt ? dt.toLocaleString() : '-'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+    if(rank===1){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="5">まだ記録がありません</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  document.getElementById('reload').addEventListener('click', load);
+  document.addEventListener('DOMContentLoaded', load);
+</script>
+</body>
+</html>

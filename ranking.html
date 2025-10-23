@@ -196,7 +196,7 @@ async function loadAll(){
   tbody.innerHTML = `<tr><td colspan="4" class="center mut">読み込み中…</td></tr>`;
   countInfo.textContent = '';
   try{
-    const col = db.collection(`fast_scores/${period}/${pKey}/${group}`);
+  const col = db.collection(`fast_scores/${period}/${pKey}/${group}/entries`);
     const qs  = await col.orderBy('ms','asc').limit(100).get();
     const total = qs.size;
     countInfo.textContent = `取得件数：${total}件（上位100）`;

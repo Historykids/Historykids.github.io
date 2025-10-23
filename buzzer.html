@@ -409,17 +409,7 @@ submitBtn.addEventListener('click', async ()=>{
   }
 });
 
-  <script>
-(async ()=>{
-  try{
-    const t = await firebase.appCheck().getToken(true);
-    console.log('[AppCheck token]', (t.token||'').slice(0, 18) + '...');
-  }catch(e){
-    console.warn('[AppCheck getToken failed]', e.code, e.message, e);
-  }
-})();
-</script>
-
+  
 
 /* 初期状態文言 */
 connEl.textContent = '接続OK（B案/compat）' + (appCheckReady ? '' : ' — App Check 警告あり');

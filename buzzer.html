@@ -107,10 +107,8 @@
   </div>
 </div>
 
-
-<!-- data フォルダの dataset.js を読む -->
+<!-- あなたの問題セット（同階層 data/ に置く） -->
 <script src="./data/dataset.js"></script>
-
 
 <!-- Firebase compat（B案） -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -138,12 +136,12 @@ firebase.initializeApp(firebaseConfig);
 // App Check（本番キー／開発は Debug Token）※失敗しても継続
 let appCheckReady = false;
 try{
-  // ローカル開発時は Debug Token を有効化（必要なら文字列をセット）
   if (location.hostname === 'localhost'){
-    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true; // 開発時のみ
   } else {
     self.FIREBASE_APPCHECK_DEBUG_TOKEN = false;
   }
+  // ★ reCAPTCHA v3 の Site key を入れる（Enterpriseの鍵は不可）
   firebase.appCheck().activate('6LfoXPMrAAAAAO98VYU17M8PFwpz4pv_k2k0ngIk', true);
   appCheckReady = true;
 } catch(e){
@@ -221,7 +219,7 @@ function buildPool(mode, era){
   const all = [];
   const eras = mode==='allera' ? ['edo','muromachi','kamakura','sengoku'] : [era];
   eras.forEach(e=>{
-    const ds = dataSets[e];
+    const ds = window.dataSets[e];
     Object.values(ds.chapters).forEach(group=>{
       Object.keys(group).forEach(name=>{
         const blanks = ds.blanks[name] || [];
@@ -350,9 +348,16 @@ window.addEventListener('keydown', (e)=>{
 /* ============== 送信（create専用・1人1投稿） ============== */
 function periodKeyOf(kind){ return (kind==='daily') ? todayKey() : isoWeekKey(); }
 
-async function docExists(path){
-  const snap = await db.doc(path).get();
-  return snap.exists;
+async function docExists(docPath){
+  try{
+    const snap = await db.doc(docPath).get();
+    return snap.exists;
+  }catch(e){
+    console.error('[docExists error]', e.code, e.message);
+    // 読み取り不可でも送信動作は続行したいので false 扱いにする
+    if (e.code === 'permission-denied') return false;
+    throw e;
+  }
 }
 
 submitBtn.addEventListener('click', async ()=>{
@@ -377,39 +382,40 @@ submitBtn.addEventListener('click', async ()=>{
       weekKey: isoWeekKey(),
       count: qs.length,
       ts: firebase.firestore.FieldValue.serverTimestamp(),
-      // クライアント改竄が疑われるケースに備え、簡易な検査値
       ver: 1
     };
 
     const groupKey = `${mode}_${era}`;
-    const path = `fast_scores/${period}/${periodKey}/${groupKey}/${user.uid}`;
+    const colPath  = `fast_scores/${period}/${periodKey}/${groupKey}/entries`;
+    const docPath  = `${colPath}/${user.uid}`;
 
     // すでに投稿済みなら送らない（ルールでもブロックするがUX向上）
-    if (await docExists(path)){
+    if (await docExists(docPath)){
       alert('この期間・設定では既に投稿済みです。次の期間で挑戦してね！');
       location.href = './ranking.html';
       return;
     }
 
     // create 専用（ルールで allow create / disallow update, delete）
-    await db.doc(path).set(payload, { merge: false });
+    await db.collection(colPath).doc(user.uid).set(payload, { merge: false });
 
     alert('送信しました！ランキングで確認できます。');
     location.href = './ranking.html';
   }catch(e){
-    console.error(e);
-    const m = String(e);
-    if(m.includes('ALREADY_EXISTS') || m.includes('already exists')){
+    console.error('[submit failed]', e, e.code, e.message);
+    const code = e.code || '';
+    if(code === 'already-exists'){
       alert('この期間・設定では既に投稿済みです。次の期間で挑戦してね！');
-    }else if(m.includes('appCheck') || m.includes('recaptcha')){
+      location.href = './ranking.html';
+    }else if(code === 'permission-denied'){
+      alert('書き込み権限がありません。Firestore ルールと App Check を確認してください。');
+    }else if(String(e).includes('appCheck') || String(e).includes('recaptcha')){
       alert('App Check エラー。Firebaseコンソールで reCAPTCHA v3 のサイトキーと承認済みドメインを確認してください。');
     }else{
       alert('送信に失敗しました。ネット接続やFirebase設定（Auth/AppCheck/ルール）をご確認ください。');
     }
   }
 });
-
-  
 
 /* 初期状態文言 */
 connEl.textContent = '接続OK（B案/compat）' + (appCheckReady ? '' : ' — App Check 警告あり');

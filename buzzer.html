@@ -4,12 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>歴史キッズ｜早押しチャレンジ</title>
+  <meta name="color-scheme" content="light">
   <style>
-    :root{--ink:#1f2937;--mut:#64748b;--bg:#fff7ec;--card:#fff;--brand:#f59e0b}
+    :root{--ink:#1f2937;--mut:#64748b;--bg:#fff7ec;--card:#fff;--brand:#f59e0b;--ok:#14532d;--okbg:#dcfce7;--ng:#991b1b;--ngbg:#fee2e2}
+    *{box-sizing:border-box}
     body{margin:0;background:linear-gradient(180deg,#fffdf4,#fff7ec);color:var(--ink);
-         font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP",YuGothic,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;}
+         font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;line-height:1.6}
     .wrap{max-width:920px;margin:24px auto;padding:0 14px}
-    header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
     header h1{font-size:18px;margin:0}
     .card{background:var(--card);border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:16px;box-shadow:0 10px 24px rgba(15,23,42,.08)}
     .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
@@ -18,17 +20,18 @@
     }
     button{cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.08)}
     button.primary{background:linear-gradient(130deg,#fde68a,#fbbf24);border-color:#f59e0b;color:#4a3200}
+    button[disabled]{opacity:.6;cursor:not-allowed}
     .mut{color:var(--mut);font-size:12px}
     .quiz{display:grid;gap:10px;margin-top:12px}
     .qname{font-weight:800}
     .big{font-size:20px}
-    .ok{color:#14532d;background:#dcfce7;padding:6px 10px;border-radius:10px;display:inline-block}
-    .ng{color:#991b1b;background:#fee2e2;padding:6px 10px;border-radius:10px;display:inline-block}
+    .ok{color:var(--ok);background:var(--okbg);padding:6px 10px;border-radius:10px;display:inline-block}
+    .ng{color:var(--ng);background:var(--ngbg);padding:6px 10px;border-radius:10px;display:inline-block}
     .hidden{display:none !important}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left}
-    .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid #e2e8f0;border-radius:999px;padding:6px 10px;background:#fff}
+    .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid #e2e8f0;border-radius:999px;padding:8px 12px;background:#fff;text-decoration:none;color:inherit;font-weight:700}
     .warn{color:#b45309}
+    progress{width:240px;height:10px}
+    .right{margin-left:auto}
   </style>
 </head>
 <body>
@@ -36,9 +39,10 @@
   <header>
     <h1>早押しチャレンジ</h1>
     <a class="pill" href="./ranking.html">🏆 ランキングを見る</a>
+    <span id="conn" class="mut right">接続準備中…</span>
   </header>
 
-  <div class="card">
+  <div class="card" role="region" aria-label="設定とクイズ">
     <div class="row" style="gap:12px">
       <label>期間：
         <select id="period">
@@ -63,34 +67,37 @@
         </select>
       </label>
 
-      <span class="mut">※ 全10問・正解でのみ次の問題へ。最速タイムで競います。</span>
+      <span class="mut">※ 全10問・正解のみで進行。最速タイムで競います。</span>
     </div>
 
     <hr style="margin:14px 0;border:none;border-top:1px solid #eee">
 
-    <div id="authState" class="mut">接続中…（匿名サインイン & App Check）</div>
+    <div id="authState" class="mut">匿名サインイン & App Check 初期化中…</div>
 
     <div id="quizBox" class="quiz hidden">
-      <div class="qname big" id="qTitle"></div>
-      <div class="mut">〇のところだけを <b>ひらがな</b> で入力。複数はスペース/・/、/／で区切りOK。</div>
-      <input id="answer" type="text" inputmode="text" autocomplete="off" placeholder="ここに ひらがな を入力（例：てんぽう）">
-      <div id="feedback" class="mut"></div>
-      <div class="row">
-        <button id="checkBtn" class="primary">決定</button>
-        <button id="nextBtn" class="hidden">次へ</button>
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div class="qname big" id="qTitle" aria-live="polite"></div>
+        <div class="mut"><span id="countText"></span>／10　<progress id="prog" max="10" value="0"></progress></div>
       </div>
-      <div class="mut" id="progress"></div>
+      <div class="mut">〇のところだけを <b>ひらがな</b> で入力。複数は スペース / ・ / 、 / ／ で区切りOK。</div>
+      <input id="answer" type="text" inputmode="text" autocomplete="off" placeholder="ここに ひらがな を入力（例：てんぽう）" aria-label="解答欄">
+      <div id="feedback" class="mut" aria-live="polite"></div>
+      <div class="row">
+        <button id="checkBtn" class="primary">決定（Enter）</button>
+        <button id="nextBtn" class="hidden">次へ（N）</button>
+      </div>
+      <div class="mut" id="timerText" aria-live="off">経過：0.00 秒</div>
     </div>
 
     <div id="startBox" class="row" style="margin-top:10px">
-      <button id="startBtn" class="primary">スタート</button>
+      <button id="startBtn" class="primary" disabled>スタート</button>
       <span class="mut">サインイン完了後に開始できます。</span>
     </div>
 
     <div id="resultBox" class="hidden" style="margin-top:14px">
-      <div id="resultText" class="big"></div>
+      <div id="resultText" class="big" aria-live="polite"></div>
       <div class="row" style="margin-top:10px;gap:10px">
-        <input id="player" maxlength="24" placeholder="なまえ（24文字まで）">
+        <input id="player" maxlength="24" placeholder="なまえ（24文字まで）" aria-label="なまえ">
         <button id="submit" class="primary">この設定で送信</button>
         <span class="mut">※ 同一期間・同一設定では1人1投稿のみ</span>
       </div>
@@ -100,17 +107,21 @@
   </div>
 </div>
 
-<!-- === data === -->
+<!-- あなたの本体の問題セット（同階層に置く） -->
 <script src="./dataset.js"></script>
 
-<!-- === Firebase SDK (compat) === -->
+<!-- Firebase compat（B案） -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <script>
-/* ---------- Firebase Init (B案) ---------- */
+/* ================= Firebase Init（B案, compat） ================= */
+const connEl = document.getElementById('conn');
+const authStateEl = document.getElementById('authState');
+const noteEl = document.getElementById('note');
+
 const firebaseConfig = {
   apiKey: "AIzaSyBMcXnMxiHXg2ybI2aNrpJozN_MlDpH0lA",
   authDomain: "historykids-62240.firebaseapp.com",
@@ -122,25 +133,49 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 
-// App Check（必ず置き換え）
-self.FIREBASE_APPCHECK_DEBUG_TOKEN = false; // ← 開発時は 'xxx' を入れてもOK
-firebase.appCheck().activate('6LfoXPMrAAAAAO98VYU17M8PFwpz4pv_k2k0ngIk', true);
+// App Check（本番キー／開発は Debug Token）※失敗しても継続
+let appCheckReady = false;
+try{
+  // ローカル開発時は Debug Token を有効化（必要なら文字列をセット）
+  if (location.hostname === 'localhost'){
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  } else {
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = false;
+  }
+  firebase.appCheck().activate('6LfoXPMrAAAAAO98VYU17M8PFwpz4pv_k2k0ngIk', true);
+  appCheckReady = true;
+} catch(e){
+  console.warn('[AppCheck] activate failed', e);
+  noteEl.textContent = 'App Check の初期化に問題があるため、保護レベルが下がっています。管理画面のサイトキー/ドメインを確認してください。';
+}
 
-// Auth（匿名）
 const auth = firebase.auth();
 const db   = firebase.firestore();
 let authed = false;
+
+auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(()=>{});
+
 auth.onAuthStateChanged(u=>{
   authed = !!u;
-  document.getElementById('authState').textContent = authed ? '接続完了！' : '接続中…';
+  authStateEl.textContent = authed ? '接続完了！' : '接続中…';
   document.getElementById('startBtn').disabled = !authed;
 });
-auth.signInAnonymously().catch(console.error);
+auth.signInAnonymously().catch(err=>{
+  console.error(err);
+  authStateEl.textContent = '匿名サインインに失敗しました（通信 or Firebase設定）';
+});
 
-/* ---------- helper（本体の判定ロジック準拠） ---------- */
+window.addEventListener('unhandledrejection', (e)=>{
+  if(String(e.reason||'').includes('appCheck/recaptcha-error')){
+    noteEl.textContent = 'reCAPTCHA(App Check) エラー。App Check のサイトキーと承認済みドメイン（historykids.github.io）を確認してください。';
+  }
+});
+
+/* ================== 出題エンジン ================== */
 function onlyHiraAndSep(s){ return /^[\u3041-\u3096\s・,，、/／]+$/.test(s); }
 function splitTokens(ans){ let s=ans.replace(/[・,，、/／]+/g,' ').replace(/\s+/g,' ').trim();return s? s.split(' '):[]; }
 function normalizeTokens(arr){ return arr.map(s=>s.replace(/\s+/g,'').trim()); }
+
 function todayKey(){
   const d=new Date(); const y=d.getFullYear();
   const m=('0'+(d.getMonth()+1)).slice(-2); const day=('0'+d.getDate()).slice(-2);
@@ -148,7 +183,6 @@ function todayKey(){
 }
 function isoWeekKey(){
   const d = new Date();
-  // ISO week number
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   const dayNum = (date.getUTCDay() + 6) % 7;
   date.setUTCDate(date.getUTCDate() - dayNum + 3);
@@ -158,7 +192,28 @@ function isoWeekKey(){
   return `${date.getUTCFullYear()}-W${wk}`;
 }
 
-/* ---------- 問題プール作成 ---------- */
+// 決定論的シャッフル（期間＋モード＋時代 → 同じ並び）
+function mulberry32(seed){
+  return function(){
+    let t = seed += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function seededPick(arr, n, seedStr){
+  // 文字列から32bit seed
+  let seed = 0;
+  for (let i=0;i<seedStr.length;i++){ seed = (seed*31 + seedStr.charCodeAt(i)) >>> 0; }
+  const rnd = mulberry32(seed);
+  const a = arr.slice();
+  for (let i=a.length-1;i>0;i--){
+    const j = Math.floor(rnd()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a.slice(0,n);
+}
+
 function buildPool(mode, era){
   if(!window.dataSets){ throw new Error('dataset.js が読み込めていません'); }
   const all = [];
@@ -168,70 +223,83 @@ function buildPool(mode, era){
     Object.values(ds.chapters).forEach(group=>{
       Object.keys(group).forEach(name=>{
         const blanks = ds.blanks[name] || [];
-        // 未回答だけに限定はせず「競技用」に全件から
         all.push({ era:e, name, blanks });
       });
     });
   });
   return all;
 }
-function pickN(arr, n){
-  const a = arr.slice();
-  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
-  return a.slice(0,n);
-}
 
-/* ---------- 画面要素 ---------- */
-const els = id => document.getElementById(id);
-const periodSel = els('period');
-const mixSel    = els('mix');
-const eraWrap   = els('eraWrap');
-const eraSel    = els('era');
-const startBtn  = els('startBtn');
-const quizBox   = els('quizBox');
-const startBox  = els('startBox');
-const qTitle    = els('qTitle');
-const input     = els('answer');
-const feedback  = els('feedback');
-const checkBtn  = els('checkBtn');
-const nextBtn   = els('nextBtn');
-const progress  = els('progress');
-const resultBox = els('resultBox');
-const resultTxt = els('resultText');
-const submitBtn = els('submit');
+/* ================== UIバインド ================== */
+const $ = id => document.getElementById(id);
+const periodSel = $('period');
+const mixSel    = $('mix');
+const eraWrap   = $('eraWrap');
+const eraSel    = $('era');
+const startBtn  = $('startBtn');
+const quizBox   = $('quizBox');
+const startBox  = $('startBox');
+const qTitle    = $('qTitle');
+const input     = $('answer');
+const feedback  = $('feedback');
+const checkBtn  = $('checkBtn');
+const nextBtn   = $('nextBtn');
+const timerText = $('timerText');
+const resultBox = $('resultBox');
+const resultTxt = $('resultText');
+const submitBtn = $('submit');
+const prog      = $('prog');
+const countText = $('countText');
 
 mixSel.addEventListener('change', ()=>{
-  const isAllEra = mixSel.value === 'allera';
-  eraWrap.style.display = isAllEra ? 'none' : '';
+  eraWrap.style.display = (mixSel.value === 'allera') ? 'none' : '';
 });
 
-let qs=[], qi=0, tStart=0, resultMs=0;
+let qs = [], qi = 0, tStart = 0, timerId = null, resultMs = 0;
+
+function updateTimer(){
+  const ms = performance.now() - tStart;
+  timerText.textContent = `経過：${(ms/1000).toFixed(2)} 秒`;
+}
+function startTimer(){
+  tStart = performance.now();
+  timerId = setInterval(updateTimer, 60);
+}
+function stopTimer(){
+  if(timerId){ clearInterval(timerId); timerId = null; }
+  updateTimer();
+}
 
 function showQ(){
   const q = qs[qi];
-  qTitle.textContent = q.name;   // 「1603 〇〇幕府がはじまる」など
+  qTitle.textContent = q.name;
   input.value = '';
   feedback.textContent = '';
   nextBtn.classList.add('hidden');
   checkBtn.disabled = false;
   input.focus();
-  progress.textContent = `問題 ${qi+1} / ${qs.length}`;
+  countText.textContent = String(qi+1);
+  prog.value = qi;
 }
 
 function startGame(){
-  const period = periodSel.value;    // daily / weekly
-  const mode   = mixSel.value;       // allchap / allera
-  const era    = eraSel.value;       // edo etc (allera時は無視)
-  const pool = buildPool(mode, era);
+  const period = periodSel.value;      // daily / weekly
+  const mode   = mixSel.value;         // allchap / allera
+  const era    = (mode==='allera') ? 'ALL' : eraSel.value;
+
+  const pool = buildPool(mode, era === 'ALL' ? 'edo' : era); // eraはallera時は無視
   if(pool.length < 10){ alert('問題が足りません（dataset.jsを確認）'); return; }
 
-  qs = pickN(pool, 10);
-  qi = 0;
+  const seedKey = (period === 'daily' ? todayKey() : isoWeekKey()) + '|' + mode + '|' + era;
+  qs = seededPick(pool, 10, seedKey);
+
+  qi = 0; resultMs = 0;
   startBox.classList.add('hidden');
   quizBox.classList.remove('hidden');
   resultBox.classList.add('hidden');
+  prog.max = 10; prog.value = 0; countText.textContent = '1';
   showQ();
-  tStart = performance.now();
+  startTimer();
 }
 
 function checkAnswer(){
@@ -248,8 +316,9 @@ function checkAnswer(){
     feedback.innerHTML = '<span class="ok">正解！</span>';
     checkBtn.disabled = true;
     nextBtn.classList.remove('hidden');
+
     if(qi === qs.length-1){
-      // finish
+      stopTimer();
       resultMs = Math.round(performance.now() - tStart);
       nextBtn.classList.add('hidden');
       quizBox.classList.add('hidden');
@@ -263,44 +332,66 @@ function checkAnswer(){
 }
 
 checkBtn.addEventListener('click', checkAnswer);
-nextBtn.addEventListener('click', ()=>{ qi++; if(qi<qs.length){ showQ(); } });
+nextBtn.addEventListener('click', ()=>{ qi++; if(qi<qs.length){ prog.value = qi; showQ(); } });
 
 startBtn.addEventListener('click', ()=>{
   if(!authed){ alert('サインイン待機中…数秒後に試してください'); return; }
   startGame();
 });
+input.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); checkBtn.click(); }
+});
+window.addEventListener('keydown', (e)=>{
+  if(e.key.toLowerCase()==='n' && !nextBtn.classList.contains('hidden')) nextBtn.click();
+});
 
-/* ---------- 送信（B案のツリー & 1人1投稿） ---------- */
+/* ============== 送信（create専用・1人1投稿） ============== */
 function periodKeyOf(kind){ return (kind==='daily') ? todayKey() : isoWeekKey(); }
 
+async function docExists(path){
+  const snap = await db.doc(path).get();
+  return snap.exists;
+}
+
 submitBtn.addEventListener('click', async ()=>{
-  const user = auth.currentUser;
-  if(!user){ alert('サインイン状態を確認してください'); return; }
-  if(!resultMs || !qs.length){ alert('まずはプレイしてね'); return; }
-
-  const period = periodSel.value;
-  const mode   = mixSel.value;
-  const era    = (mode==='allera') ? 'ALL' : eraSel.value;
-  const periodKey = periodKeyOf(period);
-  const name = (els('player').value || '').slice(0,24) || '名無し';
-
-  const payload = {
-    app: "hk-buzzer-v1",
-    uid: user.uid,
-    name,
-    ms: Math.round(resultMs),
-    period, mode, era,
-    dateKey: todayKey(),
-    weekKey: isoWeekKey(),
-    count: qs.length,
-    ts: firebase.firestore.FieldValue.serverTimestamp()
-  };
-
-  const groupKey = `${mode}_${era}`;
-  const path = `fast_scores/${period}/${periodKey}/${groupKey}/${user.uid}`;
-
   try{
-    await db.doc(path).set(payload, { merge: false }); // 既存ならルールで弾く
+    const user = auth.currentUser;
+    if(!user){ alert('サインイン状態を確認してください'); return; }
+    if(!resultMs || !qs.length){ alert('まずはプレイしてね'); return; }
+
+    const period = periodSel.value;
+    const mode   = mixSel.value;
+    const era    = (mode==='allera') ? 'ALL' : eraSel.value;
+    const periodKey = periodKeyOf(period);
+    const name = (document.getElementById('player').value || '').slice(0,24) || '名無し';
+
+    const payload = {
+      app: "hk-buzzer-v1",
+      uid: user.uid,
+      name,
+      ms: Math.round(resultMs),
+      period, mode, era,
+      dateKey: todayKey(),
+      weekKey: isoWeekKey(),
+      count: qs.length,
+      ts: firebase.firestore.FieldValue.serverTimestamp(),
+      // クライアント改竄が疑われるケースに備え、簡易な検査値
+      ver: 1
+    };
+
+    const groupKey = `${mode}_${era}`;
+    const path = `fast_scores/${period}/${periodKey}/${groupKey}/${user.uid}`;
+
+    // すでに投稿済みなら送らない（ルールでもブロックするがUX向上）
+    if (await docExists(path)){
+      alert('この期間・設定では既に投稿済みです。次の期間で挑戦してね！');
+      location.href = './ranking.html';
+      return;
+    }
+
+    // create 専用（ルールで allow create / disallow update, delete）
+    await db.doc(path).set(payload, { merge: false });
+
     alert('送信しました！ランキングで確認できます。');
     location.href = './ranking.html';
   }catch(e){
@@ -308,11 +399,16 @@ submitBtn.addEventListener('click', async ()=>{
     const m = String(e);
     if(m.includes('ALREADY_EXISTS') || m.includes('already exists')){
       alert('この期間・設定では既に投稿済みです。次の期間で挑戦してね！');
+    }else if(m.includes('appCheck') || m.includes('recaptcha')){
+      alert('App Check エラー。Firebaseコンソールで reCAPTCHA v3 のサイトキーと承認済みドメインを確認してください。');
     }else{
-      alert('送信に失敗しました。ネット/設定（App Check・Auth・ルール）を確認してください。');
+      alert('送信に失敗しました。ネット接続やFirebase設定（Auth/AppCheck/ルール）をご確認ください。');
     }
   }
 });
+
+/* 初期状態文言 */
+connEl.textContent = '接続OK（B案/compat）' + (appCheckReady ? '' : ' — App Check 警告あり');
 </script>
 </body>
 </html>

@@ -220,35 +220,46 @@ async function loadAll(){
     tbody.innerHTML = `<tr><td colspan="4" class="center mut">読み込みに失敗しました。ネット/Firebase設定を確認してください。</td></tr>`;
   }
 
-  // あなたの記録（存在すれば表示／概算順位を算出）
-  try{
-    const u = auth.currentUser;
-    if(!u){ youInfo.textContent = '未プレイ（buzzer で遊ぶと表示されます）'; return; }
-    const docRef = db.doc(`fast_scores/${period}/${pKey}/${group}/${u.uid}`);
-    const snap = await docRef.get();
-    if(!snap.exists){ youInfo.textContent = '該当期間・設定での投稿はありません。'; return; }
-    const me = snap.data();
-    // 概算順位 = 自分より速い(msが小さい)件数 + 1（上限1万件の簡易版）
-    const fasterQs = await db.collection(`fast_scores/${period}/${pKey}/${group}`)
-      .where('ms','<', me.ms).orderBy('ms','asc').limit(10000).get();
-    const myRank = (fasterQs.size + 1);
-    youInfo.innerHTML = `
-      <span class="ok">記録あり</span> なまえ：<b>${me.name||'名無し'}</b> ／ タイム：<b>${fmtMs(me.ms||0)}</b> ／ 概算順位：<b>${myRank} 位</b>
-    `;
-    // 表中の自分行を強調（上位100に含まれていれば）
-    const rows = tbody.querySelectorAll('tr');
-    rows.forEach((tr, i)=>{
-      const nameTd = tr.children?.[1];
-      const timeTd = tr.children?.[2];
-      if(nameTd && timeTd && nameTd.textContent === (me.name||'名無し') && timeTd.textContent === fmtMs(me.ms||0)){
-        tr.classList.add('you');
-      }
-    });
-  }catch(e){
-    console.error(e);
-    youInfo.textContent = 'あなたの記録の取得に失敗しました。';
+// あなたの記録（存在すれば表示／概算順位を算出）
+try{
+  const u = auth.currentUser;
+  if(!u){
+    youInfo.textContent = '未プレイ（buzzer で遊ぶと表示されます）';
+    return;
   }
+
+  const docRef = db.doc(
+    `fast_scores/${period}/${pKey}/${group}/entries/${u.uid}`
+  );
+  const snap = await docRef.get();
+
+  if(!snap.exists){
+    youInfo.textContent = '該当期間・設定での投稿はありません。';
+    return;
+  }
+
+  const me = snap.data();
+
+  const fasterQs = await db
+    .collection(`fast_scores/${period}/${pKey}/${group}/entries`)
+    .where('ms','<', me.ms)
+    .orderBy('ms','asc')
+    .limit(10000)
+    .get();
+
+  const myRank = fasterQs.size + 1;
+
+  youInfo.innerHTML = `
+    <span class="ok">記録あり</span>
+    なまえ：<b>${me.name || '名無し'}</b>
+    ／ タイム：<b>${fmtMs(me.ms || 0)}</b>
+    ／ 概算順位：<b>${myRank} 位</b>
+  `;
+}catch(e){
+  console.error(e);
+  youInfo.textContent = 'あなたの記録の取得に失敗しました。';
 }
+
 
 /* 初期表示 */
 eraWrap.style.display = (modeSel.value==='allera') ? 'none' : '';

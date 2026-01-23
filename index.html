@@ -784,6 +784,8 @@ header{
           <option value="kamakura">鎌倉時代</option>
           <option value="sengoku">戦国時代</option>
         </select>
+      
+
 
         <select id="chapterFilter" title="章をえらぶ">
           <option value="ALL">章：ぜんぶ</option>
@@ -803,6 +805,10 @@ header{
  <a href="/buzzer.html" class="cta highlight" title="早押しでランキングを競おう！">
   ⚡NEW!! 早押しランキングで遊ぶ
 </a>
+ <button id="loginBtn">Googleにログイン</button>
+<button id="logoutBtn" hidden>ログアウト</button>
+<span id="userLabel" style="font-weight:700;"></span>
+
 
 
   <main class="content">
@@ -1389,6 +1395,7 @@ function persist(){
     localStorage.setItem(dataSets[currentEra].LS_KEY, JSON.stringify(gotCards));
     localStorage.setItem("money_v1", String(money));
     localStorage.setItem("city_v1", JSON.stringify(cityBuildings));
+window.__saveCloudIfLoggedIn?.();
   }catch(e){}
 }
 function loadProgress(){
@@ -2334,6 +2341,118 @@ setEditMode("select");
 window.city3D = { setEditMode };
 </script>
 
+ <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } 
+    from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc, serverTimestamp } 
+    from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+  // 1) Firebase Console からコピペして差し替え
+  const firebaseConfig = {
+    apiKey: "…",
+    authDomain: "…",         // 基本は <project-id>.firebaseapp.com
+    projectId: "…",
+    appId: "…",
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const provider = new GoogleAuthProvider();
+
+  const loginBtn  = document.getElementById("loginBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const userLabel = document.getElementById("userLabel");
+
+  // ========== あなたの既存グローバル変数に寄せる ==========
+  // gotCards, money, cityBuildings, currentEra が既にある前提で使う
+  // persist(), loadProgress() は後で少しだけ改造する
+
+  let currentUser = null;
+
+  async function loadCloudState(uid){
+    const ref = doc(db, "users", uid, "state", "main");
+    const snap = await getDoc(ref);
+    if(!snap.exists()) return null;
+    return snap.data();
+  }
+
+  async function saveCloudState(uid){
+    const ref = doc(db, "users", uid, "state", "main");
+    const payload = {
+      currentEra,
+      gotCards,
+      money,
+      cityBuildings,
+      updatedAt: serverTimestamp(),
+    };
+    // merge:true で拡張に強く
+    await setDoc(ref, payload, { merge: true });
+  }
+
+  // ログイン（まずはPopupでOK。iPhone等で詰まったらRedirectに切替）
+  loginBtn?.addEventListener("click", async ()=>{
+    try{
+      await signInWithPopup(auth, provider);
+    }catch(e){
+      // ポップアップブロック等ならリダイレクト
+      await signInWithRedirect(auth, provider);
+    }
+  });
+
+  logoutBtn?.addEventListener("click", ()=>signOut(auth));
+
+  // Redirect方式の戻りを処理（Popupだけでも入れておくと安全）
+  try{ await getRedirectResult(auth); }catch(e){}
+
+  onAuthStateChanged(auth, async (user)=>{
+    currentUser = user || null;
+
+    if(!user){
+      userLabel.textContent = "";
+      loginBtn.hidden = false;
+      logoutBtn.hidden = true;
+      return;
+    }
+
+    userLabel.textContent = `こんにちは、${user.displayName || "ユーザー"}さん`;
+    loginBtn.hidden = true;
+    logoutBtn.hidden = false;
+
+    // ★ 同期方針（おすすめ）
+    // 1) まずクラウドを読む
+    // 2) クラウドがあればそれを優先（=どの端末でも続きから）
+    // 3) クラウドが無ければ、今のlocalStorageを初回保存してクラウド作成
+    const cloud = await loadCloudState(user.uid);
+
+    if(cloud){
+      // 既存の変数へ反映
+      if(cloud.currentEra) currentEra = cloud.currentEra;
+      gotCards = cloud.gotCards || {};
+      money = Number(cloud.money || 0);
+      cityBuildings = cloud.cityBuildings || [];
+
+      // 画面更新（あなたの既存関数を呼ぶ）
+      moneyEl.textContent = money;
+      buildChapterFilter();
+      buildCards();
+      sync3DLayer();
+    }else{
+      await saveCloudState(user.uid);
+    }
+  });
+
+  // ========== ここが重要：persist() を “ログイン時はクラウドにも保存” ==========
+  // 既存persist()の末尾にこれを足すイメージ
+  window.__saveCloudIfLoggedIn = async ()=>{
+    if(currentUser?.uid){
+      try{ await saveCloudState(currentUser.uid); }catch(e){}
+    }
+  };
+</script>
+
+
 
 
 
@@ -2341,6 +2460,7 @@ window.city3D = { setEditMode };
 
 </body>
 </html>
+
 
 
 

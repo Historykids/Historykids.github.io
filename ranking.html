@@ -1,269 +1,178 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>歴史キッズ｜早押しランキング</title>
-  <style>
-    :root{--ink:#1f2937;--mut:#64748b;--card:#fff;--ok:#14532d;--okbg:#dcfce7;--brand:#f59e0b}
-    *{box-sizing:border-box}
-    body{margin:0;background:linear-gradient(180deg,#fffdf4,#fff7ec);
-         color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif}
-    .wrap{max-width:960px;margin:24px auto;padding:0 14px}
-    header{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
-    header h1{font-size:18px;margin:0}
-    .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid #e2e8f0;border-radius:999px;padding:8px 12px;background:#fff;text-decoration:none;color:inherit;font-weight:700}
-    .right{margin-left:auto}
-    .mut{color:var(--mut);font-size:12px}
-    .card{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:14px;box-shadow:0 10px 24px rgba(15,23,42,.08)}
-    select,button,input{appearance:none;border:1px solid #cbd5e1;border-radius:12px;background:#fff;padding:8px 10px;font-weight:700}
-    button{cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.08)}
-    button.primary{background:linear-gradient(130deg,#fde68a,#fbbf24);border-color:#f59e0b;color:#4a3200}
-    .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-    table{width:100%;border-collapse:collapse;margin-top:8px}
-    th,td{padding:10px;border-bottom:1px solid #e5e7eb;text-align:left}
-    th{background:#fffdfa;position:sticky;top:0}
-    .you{background:linear-gradient(90deg,#fff, #f0f9ff)}
-    .tag{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid #e2e8f0;background:#fff}
-    .ok{color:var(--ok);background:var(--okbg);padding:4px 8px;border-radius:999px;font-weight:700}
-    .warn{color:#b45309}
-    .center{text-align:center}
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>歴史キッズ｜早押しランキング</title>
+
+<style>
+body{margin:0;font-family:sans-serif;background:#fff7ec}
+.wrap{max-width:960px;margin:20px auto;padding:0 14px}
+.card{background:#fff;border-radius:16px;padding:14px;margin-top:12px;
+box-shadow:0 10px 24px rgba(0,0,0,.08)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,select{padding:8px 12px;border-radius:10px;font-weight:700}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px;border-bottom:1px solid #eee}
+th{background:#fffbe8}
+.you{background:#e0f2fe}
+.ok{background:#dcfce7;color:#166534;padding:4px 8px;border-radius:999px}
+.mut{color:#666;font-size:12px}
+</style>
 </head>
+
 <body>
 <div class="wrap">
-  <header>
-    <h1>🏆 早押しランキング</h1>
-    <a class="pill" href="./buzzer.html">⚡ 早押しに戻る</a>
-    <span id="conn" class="mut right">接続準備中…</span>
-  </header>
 
-  <section class="card" aria-label="条件の選択">
-    <div class="row">
-      <label>期間：
-        <select id="period">
-          <option value="daily">日次（今日）</option>
-          <option value="weekly">週次（今週）</option>
-        </select>
-      </label>
+<h2>🏆 早押しランキング</h2>
 
-      <label>モード：
-        <select id="mode">
-          <option value="allchap">全章ミックス（時代を選ぶ）</option>
-          <option value="allera">時代ミックス（全時代）</option>
-        </select>
-      </label>
+<div class="card">
+<div class="row">
+<select id="period">
+  <option value="daily">日次</option>
+  <option value="weekly">週次</option>
+</select>
 
-      <label id="eraWrap">時代：
-        <select id="era">
-          <option value="edo">江戸</option>
-          <option value="muromachi">室町</option>
-          <option value="kamakura">鎌倉</option>
-          <option value="sengoku">戦国</option>
-        </select>
-      </label>
+<select id="mode">
+  <option value="allchap">全章</option>
+  <option value="allera">全時代</option>
+</select>
 
-      <button id="reload" class="primary">表示更新</button>
-      <span id="currentKey" class="tag"></span>
-    </div>
-    <div id="note" class="mut warn" style="margin-top:8px"></div>
-  </section>
+<select id="era">
+  <option value="edo">江戸</option>
+  <option value="muromachi">室町</option>
+  <option value="kamakura">鎌倉</option>
+  <option value="sengoku">戦国</option>
+</select>
 
-  <section class="card" style="margin-top:12px" aria-label="あなたの記録">
-    <div class="row">
-      <strong>🙋 あなたの記録</strong>
-      <span id="youInfo" class="mut">未プレイ（buzzer で遊ぶと表示されます）</span>
-    </div>
-  </section>
-
-  <section class="card" style="margin-top:12px" aria-label="ランキング表">
-    <div class="row" style="justify-content:space-between">
-      <strong>ランキング（上位100）</strong>
-      <span class="mut" id="countInfo"></span>
-    </div>
-    <div style="overflow:auto;max-height:70vh;margin-top:6px">
-      <table aria-describedby="countInfo">
-        <thead>
-          <tr>
-            <th style="width:72px">順位</th>
-            <th>なまえ</th>
-            <th style="width:160px">タイム</th>
-            <th style="width:180px">日時</th>
-          </tr>
-        </thead>
-        <tbody id="tbody">
-          <tr><td colspan="4" class="center mut">読み込み中…</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
+<button id="reload">更新</button>
+<span id="key" class="mut"></span>
+</div>
 </div>
 
-<!-- Firebase compat（B案） -->
+<div class="card">
+<strong>🙋 あなたの記録</strong>
+<div id="you" class="mut">未プレイ</div>
+</div>
+
+<div class="card">
+<strong>ランキング TOP100</strong>
+<table>
+<thead>
+<tr><th>順位</th><th>名前</th><th>タイム</th><th>日時</th></tr>
+</thead>
+<tbody id="tbody">
+<tr><td colspan="4">読み込み中…</td></tr>
+</tbody>
+</table>
+</div>
+
+</div>
+
+<!-- Firebase compat（安定版） -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <script>
-/* ========= 共通 util ========= */
-function todayKey(){
-  const d=new Date(); const y=d.getFullYear();
-  const m=('0'+(d.getMonth()+1)).slice(-2); const day=('0'+d.getDate()).slice(-2);
-  return `${y}-${m}-${day}`;
+/* ========= util ========= */
+function today(){
+ const d=new Date();
+ return d.toISOString().slice(0,10);
 }
-function isoWeekKey(){
-  const d = new Date();
-  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const dayNum = (date.getUTCDay() + 6) % 7;
-  date.setUTCDate(date.getUTCDate() - dayNum + 3);
-  const firstThursday = new Date(Date.UTC(date.getUTCFullYear(),0,4));
-  const week = 1 + Math.round(((date - firstThursday)/86400000 - 3 + ((firstThursday.getUTCDay()+6)%7))/7);
-  const wk = ('0'+week).slice(-2);
-  return `${date.getUTCFullYear()}-W${wk}`;
-}
-function periodKeyOf(kind){ return (kind === 'daily') ? todayKey() : isoWeekKey(); }
-function fmtMs(ms){ return (ms/1000).toFixed(2) + ' 秒'; }
-function fmtTs(ts){
-  const d = ts?.toDate ? ts.toDate() : (ts instanceof Date ? ts : null);
-  if(!d) return '';
-  const y=d.getFullYear(), m=('0'+(d.getMonth()+1)).slice(-2), dd=('0'+d.getDate()).slice(-2);
-  const hh=('0'+d.getHours()).slice(-2), mm=('0'+d.getMinutes()).slice(-2);
-  return `${y}-${m}-${dd} ${hh}:${mm}`;
-}
+function fmt(ms){ return (ms/1000).toFixed(2)+"秒"; }
+function ts(t){ return t?.toDate ? t.toDate().toLocaleString() : ""; }
 
-/* ========= UI refs ========= */
-const $ = id => document.getElementById(id);
-const periodSel = $('period');
-const modeSel   = $('mode');
-const eraWrap   = $('eraWrap');
-const eraSel    = $('era');
-const reloadBtn = $('reload');
-const connEl    = $('conn');
-const noteEl    = $('note');
-const keyTag    = $('currentKey');
-const tbody     = $('tbody');
-const youInfo   = $('youInfo');
-const countInfo = $('countInfo');
-
-/* ========= Firebase Init（B案/compat） ========= */
-const firebaseConfig = {
-  apiKey: "AIzaSyBMcXnMxiHXg2ybI2aNrpJozN_MlDpH0lA",
-  authDomain: "historykids-62240.firebaseapp.com",
-  projectId: "historykids-62240",
-  storageBucket: "historykids-62240.firebasestorage.app",
-  messagingSenderId: "73567574639",
-  appId: "1:73567574639:web:c5e91d53c479a55b708b9a",
-  measurementId: "G-09Q3X0D49C"
-};
-firebase.initializeApp(firebaseConfig);
-
-// App Check（失敗しても閲覧は続行・警告表示）
-try{
-  if (location.hostname === 'localhost'){
-    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-  } else {
-    self.FIREBASE_APPCHECK_DEBUG_TOKEN = false;
-  }
-  firebase.appCheck().activate('6LfoXPMrAAAAAO98VYU17M8PFwpz4pv_k2k0ngIk', true);
-} catch(e){
-  console.warn('[AppCheck] activate failed', e);
-  noteEl.textContent = 'App Check の初期化に問題がある可能性があります（承認済みドメイン・サイトキーを確認）。';
-}
+/* ========= firebase ========= */
+firebase.initializeApp({
+ apiKey: "AIzaSyBMcXnMxiHXg2ybI2aNrpJozN_MlDpH0lA",
+ authDomain: "historykids-62240.firebaseapp.com",
+ projectId: "historykids-62240",
+});
 
 const auth = firebase.auth();
 const db   = firebase.firestore();
-auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(()=>{});
-auth.onAuthStateChanged(u=>{
-  connEl.textContent = u ? '接続OK（閲覧）' : '匿名で接続中…';
-});
-auth.signInAnonymously().catch(()=>{});
 
-/* ========= UI interactions ========= */
-modeSel.addEventListener('change', ()=>{ eraWrap.style.display = (modeSel.value==='allera') ? 'none' : ''; });
-reloadBtn.addEventListener('click', ()=> loadAll());
+auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+auth.signInAnonymously();
 
-/* ========= ロード本体 ========= */
-async function loadAll(){
-  const period = periodSel.value; // daily/weekly
-  const mode   = modeSel.value;   // allchap/allera
-  const era    = (mode === 'allera') ? 'ALL' : eraSel.value;
-  const pKey   = periodKeyOf(period);
-  const group  = `${mode}_${era}`;
-  keyTag.textContent = `${period}:${pKey} / ${group}`;
+/* ========= UI ========= */
+const $=id=>document.getElementById(id);
+const tbody=$("tbody");
+const youEl=$("you");
+const keyEl=$("key");
 
-  // ランキング
-  tbody.innerHTML = `<tr><td colspan="4" class="center mut">読み込み中…</td></tr>`;
-  countInfo.textContent = '';
-  try{
-  const col = db.collection(`fast_scores/${period}/${pKey}/${group}/entries`);
-    const qs  = await col.orderBy('ms','asc').limit(100).get();
-    const total = qs.size;
-    countInfo.textContent = `取得件数：${total}件（上位100）`;
+$("reload").onclick=load;
 
-    if (!total){
-      tbody.innerHTML = `<tr><td colspan="4" class="center mut">まだ記録がありません。いちばん乗りを狙おう！</td></tr>`;
-    }else{
-      tbody.innerHTML = '';
-      let rank = 0;
-      qs.forEach(doc=>{
-        const d = doc.data();
-        const tr = document.createElement('tr');
-        const tds = (arr)=> arr.map(s=>{const td=document.createElement('td'); td.textContent=s; return td;});
-        const cells = tds([String(++rank), d.name || '名無し', fmtMs(d.ms||0), fmtTs(d.ts)]);
-        cells.forEach(td=>tr.appendChild(td));
-        tbody.appendChild(tr);
-      });
-    }
-  }catch(e){
-    console.error(e);
-    tbody.innerHTML = `<tr><td colspan="4" class="center mut">読み込みに失敗しました。ネット/Firebase設定を確認してください。</td></tr>`;
-  }
+async function load(){
+ const period=$("period").value;
+ const mode=$("mode").value;
+ const era=mode==="allera"?"ALL":$("era").value;
+ const key=today();
+ const group=`${mode}_${era}`;
 
-// あなたの記録（存在すれば表示／概算順位を算出）
-try{
-  const u = auth.currentUser;
-  if(!u){
-    youInfo.textContent = '未プレイ（buzzer で遊ぶと表示されます）';
-    return;
-  }
+ keyEl.textContent=`${period}/${key}/${group}`;
 
-  const docRef = db.doc(
-    `fast_scores/${period}/${pKey}/${group}/entries/${u.uid}`
-  );
-  const snap = await docRef.get();
+ const base=`fast_scores/${period}/${key}/${group}/entries`;
 
-  if(!snap.exists){
-    youInfo.textContent = '該当期間・設定での投稿はありません。';
-    return;
-  }
+ /* ===== ranking ===== */
+ tbody.innerHTML="<tr><td colspan=4>読込中…</td></tr>";
 
-  const me = snap.data();
+ const qs=await db.collection(base)
+   .orderBy("ms","asc")
+   .limit(100)
+   .get();
 
-  const fasterQs = await db
-    .collection(`fast_scores/${period}/${pKey}/${group}/entries`)
-    .where('ms','<', me.ms)
-    .orderBy('ms','asc')
-    .limit(10000)
-    .get();
+ tbody.innerHTML="";
+ let rank=0;
 
-  const myRank = fasterQs.size + 1;
+ qs.forEach(doc=>{
+   const d=doc.data();
+   const tr=document.createElement("tr");
+   tr.innerHTML=`
+     <td>${++rank}</td>
+     <td>${d.name||"名無し"}</td>
+     <td>${fmt(d.ms||0)}</td>
+     <td>${ts(d.ts)}</td>
+   `;
+   tbody.appendChild(tr);
+ });
 
-  youInfo.innerHTML = `
-    <span class="ok">記録あり</span>
-    なまえ：<b>${me.name || '名無し'}</b>
-    ／ タイム：<b>${fmtMs(me.ms || 0)}</b>
-    ／ 概算順位：<b>${myRank} 位</b>
-  `;
-}catch(e){
-  console.error(e);
-  youInfo.textContent = 'あなたの記録の取得に失敗しました。';
+ if(!rank){
+   tbody.innerHTML="<tr><td colspan=4>まだ記録がありません</td></tr>";
+ }
+
+ /* ===== your score ===== */
+ const u=auth.currentUser;
+ if(!u){ youEl.textContent="未ログイン"; return; }
+
+ const myRef=db.doc(`${base}/${u.uid}`);
+ const snap=await myRef.get();
+
+ if(!snap.exists){
+   youEl.textContent="この条件で記録はありません";
+   return;
+ }
+
+ const me=snap.data();
+
+ const faster=await db.collection(base)
+   .where("ms","<",me.ms)
+   .orderBy("ms","asc")
+   .limit(10000)
+   .get();
+
+ const myRank=faster.size+1;
+
+ youEl.innerHTML=
+   `<span class="ok">記録あり</span>
+    ${me.name||"名無し"} /
+    ${fmt(me.ms)} /
+    ${myRank}位`;
 }
 
-
-/* 初期表示 */
-eraWrap.style.display = (modeSel.value==='allera') ? 'none' : '';
-loadAll();
+load();
 </script>
 </body>
 </html>
+

@@ -763,6 +763,22 @@ header{
   position: static !important;
   top: auto !important;
 }
+   /* ================================
+   建物操作バー × ショップボタン 重なり防止
+================================ */
+
+/* 通常位置 */
+#ui-toolbar{
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
+}
+
+/* ショップボタンがある分だけ上に逃がす */
+@media (max-width: 768px){
+  #ui-toolbar{
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 120px);
+  }
+}
+
 
   </style>
 </head>
@@ -2460,6 +2476,7 @@ window.city3D = { setEditMode };
 
 </body>
 </html>
+
 
 
 

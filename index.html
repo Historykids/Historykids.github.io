@@ -926,6 +926,31 @@ header{
   font-weight:800;
   cursor:pointer;
 }
+/* ======================================
+   白い「建物を操作」バー重なり完全防止
+====================================== */
+
+/* 通常（PC・タブレット） */
+#ui-toolbar{
+  bottom: calc(
+    env(safe-area-inset-bottom, 0px)
+    + 56px      /* 広告バー */
+    + 56px      /* ショップボタン */
+    + 12px
+  ) !important;
+}
+
+/* スマホはさらに余裕をもたせる */
+@media (max-width: 768px){
+  #ui-toolbar{
+    bottom: calc(
+      env(safe-area-inset-bottom, 0px)
+      + 56px     /* 広告 */
+      + 72px     /* ショップ（大きめ） */
+      + 24px
+    ) !important;
+  }
+}
 
 
 
@@ -2671,6 +2696,7 @@ window.city3D = { setEditMode };
 
 </body>
 </html>
+
 
 
 

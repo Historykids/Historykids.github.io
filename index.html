@@ -29,18 +29,6 @@ closeBuildUI.onclick = () => {
   toolbar.hidden = true;
 };
 
-/* 操作説明 */
-openHelpUI.onclick = () => {
-  alert(
-`📘 歴史キッズのあそびかた
-
-・カードをめくって歴史を覚えよう
-・正解するとお金がもらえるよ
-・ショップで建物が買えるよ
-・街を自由につくれるよ
-・建物は「えらぶ・うごかす・けす」ができるよ`
-  );
-};
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -881,6 +869,63 @@ header{
   font-weight:800;
   cursor:pointer;
 }
+/* ===========================
+   ミニ操作UI
+=========================== */
+
+#hk-mini-ui{
+  position: fixed;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom) + 72px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9999;
+}
+
+.mini-btn{
+  border: none;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  background: linear-gradient(135deg,#fde68a,#fbbf24);
+  color:#4a3300;
+  box-shadow:0 8px 18px rgba(0,0,0,.2);
+}
+
+.mini-btn.help{
+  background: linear-gradient(135deg,#e0f2fe,#bfdbfe);
+  color:#1e40af;
+}
+
+/* 操作パネル */
+#ui-toolbar{
+  position: fixed;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom) + 130px);
+  width: 240px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.95);
+  box-shadow:0 18px 40px rgba(0,0,0,.25);
+}
+
+/* 閉じる */
+.toolbar-close{
+  position:absolute;
+  top:8px;
+  right:8px;
+  border:none;
+  background:#fee2e2;
+  color:#7f1d1d;
+  border-radius:50%;
+  width:32px;
+  height:32px;
+  font-size:18px;
+  font-weight:800;
+  cursor:pointer;
+}
 
 
 
@@ -889,6 +934,44 @@ header{
 </head>
 
 <body>
+
+ <script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  const openBuildUI  = document.getElementById("openBuildUI");
+  const closeBuildUI = document.getElementById("closeBuildUI");
+  const toolbar     = document.getElementById("ui-toolbar");
+  const openHelpUI  = document.getElementById("openHelpUI");
+
+  if(openBuildUI && toolbar){
+    openBuildUI.onclick = () => {
+      toolbar.hidden = false;
+    };
+  }
+
+  if(closeBuildUI && toolbar){
+    closeBuildUI.onclick = () => {
+      toolbar.hidden = true;
+    };
+  }
+
+  if(openHelpUI){
+    openHelpUI.onclick = () => {
+      alert(
+`📘 歴史キッズのあそびかた
+
+・カードをめくって歴史を覚えよう
+・正解するとお金がもらえるよ
+・ショップで建物が買えるよ
+・街を自由につくれるよ
+・建物は「えらぶ・うごかす・けす」ができるよ`
+      );
+    };
+  }
+
+});
+</script>
+
 <!-- admax -->
 <!-- admax -->
 
@@ -932,6 +1015,9 @@ header{
 
 
 
+
+
+
   <main class="content">
     <section id="intro">
       <div class="hero-content">
@@ -950,28 +1036,15 @@ header{
           <a href="#cards" id="playMuromachi" class="cta muromachi">室町時代で遊ぶ</a>
           <a href="#cards" id="playKamakura" class="cta kamakura">鎌倉時代で遊ぶ</a>
           <a href="#zukanPanel" id="openZukan" class="cta outline">図鑑（年表）を見る</a>
-         <div id="hk-mini-ui">
-
-  <!-- 小さい操作ボタン -->
-  <button id="openBuildUI" class="mini-btn">
-    🏙️ 操作
-  </button>
-
-  <!-- 操作説明ボタン -->
-  <button id="openHelpUI" class="mini-btn help">
-    📘 説明
-  </button>
-
-</div>
-
-<!-- 建物操作パネル（開閉式） -->
-<div id="ui-toolbar" hidden>
-  <button id="closeBuildUI" class="toolbar-close">×</button>
           <a href="#" id="openProfile" class="cta soft">プロフィール</a>
           <a href="#" id="openContact" class="cta success">お問い合わせ</a>
         </nav>
          </div>
      </section>
+
+ 
+
+
 
     <!-- PR -->
     <aside class="promoBar" role="note" aria-label="おすすめの本（PR）">
@@ -2598,6 +2671,7 @@ window.city3D = { setEditMode };
 
 </body>
 </html>
+
 
 
 

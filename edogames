@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>EDO GAMES — Online Game Center</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700;900&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:#07070e;color:#b8c8d8;font-family:'Share Tech Mono',monospace;min-height:100vh;}
+.screen{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;}
+.screen.on{display:flex;}
+/* ── shared ── */
+.logo{font-family:'Orbitron',monospace;font-weight:900;font-size:46px;letter-spacing:8px;color:#e0e8f0;}
+.logo em{color:#00c8ff;font-style:normal;}
+.sub{font-size:10px;letter-spacing:5px;color:#334;margin:6px 0 28px;}
+.btn{padding:11px 28px;border:1px solid #00c8ff;color:#00c8ff;background:transparent;font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:3px;cursor:pointer;transition:all .15s;min-width:220px;text-align:center;display:block;margin:5px 0;}
+.btn:hover{background:#00c8ff;color:#07070e;}
+.btn.g{border-color:#00ff88;color:#00ff88;}
+.btn.g:hover{background:#00ff88;color:#07070e;}
+.btn.y{border-color:#ffa020;color:#ffa020;}
+.btn.y:hover{background:#ffa020;color:#07070e;}
+.btn.r{border-color:#f43;color:#f43;}
+.btn.r:hover{background:#f43;color:#07070e;}
+.btn.dim{border-color:#223;color:#556;}
+.btn.dim:hover{background:#111828;color:#889;border-color:#334;}
+.field{margin:8px 0;width:300px;}
+.field label{font-size:9px;letter-spacing:3px;color:#335;display:block;margin-bottom:4px;}
+.inp{width:100%;background:#0a0a18;border:1px solid #1a2030;color:#c8d8e8;padding:9px 12px;font-family:'Share Tech Mono',monospace;font-size:14px;outline:none;}
+.inp:focus{border-color:#00c8ff;}
+.inp.code{font-size:28px;letter-spacing:10px;text-align:center;text-transform:uppercase;}
+.errtxt{font-size:11px;color:#f64;min-height:16px;margin:4px 0;letter-spacing:1px;}
+.oktxt{color:#0f8;}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #1a2030;border-top-color:#00c8ff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:6px;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.codebox{font-size:40px;letter-spacing:14px;color:#00ff88;border:1px solid #00ff88;padding:13px 36px;margin:12px 0;font-family:'Orbitron',monospace;}
+.plist{width:300px;border:1px solid #111822;padding:14px;margin:8px 0;}
+.ptitle{font-size:9px;letter-spacing:3px;color:#223;margin-bottom:10px;}
+.prow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #0d1018;font-size:12px;}
+.prow:last-child{border-bottom:none;}
+.pip{width:7px;height:7px;border-radius:50%;}
+.pip.b{background:#00c8ff;box-shadow:0 0 5px #00c8ff;}
+.pip.r2{background:#f43;box-shadow:0 0 5px #f43;}
+.pip.off{background:#1a2030;}
+.badge{font-size:10px;letter-spacing:2px;padding:3px 12px;border:1px solid #1a2030;color:#334;margin-bottom:14px;}
+.badge.live{border-color:#0a4;color:#0f8;}
+/* ── game selector ── */
+.game-cards{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;margin:20px 0;}
+.game-card{width:220px;border:1px solid #1a2030;padding:24px 16px;text-align:center;cursor:default;transition:all .2s;background:#0a0a14;}
+.game-card:hover{border-color:#2a3050;background:#0d0d1e;}
+.game-card .gc-icon{font-size:40px;margin-bottom:12px;}
+.game-card .gc-title{font-size:13px;letter-spacing:3px;color:#c8d8e8;margin-bottom:6px;}
+.game-card .gc-desc{font-size:9px;letter-spacing:1px;color:#334;line-height:1.6;}
+.game-card .gc-btns{display:flex;flex-direction:column;gap:6px;margin-top:14px;}
+.game-card .gc-btns .btn{min-width:0;width:100%;padding:8px 10px;font-size:11px;letter-spacing:2px;}
+/* ── lobby ── */
+.game-label{font-size:10px;letter-spacing:4px;color:#446;margin-bottom:4px;}
+/* ── MEMORY (神経衰弱) ── */
+#mem-board{display:grid;gap:8px;margin:16px auto;}
+.mem-card{width:70px;height:100px;cursor:pointer;perspective:600px;position:relative;}
+.mem-card .mc-inner{width:100%;height:100%;transition:transform .35s;transform-style:preserve-3d;position:relative;}
+.mem-card.flipped .mc-inner,.mem-card.matched .mc-inner{transform:rotateY(180deg);}
+.mc-front,.mc-back{position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:4px;display:flex;align-items:center;justify-content:center;}
+.mc-back{background:#111828;border:1px solid #1a2030;transform:rotateY(180deg);font-size:22px;}
+.mc-front{background:#0d0d1e;border:1px solid #223;font-size:11px;letter-spacing:1px;color:#334;}
+.mem-card.matched .mc-back{background:#0a2018;border-color:#00ff8844;}
+.mem-hud{display:flex;justify-content:space-between;align-items:center;width:100%;max-width:760px;padding:8px 16px;background:#090912;border-bottom:1px solid #111820;font-size:13px;}
+.mem-score{text-align:center;}
+.mem-score .ms-n{font-size:28px;font-family:'Orbitron',monospace;}
+.mem-score .ms-l{font-size:9px;letter-spacing:3px;color:#334;}
+.mem-turn{font-size:11px;letter-spacing:2px;padding:4px 12px;border:1px solid #334;color:#556;}
+.mem-turn.active{border-color:#00c8ff;color:#00c8ff;}
+/* ── REFLEX (早押し) ── */
+#reflex-arena{width:700px;height:420px;background:#0a0a14;border:1px solid #1a2030;position:relative;cursor:pointer;overflow:hidden;margin:12px auto;display:block;}
+.reflex-dot{position:absolute;border-radius:50%;cursor:pointer;transition:transform .1s;animation:dotpop .15s ease-out;}
+@keyframes dotpop{from{transform:scale(0)}to{transform:scale(1)}}
+.reflex-hud{display:flex;justify-content:space-between;align-items:center;width:700px;padding:8px 16px;background:#090912;border-bottom:1px solid #111820;font-size:13px;}
+.reflex-score{text-align:center;}
+.reflex-score .rs-n{font-size:28px;font-family:'Orbitron',monospace;}
+.reflex-score .rs-l{font-size:9px;letter-spacing:3px;color:#334;}
+.rfx-status{font-size:12px;letter-spacing:2px;color:#334;text-align:center;margin:6px 0;}
+/* ── FPS ── */
+#s-fps-game{padding:0;justify-content:flex-start;background:#07070e;}
+.gw{width:800px;margin:0 auto;}
+.fps-hud{display:flex;justify-content:space-between;align-items:center;padding:7px 14px;background:#090912;border-bottom:1px solid #111820;}
+.hpw label{font-size:8px;letter-spacing:3px;color:#334;display:block;margin-bottom:3px;}
+.hpt{width:130px;height:3px;background:#111820;border-radius:2px;overflow:hidden;}
+.hpf{height:100%;background:#00ff88;transition:width .2s;border-radius:2px;}
+.hpf.lo{background:#f43;}
+.sc{font-size:20px;letter-spacing:4px;color:#e0e8f0;text-align:center;}
+.sc .b{color:#00c8ff;}.sc .r{color:#f43;}
+.nt{font-size:9px;color:#334;letter-spacing:2px;margin-top:2px;text-align:center;}
+.ammotxt{color:#ffa020;font-size:12px;letter-spacing:2px;text-align:right;}
+canvas{display:block;cursor:crosshair;}
+.gwrap{position:relative;}
+.killfeed{position:absolute;top:8px;right:8px;width:190px;pointer-events:none;}
+.kfe{font-size:10px;background:rgba(0,0,0,.9);border-left:2px solid #f43;padding:2px 7px;margin-bottom:2px;animation:kfa 3s forwards;letter-spacing:1px;}
+.kfe.b{border-left-color:#00c8ff;}
+@keyframes kfa{0%{opacity:1}70%{opacity:1}100%{opacity:0}}
+.hint{display:flex;gap:16px;padding:5px 14px;font-size:9px;color:#223;letter-spacing:2px;}
+/* ── result ── */
+.rt{font-family:'Orbitron',monospace;font-weight:900;font-size:48px;letter-spacing:6px;margin-bottom:18px;}
+.win{color:#00ff88;text-shadow:0 0 24px #00ff88;}
+.lose{color:#f43;text-shadow:0 0 24px #f43;}
+.draw{color:#ffa020;text-shadow:0 0 24px #ffa020;}
+.stats{display:flex;gap:44px;margin:14px 0;}
+.stitem{text-align:center;}
+.stn{font-size:30px;color:#ffa020;}
+.stl{font-size:9px;letter-spacing:3px;color:#334;margin-top:2px;}
+.rsub{font-size:11px;color:#334;letter-spacing:2px;margin:8px 0 22px;}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     HOME
+══════════════════════════════════════════════ -->
+<div id="s-home" class="screen on">
+  <div class="logo">EDO<em>GAMES</em></div>
+  <div class="sub">ONLINE GAME CENTER · 1v1</div>
+  <div class="badge" id="fb-badge"><span class="spin"></span>Firebase接続中...</div>
+  <div class="game-cards">
+    <div class="game-card">
+      <div class="gc-icon">🔫</div>
+      <div class="gc-title">GRID WAR</div>
+      <div class="gc-desc">1v1 陣地FPS<br>相手を先にキルしろ</div>
+      <div class="gc-btns">
+        <button class="btn g" onclick="selectGame('fps','create')">[ 作成 ]</button>
+        <button class="btn"   onclick="selectGame('fps','join')">[ 参加 ]</button>
+      </div>
+    </div>
+    <div class="game-card">
+      <div class="gc-icon">🃏</div>
+      <div class="gc-title">神経衰弱</div>
+      <div class="gc-desc">トランプ1v1<br>ペアを多く集めた方が勝ち</div>
+      <div class="gc-btns">
+        <button class="btn g" onclick="selectGame('memory','create')">[ 作成 ]</button>
+        <button class="btn"   onclick="selectGame('memory','join')">[ 参加 ]</button>
+      </div>
+    </div>
+    <div class="game-card">
+      <div class="gc-icon">⚡</div>
+      <div class="gc-title">早押し</div>
+      <div class="gc-desc">出現する丸を先に押せ<br>反射神経を競え</div>
+      <div class="gc-btns">
+        <button class="btn g" onclick="selectGame('reflex','create')">[ 作成 ]</button>
+        <button class="btn"   onclick="selectGame('reflex','join')">[ 参加 ]</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     LOBBY (shared)
+══════════════════════════════════════════════ -->
+<div id="s-lobby-create" class="screen">
+  <div class="game-label" id="lc-game-label">GAME</div>
+  <div class="logo" style="font-size:22px;margin-bottom:4px">ルーム作成</div>
+  <div class="field"><label>プレイヤー名</label><input id="inp-cname" class="inp" placeholder="PLAYER1" maxlength="10"></div>
+  <div class="errtxt" id="err-create"></div>
+  <button class="btn g" onclick="doCreate()">[ 作成する ]</button>
+  <button class="btn dim" onclick="showScreen('s-home')" style="margin-top:6px">[ 戻る ]</button>
+</div>
+
+<div id="s-lobby-join" class="screen">
+  <div class="game-label" id="lj-game-label">GAME</div>
+  <div class="logo" style="font-size:22px;margin-bottom:16px">ルームに参加</div>
+  <div class="field"><label>プレイヤー名</label><input id="inp-jname" class="inp" placeholder="PLAYER2" maxlength="10"></div>
+  <div class="field" style="margin-top:16px">
+    <label>ルームコード</label>
+    <div style="display:flex;gap:6px;margin-top:4px;">
+      <input id="inp-jcode" class="inp code" placeholder="XXXX" maxlength="4"
+        oninput="this.value=this.value.toUpperCase();autoJoin(this.value)"
+        style="font-size:32px;letter-spacing:12px;text-align:center;flex:1;">
+    </div>
+    <div style="font-size:9px;color:#334;letter-spacing:2px;margin-top:6px;text-align:center">4文字入力すると自動で参加します</div>
+  </div>
+  <div class="errtxt" id="err-join"></div>
+  <button class="btn" onclick="doJoin()">[ 参加する ]</button>
+  <button class="btn dim" onclick="showScreen('s-home')" style="margin-top:6px">[ 戻る ]</button>
+</div>
+
+<div id="s-lobby-wait" class="screen">
+  <div class="game-label" id="lw-game-label">GAME</div>
+  <div style="font-size:9px;letter-spacing:4px;color:#334;margin-bottom:10px">このコードを友達に送ろう</div>
+  <div class="codebox" id="lobby-code">----</div>
+  <div class="plist" id="lobby-plist"></div>
+  <div class="errtxt oktxt" id="lobby-msg"></div>
+  <div id="lobby-spin" style="font-size:12px;color:#334;letter-spacing:2px"><span class="spin"></span>接続を待っています...</div>
+  <button class="btn g" id="btn-start" style="display:none;margin-top:10px" onclick="doStart()">[ ゲーム開始！ ]</button>
+  <button class="btn dim" onclick="leaveRoom()" style="margin-top:12px">[ 退出 ]</button>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     MEMORY GAME (神経衰弱)
+══════════════════════════════════════════════ -->
+<div id="s-memory" class="screen" style="padding:0;justify-content:flex-start;background:#07070e;">
+  <div class="mem-hud">
+    <div class="mem-score">
+      <div class="ms-n b" id="mem-sc-me" style="color:#00c8ff">0</div>
+      <div class="ms-l" id="mem-name-me">YOU</div>
+    </div>
+    <div style="text-align:center">
+      <div class="mem-turn" id="mem-turn-me">あなたのターン</div>
+      <div style="font-size:9px;color:#334;letter-spacing:2px;margin-top:4px" id="mem-status">ゲーム中</div>
+    </div>
+    <div class="mem-score">
+      <div class="ms-n" id="mem-sc-en" style="color:#f43">0</div>
+      <div class="ms-l" id="mem-name-en">ENEMY</div>
+    </div>
+  </div>
+  <div id="mem-board"></div>
+  <div style="font-size:10px;color:#334;letter-spacing:2px;margin-top:8px">カードをクリックしてめくる</div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     REFLEX GAME (早押し)
+══════════════════════════════════════════════ -->
+<div id="s-reflex" class="screen" style="padding:0;justify-content:flex-start;background:#07070e;">
+  <div class="reflex-hud">
+    <div class="reflex-score">
+      <div class="rs-n" id="rfx-sc-me" style="color:#00c8ff">0</div>
+      <div class="rs-l" id="rfx-name-me">YOU</div>
+    </div>
+    <div style="text-align:center">
+      <div style="font-size:13px;letter-spacing:3px;color:#e0e8f0" id="rfx-timer">準備中...</div>
+      <div style="font-size:9px;color:#334;letter-spacing:2px;margin-top:3px">先に<span id="rfx-goal">10</span>点先取で勝利</div>
+    </div>
+    <div class="reflex-score">
+      <div class="rs-n" id="rfx-sc-en" style="color:#f43">0</div>
+      <div class="rs-l" id="rfx-name-en">ENEMY</div>
+    </div>
+  </div>
+  <div style="display:flex;width:700px;height:2px;margin:0 auto;">
+    <div style="flex:1;background:#00c8ff22"></div><div style="width:1px;background:#1a2030"></div><div style="flex:1;background:#f4322222"></div>
+  </div>
+  <div id="reflex-arena"></div>
+  <div class="rfx-status" id="rfx-status">丸が出たらすぐクリック！</div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     FPS GAME
+══════════════════════════════════════════════ -->
+<div id="s-fps-game" class="screen" style="padding:0;justify-content:flex-start;background:#07070e;">
+  <div class="gw">
+    <div class="fps-hud">
+      <div class="hpw">
+        <label>HP <span id="fps-hpnum" style="color:#00ff88">100</span></label>
+        <div class="hpt"><div class="hpf" id="fps-hpbar" style="width:100%"></div></div>
+      </div>
+      <div>
+        <div class="sc"><span class="b" id="fps-scme">0</span><span style="color:#223"> : </span><span class="r" id="fps-scen">0</span></div>
+        <div class="nt" id="fps-note">戦闘中</div>
+      </div>
+      <div class="ammotxt" id="fps-ammo">■■■■■ 30</div>
+    </div>
+    <div style="display:flex;width:800px;height:2px;">
+      <div style="flex:1;background:#00c8ff22"></div><div style="width:1px;background:#1a2030"></div><div style="flex:1;background:#f4322222"></div>
+    </div>
+    <div class="gwrap">
+      <canvas id="fps-canvas" width="800" height="460"></canvas>
+      <div class="killfeed" id="fps-kf"></div>
+    </div>
+    <div class="hint">
+      <span>WASD: 移動</span><span>マウス: 照準</span><span>クリック/スペース: 射撃</span><span>R: リロード</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     RESULT (shared)
+══════════════════════════════════════════════ -->
+<div id="s-result" class="screen">
+  <div class="rt" id="result-title">---</div>
+  <div class="stats" id="result-stats"></div>
+  <div class="rsub" id="result-sub"></div>
+  <button class="btn g" onclick="tryRematch()">[ リマッチ ]</button>
+  <button class="btn dim" onclick="goHome()" style="margin-top:6px">[ ゲーム選択に戻る ]</button>
+</div>
+
+<script>
+// ═══════════════════════════════
+// FIREBASE
+// ═══════════════════════════════
+var fbapp = firebase.initializeApp({
+  databaseURL: 'https://edogames-a0e90-default-rtdb.asia-southeast1.firebasedatabase.app'
+});
+var fdb = firebase.database();
+fdb.ref('.info/connected').on('value', function(s){
+  var el = gel('fb-badge');
+  if(s.val()){ el.innerHTML='🟢 オンライン — 別PCと対戦できます'; el.className='badge live'; }
+  else { el.innerHTML='<span class="spin"></span>Firebase接続中...'; el.className='badge'; }
+});
+
+// ═══════════════════════════════
+// GLOBALS
+// ═══════════════════════════════
+var currentGame = ''; // 'fps' | 'memory' | 'reflex'
+var myRole = '', myName = '', enName = 'ENEMY', roomCode = '';
+var roomRef = null, meRef = null, enRef = null;
+var lobbyListener = null, lobbyRef2 = null;
+var gameActive = false;
+
+function gel(id){ return document.getElementById(id); }
+function showScreen(id){
+  var ss = document.querySelectorAll('.screen');
+  for(var i=0;i<ss.length;i++) ss[i].classList.remove('on');
+  gel(id).classList.add('on');
+}
+
+// ═══════════════════════════════
+// GAME SELECTION & LOBBY
+// ═══════════════════════════════
+function selectGame(g, mode){
+  currentGame = g;
+  var labels = {fps:'🔫 GRID WAR', memory:'🃏 神経衰弱', reflex:'⚡ 早押し'};
+  var lbl = labels[g] || g;
+  gel('lc-game-label').textContent = lbl;
+  gel('lj-game-label').textContent = lbl;
+  if(mode==='join'){
+    gel('err-join').textContent='';
+    gel('inp-jcode').value='';
+    gel('inp-jname').value='';
+    showScreen('s-lobby-join');
+  } else {
+    gel('err-create').textContent='';
+    gel('inp-cname').value='';
+    showScreen('s-lobby-create');
+  }
+}
+
+
+function doCreate(){
+  var name = (gel('inp-cname').value.trim() || 'PLAYER1').toUpperCase();
+  myName = name; myRole = 'host';
+  gel('err-create').textContent = '作成中...';
+
+  var code = Math.random().toString(36).substr(2,4).toUpperCase();
+  roomCode = code;
+  roomRef = fdb.ref('rooms/'+code);
+  meRef   = fdb.ref('rooms/'+code+'/host');
+  enRef   = fdb.ref('rooms/'+code+'/guest');
+
+  var initData = buildInitRoomData(name);
+  roomRef.set(initData).then(function(){
+    roomRef.onDisconnect().remove();
+    openLobbyWait(name, code);
+    var lbl = {fps:'🔫 GRID WAR', memory:'🃏 神経衰弱', reflex:'⚡ 早押し'}[currentGame]||currentGame;
+    gel('lw-game-label').textContent = lbl;
+    gel('err-create').textContent = '';
+
+    lobbyListener = roomRef.on('value', function(snap){
+      var d = snap.val(); if(!d) return;
+      if(d.guest && d.guest.name && !gameActive){
+        enName = d.guest.name;
+        updateLobbyUI([{name:name,host:true},{name:d.guest.name,host:false}]);
+        gel('lobby-spin').style.display='none';
+        gel('btn-start').style.display='block';
+        gel('lobby-msg').textContent = d.guest.name+' が参加しました！';
+      }
+      if(d.status==='playing' && !gameActive){ stopLobby(); launchGame(); }
+    });
+  }).catch(function(e){ gel('err-create').textContent='エラー: '+e.message; });
+}
+
+function autoJoin(val){
+  if(val.length===4) doJoin();
+}
+
+function doJoin(){
+  var name = (gel('inp-jname').value.trim()||'PLAYER2').toUpperCase();
+  var code = gel('inp-jcode').value.trim().toUpperCase();
+  if(code.length!==4){ gel('err-join').textContent='4文字入力してください'; return; }
+  myName=name; myRole='guest'; roomCode=code;
+  gel('err-join').textContent='接続中...';
+
+  roomRef = fdb.ref('rooms/'+code);
+  meRef   = fdb.ref('rooms/'+code+'/guest');
+  enRef   = fdb.ref('rooms/'+code+'/host');
+
+  roomRef.once('value').then(function(snap){
+    var d = snap.val();
+    if(!d){ gel('err-join').textContent='ルームが見つかりません'; return; }
+    if(d.status==='playing'){ gel('err-join').textContent='ゲーム中のルームです'; return; }
+    if(d.guest && d.guest.name){ gel('err-join').textContent='満員です'; return; }
+    currentGame = d.gameType || 'fps';
+    enName = d.host.name;
+    meRef.update({name:name, ready:false}).then(function(){
+      gel('err-join').textContent='';
+      var lbl={fps:'🔫 GRID WAR',memory:'🃏 神経衰弱',reflex:'⚡ 早押し'}[currentGame]||currentGame;
+      gel('lw-game-label').textContent=lbl;
+      openLobbyWait(name, code);
+      updateLobbyUI([{name:d.host.name,host:true},{name:name,host:false}]);
+      gel('lobby-msg').textContent='ホストの開始を待っています...';
+      gel('lobby-spin').style.display='block';
+      gel('btn-start').style.display='none';
+
+      lobbyRef2 = roomRef.child('status');
+      lobbyListener = lobbyRef2.on('value', function(s2){
+        if(s2.val()==='playing'&&!gameActive){ stopLobby(); launchGame(); }
+      });
+    });
+  }).catch(function(e){ gel('err-join').textContent='エラー: '+e.message; });
+}
+
+function buildInitRoomData(hostName){
+  var base = {gameType:currentGame, status:'waiting', winner:'',
+    host:{name:hostName, ready:true},
+    guest:{name:'', ready:false}};
+  if(currentGame==='fps'){
+    base.host = Object.assign(base.host,{x:2,y:6,angle:0,hp:100,alive:true,kills:0,deaths:0,seq:0,bullets:'[]'});
+    base.guest= Object.assign(base.guest,{x:18,y:6,angle:3.14159,hp:100,alive:true,kills:0,deaths:0,seq:0,bullets:'[]'});
+    base.killLimit = 10;
+  } else if(currentGame==='memory'){
+    base.cards = ''; base.flipped = '[]'; base.matched = '[]';
+    base.host = Object.assign(base.host,{score:0});
+    base.guest= Object.assign(base.guest,{score:0});
+    base.turn = 'host'; base.pending = '[]';
+  } else if(currentGame==='reflex'){
+    base.dot = ''; // JSON of current dot
+    base.host = Object.assign(base.host,{score:0});
+    base.guest= Object.assign(base.guest,{score:0});
+    base.rfxGoal = 10;
+  }
+  return base;
+}
+
+function openLobbyWait(name, code){
+  gel('lobby-code').textContent = code;
+  updateLobbyUI([{name:name,host:myRole==='host'}]);
+  gel('lobby-spin').style.display='block';
+  gel('btn-start').style.display='none';
+  gel('lobby-msg').textContent='';
+  showScreen('s-lobby-wait');
+}
+
+function updateLobbyUI(players){
+  var el = gel('lobby-plist');
+  el.innerHTML='<div class="ptitle">プレイヤー</div>';
+  for(var i=0;i<2;i++){
+    var p=players[i]; var d=document.createElement('div'); d.className='prow';
+    if(p) d.innerHTML='<div class="pip '+(p.host?'b':'r2')+'"></div><span>'+p.name+'</span><span style="font-size:9px;color:#223;margin-left:auto">'+(p.host?'HOST':'GUEST')+'</span>';
+    else  d.innerHTML='<div class="pip off"></div><span style="color:#1a2030">待機中...</span>';
+    el.appendChild(d);
+  }
+}
+
+function stopLobby(){
+  if(lobbyListener){
+    if(lobbyRef2) lobbyRef2.off('value',lobbyListener);
+    else if(roomRef) roomRef.off('value',lobbyListener);
+    lobbyListener=null; lobbyRef2=null;
+  }
+}
+
+function doStart(){
+  roomRef.once('value').then(function(snap){
+    var d=snap.val();
+    if(!d||!d.guest||!d.guest.name){gel('lobby-msg').textContent='ゲストが参加していません';return;}
+    if(currentGame==='memory'){
+      var deck = buildMemoryDeck();
+      roomRef.update({status:'playing',winner:'',cards:JSON.stringify(deck),flipped:'[]',matched:'[]',pending:'[]',turn:'host'});
+    } else if(currentGame==='reflex'){
+      roomRef.update({status:'playing',winner:'',dot:'',
+        'host/score':0,'guest/score':0});
+      // host schedules first dot
+    } else {
+      roomRef.update({status:'playing',winner:''});
+    }
+  });
+}
+
+function launchGame(){
+  gameActive=true;
+  if(currentGame==='fps') startFPS();
+  else if(currentGame==='memory') startMemory();
+  else if(currentGame==='reflex') startReflex();
+}
+
+function leaveRoom(){
+  stopLobby();
+  if(myRole==='host'&&roomRef) roomRef.remove();
+  else if(meRef) meRef.update({name:''});
+  goHome();
+}
+
+function goHome(){
+  cleanupAll();
+  showScreen('s-home');
+}
+
+// ═══════════════════════════════════════════════
+// ═══ MEMORY GAME (神経衰弱) ═══════════════════
+// ═══════════════════════════════════════════════
+var MEM_COLS=8, MEM_ROWS=6; // 48 cards = 24 pairs  (A-K of 2 suits ×2 = 26 pairs → use 24)
+var memCards=[], memFlipped=[], memMatched=[], memPending=[];
+var memMyScore=0, memEnScore=0, memMyTurn=false;
+var memBoardListener=null, memCanClick=true;
+
+var SUITS = ['♠','♥','♦','♣'];
+var RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+
+function buildMemoryDeck(){
+  var pairs=[];
+  for(var s=0;s<SUITS.length;s++)
+    for(var r=0;r<RANKS.length;r++)
+      pairs.push(SUITS[s]+RANKS[r]);
+  // take 24 pairs (48 cards)
+  pairs = pairs.slice(0,24);
+  var deck=[];
+  for(var i=0;i<pairs.length;i++) deck.push(pairs[i],pairs[i]);
+  // shuffle
+  for(var i=deck.length-1;i>0;i--){
+    var j=Math.floor(Math.random()*(i+1)); var t=deck[i]; deck[i]=deck[j]; deck[j]=t;
+  }
+  return deck;
+}
+
+function startMemory(){
+  showScreen('s-memory');
+  gel('mem-name-me').textContent = myName;
+  gel('mem-name-en').textContent = enName;
+  memMyScore=0; memEnScore=0; memFlipped=[]; memMatched=[]; memPending=[];
+  updateMemHUD();
+
+  if(memBoardListener&&roomRef) roomRef.off('value',memBoardListener);
+  memBoardListener = roomRef.on('value', function(snap){
+    var d=snap.val(); if(!d) return;
+    if(d.winner&&gameActive){ endGame(d.winner===myRole); return; }
+
+    var cards=[]; try{cards=JSON.parse(d.cards||'[]');}catch(e){}
+    var matched=[]; try{matched=JSON.parse(d.matched||'[]');}catch(e){}
+    var flipped=[]; try{flipped=JSON.parse(d.flipped||'[]');}catch(e){}
+    var pending=[]; try{pending=JSON.parse(d.pending||'[]');}catch(e){}
+
+    memCards=cards; memMatched=matched; memFlipped=flipped; memPending=pending;
+    memMyScore  = (myRole==='host'?d.host:d.guest).score||0;
+    memEnScore  = (myRole==='host'?d.guest:d.host).score||0;
+    memMyTurn   = (d.turn===myRole);
+
+    renderMemBoard();
+    updateMemHUD();
+
+    gel('mem-turn-me').textContent = memMyTurn?'あなたのターン':'相手のターン';
+    gel('mem-turn-me').className   = 'mem-turn'+(memMyTurn?' active':'');
+    gel('mem-status').textContent  = memMyTurn?'カードを選んでください':'相手が選んでいます...';
+
+    // if pending has 2 and it's our turn as resolver
+    if(pending.length===2 && d.pendingOwner===myRole){
+      memCanClick=false;
+      var a=pending[0], b=pending[1];
+      setTimeout(function(){
+        var match = memCards[a]===memCards[b];
+        var newMatched = matched.slice();
+        var newScore = {host:d.host.score||0, guest:d.guest.score||0};
+        if(match){
+          newMatched.push(a,b);
+          newScore[d.pendingOwner] = (newScore[d.pendingOwner]||0)+1;
+        }
+        var nextTurn = match ? d.pendingOwner : (d.pendingOwner==='host'?'guest':'host');
+        var updates = {
+          matched: JSON.stringify(newMatched),
+          flipped:  JSON.stringify([]),
+          pending:  JSON.stringify([]),
+          pendingOwner: '',
+          turn: nextTurn,
+          'host/score': newScore.host,
+          'guest/score': newScore.guest
+        };
+        // check if all matched
+        if(newMatched.length===memCards.length){
+          var winner;
+          if(newScore.host>newScore.guest) winner='host';
+          else if(newScore.guest>newScore.host) winner='guest';
+          else winner='draw';
+          updates.winner=winner; updates.status='finished';
+        }
+        roomRef.update(updates);
+        memCanClick=true;
+      }, 1000);
+    }
+  });
+}
+
+function renderMemBoard(){
+  var board=gel('mem-board');
+  board.innerHTML='';
+  board.style.gridTemplateColumns='repeat('+MEM_COLS+', 70px)';
+
+  for(var i=0;i<memCards.length;i++){
+    var card=document.createElement('div');
+    card.className='mem-card';
+    var isFlipped = memFlipped.indexOf(i)>=0 || memPending.indexOf(i)>=0;
+    var isMatched = memMatched.indexOf(i)>=0;
+    if(isFlipped||isMatched) card.classList.add(isMatched?'matched':'flipped');
+
+    var val = memCards[i]||'';
+    var suit = val[0]||'';
+    var isRed = suit==='♥'||suit==='♦';
+    var inner = document.createElement('div'); inner.className='mc-inner';
+    var front = document.createElement('div'); front.className='mc-front'; front.textContent='?';
+    var back  = document.createElement('div'); back.className='mc-back';
+    back.style.color = isRed?'#f86':'#c8d8e8';
+    back.innerHTML = '<div style="font-size:14px;line-height:1.2;text-align:center">'+val+'</div>';
+    inner.appendChild(front); inner.appendChild(back); card.appendChild(inner);
+
+    if(!isMatched){
+      (function(idx){ card.onclick=function(){ onMemCardClick(idx); }; })(i);
+    }
+    board.appendChild(card);
+  }
+}
+
+function onMemCardClick(idx){
+  if(!memMyTurn||!memCanClick||!gameActive) return;
+  if(memMatched.indexOf(idx)>=0) return;
+  if(memPending.indexOf(idx)>=0||memFlipped.indexOf(idx)>=0) return;
+  if(memPending.length>=2) return;
+
+  var newPending = memPending.slice();
+  var newFlipped  = memFlipped.slice();
+  newPending.push(idx);
+  newFlipped.push(idx);
+
+  if(newPending.length===2){
+    roomRef.update({
+      pending: JSON.stringify(newPending),
+      flipped:  JSON.stringify(newFlipped),
+      pendingOwner: myRole
+    });
+  } else {
+    roomRef.update({
+      flipped:  JSON.stringify(newFlipped),
+      pending:  JSON.stringify(newPending)
+    });
+  }
+}
+
+function updateMemHUD(){
+  gel('mem-sc-me').textContent = memMyScore;
+  gel('mem-sc-en').textContent = memEnScore;
+}
+
+// ═══════════════════════════════════════════════
+// ═══ REFLEX GAME (早押し) ═════════════════════
+// ═══════════════════════════════════════════════
+var RFX_GOAL = 10;
+var rfxMyScore=0, rfxEnScore=0;
+var rfxDotTimer=null, rfxBoardListener=null, rfxCurrentDot=null;
+var rfxHostScheduler=null;
+
+function startReflex(){
+  showScreen('s-reflex');
+  gel('rfx-name-me').textContent = myName;
+  gel('rfx-name-en').textContent = enName;
+  rfxMyScore=0; rfxEnScore=0; rfxCurrentDot=null;
+  gel('rfx-sc-me').textContent='0'; gel('rfx-sc-en').textContent='0';
+  gel('rfx-goal').textContent=RFX_GOAL;
+  gel('rfx-timer').textContent='3...';
+
+  var arena=gel('reflex-arena');
+  arena.innerHTML='';
+  arena.onclick=null;
+
+  if(rfxBoardListener&&roomRef) roomRef.off('value',rfxBoardListener);
+
+  rfxBoardListener = roomRef.on('value', function(snap){
+    var d=snap.val(); if(!d) return;
+    if(d.winner&&gameActive){ endGame(d.winner===myRole); return; }
+    rfxMyScore  = (myRole==='host'?d.host:d.guest).score||0;
+    rfxEnScore  = (myRole==='host'?d.guest:d.host).score||0;
+    gel('rfx-sc-me').textContent=rfxMyScore;
+    gel('rfx-sc-en').textContent=rfxEnScore;
+
+    // render dot
+    if(d.dot){
+      var dot; try{dot=JSON.parse(d.dot);}catch(e){}
+      if(dot && dot.id !== (rfxCurrentDot&&rfxCurrentDot.id)){
+        rfxCurrentDot=dot;
+        showDot(dot);
+      } else if(!d.dot||d.dot===''){
+        rfxCurrentDot=null; clearDots();
+      }
+    } else {
+      rfxCurrentDot=null; clearDots();
+    }
+  });
+
+  // countdown then host schedules dots
+  var cnt=3;
+  var iv=setInterval(function(){
+    cnt--;
+    if(cnt>0){ gel('rfx-timer').textContent=cnt+'...'; }
+    else {
+      clearInterval(iv);
+      gel('rfx-timer').textContent='スタート！';
+      gel('rfx-status').textContent='丸が出たら素早くクリック！';
+      setTimeout(function(){gel('rfx-timer').textContent='';},800);
+      if(myRole==='host') scheduleNextDot();
+    }
+  },1000);
+}
+
+function scheduleNextDot(){
+  if(!gameActive) return;
+  var delay = 800+Math.random()*2200;
+  rfxDotTimer=setTimeout(function(){
+    if(!gameActive) return;
+    var arena=gel('reflex-arena');
+    var size=40+Math.random()*40;
+    var x=size/2+Math.random()*(700-size);
+    var y=size/2+Math.random()*(420-size);
+    var colors=['#00c8ff','#00ff88','#ffa020','#f43','#bf5fff','#ff69b4'];
+    var color=colors[Math.floor(Math.random()*colors.length)];
+    var dot={id:Date.now(), x:x, y:y, size:size, color:color};
+    roomRef.update({dot:JSON.stringify(dot)});
+  }, delay);
+}
+
+function showDot(dot){
+  clearDots();
+  var arena=gel('reflex-arena');
+  var el=document.createElement('div');
+  el.className='reflex-dot';
+  el.style.cssText='width:'+dot.size+'px;height:'+dot.size+'px;background:'+dot.color+';left:'+(dot.x-dot.size/2)+'px;top:'+(dot.y-dot.size/2)+'px;position:absolute;cursor:pointer;border-radius:50%;box-shadow:0 0 20px '+dot.color+'88;';
+  el.onclick=function(e){
+    e.stopPropagation();
+    onDotClick(dot);
+  };
+  arena.appendChild(el);
+}
+
+function clearDots(){
+  var arena=gel('reflex-arena');
+  arena.innerHTML='';
+}
+
+function onDotClick(dot){
+  if(!gameActive) return;
+  if(!rfxCurrentDot||rfxCurrentDot.id!==dot.id) return;
+  rfxCurrentDot=null;
+  // claim point
+  var newScore = rfxMyScore+1;
+  var updates={dot:''};
+  updates[(myRole==='host'?'host':'guest')+'/score']=newScore;
+  if(newScore>=RFX_GOAL){
+    updates.winner=myRole; updates.status='finished';
+  }
+  roomRef.update(updates);
+  clearDots();
+  gel('rfx-status').textContent='ポイント獲得！';
+  setTimeout(function(){
+    gel('rfx-status').textContent='丸が出たら素早くクリック！';
+    if(myRole==='host'&&gameActive) scheduleNextDot();
+  },300);
+}
+
+// ═══════════════════════════════════════════════
+// ═══ FPS GAME ═════════════════════════════════
+// ═══════════════════════════════════════════════
+var FW=800,FH=460,TILE=40,FCOLS=20,FROWS=11;
+var FSPD=0.075,FBSPD=6.5,MAXHP=100,RELOAD_MS=1400,RESPAWN_MS=3000;
+var FPS_KILL_LIMIT=10;
+
+var WALLS=[
+  [1,2],[2,2],[3,2],[1,3],[1,7],[2,7],[3,7],[1,8],
+  [5,1],[5,2],[5,4],[5,5],[5,6],[5,8],[5,9],
+  [3,4],[3,5],[3,6],[7,2],[7,3],[8,3],[7,7],[7,8],[8,7],[6,5],
+  [18,2],[17,2],[16,2],[18,3],[18,7],[17,7],[16,7],[18,8],
+  [14,1],[14,2],[14,4],[14,5],[14,6],[14,8],[14,9],
+  [16,4],[16,5],[16,6],[12,2],[12,3],[11,3],[12,7],[12,8],[11,7],[13,5]
+];
+var wallSet={};
+for(var _i=0;_i<WALLS.length;_i++) wallSet[WALLS[_i][0]+','+WALLS[_i][1]]=true;
+function isWall(x,y){ return !!wallSet[Math.floor(x)+','+Math.floor(y)]; }
+
+var fpsMe={x:2,y:5.5,angle:0,hp:100,alive:true,kills:0,deaths:0,shots:0,hits:0};
+var fpsEn={x:18,y:5.5,angle:Math.PI,hp:100,alive:true,kills:0,deaths:0};
+var myBullets=[],enBullets=[];
+var fpsAmmo=30,fpsReloading=false,fpsReloadEnd=0;
+var pressedKeys={},mouseX=400,mouseY=230,fpsSyncSeq=0;
+var fpsRafId=null, fpsWriteTimer=null;
+var fpsEnListener=null, fpsWinListener=null;
+
+function startFPS(){
+  fpsMe={x:myRole==='host'?2:18,y:5.5,angle:myRole==='host'?0:Math.PI,hp:100,alive:true,kills:0,deaths:0,shots:0,hits:0};
+  fpsEn={x:myRole==='host'?18:2,y:5.5,angle:myRole==='host'?Math.PI:0,hp:100,alive:true,kills:0,deaths:0};
+  myBullets=[];enBullets=[];fpsAmmo=30;fpsReloading=false;fpsSyncSeq=0;pressedKeys={};
+
+  showScreen('s-fps-game');
+  setupFPSControls();
+  updateFPSHUD();
+
+  if(fpsEnListener&&enRef) enRef.off('value',fpsEnListener);
+  fpsEnListener=enRef.on('value',function(snap){
+    var d=snap.val();if(!d)return;
+    if(d.x!==undefined)fpsEn.x=d.x;if(d.y!==undefined)fpsEn.y=d.y;
+    if(d.angle!==undefined)fpsEn.angle=d.angle;if(d.hp!==undefined)fpsEn.hp=d.hp;
+    if(d.alive!==undefined)fpsEn.alive=d.alive;
+    if(d.kills!==undefined)fpsEn.kills=d.kills;if(d.deaths!==undefined)fpsEn.deaths=d.deaths;
+    if(d.bullets){try{enBullets=JSON.parse(d.bullets);}catch(e){}}
+    updateFPSHUD();
+  });
+  if(fpsWinListener&&roomRef) roomRef.child('winner').off('value',fpsWinListener);
+  fpsWinListener=roomRef.child('winner').on('value',function(snap){
+    var w=snap.val(); if(w&&gameActive) endGame(w===myRole);
+  });
+
+  if(fpsRafId) cancelAnimationFrame(fpsRafId);
+  fpsLoop();
+  if(fpsWriteTimer) clearInterval(fpsWriteTimer);
+  fpsWriteTimer=setInterval(fpsSendState,50);
+}
+
+function setupFPSControls(){
+  document.onkeydown=function(e){
+    pressedKeys[e.key.toLowerCase()]=true;
+    if(e.key.toLowerCase()==='r'&&!fpsReloading&&fpsAmmo<30) fpsDoReload();
+    if(e.key===' '){e.preventDefault();fpsShoot();}
+  };
+  document.onkeyup=function(e){pressedKeys[e.key.toLowerCase()]=false;};
+  var c=gel('fps-canvas');
+  c.onmousemove=function(e){var r=c.getBoundingClientRect();mouseX=e.clientX-r.left;mouseY=e.clientY-r.top;};
+  c.onclick=function(){fpsShoot();};
+}
+
+function fpsShoot(){
+  if(fpsReloading||fpsAmmo<=0||!fpsMe.alive||!gameActive)return;
+  fpsAmmo--;fpsMe.shots++;
+  var a=Math.atan2(mouseY-fpsMe.y*TILE,mouseX-fpsMe.x*TILE);
+  myBullets.push({x:fpsMe.x,y:fpsMe.y,angle:a,dist:0});
+  updateFPSHUD();
+  if(fpsAmmo===0&&!fpsReloading)fpsDoReload();
+}
+function fpsDoReload(){
+  if(fpsReloading||fpsAmmo>=30)return;
+  fpsReloading=true;fpsReloadEnd=Date.now()+RELOAD_MS;
+  gel('fps-note').textContent='リロード中...';
+}
+function fpsSendState(){
+  if(!meRef||!gameActive)return;
+  var bl=[];
+  for(var i=Math.max(0,myBullets.length-8);i<myBullets.length;i++){
+    var b=myBullets[i];
+    bl.push({x:Math.round(b.x*100)/100,y:Math.round(b.y*100)/100,angle:Math.round(b.angle*100)/100,dist:Math.round(b.dist)});
+  }
+  meRef.update({x:Math.round(fpsMe.x*100)/100,y:Math.round(fpsMe.y*100)/100,
+    angle:Math.round(fpsMe.angle*100)/100,hp:fpsMe.hp,alive:fpsMe.alive,
+    kills:fpsMe.kills,deaths:fpsMe.deaths,seq:++fpsSyncSeq,bullets:JSON.stringify(bl)});
+}
+function fpsDeclareWinner(w){ roomRef.update({winner:w,status:'finished'}); }
+
+function fpsLoop(){
+  fpsRafId=requestAnimationFrame(fpsLoop);
+  var now=Date.now();
+  if(fpsReloading&&now>=fpsReloadEnd){fpsReloading=false;fpsAmmo=30;gel('fps-note').textContent='戦闘中';updateFPSHUD();}
+  if(fpsMe.alive){
+    var dx=0,dy=0;
+    if(pressedKeys['w']||pressedKeys['arrowup'])dy-=FSPD;
+    if(pressedKeys['s']||pressedKeys['arrowdown'])dy+=FSPD;
+    if(pressedKeys['a']||pressedKeys['arrowleft'])dx-=FSPD;
+    if(pressedKeys['d']||pressedKeys['arrowright'])dx+=FSPD;
+    var nx=fpsMe.x+dx,ny=fpsMe.y+dy;
+    if(!isWall(nx,fpsMe.y)&&nx>0.4&&nx<FCOLS-0.4)fpsMe.x=nx;
+    if(!isWall(fpsMe.x,ny)&&ny>0.4&&ny<FROWS-0.4)fpsMe.y=ny;
+    fpsMe.angle=Math.atan2(mouseY-fpsMe.y*TILE,mouseX-fpsMe.x*TILE);
+  }
+  var nb=[];
+  for(var i=0;i<myBullets.length;i++){
+    var b=myBullets[i];
+    b.x+=Math.cos(b.angle)*FBSPD/TILE;b.y+=Math.sin(b.angle)*FBSPD/TILE;b.dist+=FBSPD;
+    if(isWall(b.x,b.y)||b.x<0.2||b.x>FCOLS-0.2||b.y<0.2||b.y>FROWS-0.2)continue;
+    if(fpsEn.alive){var dx=fpsEn.x-b.x,dy=fpsEn.y-b.y;
+      if(dx*dx+dy*dy<0.38*0.38){fpsMe.hits++;fpsEn.hp=Math.max(0,fpsEn.hp-25);
+        if(fpsEn.hp<=0&&fpsEn.alive){fpsEn.alive=false;fpsMe.kills++;addFPSKF(myName+' → '+enName,true);updateFPSHUD();
+          if(fpsMe.kills>=FPS_KILL_LIMIT)fpsDeclareWinner(myRole);}continue;}}
+    if(b.dist<520)nb.push(b);
+  }
+  myBullets=nb;
+  var eb=[];
+  for(var i=0;i<enBullets.length;i++){
+    var b=enBullets[i];
+    b.x+=Math.cos(b.angle)*FBSPD/TILE;b.y+=Math.sin(b.angle)*FBSPD/TILE;b.dist+=FBSPD;
+    if(isWall(b.x,b.y)||b.x<0.2||b.x>FCOLS-0.2||b.y<0.2||b.y>FROWS-0.2)continue;
+    if(fpsMe.alive){var dx=fpsMe.x-b.x,dy=fpsMe.y-b.y;
+      if(dx*dx+dy*dy<0.38*0.38){fpsMe.hp=Math.max(0,fpsMe.hp-25);
+        if(fpsMe.hp<=0&&fpsMe.alive){fpsMe.alive=false;fpsMe.deaths++;addFPSKF(enName+' → '+myName,false);updateFPSHUD();
+          ;(function(){setTimeout(function(){if(!gameActive)return;fpsMe.hp=100;fpsMe.alive=true;fpsMe.x=myRole==='host'?2:18;fpsMe.y=5.5;fpsAmmo=30;gel('fps-note').textContent='戦闘中';},RESPAWN_MS);}());}
+        updateFPSHUD();continue;}}
+    if(b.dist<520)eb.push(b);
+  }
+  enBullets=eb;
+  fpsRender();
+}
+
+function addFPSKF(txt,blue){
+  var d=document.createElement('div');d.className='kfe'+(blue?' b':'');d.textContent=txt;
+  var kf=gel('fps-kf');kf.insertBefore(d,kf.firstChild);setTimeout(function(){if(d.parentNode)d.parentNode.removeChild(d);},3000);
+}
+function updateFPSHUD(){
+  var hp=Math.max(0,fpsMe.hp);
+  gel('fps-hpbar').style.width=hp+'%';gel('fps-hpbar').className='hpf'+(hp<=25?' lo':'');
+  gel('fps-hpnum').textContent=hp;gel('fps-hpnum').style.color=hp<=25?'#f43':'#00ff88';
+  gel('fps-scme').textContent=fpsMe.kills;gel('fps-scen').textContent=fpsEn.kills;
+  gel('fps-ammo').textContent=fpsReloading?'リロード中...':(Array(Math.min(fpsAmmo,10)+1).join('■')+' '+fpsAmmo);
+  if(!fpsReloading)gel('fps-note').textContent=fpsMe.alive?'戦闘中':'リスポーン中...';
+}
+function fpsRender(){
+  var canvas=gel('fps-canvas');if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,FW,FH);
+  for(var row=0;row<FROWS;row++)for(var col=0;col<FCOLS;col++){
+    ctx.fillStyle=(col<10)?((col+row)%2?'#0b0b1a':'#0d0d1f'):((col+row)%2?'#1a0b0b':'#1f0d0d');
+    ctx.fillRect(col*TILE,row*TILE,TILE,TILE);
+  }
+  ctx.strokeStyle='#1a2030';ctx.lineWidth=1;ctx.setLineDash([5,5]);
+  ctx.beginPath();ctx.moveTo(FW/2,0);ctx.lineTo(FW/2,FH);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='rgba(0,180,255,.02)';ctx.fillRect(0,0,FW/2,FH);
+  ctx.fillStyle='rgba(255,60,40,.02)';ctx.fillRect(FW/2,0,FW/2,FH);
+  for(var i=0;i<WALLS.length;i++){
+    var wx=WALLS[i][0],wy=WALLS[i][1];
+    ctx.fillStyle='#181828';ctx.fillRect(wx*TILE,wy*TILE,TILE,TILE);
+    ctx.strokeStyle='#20203a';ctx.lineWidth=1;ctx.strokeRect(wx*TILE,wy*TILE,TILE,TILE);
+    ctx.fillStyle='#22243a';ctx.fillRect(wx*TILE,wy*TILE,TILE,2);
+  }
+  [[2,5.5,'#00c8ff'],[18,5.5,'#f43']].forEach(function(b){
+    ctx.strokeStyle=b[2]+'44';ctx.lineWidth=1;
+    [20,32,44].forEach(function(r){ctx.beginPath();ctx.arc(b[0]*TILE,b[1]*TILE,r,0,Math.PI*2);ctx.stroke();});
+  });
+  for(var i=0;i<myBullets.length;i++)fpsBullet(ctx,myBullets[i],true);
+  for(var i=0;i<enBullets.length;i++)fpsBullet(ctx,enBullets[i],false);
+  var mc=myRole==='host'?'#00c8ff':'#f43', ec=myRole==='host'?'#f43':'#00c8ff';
+  fpsDrawPlayer(ctx,fpsEn,ec,enName,false);fpsDrawPlayer(ctx,fpsMe,mc,myName,true);
+}
+function fpsBullet(ctx,b,own){
+  ctx.beginPath();ctx.arc(b.x*TILE,b.y*TILE,3,0,Math.PI*2);
+  ctx.fillStyle=own?'#ffe050':'#ff5050';ctx.fill();
+  ctx.beginPath();ctx.moveTo(b.x*TILE,b.y*TILE);ctx.lineTo(b.x*TILE-Math.cos(b.angle)*10,b.y*TILE-Math.sin(b.angle)*10);
+  ctx.strokeStyle=own?'rgba(255,220,50,.4)':'rgba(255,60,60,.4)';ctx.lineWidth=1.5;ctx.stroke();
+}
+function fpsDrawPlayer(ctx,p,col,name,isMe){
+  if(!p.alive){ctx.globalAlpha=.2;ctx.beginPath();ctx.arc(p.x*TILE,p.y*TILE,10,0,Math.PI*2);ctx.fillStyle='#444';ctx.fill();ctx.globalAlpha=1;return;}
+  ctx.save();ctx.translate(p.x*TILE,p.y*TILE);ctx.rotate(p.angle);
+  ctx.beginPath();ctx.arc(0,0,12,0,Math.PI*2);ctx.fillStyle=col+'18';ctx.fill();
+  ctx.beginPath();ctx.arc(0,0,10,0,Math.PI*2);ctx.fillStyle=isMe?'#0a1a14':'#1a0a0a';
+  ctx.strokeStyle=col;ctx.lineWidth=isMe?2:1.5;ctx.fill();ctx.stroke();
+  ctx.fillStyle=col;ctx.fillRect(8,-2.5,13,5);ctx.fillRect(6,-6,5,12);ctx.restore();
+  ctx.fillStyle=col;ctx.font='bold 10px Share Tech Mono,monospace';ctx.textAlign='center';ctx.fillText(name,p.x*TILE,p.y*TILE-18);
+  var bw=28,bx=p.x*TILE-14,by=p.y*TILE-25;
+  ctx.fillStyle='#111820';ctx.fillRect(bx,by,bw,3);
+  ctx.fillStyle=p.hp>40?col:'#f43';ctx.fillRect(bx,by,bw*(p.hp/MAXHP),3);
+}
+
+// ═══════════════════════════════
+// RESULT
+// ═══════════════════════════════
+function endGame(wonOrDraw){
+  if(!gameActive)return;
+  gameActive=false;
+  cleanupListeners();
+
+  var won = wonOrDraw===true;
+  var isDraw = wonOrDraw==='draw';
+
+  gel('result-title').textContent = isDraw?'DRAW':won?'VICTORY':'DEFEAT';
+  gel('result-title').className = 'rt '+(isDraw?'draw':won?'win':'lose');
+
+  var statsHtml='';
+  if(currentGame==='fps'){
+    statsHtml='<div class="stitem"><div class="stn">'+fpsMe.kills+'</div><div class="stl">KILLS</div></div>'
+      +'<div class="stitem"><div class="stn">'+fpsMe.deaths+'</div><div class="stl">DEATHS</div></div>'
+      +'<div class="stitem"><div class="stn">'+(fpsMe.shots>0?Math.round(fpsMe.hits/fpsMe.shots*100):0)+'%</div><div class="stl">精度</div></div>';
+    gel('result-sub').textContent=(won?myName:enName)+' が '+FPS_KILL_LIMIT+'キルに到達！';
+  } else if(currentGame==='memory'){
+    statsHtml='<div class="stitem"><div class="stn">'+memMyScore+'</div><div class="stl">あなたのペア</div></div>'
+      +'<div class="stitem"><div class="stn">'+memEnScore+'</div><div class="stl">相手のペア</div></div>';
+    gel('result-sub').textContent=isDraw?'同点引き分け！':(won?myName:enName)+' の勝ち！';
+  } else if(currentGame==='reflex'){
+    statsHtml='<div class="stitem"><div class="stn">'+rfxMyScore+'</div><div class="stl">あなたのポイント</div></div>'
+      +'<div class="stitem"><div class="stn">'+rfxEnScore+'</div><div class="stl">相手のポイント</div></div>';
+    gel('result-sub').textContent=(won?myName:enName)+' が '+RFX_GOAL+'ポイントに到達！';
+  }
+  gel('result-stats').innerHTML=statsHtml;
+  showScreen('s-result');
+}
+
+function tryRematch(){
+  if(!roomRef){goHome();return;}
+  roomRef.once('value').then(function(snap){
+    var d=snap.val();if(!d){goHome();return;}
+    var updates={status:'playing',winner:''};
+    if(currentGame==='fps'){
+      updates['host/kills']=0;updates['host/deaths']=0;updates['host/hp']=100;updates['host/alive']=true;updates['host/seq']=0;updates['host/bullets']='[]';
+      updates['guest/kills']=0;updates['guest/deaths']=0;updates['guest/hp']=100;updates['guest/alive']=true;updates['guest/seq']=0;updates['guest/bullets']='[]';
+    } else if(currentGame==='memory'){
+      var deck=buildMemoryDeck();
+      updates.cards=JSON.stringify(deck);updates.flipped='[]';updates.matched='[]';updates.pending='[]';updates.pendingOwner='';updates.turn='host';
+      updates['host/score']=0;updates['guest/score']=0;
+    } else if(currentGame==='reflex'){
+      updates.dot='';updates['host/score']=0;updates['guest/score']=0;
+    }
+    roomRef.update(updates).then(function(){
+      gameActive=true;
+      launchGame();
+    });
+  });
+}
+
+function cleanupListeners(){
+  if(fpsEnListener&&enRef){enRef.off('value',fpsEnListener);fpsEnListener=null;}
+  if(fpsWinListener&&roomRef){roomRef.child('winner').off('value',fpsWinListener);fpsWinListener=null;}
+  if(memBoardListener&&roomRef){roomRef.off('value',memBoardListener);memBoardListener=null;}
+  if(rfxBoardListener&&roomRef){roomRef.off('value',rfxBoardListener);rfxBoardListener=null;}
+  if(fpsRafId){cancelAnimationFrame(fpsRafId);fpsRafId=null;}
+  if(fpsWriteTimer){clearInterval(fpsWriteTimer);fpsWriteTimer=null;}
+  if(rfxDotTimer){clearTimeout(rfxDotTimer);rfxDotTimer=null;}
+  document.onkeydown=null;document.onkeyup=null;
+  var c=gel('fps-canvas');if(c){c.onmousemove=null;c.onclick=null;}
+}
+
+function cleanupAll(){
+  gameActive=false;
+  cleanupListeners();
+  stopLobby();
+  if(myRole==='host'&&roomRef) roomRef.onDisconnect().cancel();
+}
+</script>
+</body>
+</html>

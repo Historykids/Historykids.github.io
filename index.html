@@ -913,45 +913,6 @@ header{
   font-weight:800;
   cursor:pointer;
 }
-
-   .era-select-area {
-  margin: 24px auto;
-  padding: 22px;
-  max-width: 960px;
-  background: #fffdf4;
-  border: 3px solid #facc15;
-  border-radius: 24px;
-  text-align: center;
-  box-shadow: 0 8px 20px rgba(0,0,0,.08);
-}
-
-.era-select-area h2 {
-  margin: 0 0 6px;
-  font-size: 24px;
-}
-
-.era-select-area p {
-  margin: 0 0 18px;
-  color: #555;
-}
-
-
-.era-change-bar{
-  text-align:center;
-  margin:20px 0;
-}
-
-#backToEraSelect{
-  position:static;
-  padding:12px 20px;
-  border:none;
-  border-radius:999px;
-  background:#f59e0b;
-  color:white;
-  font-size:16px;
-  font-weight:bold;
-  cursor:pointer;
-}   
 /* ======================================
    白い「建物を操作」バー重なり完全防止
 ====================================== */
@@ -1027,7 +988,8 @@ document.addEventListener("DOMContentLoaded", () => {
   <header>
     <div class="header-inner">
       <h1 class="siteTitle">歴史キッズ｜楽しく学べる！小学生・中学生向け歴史学習サイト</h1>
-       <div class="controls">
+
+      <div class="controls">
         <label for="eraSelect">時代：</label>
         <select id="eraSelect" title="時代をえらぶ">
           <option value="edo">江戸時代</option>
@@ -1035,10 +997,14 @@ document.addEventListener("DOMContentLoaded", () => {
           <option value="kamakura">鎌倉時代</option>
           <option value="sengoku">戦国時代</option>
         </select>
-         <select id="chapterFilter" title="章をえらぶ">
+      
+
+
+        <select id="chapterFilter" title="章をえらぶ">
           <option value="ALL">章：ぜんぶ</option>
         </select>
- <button id="zukanBtn" aria-controls="zukanPanel" aria-expanded="false">図鑑</button>
+
+        <button id="zukanBtn" aria-controls="zukanPanel" aria-expanded="false">図鑑</button>
         <button id="resetBtn" title="進捗を全部消して最初から">リセット</button>
 
         <!-- 所持金とショップ -->
@@ -1059,7 +1025,12 @@ document.addEventListener("DOMContentLoaded", () => {
 </nav>
  
 
-<main class="content">
+
+
+
+
+
+  <main class="content">
     <section id="intro">
       <div class="hero-content">
         <p>
@@ -1071,37 +1042,23 @@ document.addEventListener("DOMContentLoaded", () => {
           <h2>テストや受験勉強に役立つ！</h2>
         </div>
 
-      <section class="era-select-area" aria-label="時代をえらぶ">
-  <h2>まずは時代をえらぼう！</h2>
-  <p>好きな時代をタップすると、下のカードが切りかわるよ。</p>
+        <nav class="hero-actions">
+          <a href="#cards" id="playEdo" class="cta edo">江戸時代で遊ぶ</a>
+          <a href="#cards" id="playSengoku" class="cta sengoku">戦国時代で遊ぶ</a>
+          <a href="#cards" id="playMuromachi" class="cta muromachi">室町時代で遊ぶ</a>
+          <a href="#cards" id="playKamakura" class="cta kamakura">鎌倉時代で遊ぶ</a>
+          <a href="#zukanPanel" id="openZukan" class="cta outline">図鑑（年表）を見る</a>
+          <a href="#" id="openProfile" class="cta soft">プロフィール</a>
+          <a href="#" id="openContact" class="cta success">お問い合わせ</a>
+        </nav>
+         </div>
+     </section>
 
-  <div class="era-big-buttons">
-    <button type="button" class="era-card edo" data-era="edo">
-      <span class="era-icon">🏯</span>
-      <strong>江戸時代</strong>
-      <small>徳川家康・参勤交代など</small>
-    </button>
+   
 
-    <button type="button" class="era-card sengoku" data-era="sengoku">
-      <span class="era-icon">⚔️</span>
-      <strong>戦国時代</strong>
-      <small>織田信長・豊臣秀吉など</small>
-    </button>
 
-    <button type="button" class="era-card muromachi" data-era="muromachi">
-      <span class="era-icon">🌸</span>
-      <strong>室町時代</strong>
-      <small>足利義満・金閣など</small>
-    </button>
 
-    <button type="button" class="era-card kamakura" data-era="kamakura">
-      <span class="era-icon">🏹</span>
-      <strong>鎌倉時代</strong>
-      <small>源頼朝・御恩と奉公など</small>
-    </button>
-  </div>
-</section>
-          <!-- PR -->
+    <!-- PR -->
     <aside class="promoBar" role="note" aria-label="おすすめの本（PR）">
       <span class="promo-badge">PR</span>
       <span class="title">歴史入門にぴったり！<strong>ドラえもんの社会科おもしろ攻略 日本の歴史</strong>（小学館）</span>
@@ -2721,32 +2678,6 @@ window.city3D = { setEditMode };
   };
 </script>
 
-     <script>
-document.addEventListener("DOMContentLoaded", () => {
-  const eraCards = document.querySelectorAll(".era-card");
-  const eraSelect = document.getElementById("eraSelect");
-
-  eraCards.forEach(card => {
-    card.addEventListener("click", () => {
-      const era = card.dataset.era;
-
-      if (eraSelect) {
-        eraSelect.value = era;
-        eraSelect.dispatchEvent(new Event("change"));
-      }
-
-      eraCards.forEach(c => c.classList.remove("is-active"));
-      card.classList.add("is-active");
-
-      document.getElementById("cards")?.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-      });
-    });
-  });
-});
-</script>
-
 
 
 
@@ -2755,13 +2686,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 </body>
 </html>
-
-
-
-
-
-
-
 
 
 

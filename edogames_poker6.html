@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EDO POKER — 6 Players Texas Hold'em</title>
+<title>EDO POKER — 5 Players Texas Hold'em</title>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <style>
@@ -60,9 +60,17 @@ button,input{font-family:'Share Tech Mono',monospace;}
 .table-stats{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;align-items:center;}
 .stat{border:1px solid #182033;background:#070712;padding:7px 10px;min-width:86px;text-align:center;}
 .stat .n{font-family:'Orbitron',monospace;font-size:18px;color:#f2f7ff;}.stat .l{font-size:8px;letter-spacing:2px;color:#46546a;margin-top:2px;}
-.game-wrap{width:min(1160px,100%);padding:14px;display:grid;grid-template-columns:280px 1fr 280px;gap:14px;align-items:start;}
-.side{display:flex;flex-direction:column;gap:10px;}
-.table-center{min-height:520px;border:1px solid #182033;background:radial-gradient(ellipse at center,rgba(0,120,95,.28),rgba(5,8,13,.92) 67%);position:relative;padding:18px;overflow:hidden;box-shadow:inset 0 0 80px rgba(0,0,0,.32);}
+.game-wrap{width:min(1120px,100%);padding:14px;display:block;}
+.side{display:none;}
+.table-center{min-height:620px;border:1px solid #182033;background:radial-gradient(ellipse at center,rgba(0,120,95,.28),rgba(5,8,13,.92) 67%);position:relative;padding:18px;overflow:hidden;box-shadow:inset 0 0 80px rgba(0,0,0,.32);}
+.opponent-grid{position:relative;display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:10px;width:min(720px,100%);margin:0 auto 12px;}
+.opponent-grid .player-card{min-height:122px;}
+.timer-stat .n{color:var(--green);}
+.timer-stat.warn .n{color:var(--orange);}
+.timer-stat.danger .n{color:var(--red);}
+.turn-time{position:absolute;left:0;bottom:0;height:3px;background:var(--green);box-shadow:0 0 12px rgba(0,255,136,.28);transition:width .25s linear,background .25s;}
+.player-card.turn .turn-time.warn{background:var(--orange);box-shadow:0 0 12px rgba(255,160,32,.25);}
+.player-card.turn .turn-time.danger{background:var(--red);box-shadow:0 0 12px rgba(255,68,51,.25);}
 .table-center:before{content:"";position:absolute;inset:34px;border:1px dashed rgba(0,200,255,.11);border-radius:50%;pointer-events:none;}
 .phase-title{position:relative;text-align:center;font-family:'Orbitron',monospace;letter-spacing:6px;color:#e8f0f8;font-size:26px;margin-top:8px;}
 .message{position:relative;text-align:center;color:#8fa0b4;font-size:12px;letter-spacing:1px;min-height:20px;margin:8px 0 14px;}
@@ -97,28 +105,28 @@ button,input{font-family:'Share Tech Mono',monospace;}
 .show-title{font-family:'Orbitron',monospace;color:var(--green);font-size:24px;letter-spacing:4px;margin-bottom:8px;}.show-detail{font-size:12px;line-height:1.7;color:#b8c8d8;}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#050510;border:1px solid #24304a;color:#d8e8f8;padding:10px 14px;font-size:12px;letter-spacing:1px;z-index:20;display:none;}.toast.on{display:block;animation:toast 2.4s forwards;}@keyframes toast{0%,85%{opacity:1}100%{opacity:0}}
 .help{font-size:10px;line-height:1.7;color:#607080;letter-spacing:1px;margin-top:12px;text-align:left;border-top:1px solid #151c2a;padding-top:12px;}
-@media(max-width:960px){.game-wrap{grid-template-columns:1fr;}.side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}.table-center{order:-1;min-height:480px}.topbar{align-items:flex-start;flex-direction:column}.table-stats{justify-content:flex-start}.players-list{grid-template-columns:1fr}.logo{font-size:36px;letter-spacing:5px}}
-@media(max-width:540px){.screen{padding:14px}.side{grid-template-columns:1fr}.card{width:52px;height:76px}.community{gap:6px}.btn{min-width:140px;padding:10px 14px;letter-spacing:2px}.phase-title{font-size:20px}.game-wrap{padding:8px}.table-center{padding:12px}.pot-glow .amount{font-size:28px}}
+@media(max-width:960px){.table-center{min-height:560px}.opponent-grid{grid-template-columns:repeat(2,minmax(160px,1fr));}.topbar{align-items:flex-start;flex-direction:column}.table-stats{justify-content:flex-start}.players-list{grid-template-columns:1fr}.logo{font-size:36px;letter-spacing:5px}}
+@media(max-width:540px){.screen{padding:14px}.opponent-grid{grid-template-columns:1fr}.card{width:52px;height:76px}.community{gap:6px}.btn{min-width:140px;padding:10px 14px;letter-spacing:2px}.phase-title{font-size:20px}.game-wrap{padding:8px}.table-center{padding:12px}.pot-glow .amount{font-size:28px}}
 </style>
 </head>
 <body>
 
 <div id="s-home" class="screen center on">
   <div class="logo">EDO<em>POKER</em></div>
-  <div class="sub">ONLINE TEXAS HOLD'EM · MAX 6 PLAYERS</div>
+  <div class="sub">ONLINE TEXAS HOLD'EM · MAX 5 PLAYERS · 30 SEC TURN</div>
   <div class="badge" id="fb-badge"><span class="spin"></span>Firebase接続中...</div>
   <div class="home-card">
     <div class="poker-icon">♠️♥️♣️♦️</div>
-    <div class="desc">最大6人で遊べるチップ制ポーカー。<br>フォールド / チェック / コール / ベット / レイズ / オールイン対応。</div>
+    <div class="desc">最大5人で遊べるチップ制ポーカー。<br>30秒の思考時間つき。フォールド / チェック / コール / ベット / レイズ / オールイン対応。</div>
     <div class="field"><label>プレイヤー名</label><input id="home-name" class="inp" maxlength="12" placeholder="KANA"></div>
     <div class="row" style="margin-top:12px">
       <button class="btn g" onclick="createRoom()">[ ルーム作成 ]</button>
       <button class="btn" onclick="showScreen('s-join')">[ ルーム参加 ]</button>
     </div>
     <div class="help">
-      ・ホストが開始します。2〜6人でプレイできます。<br>
+      ・ホストが開始します。2〜5人でプレイできます。<br>
       ・各プレイヤー初期チップは1000、ブラインドは10/20です。<br>
-      ・ルールはテキサスホールデム形式です。場に5枚、手札2枚から最強の5枚役を判定します。
+      ・ルールはテキサスホールデム形式です。場に5枚、手札2枚から最強の5枚役を判定します。<br>・各ターン30秒制限です。時間切れはチェック可能なら自動チェック、コールが必要なら自動フォールドになります。
     </div>
   </div>
 </div>
@@ -148,7 +156,7 @@ button,input{font-family:'Share Tech Mono',monospace;}
       <button class="btn g" id="start-btn" onclick="hostStartGame()">[ ゲーム開始 ]</button>
       <button class="btn dim" onclick="leaveRoom()">[ 退出 ]</button>
     </div>
-    <div class="help">開始後は途中参加できません。最大6人、最低2人でスタートできます。</div>
+    <div class="help">開始後は途中参加できません。最大5人、最低2人でスタートできます。</div>
   </div>
 </div>
 
@@ -160,6 +168,7 @@ button,input{font-family:'Share Tech Mono',monospace;}
       <div class="stat"><div class="n" id="stat-hand">0</div><div class="l">HAND</div></div>
       <div class="stat"><div class="n" id="stat-blind">10/20</div><div class="l">BLIND</div></div>
       <div class="stat"><div class="n" id="stat-turn">---</div><div class="l">TURN</div></div>
+      <div class="stat timer-stat" id="timer-stat"><div class="n" id="stat-timer">--</div><div class="l">TIME</div></div>
     </div>
     <button class="btn dim" style="min-width:132px;padding:9px 12px" onclick="leaveRoom()">[ 退出 ]</button>
   </div>
@@ -168,6 +177,7 @@ button,input{font-family:'Share Tech Mono',monospace;}
     <div class="side" id="players-left"></div>
 
     <main class="table-center">
+      <div class="opponent-grid" id="opponents-grid"></div>
       <div class="phase-title" id="phase-title">LOBBY</div>
       <div class="message" id="game-message">---</div>
       <div class="community" id="community"></div>
@@ -224,8 +234,9 @@ fdb.ref('.info/connected').on('value', function(s){
 // ═══════════════════════════════════════════════
 // GLOBALS
 // ═══════════════════════════════════════════════
-var ROOM_ROOT = 'poker6Rooms';
-var MAX_PLAYERS = 6;
+var ROOM_ROOT = 'poker5Rooms';
+var MAX_PLAYERS = 5;
+var TURN_SECONDS = 30;
 var STARTING_CHIPS = 1000;
 var SMALL_BLIND = 10;
 var BIG_BLIND = 20;
@@ -237,11 +248,14 @@ var roomRef = null;
 var roomListener = null;
 var roomData = null;
 var lastInputTouched = 0;
+var turnTicker = null;
+var lastTimeoutKey = '';
 
 gel('home-name').value = myName;
 gel('join-name').value = myName;
 gel('bet-amount').addEventListener('focus', function(){ lastInputTouched = Date.now(); });
 gel('bet-amount').addEventListener('input', function(){ lastInputTouched = Date.now(); });
+turnTicker = setInterval(function(){ renderTurnTimer(); maybeAutoTimeout(); }, 400);
 
 function gel(id){ return document.getElementById(id); }
 function showScreen(id){
@@ -258,6 +272,14 @@ function cleanName(v){ return (String(v||'PLAYER').trim().slice(0,12) || 'PLAYER
 function parseJSON(v, fallback){ try{return JSON.parse(v||'');}catch(e){return fallback;} }
 function stringify(v){ return JSON.stringify(v); }
 function randCode(){ return Math.random().toString(36).slice(2,6).toUpperCase(); }
+function setTurnDeadline(room){
+  if(room && room.status === 'playing' && Number(room.turnSeat) >= 0) room.turnDeadline = Date.now() + TURN_SECONDS * 1000;
+  else if(room) room.turnDeadline = 0;
+}
+function turnTimeLeft(d){
+  if(!d || d.status !== 'playing' || Number(d.turnSeat) < 0 || !d.turnDeadline) return null;
+  return Math.max(0, Math.ceil((Number(d.turnDeadline) - Date.now()) / 1000));
+}
 function playerBase(name, seat){
   return {name:name, seat:seat, chips:STARTING_CHIPS, connected:true, joinedAt:firebase.database.ServerValue.TIMESTAMP,
     currentBet:0, invested:0, folded:false, allIn:false, out:false, acted:false, hole:'[]', lastAction:'待機中'};
@@ -276,10 +298,10 @@ function createRoom(){
     ref.once('value').then(function(snap){
       if(snap.exists() && tryCount < 8){ attempt(); return; }
       var room = {
-        game:'poker6', status:'lobby', hostId:myId, createdAt:firebase.database.ServerValue.TIMESTAMP,
+        game:'poker5', status:'lobby', hostId:myId, createdAt:firebase.database.ServerValue.TIMESTAMP,
         maxPlayers:MAX_PLAYERS, startingChips:STARTING_CHIPS, smallBlind:SMALL_BLIND, bigBlind:BIG_BLIND,
         handNo:0, dealerSeat:-1, phase:'lobby', pot:0, currentBet:0, minRaise:BIG_BLIND,
-        turnSeat:-1, community:'[]', deck:'[]', message:'プレイヤーを待っています', handResolved:false,
+        turnSeat:-1, turnDeadline:0, community:'[]', deck:'[]', message:'プレイヤーを待っています', handResolved:false,
         showdown:'', players:{}
       };
       room.players[myId] = playerBase(name, 0);
@@ -397,7 +419,7 @@ function hostResetGame(){
       players[id].currentBet=0; players[id].invested=0; players[id].acted=false; players[id].hole='[]'; players[id].lastAction='リセット';
     });
     room.dealerSeat = -1; room.handNo = 0; room.status='lobby'; room.phase='lobby'; room.pot=0; room.currentBet=0; room.turnSeat=-1;
-    room.community='[]'; room.deck='[]'; room.showdown=''; room.handResolved=false; room.message='リセットしました。ロビーから再開できます';
+    room.community='[]'; room.deck='[]'; room.showdown=''; room.handResolved=false; room.turnDeadline=0; room.message='リセットしました。ロビーから再開できます';
     return room;
   });
 }
@@ -492,7 +514,35 @@ function startNewHandState(room, firstStart){
   room.turnSeat = nextActorAfter(room, bbSeat);
   room.message = 'プリフロップ開始。ブラインド '+room.smallBlind+'/'+room.bigBlind;
   if(room.turnSeat < 0 || bettingRoundComplete(room)) advanceRound(room);
+  else setTurnDeadline(room);
   return room;
+}
+
+function maybeAutoTimeout(){
+  if(!roomData || !roomRef || roomData.status !== 'playing') return;
+  if(!roomData.turnDeadline || Number(roomData.turnSeat) < 0) return;
+  if(Date.now() < Number(roomData.turnDeadline)) return;
+  var key = [roomData.handNo, roomData.phase, roomData.turnSeat, roomData.turnDeadline].join(':');
+  if(lastTimeoutKey === key) return;
+  lastTimeoutKey = key;
+  var expectedDeadline = Number(roomData.turnDeadline);
+  roomRef.transaction(function(room){
+    if(!room || room.status !== 'playing') return room;
+    if(Number(room.turnDeadline) !== expectedDeadline || Date.now() < Number(room.turnDeadline)) return room;
+    var item = playerBySeat(room, room.turnSeat);
+    if(!item || !canActPlayer(item.p)){
+      room.turnSeat = nextActorAfter(room, Number(room.turnSeat)||-1);
+      if(room.turnSeat < 0 || bettingRoundComplete(room)) advanceRound(room);
+      else setTurnDeadline(room);
+      return room;
+    }
+    var need = Math.max(0, (Number(room.currentBet)||0) - (Number(item.p.currentBet)||0));
+    var pname = item.p.name || 'PLAYER';
+    if(need > 0){ applyAction(room, item.id, 'fold', 0); if(room.players[item.id]) room.players[item.id].lastAction = 'TIME OUT / FOLD'; }
+    else { applyAction(room, item.id, 'check', 0); if(room.players[item.id]) room.players[item.id].lastAction = 'TIME OUT / CHECK'; }
+    room.message = pname + ' は時間切れ';
+    return room;
+  });
 }
 
 function playerAction(action){
@@ -589,6 +639,7 @@ function proceedAfterAction(room, actorSeat){
     room.turnSeat = nextActorAfter(room, actorSeat);
     var turn = playerBySeat(room, room.turnSeat);
     room.message = turn ? turn.p.name + ' のアクション待ち' : 'アクション待ち';
+    setTurnDeadline(room);
   }
 }
 function advanceRound(room){
@@ -624,11 +675,12 @@ function advanceRound(room){
   } else {
     var turn = playerBySeat(room, room.turnSeat);
     room.message += turn ? '。' + turn.p.name + ' からアクション' : '';
+    setTurnDeadline(room);
   }
 }
 function resolveByFold(room, winner){
   if(room.handResolved) return;
-  room.handResolved = true; room.status='showdown'; room.phase='showdown'; room.turnSeat=-1; room.currentBet=0;
+  room.handResolved = true; room.status='showdown'; room.phase='showdown'; room.turnSeat=-1; room.turnDeadline=0; room.currentBet=0;
   var pot = totalPot(room);
   if(winner && room.players[winner.id]) room.players[winner.id].chips = (Number(room.players[winner.id].chips)||0) + pot;
   room.pot = 0;
@@ -638,7 +690,7 @@ function resolveByFold(room, winner){
 }
 function resolveShowdown(room){
   if(room.handResolved) return;
-  room.handResolved = true; room.status='showdown'; room.phase='showdown'; room.turnSeat=-1; room.currentBet=0;
+  room.handResolved = true; room.status='showdown'; room.phase='showdown'; room.turnSeat=-1; room.turnDeadline=0; room.currentBet=0;
   var community = parseJSON(room.community, []);
   while(community.length < 5){ var dk=parseJSON(room.deck,[]); if(!dk.length) break; community.push(dk.pop()); room.deck=stringify(dk); }
   room.community = stringify(community);
@@ -784,6 +836,7 @@ function renderGame(d){
   gel('stat-blind').textContent = (d.smallBlind||SMALL_BLIND)+'/'+(d.bigBlind||BIG_BLIND);
   var turnObj = playerBySeat(d, d.turnSeat);
   gel('stat-turn').textContent = turnObj ? turnObj.p.name.slice(0,8) : '---';
+  renderTurnTimer();
   gel('phase-title').textContent = phaseName(d.phase);
   gel('game-message').textContent = d.message || '';
   gel('pot-amount').textContent = d.pot || 0;
@@ -795,6 +848,21 @@ function renderGame(d){
 function phaseName(p){
   return {preflop:'PREFLOP',flop:'FLOP',turn:'TURN',river:'RIVER',showdown:'SHOWDOWN',gameover:'GAME OVER',lobby:'LOBBY'}[p] || String(p||'---').toUpperCase();
 }
+function renderTurnTimer(){
+  var el = gel('stat-timer'); var box = gel('timer-stat');
+  if(!el || !box) return;
+  var left = turnTimeLeft(roomData);
+  box.className = 'stat timer-stat';
+  if(left === null){ el.textContent='--'; return; }
+  el.textContent = left;
+  if(left <= 5) box.className += ' danger';
+  else if(left <= 10) box.className += ' warn';
+  if(roomData && roomData.status==='playing'){
+    var me = (roomData.players||{})[myId];
+    if(me && me.seat === roomData.turnSeat){ gel('turn-note').textContent = 'あなたの番！残り '+left+' 秒'; }
+    renderPlayers(roomData);
+  }
+}
 function renderCommunity(d){
   var community = parseJSON(d.community, []);
   var html='';
@@ -804,12 +872,15 @@ function renderCommunity(d){
 function renderPlayers(d){
   var players = d.players || {}; var bySeat={};
   Object.keys(players).forEach(function(id){ bySeat[players[id].seat] = {id:id,p:players[id]}; });
-  var left='', right='';
-  for(var i=0;i<MAX_PLAYERS;i++){
-    var html = renderPlayerCard(d, bySeat[i], i);
-    if(i<3) left += html; else right += html;
-  }
-  gel('players-left').innerHTML=left; gel('players-right').innerHTML=right;
+  var me = players[myId];
+  var mySeat = me ? Number(me.seat) : 0;
+  var seats = [];
+  for(var step=1; step<MAX_PLAYERS; step++) seats.push((mySeat + step) % MAX_PLAYERS);
+  var html = '';
+  seats.forEach(function(seat){ html += renderPlayerCard(d, bySeat[seat], seat); });
+  var grid = gel('opponents-grid');
+  if(grid) grid.innerHTML = html;
+  gel('players-left').innerHTML=''; gel('players-right').innerHTML='';
 }
 function renderPlayerCard(d, item, seat){
   if(!item) return '<div class="player-card empty"><div class="p-seat">SEAT '+(seat+1)+'</div><div class="p-name">EMPTY</div></div>';
@@ -821,7 +892,14 @@ function renderPlayerCard(d, item, seat){
   var status= p.out?'OUT':(p.folded?'FOLD':(p.allIn?'ALL-IN':(p.connected===false?'OFFLINE':(p.lastAction||''))));
   var rankText = '';
   if(showdown.ranks && showdown.ranks[id]) rankText = '<div style="font-size:10px;color:var(--green);margin-top:5px">'+esc(showdown.ranks[id].name)+'</div>';
-  return '<div class="'+cls+'"><div class="p-head"><div><div class="p-seat">SEAT '+(seat+1)+tags+(id===myId?' <span style="color:var(--blue)">YOU</span>':'')+'</div><div class="p-name">'+esc(p.name)+'</div></div><div><div class="p-chip">'+(p.chips||0)+'</div><div class="p-bet">BET '+(p.currentBet||0)+'</div></div></div><div class="p-status">'+esc(status)+'</div><div class="p-cards">'+cardHTML(hole[0],!showCards,true)+cardHTML(hole[1],!showCards,true)+'</div>'+rankText+'</div>';
+  var timeBar = '';
+  if(p.seat===d.turnSeat && d.status==='playing'){
+    var left = turnTimeLeft(d);
+    var pct = left===null ? 100 : Math.max(0, Math.min(100, left / TURN_SECONDS * 100));
+    var tcls = left!==null && left<=5 ? 'danger' : (left!==null && left<=10 ? 'warn' : '');
+    timeBar = '<div class="turn-time '+tcls+'" style="width:'+pct+'%"></div>';
+  }
+  return '<div class="'+cls+'"><div class="p-head"><div><div class="p-seat">SEAT '+(seat+1)+tags+(id===myId?' <span style="color:var(--blue)">YOU</span>':'')+'</div><div class="p-name">'+esc(p.name)+'</div></div><div><div class="p-chip">'+(p.chips||0)+'</div><div class="p-bet">BET '+(p.currentBet||0)+'</div></div></div><div class="p-status">'+esc(status)+'</div><div class="p-cards">'+cardHTML(hole[0],!showCards,true)+cardHTML(hole[1],!showCards,true)+'</div>'+rankText+timeBar+'</div>';
 }
 function renderMyArea(d){
   var me = (d.players||{})[myId];
@@ -833,7 +911,8 @@ function renderMyArea(d){
   }
   var isTurn = me.seat === d.turnSeat && canActPlayer(me);
   var need = Math.max(0, (Number(d.currentBet)||0) - (Number(me.currentBet)||0));
-  gel('turn-note').textContent = isTurn ? 'あなたの番！アクションを選んでね' : (turnText(d));
+  var left = turnTimeLeft(d);
+  gel('turn-note').textContent = isTurn ? ('あなたの番！残り '+(left===null?'--':left)+' 秒') : (turnText(d));
   gel('btn-fold').disabled = !isTurn;
   gel('btn-check').disabled = !isTurn || need>0;
   gel('btn-call').disabled = !isTurn || need<=0;

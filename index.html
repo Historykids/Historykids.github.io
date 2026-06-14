@@ -1066,11 +1066,18 @@ document.addEventListener("DOMContentLoaded", () => {
   <header>
     <div class="header-inner">
       <h1 class="siteTitle">歴史キッズ｜楽しく学べる！小学生・中学生向け歴史学習サイト</h1>
-
-    
- 
-
-        <button id="zukanBtn" aria-controls="zukanPanel" aria-expanded="false">図鑑</button>
+       <div class="controls">
+        <label for="eraSelect">時代：</label>
+        <select id="eraSelect" title="時代をえらぶ">
+          <option value="edo">江戸時代</option>
+          <option value="muromachi">室町時代</option>
+          <option value="kamakura">鎌倉時代</option>
+          <option value="sengoku">戦国時代</option>
+        </select>
+         <select id="chapterFilter" title="章をえらぶ">
+          <option value="ALL">章：ぜんぶ</option>
+        </select>
+ <button id="zukanBtn" aria-controls="zukanPanel" aria-expanded="false">図鑑</button>
         <button id="resetBtn" title="進捗を全部消して最初から">リセット</button>
 
         <!-- 所持金とショップ -->
@@ -1091,12 +1098,7 @@ document.addEventListener("DOMContentLoaded", () => {
 </nav>
  
 
-
-
-
-
-
-  <main class="content">
+<main class="content">
     <section id="intro">
       <div class="hero-content">
         <p>
@@ -1138,12 +1140,7 @@ document.addEventListener("DOMContentLoaded", () => {
     </button>
   </div>
 </section>
-       
-   
-
-
-
-    <!-- PR -->
+          <!-- PR -->
     <aside class="promoBar" role="note" aria-label="おすすめの本（PR）">
       <span class="promo-badge">PR</span>
       <span class="title">歴史入門にぴったり！<strong>ドラえもんの社会科おもしろ攻略 日本の歴史</strong>（小学館）</span>

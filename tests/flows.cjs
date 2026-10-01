@@ -399,7 +399,7 @@ console.log(checks + " checks passed.");
       for (const el of d.querySelectorAll("script[src],link[href],img[src]")) {
         const src = el.getAttribute("src") || el.getAttribute("href");
         if (src.startsWith("./"))
-          assert(fs.existsSync(path.join(root, src)), name + " " + src);
+          assert(fs.existsSync(path.join(root, src.split(/[?#]/)[0])), name + " " + src);
       }
     }
   });

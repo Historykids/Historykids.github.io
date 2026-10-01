@@ -1,0 +1,14 @@
+{
+  "name": "historykids",
+  "private": true,
+  "version": "2.0.0",
+  "description": "Static Japanese history learning website",
+  "scripts": {
+    "test": "node tests/flows.cjs && node tests/town.cjs && node tests/residents.cjs && node tests/challenge.cjs",
+    "serve": "python3 -m http.server 8000",
+    "preview-file": "python3 tests/build-preview.py"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0"
+  }
+}

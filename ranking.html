@@ -1,178 +1,85 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>歴史キッズ｜早押しランキング</title>
-
-<style>
-body{margin:0;font-family:sans-serif;background:#fff7ec}
-.wrap{max-width:960px;margin:20px auto;padding:0 14px}
-.card{background:#fff;border-radius:16px;padding:14px;margin-top:12px;
-box-shadow:0 10px 24px rgba(0,0,0,.08)}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-button,select{padding:8px 12px;border-radius:10px;font-weight:700}
-table{width:100%;border-collapse:collapse}
-th,td{padding:10px;border-bottom:1px solid #eee}
-th{background:#fffbe8}
-.you{background:#e0f2fe}
-.ok{background:#dcfce7;color:#166534;padding:4px 8px;border-radius:999px}
-.mut{color:#666;font-size:12px}
-</style>
-</head>
-
-<body>
-<div class="wrap">
-
-<h2>🏆 早押しランキング</h2>
-
-<div class="card">
-<div class="row">
-<select id="period">
-  <option value="daily">日次</option>
-  <option value="weekly">週次</option>
-</select>
-
-<select id="mode">
-  <option value="allchap">全章</option>
-  <option value="allera">全時代</option>
-</select>
-
-<select id="era">
-  <option value="edo">江戸</option>
-  <option value="muromachi">室町</option>
-  <option value="kamakura">鎌倉</option>
-  <option value="sengoku">戦国</option>
-</select>
-
-<button id="reload">更新</button>
-<span id="key" class="mut"></span>
-</div>
-</div>
-
-<div class="card">
-<strong>🙋 あなたの記録</strong>
-<div id="you" class="mut">未プレイ</div>
-</div>
-
-<div class="card">
-<strong>ランキング TOP100</strong>
-<table>
-<thead>
-<tr><th>順位</th><th>名前</th><th>タイム</th><th>日時</th></tr>
-</thead>
-<tbody id="tbody">
-<tr><td colspan="4">読み込み中…</td></tr>
-</tbody>
-</table>
-</div>
-
-</div>
-
-<!-- Firebase compat（安定版） -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-<script>
-/* ========= util ========= */
-function today(){
- const d=new Date();
- return d.toISOString().slice(0,10);
-}
-function fmt(ms){ return (ms/1000).toFixed(2)+"秒"; }
-function ts(t){ return t?.toDate ? t.toDate().toLocaleString() : ""; }
-
-/* ========= firebase ========= */
-firebase.initializeApp({
- apiKey: "AIzaSyBMcXnMxiHXg2ybI2aNrpJozN_MlDpH0lA",
- authDomain: "historykids-62240.firebaseapp.com",
- projectId: "historykids-62240",
-});
-
-const auth = firebase.auth();
-const db   = firebase.firestore();
-
-auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
-auth.signInAnonymously();
-
-/* ========= UI ========= */
-const $=id=>document.getElementById(id);
-const tbody=$("tbody");
-const youEl=$("you");
-const keyEl=$("key");
-
-$("reload").onclick=load;
-
-async function load(){
- const period=$("period").value;
- const mode=$("mode").value;
- const era=mode==="allera"?"ALL":$("era").value;
- const key=today();
- const group=`${mode}_${era}`;
-
- keyEl.textContent=`${period}/${key}/${group}`;
-
- const base=`fast_scores/${period}/${key}/${group}/entries`;
-
- /* ===== ranking ===== */
- tbody.innerHTML="<tr><td colspan=4>読込中…</td></tr>";
-
- const qs=await db.collection(base)
-   .orderBy("ms","asc")
-   .limit(100)
-   .get();
-
- tbody.innerHTML="";
- let rank=0;
-
- qs.forEach(doc=>{
-   const d=doc.data();
-   const tr=document.createElement("tr");
-   tr.innerHTML=`
-     <td>${++rank}</td>
-     <td>${d.name||"名無し"}</td>
-     <td>${fmt(d.ms||0)}</td>
-     <td>${ts(d.ts)}</td>
-   `;
-   tbody.appendChild(tr);
- });
-
- if(!rank){
-   tbody.innerHTML="<tr><td colspan=4>まだ記録がありません</td></tr>";
- }
-
- /* ===== your score ===== */
- const u=auth.currentUser;
- if(!u){ youEl.textContent="未ログイン"; return; }
-
- const myRef=db.doc(`${base}/${u.uid}`);
- const snap=await myRef.get();
-
- if(!snap.exists){
-   youEl.textContent="この条件で記録はありません";
-   return;
- }
-
- const me=snap.data();
-
- const faster=await db.collection(base)
-   .where("ms","<",me.ms)
-   .orderBy("ms","asc")
-   .limit(10000)
-   .get();
-
- const myRank=faster.size+1;
-
- youEl.innerHTML=
-   `<span class="ok">記録あり</span>
-    ${me.name||"名無し"} /
-    ${fmt(me.ms)} /
-    ${myRank}位`;
-}
-
-load();
-</script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>早押しランキング｜歴史キッズ</title>
+    <meta name="theme-color" content="#172f45" />
+    <link rel="icon" href="./favicon.ico" />
+    <link rel="stylesheet" href="./assets/ui/app.css" />
+    <link rel="stylesheet" href="./assets/ui/subpages.css" />
+    <script defer src="./assets/ui/core.js"></script>
+    <script defer src="./assets/ui/cloud.js"></script>
+    <script defer src="./assets/ui/ranking.js"></script>
+  </head>
+  <body class="subpage">
+    <header class="sub-header">
+      <a href="./" class="sub-brand">歴史キッズ</a>
+      <nav aria-label="ゲームメニュー">
+        <a href="./#games">学習に戻る</a
+        ><a href="./buzzer.html">早押しに挑戦</a>
+      </nav>
+    </header>
+    <main class="sub-main">
+      <p class="eyebrow">HISTORY LEADERBOARD</p>
+      <h1>早押しランキング</h1>
+      <p class="muted sub-intro">
+        新・早押し決戦は10問全問正解のタイムで競います。4択・入力・従来の記録は別々に表示します。
+      </p>
+      <section class="rank-panel" aria-label="ランキングの条件">
+        <div class="filters">
+          <label>ルール<select id="edition"><option value="v3">新・早押し決戦</option><option value="v2">従来の早押し</option></select></label>
+          <label id="answerModeWrap">答え方<select id="answerMode"><option value="choice">難しい4択</option><option value="type">ひらがな入力</option></select></label>
+          <label
+            >期間<select id="period">
+              <option value="daily">きょう</option>
+              <option value="weekly">今週</option>
+            </select></label
+          ><label
+            >範囲<select id="mode">
+              <option value="allchap">時代を選ぶ</option>
+              <option value="allera">全時代ミックス</option>
+            </select></label
+          ><label id="eraWrap"
+            >時代<select id="era">
+              <option value="edo">江戸時代</option>
+              <option value="kamakura">鎌倉時代</option>
+              <option value="muromachi">室町時代</option>
+              <option value="sengoku">戦国時代</option>
+            </select></label
+          >
+        </div>
+        <button id="reload" class="primary">記録を更新</button
+        ><span id="key" class="muted small"></span>
+      </section>
+      <section class="rank-panel">
+        <span class="section-label">このブラウザの自己ベスト</span>
+        <p id="personal" class="rank-summary"></p>
+      </section>
+      <section class="rank-panel">
+        <div class="section-heading">
+          <h2>みんなの記録 TOP100</h2>
+          <a class="link-pill" href="./buzzer.html">早押しに挑戦</a>
+        </div>
+        <div class="ranking-table">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">順位</th>
+                <th scope="col">ニックネーム</th>
+                <th scope="col">タイム</th>
+                <th scope="col">記録日時</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr>
+                <td colspan="4" class="empty-cell">読み込み中…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="rankStatus" role="status" class="muted small"></p>
+      </section>
+    </main>
+  </body>
 </html>
-

@@ -1,424 +1,51 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>歴史キッズ｜早押しチャレンジ</title>
-  <meta name="color-scheme" content="light">
-  <style>
-    :root{--ink:#1f2937;--mut:#64748b;--bg:#fff7ec;--card:#fff;--brand:#f59e0b;--ok:#14532d;--okbg:#dcfce7;--ng:#991b1b;--ngbg:#fee2e2}
-    *{box-sizing:border-box}
-    body{margin:0;background:linear-gradient(180deg,#fffdf4,#fff7ec);color:var(--ink);
-         font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;line-height:1.6}
-    .wrap{max-width:920px;margin:24px auto;padding:0 14px}
-    header{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
-    header h1{font-size:18px;margin:0}
-    .card{background:var(--card);border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:16px;box-shadow:0 10px 24px rgba(15,23,42,.08)}
-    .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-    select,button,input{
-      appearance:none;border:1px solid #cbd5e1;border-radius:12px;background:#fff;padding:10px 12px;font-weight:700
-    }
-    button{cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.08)}
-    button.primary{background:linear-gradient(130deg,#fde68a,#fbbf24);border-color:#f59e0b;color:#4a3200}
-    button[disabled]{opacity:.6;cursor:not-allowed}
-    .mut{color:var(--mut);font-size:12px}
-    .quiz{display:grid;gap:10px;margin-top:12px}
-    .qname{font-weight:800}
-    .big{font-size:20px}
-    .ok{color:var(--ok);background:var(--okbg);padding:6px 10px;border-radius:10px;display:inline-block}
-    .ng{color:var(--ng);background:var(--ngbg);padding:6px 10px;border-radius:10px;display:inline-block}
-    .hidden{display:none !important}
-    .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid #e2e8f0;border-radius:999px;padding:8px 12px;background:#fff;text-decoration:none;color:inherit;font-weight:700}
-    .warn{color:#b45309}
-    progress{width:240px;height:10px}
-    .right{margin-left:auto}
-  </style>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>歴史の早押し決戦｜歴史キッズ</title><meta name="description" content="早押しボタンで日本史に挑戦！10問決戦、60秒ラッシュ、3命サバイバル。難しい4択と入力、コンボ、成績と復習。"><meta name="theme-color" content="#142b40">
+  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/app.css"><link rel="stylesheet" href="./assets/ui/subpages.css"><link rel="stylesheet" href="./assets/ui/challenge.css">
+  <script defer src="./data/dataset.js"></script><script defer src="./assets/ui/core.js"></script><script defer src="./assets/ui/cloud.js"></script><script defer src="./assets/ui/challenge.js"></script>
 </head>
-<body>
-<div class="wrap">
-  <header>
-    <h1>早押しチャレンジ</h1>
-    <a class="pill" href="./ranking.html">🏆 ランキングを見る</a>
-    <span id="conn" class="mut right">接続準備中…</span>
-  </header>
-
-  <div class="card" role="region" aria-label="設定とクイズ">
-    <div class="row" style="gap:12px">
-      <label>期間：
-        <select id="period">
-          <option value="daily">日次</option>
-          <option value="weekly">週次</option>
-        </select>
-      </label>
-
-      <label>ミックス：
-        <select id="mix">
-          <option value="allchap">全章ミックス（時代を選ぶ）</option>
-          <option value="allera">時代ミックス（全時代）</option>
-        </select>
-      </label>
-
-      <label id="eraWrap">時代：
-        <select id="era">
-          <option value="edo">江戸</option>
-          <option value="muromachi">室町</option>
-          <option value="kamakura">鎌倉</option>
-          <option value="sengoku">戦国</option>
-        </select>
-      </label>
-
-      <span class="mut">※ 全10問・正解のみで進行。最速タイムで競います。</span>
+<body class="subpage challenge-page">
+<header class="sub-header"><a href="./" class="sub-brand">歴史キッズ</a><nav aria-label="ゲームメニュー"><a href="./#games">学習に戻る</a><a href="./ranking.html">ランキング</a><button id="soundBtn" aria-pressed="false">音 OFF</button><button id="fullscreenBtn" aria-label="全画面にする">全画面</button></nav></header>
+<main class="challenge-main">
+  <div class="challenge-hero"><div><p class="eyebrow">HISTORY BUZZER / 決め手は、ひらめき。</p><h1>その一押しで、<br><em>歴史が動く。</em></h1><p>わかった瞬間に押そう。記憶とスピードで、自己ベストのその先へ。</p></div><div class="hero-mark" aria-hidden="true"><span>歴</span><small>READY. BUZZ. WIN.</small></div></div>
+  <section id="startBox" aria-label="ゲームの設定">
+    <div class="mode-cards" role="group" aria-label="ゲームモード">
+      <button data-game="sprint" class="mode-card active" aria-pressed="true"><span class="mode-number">01</span><b>10問決戦</b><small>10問の速さと正確さを競う<br>全問正解でランキングへ</small><span class="mode-icon" aria-hidden="true">⚡</span></button>
+      <button data-game="rush" class="mode-card" aria-pressed="false"><span class="mode-number">02</span><b>60秒ラッシュ</b><small>制限時間内に何問解ける？<br>連続正解でコンボを伸ばそう</small><span class="mode-icon" aria-hidden="true">⏱</span></button>
+      <button data-game="survival" class="mode-card" aria-pressed="false"><span class="mode-number">03</span><b>3命サバイバル</b><small>間違い3回で終了<br>どこまで生き残れる？</small><span class="mode-icon" aria-hidden="true">♥</span></button>
     </div>
-
-    <hr style="margin:14px 0;border:none;border-top:1px solid #eee">
-
-    <div id="authState" class="mut">匿名サインイン & App Check 初期化中…</div>
-
-    <div id="quizBox" class="quiz hidden">
-      <div class="row" style="justify-content:space-between;align-items:center">
-        <div class="qname big" id="qTitle" aria-live="polite"></div>
-        <div class="mut"><span id="countText"></span>／10　<progress id="prog" max="10" value="0"></progress></div>
-      </div>
-      <div class="mut">〇のところだけを <b>ひらがな</b> で入力。複数は スペース / ・ / 、 / ／ で区切りOK。</div>
-      <input id="answer" type="text" inputmode="text" autocomplete="off" placeholder="ここに ひらがな を入力（例：てんぽう）" aria-label="解答欄">
-      <div id="feedback" class="mut" aria-live="polite"></div>
-      <div class="row">
-        <button id="checkBtn" class="primary">決定（Enter）</button>
-        <button id="nextBtn" class="hidden">次へ（N）</button>
-      </div>
-      <div class="mut" id="timerText" aria-live="off">経過：0.00 秒</div>
+    <div class="setup-panel"><div class="filters">
+      <label>期間<select id="period"><option value="daily">きょうの問題</option><option value="weekly">今週の問題</option></select></label>
+      <label>出題範囲<select id="mix"><option value="allchap">時代を選ぶ</option><option value="allera">全時代ミックス</option></select></label>
+      <label id="eraWrap">時代<select id="era"><option value="edo">江戸時代</option><option value="kamakura">鎌倉時代</option><option value="muromachi">室町時代</option><option value="sengoku">戦国時代</option></select></label>
+      <label>答え方<select id="answerMode"><option value="choice">難しい4択</option><option value="type">ひらがな入力</option></select></label>
+    </div><div class="setup-bottom"><div><p id="modeRule">10問を解こう。間違いは5秒のペナルティ。全問正解でランキングに参加できます。</p><p id="personalBest" class="muted small"></p></div><button id="startBtn" class="primary start-game">決戦をはじめる <span aria-hidden="true">→</span></button></div></div>
+    <div class="how-to"><span><b>1</b> 問題が少しずつ出る</span><span><b>2</b> わかったら早押し！</span><span><b>3</b> 答えてコンボをつなぐ</span><small>PC：Spaceで早押し · 1〜4で選択 · Enterで次へ</small></div>
+  </section>
+  <section id="quizBox" class="arena" aria-label="早押しの問題" hidden>
+    <div class="arena-top"><span id="gameLabel">10問決戦</span><button id="quitBtn">この挑戦をやめる</button></div>
+    <div class="arena-stats"><div><small>ROUND</small><b id="countText">1 / 10</b></div><div><small id="timerLabel">TIME</small><b id="timerText">0.00秒</b></div><div><small>SCORE</small><b id="scoreText">0</b></div><div><small id="comboLabel">COMBO</small><b id="comboText">0</b></div><div><small>LIFE</small><b id="livesText">—</b></div></div>
+    <progress id="prog" max="10" value="0" aria-label="チャレンジの進捗"></progress>
+    <div class="arena-board"><div class="question-label"><span id="eraBadge">江戸時代</span><span id="readStatus">問題を読み上げ中…</span></div><h2 id="qTitle" class="challenge-question"></h2><div class="reveal-meter" aria-hidden="true"><span id="revealBar"></span></div></div>
+    <div id="countdown" class="countdown" role="status" hidden>3</div>
+    <div id="buzzZone" class="buzz-zone"><button id="buzzBtn" class="buzzer" aria-describedby="buzzHelp"><span>早押し！</span><small>BUZZ</small></button><p id="buzzHelp">わかったら押そう。PCならSpaceキー。</p></div>
+    <div id="answerZone" class="arena-answer" hidden>
+      <p id="answerPrompt">答えを選んでね。残り <b id="answerClock">15</b> 秒</p>
+      <div id="challengeChoices" class="challenge-choices"></div>
+      <form id="challengeForm" hidden><label for="answer">〇の部分を、ひらがなで答えてね。</label><div class="input-row"><input id="answer" autocomplete="off" placeholder="例：えど" aria-describedby="typingHelp"><button id="checkBtn" class="primary">答える</button></div><small id="typingHelp">複数の答えはスペース・「、」・「／」で区切れます。</small></form>
     </div>
-
-    <div id="startBox" class="row" style="margin-top:10px">
-      <button id="startBtn" class="primary" disabled>スタート</button>
-      <span class="mut">サインイン完了後に開始できます。</span>
-    </div>
-
-    <div id="resultBox" class="hidden" style="margin-top:14px">
-      <div id="resultText" class="big" aria-live="polite"></div>
-      <div class="row" style="margin-top:10px;gap:10px">
-        <input id="player" maxlength="24" placeholder="なまえ（24文字まで）" aria-label="なまえ">
-        <button id="submit" class="primary">この設定で送信</button>
-        <span class="mut">※ 同一期間・同一設定では1人1投稿のみ</span>
-      </div>
-    </div>
-
-    <div id="note" class="mut warn" style="margin-top:8px"></div>
-  </div>
-</div>
-
-<!-- あなたの問題セット（同階層 data/ に置く） -->
-<script src="./data/dataset.js"></script>
-
-<!-- Firebase compat（B案） -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-<script>
-/* ================= Firebase Init（B案, compat） ================= */
-const connEl = document.getElementById('conn');
-const authStateEl = document.getElementById('authState');
-const noteEl = document.getElementById('note');
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBMcXnMxiHXg2ybI2aNrpJozN_MlDpH0lA",
-  authDomain: "historykids-62240.firebaseapp.com",
-  projectId: "historykids-62240",
-  storageBucket: "historykids-62240.firebasestorage.app",
-  messagingSenderId: "73567574639",
-  appId: "1:73567574639:web:c5e91d53c479a55b708b9a",
-  measurementId: "G-09Q3X0D49C"
-};
-firebase.initializeApp(firebaseConfig);
-
-// App Check（本番キー／開発は Debug Token）※失敗しても継続
-let appCheckReady = false;
-try{
-  if (location.hostname === 'localhost'){
-    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true; // 開発時のみ
-  } else {
-    self.FIREBASE_APPCHECK_DEBUG_TOKEN = false;
-  }
-  // ★ reCAPTCHA v3 の Site key を入れる（Enterpriseの鍵は不可）
-  firebase.appCheck().activate('6LfoXPMrAAAAAO98VYU17M8PFwpz4pv_k2k0ngIk', true);
-  appCheckReady = true;
-} catch(e){
-  console.warn('[AppCheck] activate failed', e);
-  noteEl.textContent = 'App Check の初期化に問題があるため、保護レベルが下がっています。管理画面のサイトキー/ドメインを確認してください。';
-}
-
-const auth = firebase.auth();
-const db   = firebase.firestore();
-let authed = false;
-
-auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(()=>{});
-
-auth.onAuthStateChanged(u=>{
-  authed = !!u;
-  authStateEl.textContent = authed ? '接続完了！' : '接続中…';
-  document.getElementById('startBtn').disabled = !authed;
-});
-auth.signInAnonymously().catch(err=>{
-  console.error(err);
-  authStateEl.textContent = '匿名サインインに失敗しました（通信 or Firebase設定）';
-});
-
-window.addEventListener('unhandledrejection', (e)=>{
-  if(String(e.reason||'').includes('appCheck/recaptcha-error')){
-    noteEl.textContent = 'reCAPTCHA(App Check) エラー。App Check のサイトキーと承認済みドメイン（historykids.github.io）を確認してください。';
-  }
-});
-
-/* ================== 出題エンジン ================== */
-function onlyHiraAndSep(s){ return /^[\u3041-\u3096\s・,，、/／]+$/.test(s); }
-function splitTokens(ans){ let s=ans.replace(/[・,，、/／]+/g,' ').replace(/\s+/g,' ').trim();return s? s.split(' '):[]; }
-function normalizeTokens(arr){ return arr.map(s=>s.replace(/\s+/g,'').trim()); }
-
-function todayKey(){
-  const d=new Date(); const y=d.getFullYear();
-  const m=('0'+(d.getMonth()+1)).slice(-2); const day=('0'+d.getDate()).slice(-2);
-  return `${y}-${m}-${day}`;
-}
-function isoWeekKey(){
-  const d = new Date();
-  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const dayNum = (date.getUTCDay() + 6) % 7;
-  date.setUTCDate(date.getUTCDate() - dayNum + 3);
-  const firstThursday = new Date(Date.UTC(date.getUTCFullYear(),0,4));
-  const week = 1 + Math.round(((date - firstThursday)/86400000 - 3 + ((firstThursday.getUTCDay()+6)%7))/7);
-  const wk = ('0'+week).slice(-2);
-  return `${date.getUTCFullYear()}-W${wk}`;
-}
-
-// 決定論的シャッフル（期間＋モード＋時代 → 同じ並び）
-function mulberry32(seed){
-  return function(){
-    let t = seed += 0x6D2B79F5;
-    t = Math.imul(t ^ t >>> 15, t | 1);
-    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  };
-}
-function seededPick(arr, n, seedStr){
-  // 文字列から32bit seed
-  let seed = 0;
-  for (let i=0;i<seedStr.length;i++){ seed = (seed*31 + seedStr.charCodeAt(i)) >>> 0; }
-  const rnd = mulberry32(seed);
-  const a = arr.slice();
-  for (let i=a.length-1;i>0;i--){
-    const j = Math.floor(rnd()*(i+1));
-    [a[i],a[j]]=[a[j],a[i]];
-  }
-  return a.slice(0,n);
-}
-
-function buildPool(mode, era){
-  if(!window.dataSets){ throw new Error('dataset.js が読み込めていません'); }
-  const all = [];
-  const eras = mode==='allera' ? ['edo','muromachi','kamakura','sengoku'] : [era];
-  eras.forEach(e=>{
-    const ds = window.dataSets[e];
-    Object.values(ds.chapters).forEach(group=>{
-      Object.keys(group).forEach(name=>{
-        const blanks = ds.blanks[name] || [];
-        all.push({ era:e, name, blanks });
-      });
-    });
-  });
-  return all;
-}
-
-/* ================== UIバインド ================== */
-const $ = id => document.getElementById(id);
-const periodSel = $('period');
-const mixSel    = $('mix');
-const eraWrap   = $('eraWrap');
-const eraSel    = $('era');
-const startBtn  = $('startBtn');
-const quizBox   = $('quizBox');
-const startBox  = $('startBox');
-const qTitle    = $('qTitle');
-const input     = $('answer');
-const feedback  = $('feedback');
-const checkBtn  = $('checkBtn');
-const nextBtn   = $('nextBtn');
-const timerText = $('timerText');
-const resultBox = $('resultBox');
-const resultTxt = $('resultText');
-const submitBtn = $('submit');
-const prog      = $('prog');
-const countText = $('countText');
-
-mixSel.addEventListener('change', ()=>{
-  eraWrap.style.display = (mixSel.value === 'allera') ? 'none' : '';
-});
-
-let qs = [], qi = 0, tStart = 0, timerId = null, resultMs = 0;
-
-function updateTimer(){
-  const ms = performance.now() - tStart;
-  timerText.textContent = `経過：${(ms/1000).toFixed(2)} 秒`;
-}
-function startTimer(){
-  tStart = performance.now();
-  timerId = setInterval(updateTimer, 60);
-}
-function stopTimer(){
-  if(timerId){ clearInterval(timerId); timerId = null; }
-  updateTimer();
-}
-
-function showQ(){
-  const q = qs[qi];
-  qTitle.textContent = q.name;
-  input.value = '';
-  feedback.textContent = '';
-  nextBtn.classList.add('hidden');
-  checkBtn.disabled = false;
-  input.focus();
-  countText.textContent = String(qi+1);
-  prog.value = qi;
-}
-
-function startGame(){
-  const period = periodSel.value;      // daily / weekly
-  const mode   = mixSel.value;         // allchap / allera
-  const era    = (mode==='allera') ? 'ALL' : eraSel.value;
-
-  const pool = buildPool(mode, era === 'ALL' ? 'edo' : era); // eraはallera時は無視
-  if(pool.length < 10){ alert('問題が足りません（dataset.jsを確認）'); return; }
-
-  const seedKey = (period === 'daily' ? todayKey() : isoWeekKey()) + '|' + mode + '|' + era;
-  qs = seededPick(pool, 10, seedKey);
-
-  qi = 0; resultMs = 0;
-  startBox.classList.add('hidden');
-  quizBox.classList.remove('hidden');
-  resultBox.classList.add('hidden');
-  prog.max = 10; prog.value = 0; countText.textContent = '1';
-  showQ();
-  startTimer();
-}
-
-function checkAnswer(){
-  const q = qs[qi];
-  const ansRaw = input.value || '';
-  if(!onlyHiraAndSep(ansRaw)){
-    feedback.innerHTML = '<span class="ng">ひらがなで入力してね（区切りは スペース / ・ / 、 / ／）</span>';
-    return;
-  }
-  const user = normalizeTokens(splitTokens(ansRaw));
-  const need = normalizeTokens(q.blanks);
-  const ok = need.length>0 && need.every(t=>user.includes(t));
-  if(ok){
-    feedback.innerHTML = '<span class="ok">正解！</span>';
-    checkBtn.disabled = true;
-    nextBtn.classList.remove('hidden');
-
-    if(qi === qs.length-1){
-      stopTimer();
-      resultMs = Math.round(performance.now() - tStart);
-      nextBtn.classList.add('hidden');
-      quizBox.classList.add('hidden');
-      resultBox.classList.remove('hidden');
-      resultTxt.textContent = `タイム：${(resultMs/1000).toFixed(2)} 秒`;
-    }
-  }else{
-    const a = need.join('・');
-    feedback.innerHTML = `<span class="ng">ざんねん！ 正解は「${a}」</span>`;
-  }
-}
-
-checkBtn.addEventListener('click', checkAnswer);
-nextBtn.addEventListener('click', ()=>{ qi++; if(qi<qs.length){ prog.value = qi; showQ(); } });
-
-startBtn.addEventListener('click', ()=>{
-  if(!authed){ alert('サインイン待機中…数秒後に試してください'); return; }
-  startGame();
-});
-input.addEventListener('keydown', (e)=>{
-  if(e.key === 'Enter'){ e.preventDefault(); checkBtn.click(); }
-});
-window.addEventListener('keydown', (e)=>{
-  if(e.key.toLowerCase()==='n' && !nextBtn.classList.contains('hidden')) nextBtn.click();
-});
-
-/* ============== 送信（create専用・1人1投稿） ============== */
-function periodKeyOf(kind){ return (kind==='daily') ? todayKey() : isoWeekKey(); }
-
-async function docExists(docPath){
-  try{
-    const snap = await db.doc(docPath).get();
-    return snap.exists;
-  }catch(e){
-    console.error('[docExists error]', e.code, e.message);
-    // 読み取り不可でも送信動作は続行したいので false 扱いにする
-    if (e.code === 'permission-denied') return false;
-    throw e;
-  }
-}
-
-submitBtn.addEventListener('click', async ()=>{
-  try{
-    const user = auth.currentUser;
-    if(!user){ alert('サインイン状態を確認してください'); return; }
-    if(!resultMs || !qs.length){ alert('まずはプレイしてね'); return; }
-
-    const period = periodSel.value;
-    const mode   = mixSel.value;
-    const era    = (mode==='allera') ? 'ALL' : eraSel.value;
-    const periodKey = periodKeyOf(period);
-    const name = (document.getElementById('player').value || '').slice(0,24) || '名無し';
-
-    const payload = {
-      app: "hk-buzzer-v1",
-      uid: user.uid,
-      name,
-      ms: Math.round(resultMs),
-      period, mode, era,
-      dateKey: todayKey(),
-      weekKey: isoWeekKey(),
-      count: qs.length,
-      ts: firebase.firestore.FieldValue.serverTimestamp(),
-      ver: 1
-    };
-
-    const groupKey = `${mode}_${era}`;
-    const colPath  = `fast_scores/${period}/${periodKey}/${groupKey}/entries`;
-    const docPath  = `${colPath}/${user.uid}`;
-
-    // すでに投稿済みなら送らない（ルールでもブロックするがUX向上）
-    if (await docExists(docPath)){
-      alert('この期間・設定では既に投稿済みです。次の期間で挑戦してね！');
-      location.href = './ranking.html';
-      return;
-    }
-
-    // create 専用（ルールで allow create / disallow update, delete）
-    await db.collection(colPath).doc(user.uid).set(payload, { merge: false });
-
-    alert('送信しました！ランキングで確認できます。');
-    location.href = './ranking.html';
-  }catch(e){
-    console.error('[submit failed]', e, e.code, e.message);
-    const code = e.code || '';
-    if(code === 'already-exists'){
-      alert('この期間・設定では既に投稿済みです。次の期間で挑戦してね！');
-      location.href = './ranking.html';
-    }else if(code === 'permission-denied'){
-      alert('書き込み権限がありません。Firestore ルールと App Check を確認してください。');
-    }else if(String(e).includes('appCheck') || String(e).includes('recaptcha')){
-      alert('App Check エラー。Firebaseコンソールで reCAPTCHA v3 のサイトキーと承認済みドメインを確認してください。');
-    }else{
-      alert('送信に失敗しました。ネット接続やFirebase設定（Auth/AppCheck/ルール）をご確認ください。');
-    }
-  }
-});
-
-/* 初期状態文言 */
-connEl.textContent = '接続OK（B案/compat）' + (appCheckReady ? '' : ' — App Check 警告あり');
-</script>
-</body>
-</html>
+    <div id="feedback" class="arena-feedback" role="status" hidden></div>
+    <div class="arena-next"><button id="nextBtn" class="primary" hidden>次の問題 →</button><span id="advanceNote" hidden>少し待つと自動で次へ進みます。</span></div>
+  </section>
+  <section id="resultBox" class="result-panel" aria-label="今回の成績" hidden>
+    <div class="result-heading"><div><p class="eyebrow">YOUR RESULT</p><h2 id="resultTitle">決戦終了！</h2><p id="resultBest"></p></div><div id="resultMedal" class="result-medal" aria-hidden="true">🏆</div></div>
+    <div class="result-grid"><div><small>SCORE</small><b id="resultScore">0</b></div><div><small>正解</small><b id="resultCorrect">0 / 10</b></div><div><small>タイム</small><b id="resultTime">0.00秒</b></div><div><small>最大コンボ</small><b id="resultCombo">0</b></div></div>
+    <p id="resultSummary" class="muted"></p><div class="dialog-actions"><button id="againBtn" class="primary">同じ設定でもう一度</button><button id="settingsBtn">モードを変える</button><a id="reviewLink" href="./?review=1#learn">間違えた問題を復習</a></div>
+    <div class="round-review"><h3>今回の振り返り <small>問題を開くと答えと解説が見られるよ</small></h3><div id="resultReview"></div></div>
+    <div id="submitBox" class="submit-record"><h3>ランキングに参加する</h3><p id="submitRule" class="muted small">10問決戦・全問正解の記録を送れます。4択と入力の記録は別々に競います。</p><label for="player">ニックネーム</label><div class="input-row"><input id="player" maxlength="24" placeholder="24文字まで"><button id="submit">記録を送信</button></div><p class="muted small">名前とタイムが公開されます。本名や連絡先は入力しないでね。同じ期間・範囲・答え方の送信は1回です。</p></div>
+  </section>
+  <p id="note" class="notice" role="status" hidden></p>
+  <footer class="page-footer"><span>自己ベストはこのブラウザに保存されます。町の両は消費しません。</span><a href="./">歴史キッズに戻る</a></footer>
+</main></body></html>

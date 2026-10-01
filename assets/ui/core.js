@@ -527,12 +527,23 @@
 };
   function choiceAnswers(record, records) {
     const correct = record.answers.join("・");
-    const alternatives = (distractors[correct] || []).filter((a) =>
+    const alternatives = (record.distractors || distractors[correct] || []).filter((a) =>
       Array.from(a).length === Array.from(correct).length && !answerOK(a, record.answers));
     if (alternatives.length < 3) throw new Error("Choices missing for " + correct);
     return seededPick([correct, ...seededPick(alternatives, 3, record.id || record.name)], 4, (record.id || record.name) + "choices");
   }
+  function questionText(name) { return String(name).replace(/^-?\d+\s/, ""); }
+  function dateValue(record) {
+    return record.dateLabel || (record.year < 0 ? "紀元前" + Math.abs(record.year) : String(record.year));
+  }
+  function dateSuffix(record) { return record.dateLabel ? "" : "年"; }
+  function dateText(record) { return dateValue(record) + dateSuffix(record); }
   const api = {
+    eraOrder: ["jomon", "yayoi", "kofun", "asuka", "nara", "heian", "kamakura", "muromachi", "sengoku", "edo"],
+    questionText,
+    dateValue,
+    dateSuffix,
+    dateText,
     items,
     normalize,
     tokens,

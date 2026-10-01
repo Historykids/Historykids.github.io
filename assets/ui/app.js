@@ -4,12 +4,13 @@
     $ = (id) => document.getElementById(id),
     E = C.esc,
     ds = window.dataSets;
-  const eraMeta = {
+  const legacyEraMeta = {
     kamakura: { en: "KAMAKURA", years: "1185–1333" },
     muromachi: { en: "MUROMACHI", years: "1336–1573" },
     sengoku: { en: "SENGOKU", years: "1467–1600" },
     edo: { en: "EDO", years: "1603–1868" },
   };
+  const eraMeta = Object.fromEntries(C.eraOrder.filter((era) => ds[era]).map((era) => [era, ds[era].meta || legacyEraMeta[era]]));
   const answerKanji = {
     こめ: "米",
     えど: "江戸",
@@ -106,10 +107,11 @@
       for (const [name, entry] of Object.entries(questions)) {
         const answers = set.blanks[name] || [];
         let i = 0;
-        const question = name.replace(/^\d+\s/, "");
+        const question = C.questionText(name);
         const title = question.replace(/〇+/g, () => {
-          const a = answers[i++];
-          return answerKanji[a] || a || "〇";
+          const a = answers[i], label = entry.answerLabels?.[i];
+          i++;
+          return label || answerKanji[a] || a || "〇";
         });
         records.push({
           ...entry,
@@ -124,10 +126,11 @@
       }
   for (const r of records) {
     let index = 0;
-    r.titleHTML = E(r.question).replace(/〇+/g, () => {
-      const reading = r.answers[index++];
-      return answerKanji[reading]
-        ? `<ruby>${E(answerKanji[reading])}<rt>${E(reading)}</rt></ruby>`
+    r.titleHTML = (ds[r.era].ruby[r.name] || E(r.question)).replace(/〇+/g, () => {
+      const reading = r.answers[index], label = r.answerLabels?.[index] || answerKanji[reading];
+      index++;
+      return label
+        ? `<ruby>${E(label)}<rt>${E(reading)}</rt></ruby>`
         : E(reading || "〇");
     });
   }
@@ -296,6 +299,7 @@
       $("qChapter").textContent = "この範囲は完了！";
       $("qCount").textContent = "";
       $("qYear").textContent = "✓";
+      $("qYearSuffix").textContent = "";
       $("qTitle").textContent =
         $("practiceFilter").value === "wrong"
           ? "復習する問題はありません。"
@@ -311,7 +315,9 @@
     $("nextBtn").disabled = false;
     $("qChapter").textContent = r.chapter;
     $("qCount").textContent = qi + 1 + " / " + queue.length;
-    $("qYear").textContent = r.year;
+    $("qYear").textContent = C.dateValue(r);
+    $("qYearSuffix").textContent = C.dateSuffix(r);
+    $("qYear").parentElement.classList.toggle("period-date", !!r.dateLabel);
     $("qTitle").innerHTML = ds[r.era].ruby[r.name] || E(r.question);
     $("qInstruction").textContent =
       mode === "choice"
@@ -376,7 +382,7 @@
   }
   function cardHTML(r) {
     const done = got(r);
-    return `<button class="history-card ${done ? "done" : ""}" data-card="${E(r.id)}"><span class="card-top"><span class="card-year">${r.year}<small>年</small></span><span>${done ? "✓" : "？"}</span></span><div class="card-title"><span class="card-icon" aria-hidden="true">${r.icon}</span>${done ? r.titleHTML : ds[r.era].ruby[r.name] || E(r.question)}</div><span class="card-foot ${done ? "card-done" : ""}">${done ? "収集済み · 解説を読む" : E(r.chapter) + " · クイズに挑戦"}</span></button>`;
+    return `<button class="history-card ${done ? "done" : ""}" data-card="${E(r.id)}"><span class="card-top"><span class="card-year ${r.dateLabel ? "period-date" : ""}">${E(C.dateValue(r))}<small>${C.dateSuffix(r)}</small></span><span>${done ? "✓" : "？"}</span></span><div class="card-title"><span class="card-icon" aria-hidden="true">${r.icon}</span>${done ? r.titleHTML : ds[r.era].ruby[r.name] || E(r.question)}</div><span class="card-foot ${done ? "card-done" : ""}">${done ? "収集済み · 解説を読む" : E(r.chapter) + " · クイズに挑戦"}</span></button>`;
   }
   function renderCards() {
     $("collection").innerHTML = eraRecords().map(cardHTML).join("");
@@ -404,7 +410,7 @@
       .sort((a, b) => a.year - b.year)
       .map(
         (r) =>
-          `<div class="timeline-row"><span class="timeline-year">${r.year}</span><button data-detail="${E(r.id)}"><strong>${r.titleHTML}</strong><p>${E(r.text)}</p></button></div>`,
+          `<div class="timeline-row"><span class="timeline-year ${r.dateLabel ? "period-date" : ""}">${E(C.dateText(r))}</span><button data-detail="${E(r.id)}"><strong>${r.titleHTML}</strong><p>${E(r.text)}</p></button></div>`,
       )
       .join("");
   }
@@ -465,7 +471,7 @@
   function detail(r) {
     openDialog(
       "歴史カード",
-      `<div class="detail-year">${r.year}<small>年</small></div><span class="chip">${E(ds[r.era].title)} · ${E(r.chapter)}</span><h3 class="detail-title">${r.titleHTML}</h3><p class="detail-reading">こたえ：${E(r.answers.join("・"))}</p><p class="detail-text">${E(r.text)}</p>${r.source ? `<a href="${E(r.source)}" target="_blank" rel="noopener">資料で詳しく読む</a>` : ""}<div class="dialog-actions"><button class="primary" data-practice="${E(r.id)}">この問題に挑戦</button></div>`,
+      `<div class="detail-year ${r.dateLabel ? "period-date" : ""}">${E(C.dateValue(r))}<small>${C.dateSuffix(r)}</small></div><span class="chip">${E(ds[r.era].title)} · ${E(r.chapter)}</span><h3 class="detail-title">${r.titleHTML}</h3><p class="detail-reading">こたえ：${E(r.answers.join("・"))}</p><p class="detail-text">${E(r.text)}</p>${r.source ? `<a href="${E(r.source)}" target="_blank" rel="noopener">資料で詳しく読む</a>` : ""}<div class="dialog-actions"><button class="primary" data-practice="${E(r.id)}">この問題に挑戦</button></div>`,
     );
   }
   function shop(cat = "all") {

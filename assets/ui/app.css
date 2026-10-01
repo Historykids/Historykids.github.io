@@ -296,7 +296,7 @@ main {
 }
 .era-tabs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 28px;
 }
@@ -1732,3 +1732,11 @@ dialog::backdrop {
 #residentMapLayer { position: absolute; inset: 0; pointer-events: none; }
 .map-resident { position: absolute; left: 0; top: 0; font-size: 20px; line-height: 24px; white-space: nowrap; filter: drop-shadow(0 2px 1px #57472b66); translate: -50% -70%; z-index: 3; }
 @media(max-width:600px) { .resident-panel { padding: 14px; } .resident-heading { align-items: flex-start; } .resident-heading button { font-size: .75rem; padding: 8px; white-space: nowrap; } .resident-list { grid-template-columns: 1fr; } }
+
+/* Ten periods stay readable without squeezing the quiz or overflowing the page. */
+.question-year.period-date > span:first-child{font-size:clamp(1rem,2.6vw,1.45rem);line-height:1.5;overflow-wrap:anywhere}
+@media(max-width:1150px){.era-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.era-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.card-year.period-date,.timeline-year.period-date{font-size:1rem;line-height:1.6;overflow-wrap:anywhere;min-width:0}
+.detail-year.period-date{font-size:clamp(1.25rem,4vw,1.8rem);overflow-wrap:anywhere}

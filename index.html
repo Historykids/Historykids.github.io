@@ -29,14 +29,14 @@
       property="og:image"
       content="https://historykids.github.io/favicon-512x512.png"
     />
-    <link rel="stylesheet" href="./assets/ui/app.css" />
+    <link rel="stylesheet" href="./assets/ui/app.css?v=ancient-20261002" />
     <script type="importmap">
       { "imports": { "three": "./assets/vendor/three.module.js" } }
     </script>
-    <script defer src="./data/dataset.js"></script>
-    <script defer src="./assets/ui/core.js"></script>
+    <script defer src="./data/dataset.js"></script><script defer src="./data/ancient.js?v=ancient-20261002"></script>
+    <script defer src="./assets/ui/core.js?v=ancient-20261002"></script>
     <script defer src="./assets/ui/residents.js"></script>
-    <script defer src="./assets/ui/app.js"></script>
+    <script defer src="./assets/ui/app.js?v=ancient-20261002"></script>
     <script type="module" src="./assets/ui/town.js"></script>
   </head>
   <body>
@@ -125,7 +125,7 @@
                   ><span id="qCount">1 / 26</span>
                 </div>
                 <div class="question-year">
-                  <span id="qYear">1603</span><small>年</small
+                  <span id="qYear">1603</span><small id="qYearSuffix">年</small
                   ><span class="year-line"></span>
                 </div>
                 <h3 id="qTitle">〇〇幕府がはじまる</h3>

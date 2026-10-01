@@ -30,7 +30,7 @@ function create(page, scripts, seed = {}) {
   for (const [k, v] of Object.entries(seed)) w.localStorage.setItem(k, v);
   const loaded = scripts.slice();
   if (loaded.includes("assets/ui/app.js") && !loaded.includes("assets/ui/residents.js")) loaded.splice(loaded.indexOf("assets/ui/app.js"), 0, "assets/ui/residents.js");
-  for (const file of loaded) w.eval(read(file));
+  for (const file of loaded) { w.eval(read(file)); if (file === "data/dataset.js") w.eval(read("data/ancient.js")); }
   return dom;
 }
 const click = (w, selector) => {
@@ -65,8 +65,8 @@ const dom = create("index.html", [
   ]),
   w = dom.window,
   $ = (id) => w.document.getElementById(id);
-test("all 94 questions have answers and valid display names", () => {
-  assert.equal(w.HK.records.length, 94);
+test("all 202 questions have answers and valid display names", () => {
+  assert.equal(w.HK.records.length, 202);
   for (const r of w.HK.records) {
     assert(r.answers.length);
     assert(!r.title.includes("undefined"));
@@ -74,7 +74,7 @@ test("all 94 questions have answers and valid display names", () => {
     assert.equal(Number(r.name.split(" ")[0]), r.year);
   }
 });
-test("all 94 questions offer four unique choices with matching character counts", () => {
+test("all 202 questions offer four unique choices with matching character counts", () => {
   for (const r of w.HK.records) {
     const choices = C.choiceAnswers(r, w.HK.records);
     assert.equal(choices.length, 4, r.id);
@@ -242,7 +242,7 @@ test("missing storage displays warning without preventing learning", () => {
     "assets/ui/core.js",
     "assets/ui/app.js",
   ])
-    nw.eval(read(file));
+    { nw.eval(read(file)); if (file === "data/dataset.js") nw.eval(read("data/ancient.js")); }
   assert(!nw.document.getElementById("saveWarning").hidden);
   assert(nw.document.querySelector('[data-answer="えど"]'));
   next.window.close();

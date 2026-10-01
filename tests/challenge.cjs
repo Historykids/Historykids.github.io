@@ -4,7 +4,7 @@ function test(name, run) { run(); checks++; console.log('PASS', name); }
 function page(config = {}) {
   const dom = new JSDOM(fs.readFileSync(path.join(root,'buzzer.html'),'utf8'), { url:'https://historykids.github.io/buzzer.html',runScripts:'outside-only',pretendToBeVisual:true });
   const w=dom.window;let now=0;w.HTMLElement.prototype.scrollIntoView=function(){};Object.defineProperty(w.performance,'now',{value:()=>now});w.setInterval=()=>1;w.clearInterval=()=>{};
-  for(const file of ['data/dataset.js','assets/ui/core.js','assets/ui/challenge.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));
+  for(const file of ['data/dataset.js','data/ancient.js','assets/ui/core.js','assets/ui/challenge.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));
   const $=id=>w.document.getElementById(id),click=s=>{const e=w.document.querySelector(s);assert(e,s);e.click();};
   if(config.game)click(`[data-game="${config.game}"]`);if(config.answers) $('answerMode').value=config.answers;
   if(config.scope) $('mix').value=config.scope;

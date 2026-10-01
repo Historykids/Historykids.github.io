@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>歴史の早押し決戦｜歴史キッズ</title><meta name="description" content="早押しボタンで日本史に挑戦！10問決戦、60秒ラッシュ、3命サバイバル。難しい4択と入力、コンボ、成績と復習。"><meta name="theme-color" content="#142b40">
-  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/app.css"><link rel="stylesheet" href="./assets/ui/subpages.css"><link rel="stylesheet" href="./assets/ui/challenge.css?v=20261002-2">
-  <script defer src="./data/dataset.js"></script><script defer src="./assets/ui/core.js"></script><script defer src="./assets/ui/cloud.js"></script><script defer src="./assets/ui/challenge.js"></script>
+  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/app.css?v=ancient-20261002"><link rel="stylesheet" href="./assets/ui/subpages.css"><link rel="stylesheet" href="./assets/ui/challenge.css?v=20261002-2">
+  <script defer src="./data/dataset.js"></script><script defer src="./data/ancient.js?v=ancient-20261002"></script><script defer src="./assets/ui/core.js?v=ancient-20261002"></script><script defer src="./assets/ui/cloud.js"></script><script defer src="./assets/ui/challenge.js?v=ancient-20261002"></script>
 </head>
 <body class="subpage challenge-page">
 <header class="sub-header"><a href="./" class="sub-brand">歴史キッズ</a><nav aria-label="ゲームメニュー"><a href="./#games">学習に戻る</a><a href="./ranking.html">ランキング</a><button id="soundBtn" aria-pressed="false">音 OFF</button><button id="fullscreenBtn" aria-label="全画面にする">全画面</button></nav></header>
@@ -19,7 +19,7 @@
     <div class="setup-panel"><div class="filters">
       <label>期間<select id="period"><option value="daily">きょうの問題</option><option value="weekly">今週の問題</option></select></label>
       <label>出題範囲<select id="mix"><option value="allchap">時代を選ぶ</option><option value="allera">全時代ミックス</option></select></label>
-      <label id="eraWrap">時代<select id="era"><option value="edo">江戸時代</option><option value="kamakura">鎌倉時代</option><option value="muromachi">室町時代</option><option value="sengoku">戦国時代</option></select></label>
+      <label id="eraWrap">時代<select id="era"><option value="jomon">縄文時代</option><option value="yayoi">弥生時代</option><option value="kofun">古墳時代</option><option value="asuka">飛鳥時代</option><option value="nara">奈良時代</option><option value="heian">平安時代</option><option value="edo" selected>江戸時代</option><option value="kamakura">鎌倉時代</option><option value="muromachi">室町時代</option><option value="sengoku">戦国時代</option></select></label>
       <label>答え方<select id="answerMode"><option value="choice">難しい4択</option><option value="type">ひらがな入力</option></select></label>
     </div><div class="setup-bottom"><div><p id="modeRule">10問を解こう。間違いは5秒のペナルティ。全問正解でランキングに参加できます。</p><p id="personalBest" class="muted small"></p></div><button id="startBtn" class="primary start-game">決戦をはじめる <span aria-hidden="true">→</span></button></div></div>
     <div class="how-to"><span><b>1</b> 問題が少しずつ出る</span><span><b>2</b> わかったら早押し！</span><span><b>3</b> 答えてコンボをつなぐ</span><small>PC：Spaceで早押し · 1〜4で選択 · Enterで次へ</small></div>

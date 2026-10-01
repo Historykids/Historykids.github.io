@@ -10,7 +10,7 @@
   let game = "sprint", run = null, qi = 0, clock = null, resultMs = 0, composing = false, audio = null, sound = false;
   const pool = [];
   for (const [era, data] of Object.entries(window.dataSets)) for (const [chapter, questions] of Object.entries(data.chapters))
-    for (const [name, entry] of Object.entries(questions)) pool.push({ ...entry, era, chapter, name, id: era + "|" + name, answers: data.blanks[name], prompt: entry.year + "年、" + name.replace(/^\d+\s/, "") });
+    for (const [name, entry] of Object.entries(questions)) pool.push({ ...entry, era, chapter, name, id: era + "|" + name, answers: data.blanks[name], prompt: C.dateText(entry) + "、" + C.questionText(name) });
   function settings() {
     const period = $("period").value, mode = $("mix").value, era = mode === "allera" ? "ALL" : $("era").value, answerMode = $("answerMode").value, key = C.periodKey(period);
     return { period, mode, era, answerMode, game, key, group: "v3_" + mode + "_" + era + "_" + answerMode, scoreKey: "hk_best_v3_" + period + "_" + key + "_" + mode + "_" + era + "_" + game + "_" + answerMode };

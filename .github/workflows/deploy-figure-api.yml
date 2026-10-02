@@ -21,6 +21,16 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
+      - name: Ensure a workers.dev address is available
+        env:
+          CF_DEPLOY_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_DEPLOY_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          node --input-type=module <<'JS'
+          import {ensureSubdomain} from './server/figure-api/ensure-subdomain.mjs';
+          const status = await ensureSubdomain({account:process.env.CF_DEPLOY_ACCOUNT,token:process.env.CF_DEPLOY_TOKEN,repository:process.env.GITHUB_REPOSITORY});
+          console.log('workers.dev address: ' + status);
+          JS
       - name: Deploy Workers AI server
         id: deploy
         uses: cloudflare/wrangler-action@v4

@@ -257,7 +257,7 @@ test("challenge works without Firebase and locks settings during countdown", () 
   click(cw, "#startBtn");
   assert.equal(cw.HKChallenge.run.qs.length, 10);
   assert.equal(cw.HKChallenge.run.phase, "countdown");
-  assert(cw.document.getElementById("era").disabled);
+  assert(cw.document.querySelector("[data-game]").disabled);
 });
 test("ten buzzer answers finish, prevent double advance and save best", () => {
   let now = cw.HKChallenge.run.start + 10;
@@ -361,6 +361,7 @@ console.log(checks + " checks passed.");
       },
     }),
   };
+  rw.document.getElementById("edition").value="v3";
   rw.eval(read("assets/ui/ranking.js"));
   await new Promise((resolve) => setImmediate(resolve));
   test("weekly leaderboard shares the challenge week key", () => {

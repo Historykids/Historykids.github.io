@@ -6,11 +6,11 @@
     <title>早押しランキング｜歴史キッズ</title>
     <meta name="theme-color" content="#172f45" />
     <link rel="icon" href="./favicon.ico" />
-    <link rel="stylesheet" href="./assets/ui/app.css?v=ancient-20261002" />
+    <link rel="stylesheet" href="./assets/ui/app.css?v=api-20261002" />
     <link rel="stylesheet" href="./assets/ui/subpages.css" />
-    <script defer src="./assets/ui/core.js?v=ancient-20261002"></script>
+    <script defer src="./assets/ui/core.js?v=api-20261002"></script>
     <script defer src="./assets/ui/cloud.js"></script>
-    <script defer src="./assets/ui/ranking.js"></script>
+    <script defer src="./assets/ui/ranking.js?v=api-20261002"></script>
   </head>
   <body class="subpage">
     <header class="sub-header">
@@ -18,21 +18,21 @@
       <nav aria-label="ゲームメニュー">
         <a href="./#games">学習に戻る</a
         ><a href="./buzzer.html">早押しに挑戦</a>
-      </nav>
+      <a href="./howto.html">遊び方</a></nav>
     </header>
     <main class="sub-main">
       <p class="eyebrow">HISTORY LEADERBOARD</p>
       <h1>早押しランキング</h1>
       <p class="muted sub-intro">
-        新・早押し決戦は10問全問正解のタイムで競います。4択・入力・従来の記録は別々に表示します。
+        全期間・全時代ミックス・4択の10問全問正解で競います。以前の記録もルールを切り替えると見られます。
       </p>
       <section class="rank-panel" aria-label="ランキングの条件">
-        <div class="filters">
-          <label>ルール<select id="edition"><option value="v3">新・早押し決戦</option><option value="v2">従来の早押し</option></select></label>
+        <p id="rankRule" class="chip">全期間 · 全時代ミックス · 4択</p><div class="filters">
+          <label>ルール<select id="edition"><option value="v4">全期間・統一ルール</option><option value="v3">以前の早押し決戦</option><option value="v2">従来の早押し</option></select></label>
           <label id="answerModeWrap">答え方<select id="answerMode"><option value="choice">難しい4択</option><option value="type">ひらがな入力</option></select></label>
           <label
             >期間<select id="period">
-              <option value="daily">きょう</option>
+              <option value="alltime">全期間</option><option value="daily">きょう</option>
               <option value="weekly">今週</option>
             </select></label
           ><label

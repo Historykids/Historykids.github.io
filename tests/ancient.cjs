@@ -36,13 +36,14 @@ test('books and timelines show all eighteen cards and never turn approximate dat
   for(const era of eras){p.click(`[data-era="${era}"]`);p.click('[data-view="book"]');assert.equal(p.$('bookGrid').querySelectorAll('[data-card]').length,18);assert.equal(p.$('chapterFilter').options.length,4);p.click('[data-view="timeline"]');assert.equal(p.$('timeline').querySelectorAll('.timeline-row').length,18);assert(!p.$('timeline').textContent.match(/-10000|-300|縄文時代年|弥生時代年|古墳時代年/));p.click('[data-view="learn"]');assert(!p.$('qTitle').textContent.match(/^-?\d+ /));if(p.w.HK.records.filter(r=>r.era===era).sort((a,b)=>a.year-b.year)[0].dateLabel)assert.equal(p.$('qYearSuffix').textContent,'');}
   p.dom.window.close();
 });
-test('all six eras finish a ten-question buzzer game with matching choices and separate rankings',()=>{
-  for(const era of eras){const p=page('buzzer.html');p.$('era').value=era;p.click('#startBtn');p.time(3000);assert.equal(p.w.HKChallenge.run.qs.length,10);assert.equal(p.w.HKChallenge.run.group,`v3_allchap_${era}_choice`);
-    for(let i=0;i<10;i++){p.click('#buzzBtn');const q=p.w.HKChallenge.run.qs[p.w.HKChallenge.qi];assert.equal(q.era,era);assert(!q.prompt.match(/-10000|-300|時代年/));const choices=[...p.$('challengeChoices').querySelectorAll('button')];assert.equal(choices.length,4);assert.equal(new Set(choices.map(b=>Array.from(b.dataset.choice).length)).size,1);choices.find(b=>p.w.HKCore.answerOK(b.dataset.choice,q.answers)).click();if(i<9)p.click('#nextBtn');}
-    assert.equal(p.w.HKChallenge.run.correct,10);assert.equal(p.w.HKChallenge.run.phase,'finished');assert.equal(p.$('resultReview').querySelectorAll('details').length,10);p.dom.window.close();}
+test('the unified buzzer includes all six new eras and finishes ten mixed four-choice questions',()=>{
+ const p=page('buzzer.html');p.click('#startBtn');p.time(3000);assert.equal(p.w.HKChallenge.run.group,'v4_allera_ALL_choice');
+ for(const era of eras)assert(p.w.HKChallenge.run.qs.some(q=>q.era===era));
+ for(let i=0;i<10;i++){p.click('#buzzBtn');const q=p.w.HKChallenge.run.qs[p.w.HKChallenge.qi];assert(!q.prompt.match(/-10000|-300|時代年/));const choices=[...p.$('challengeChoices').querySelectorAll('button')];assert.equal(choices.length,4);assert.equal(new Set(choices.map(b=>Array.from(b.dataset.choice).length)).size,1);choices.find(b=>p.w.HKCore.answerOK(b.dataset.choice,q.answers)).click();if(i<9)p.click('#nextBtn');}
+ assert.equal(p.w.HKChallenge.run.correct,10);assert.equal(p.w.HKChallenge.run.phase,'finished');assert.equal(p.$('resultReview').querySelectorAll('details').length,10);p.dom.window.close();
 });
 test('all-era rush includes the new periods and historic date formatting preserves BCE and approximate labels',()=>{
-  const p=page('buzzer.html');p.$('mix').value='allera';p.click('[data-game="rush"]');p.click('#startBtn');p.time(3000);
+  const p=page('buzzer.html');p.click('[data-game="rush"]');p.click('#startBtn');p.time(3000);
   for(const era of eras)assert(p.w.HKChallenge.run.qs.some(q=>q.era===era));assert.equal(p.w.HKCore.dateText({year:-900}),'紀元前900年');assert.equal(p.w.HKCore.dateText({year:1008,dateLabel:'11世紀初め'}),'11世紀初め');assert.equal(p.w.HKCore.questionText('-10000 〇〇を使う'),'〇〇を使う');p.dom.window.close();
   const d=new JSDOM(read('ranking.html'));for(const era of eras)assert(d.window.document.querySelector(`#era option[value="${era}"]`));d.window.close();
 });

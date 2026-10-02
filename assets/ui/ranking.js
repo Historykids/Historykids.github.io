@@ -14,6 +14,11 @@
     $("tbody").append(tr);
   }
   async function load() {
+    const current = $("edition").value === "v4";
+    if(current){$("period").value="alltime";$("mode").value="allera";$("answerMode").value="choice";}
+    else if($("period").value==="alltime")$("period").value="daily";
+    for(const id of ["period","mode","era","answerMode"])$(id).closest("label").hidden=current;
+    $("rankRule").hidden=!current;
     const rev = ++revision,
       period = $("period").value,
       mode = $("mode").value,
@@ -21,15 +26,15 @@
       key = C.periodKey(period),
       edition = $("edition").value,
       answers = $("answerMode").value,
-      group = (edition === "v3" ? "v3_" : "") + mode + "_" + era + (edition === "v3" ? "_" + answers : "");
-    $("answerModeWrap").hidden = edition !== "v3";
-    $("eraWrap").hidden = mode === "allera";
+      group = (edition === "v4" ? "v4_" : edition === "v3" ? "v3_" : "") + mode + "_" + era + (edition !== "v2" ? "_" + answers : "");
+    $("answerModeWrap").hidden = current || edition === "v2";
+    $("eraWrap").hidden = current || mode === "allera";
     $("key").textContent = " " + key;
     let best = 0;
     try {
-      const storageKey = edition === "v3" ? "hk_best_v3_" + period + "_" + key + "_" + mode + "_" + era + "_sprint_" + answers : "hk_best_v2_" + period + "_" + key + "_" + mode + "_" + era;
+      const storageKey = edition !== "v2" ? "hk_best_" + edition + "_" + period + "_" + key + "_" + mode + "_" + era + "_sprint_" + answers : "hk_best_v2_" + period + "_" + key + "_" + mode + "_" + era;
       const record = JSON.parse(localStorage.getItem(storageKey) || "null");
-      best = edition === "v3" ? (record?.correct === 10 ? Number(record.ms) || 0 : 0) : Number(record) || 0;
+      best = edition !== "v2" ? (record?.correct === 10 ? Number(record.ms) || 0 : 0) : Number(record) || 0;
     } catch {}
     $("personal").textContent = best
       ? (best / 1000).toFixed(2) + "秒"
@@ -84,7 +89,7 @@
         $("tbody").append(tr);
       });
       if (!i) message("まだ記録がないよ。最初の挑戦をしてみよう！");
-      $("rankStatus").textContent = "日本時間の期間で表示しています。";
+      $("rankStatus").textContent = current?"全期間・全時代ミックス・4択の自己ベストで競います。":"日本時間の期間で表示しています。";
     } catch (e) {
       if (rev !== revision) return;
       message("みんなの記録を読み込めませんでした。");

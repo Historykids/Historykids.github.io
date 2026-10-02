@@ -1,0 +1,52 @@
+name: Deploy historical AI API
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: historykids-figure-api
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Deploy Workers AI server
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: server/figure-api
+          command: deploy
+      - name: Verify and connect the public site
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const base = new URL(process.env.DEPLOYMENT_URL);
+          if (base.protocol !== 'https:' || !base.hostname.endsWith('.workers.dev')) throw Error('Unexpected deployment URL');
+          const result = await fetch(new URL('/health', base), {signal: AbortSignal.timeout(15000)});
+          if (!result.ok || (await result.json()).ready !== true) throw Error('API is not ready');
+          fs.writeFileSync('assets/ui/ai-config.js', '// Public API URL only. Never place an API key here.\nwindow.HKAIConfig = Object.freeze(' + JSON.stringify({endpoint:new URL('/chat',base).href}) + ');\n');
+          const html = fs.readFileSync('figures.html', 'utf8').replace(/src="\.\/assets\/ui\/ai-config\.js[^"]*"/, 'src="./assets/ui/ai-config.js?v=' + Date.now() + '"');
+          fs.writeFileSync('figures.html', html);
+          JS
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/ui/ai-config.js figures.html
+          if ! git diff --cached --quiet; then
+            git commit -m 'Connect the deployed historical AI API'
+            git push origin HEAD:main
+          fi
+      - name: Rebuild GitHub Pages with the API connection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds"

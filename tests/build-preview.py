@@ -23,7 +23,7 @@ town=town.replace('import { createFarmerView } from "./farmer-3d.js";', farmer)
 logic.append('<script type="module">\n'+town+'\n</script>')
 s=s.replace('</body>','\n'+'\n'.join(logic)+'\n</body>')
 # Only unchanged public-page links and images leave the preview.
-for file in ['buzzer.html','ranking.html','edogames.html','arcade.html','figures.html','Credits.html','favicon.ico','favicon-180x180.png','manifest.webmanifest','かわいい青いクジラ.png']:
+for file in ['buzzer.html','ranking.html','edogames.html','arcade.html','figures.html','howto.html','Credits.html','favicon.ico','favicon-180x180.png','manifest.webmanifest','かわいい青いクジラ.png']:
  s=s.replace('./'+file,'https://historykids.github.io/'+file)
 s=s.replace('href="./"','href="#learn"')
 # The file:// storage API differs by browser; the actual app handles denied storage.

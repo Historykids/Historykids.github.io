@@ -184,7 +184,7 @@ small {
   display: grid;
   gap: 8px;
 }
-.nav button {
+.nav :is(button,a) {
   text-align: left;
   border: 0;
   background: none;
@@ -195,16 +195,16 @@ small {
   padding: 13px 16px;
   font-size: 0.9375rem;
 }
-.nav button span {
+.nav :is(button,a) span {
   font-size: 1.3rem;
   width: 24px;
   text-align: center;
 }
-.nav button:hover {
+.nav :is(button,a):hover {
   background: #254358;
   color: white;
 }
-.nav button.active {
+.nav :is(button,a).active {
   background: #fff0e7;
   color: #ac4119;
 }
@@ -1196,7 +1196,7 @@ dialog::backdrop {
     font-size: 1.15rem;
     gap: 9px;
   }
-  .nav button {
+  .nav :is(button,a) {
     font-size: 0.875rem;
     gap: 10px;
   }
@@ -1249,14 +1249,14 @@ dialog::backdrop {
   .nav {
     margin-top: 36px;
   }
-  .nav button {
+  .nav :is(button,a) {
     font-size: 0;
     display: grid;
     place-items: center;
     padding: 12px 0;
     gap: 0;
   }
-  .nav button span {
+  .nav :is(button,a) span {
     font-size: 1.5rem;
   }
   .app-shell {
@@ -1327,11 +1327,11 @@ dialog::backdrop {
   .nav {
     margin: 0;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 3px;
     height: 100%;
   }
-  .nav button {
+  .nav :is(button,a) {
     padding: 6px 2px;
     font-size: 0.625rem;
     color: #607485;
@@ -1345,12 +1345,12 @@ dialog::backdrop {
     min-height: 60px;
     border-radius: 6px;
   }
-  .nav button span {
+  .nav :is(button,a) span {
     font-size: 1.45rem;
     line-height: 1.25;
     margin-bottom: 5px;
   }
-  .nav button.active {
+  .nav :is(button,a).active {
     color: #b04720;
     background: #fff1e9;
   }
@@ -1644,10 +1644,10 @@ dialog::backdrop {
   }
 }
 @media (max-width: 700px) {
-  .nav button {
+  .nav :is(button,a) {
     font-size: 0;
   }
-  .nav button:after {
+  .nav :is(button,a):after {
     content: attr(data-short);
     font-size: 0.75rem;
   }
@@ -1740,3 +1740,5 @@ dialog::backdrop {
 
 .card-year.period-date,.timeline-year.period-date{font-size:1rem;line-height:1.6;overflow-wrap:anywhere;min-width:0}
 .detail-year.period-date{font-size:clamp(1.25rem,4vw,1.8rem);overflow-wrap:anywhere}
+
+.nav a{text-decoration:none}

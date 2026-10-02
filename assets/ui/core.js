@@ -66,7 +66,7 @@
     );
   }
   function periodKey(period, d) {
-    return period === "weekly" ? weekKey(d) : dayKey(d);
+    return period === "alltime" ? "ALL" : period === "weekly" ? weekKey(d) : dayKey(d);
   }
   function seededPick(a, n, seed) {
     let s = 0;

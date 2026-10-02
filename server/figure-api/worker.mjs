@@ -1,16 +1,13 @@
 import "../../assets/ui/figure-data.js";
-import {rankingRequest} from './ranking.mjs';
-export {HistoryLeaderboard} from './ranking.mjs';
 const people=globalThis.HKFigurePeople;
 const allowedOrigin="https://historykids.github.io";
-function reply(body,status=200,origin=allowedOrigin){return Response.json(body,{status,headers:{"Access-Control-Allow-Origin":origin,"Access-Control-Allow-Methods":"GET, POST, OPTIONS","Access-Control-Allow-Headers":"Content-Type, Authorization","Cache-Control":"no-store","Vary":"Origin","X-Content-Type-Options":"nosniff"}});}
+function reply(body,status=200,origin=allowedOrigin){return Response.json(body,{status,headers:{"Access-Control-Allow-Origin":origin,"Access-Control-Allow-Methods":"GET, POST, OPTIONS","Access-Control-Allow-Headers":"Content-Type","Cache-Control":"no-store","Vary":"Origin","X-Content-Type-Options":"nosniff"}});}
 export default {
  async fetch(request,env){
   const url=new URL(request.url),origin=request.headers.get("Origin");
   if(origin&&origin!==allowedOrigin)return reply({error:"origin-not-allowed"},403,"");
-  if(url.pathname==="/health"&&request.method==="GET")return reply({ready:!!env.AI&&!!env.AI_LIMITER&&!!env.GLOBAL_LIMITER,rankingReady:!!env.LEADERBOARD&&!!env.RANK_READ_LIMITER&&!!env.RANK_WRITE_LIMITER&&!!env.RANK_GLOBAL_LIMITER});
+  if(url.pathname==="/health"&&request.method==="GET")return reply({ready:!!env.AI&&!!env.AI_LIMITER&&!!env.GLOBAL_LIMITER});
   if(!origin)return reply({error:"origin-required"},403,"");
-  if(url.pathname.startsWith('/ranking'))return rankingRequest(request,env,reply);
   if(url.pathname!=="/chat")return reply({error:"not-found"},404);
   if(request.method==="OPTIONS")return reply({ok:true});
   if(request.method!=="POST")return reply({error:"method-not-allowed"},405);
@@ -33,3 +30,4 @@ export default {
   }catch{return reply({error:"generation-unavailable"},503);}finally{clearTimeout(timer);}
  }
 };
+

@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/workflows/deploy-figure-api.yml', 'server/figure-api/**', 'assets/ui/figure-data.js']
+    paths: ['.github/workflows/deploy-figure-api.yml']
 permissions:
   contents: write
   pages: write
@@ -31,8 +31,6 @@ jobs:
           const status = await ensureSubdomain({account:process.env.CF_DEPLOY_ACCOUNT,token:process.env.CF_DEPLOY_TOKEN,repository:process.env.GITHUB_REPOSITORY});
           console.log('workers.dev address: ' + status);
           JS
-      - name: Check ranking ownership, answers and persistent storage
-        run: node tests/ranking-api.cjs
       - name: Deploy Workers AI server
         id: deploy
         uses: cloudflare/wrangler-action@v4
@@ -61,10 +59,6 @@ jobs:
             if (attempt < 12) await new Promise(resolve => setTimeout(resolve, 10000));
           }
           if (!ready) throw Error('API is not ready after waiting for HTTPS provisioning');
-          const ranking = await fetch(new URL('/ranking', base), {headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
-          const board = await ranking.json();
-          if (!ranking.ok || !Array.isArray(board.entries)) throw Error('Ranking storage check failed: HTTP ' + ranking.status);
-          console.log('Ranking storage check passed');
           const chat = await fetch(new URL('/chat', base), {method:'POST', headers:{'Content-Type':'application/json', Origin:'https://historykids.github.io'}, body:JSON.stringify({person:'nobunaga',messages:[{role:'user',content:'楽市楽座を一文で教えて'}]}), signal:AbortSignal.timeout(60000)});
           const reply = await chat.json();
           if (!chat.ok || typeof reply.answer !== 'string' || !reply.answer.trim()) throw Error('AI response check failed: HTTP ' + chat.status);
@@ -84,3 +78,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds"
+

@@ -1,0 +1,64 @@
+name: Deploy ranking API
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js']
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: historykids-ranking-api
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Check answers, ownership, retry and durable storage
+        run: node tests/ranking-api.cjs
+      - name: Deploy ranking storage
+        id: deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: server/ranking-api
+          wranglerVersion: '4.147.0'
+          command: deploy
+      - name: Verify the board and connect the public site
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const base = new URL(process.env.DEPLOYMENT_URL);
+          if (base.protocol !== 'https:' || !base.hostname.endsWith('.workers.dev')) throw Error('Unexpected deployment URL');
+          let ready=false;
+          for(let attempt=1;attempt<=12;attempt++) {
+            try {const response=await fetch(new URL('/ranking',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});const data=await response.json();ready=response.ok&&Array.isArray(data.entries);}catch{}
+            if(ready)break;
+            console.log('Waiting for ranking HTTPS endpoint: attempt '+attempt);
+            if(attempt<12)await new Promise(resolve=>setTimeout(resolve,10000));
+          }
+          if(!ready)throw Error('Ranking storage did not become available');
+          fs.writeFileSync('assets/ui/ranking-config.js','// Public URL only. Never place credentials here.\nwindow.HKRankingConfig=Object.freeze('+JSON.stringify({endpoint:new URL('/ranking',base).href})+');\n');
+          console.log('Ranking storage check passed');
+          JS
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/ui/ranking-config.js
+          if ! git diff --cached --quiet; then
+            git commit -m 'Connect the deployed ranking API'
+            git push origin HEAD:main
+          fi
+      - name: Rebuild GitHub Pages with the ranking connection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds"

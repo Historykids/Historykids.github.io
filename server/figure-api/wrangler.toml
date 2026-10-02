@@ -16,38 +16,10 @@ namespace_id = "1001"
 limit = 30
 period = 60
 
-[[durable_objects.bindings]]
-name = "LEADERBOARD"
-class_name = "HistoryLeaderboard"
-
-[[migrations]]
-tag = "ranking-v1"
-new_sqlite_classes = ["HistoryLeaderboard"]
-
-[[ratelimits]]
-name = "RANK_READ_LIMITER"
-namespace_id = "1003"
-[ratelimits.simple]
-limit = 60
-period = 60
-
-[[ratelimits]]
-name = "RANK_WRITE_LIMITER"
-namespace_id = "1004"
-[ratelimits.simple]
-limit = 60
-period = 60
-
-[[ratelimits]]
-name = "RANK_GLOBAL_LIMITER"
-namespace_id = "1005"
-[ratelimits.simple]
-limit = 600
-period = 60
-
 [[ratelimits]]
 name = "GLOBAL_LIMITER"
 namespace_id = "1002"
 [ratelimits.simple]
 limit = 120
 period = 60
+

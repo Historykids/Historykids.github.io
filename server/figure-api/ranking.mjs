@@ -7,7 +7,7 @@ const randomIndex=length=>crypto.getRandomValues(new Uint32Array(1))[0]%length;
 function pick(){const selected=C.eraOrder.map(era=>{const pool=questions.filter(q=>q.era===era);return pool[randomIndex(pool.length)].id;});for(let i=selected.length-1;i>0;i--){const j=randomIndex(i+1);[selected[i],selected[j]]=[selected[j],selected[i]];}return selected;}
 function fail(code,status=400){return Response.json({error:code},{status});}
 export class HistoryLeaderboard {
- constructor(ctx){this.ctx=ctx;this.sql=ctx.storage.sql;this.sql.exec(`CREATE TABLE IF NOT EXISTS scores(id TEXT PRIMARY KEY,name TEXT NOT NULL,ms INTEGER NOT NULL,timestamp INTEGER NOT NULL); CREATE INDEX IF NOT EXISTS scores_time ON scores(ms,id); CREATE TABLE IF NOT EXISTS challenges(owner TEXT PRIMARY KEY,ticket TEXT NOT NULL,started INTEGER NOT NULL,ids TEXT NOT NULL); CREATE TABLE IF NOT EXISTS receipts(owner TEXT PRIMARY KEY,proof TEXT NOT NULL,ms INTEGER NOT NULL,timestamp INTEGER NOT NULL);`);}
+ constructor(ctx){this.ctx=ctx;this.sql=ctx.storage.sql;this.sql.exec(`CREATE TABLE IF NOT EXISTS scores(id TEXT PRIMARY KEY,name TEXT NOT NULL,ms INTEGER NOT NULL,timestamp INTEGER NOT NULL); CREATE INDEX IF NOT EXISTS scores_time ON scores(ms,id); CREATE TABLE IF NOT EXISTS challenges(owner TEXT PRIMARY KEY,ticket TEXT NOT NULL,started INTEGER NOT NULL,ids TEXT NOT NULL,result TEXT); CREATE TABLE IF NOT EXISTS receipts(owner TEXT PRIMARY KEY,proof TEXT NOT NULL,ms INTEGER NOT NULL,timestamp INTEGER NOT NULL);`);if(!this.sql.exec('PRAGMA table_info(challenges)').toArray().some(c=>c.name==='result'))this.sql.exec('ALTER TABLE challenges ADD COLUMN result TEXT');}
  async fetch(request){
   const url=new URL(request.url),data=await request.json(),owner=data.owner||'',now=Date.now();
   if(url.pathname==='/ranking'){
@@ -19,21 +19,21 @@ export class HistoryLeaderboard {
   if(url.pathname==='/ranking/start'){
    const ids=pick(),ticket=crypto.randomUUID(),started=now+3000;
    this.sql.exec('DELETE FROM challenges WHERE started<?',now-expiresAfter);
-   this.sql.exec('INSERT INTO challenges(owner,ticket,started,ids) VALUES(?,?,?,?) ON CONFLICT(owner) DO UPDATE SET ticket=excluded.ticket,started=excluded.started,ids=excluded.ids',owner,ticket,started,JSON.stringify(ids));
+   this.sql.exec('INSERT INTO challenges(owner,ticket,started,ids,result) VALUES(?,?,?,?,NULL) ON CONFLICT(owner) DO UPDATE SET ticket=excluded.ticket,started=excluded.started,ids=excluded.ids,result=NULL',owner,ticket,started,JSON.stringify(ids));
    return Response.json({ticket,ids});
   }
   if(url.pathname==='/ranking/finish'){
    const row=this.sql.exec('SELECT * FROM challenges WHERE owner=?',owner).toArray()[0];
    if(!row||row.ticket!==data.ticket||now-row.started>expiresAfter)return fail('challenge-expired',409);
+   if(row.result)return Response.json(JSON.parse(row.result));
    const ids=JSON.parse(row.ids),answers=data.answers;
    if(!Array.isArray(answers)||answers.length!==10||answers.some((a,i)=>a?.id!==ids[i]||typeof a.raw!=='string'||a.raw.length>160||!C.answerOK(a.raw,byId.get(ids[i]).answers)))return fail('not-perfect');
    // The server clock decides the published time. Client values cannot shorten it.
    const ms=now-row.started;if(ms<1000)return fail('too-fast');
-   this.sql.exec('DELETE FROM challenges WHERE owner=?',owner);
    const previous=this.sql.exec('SELECT proof,ms,timestamp FROM receipts WHERE owner=?',owner).toArray()[0];
-   if(previous&&previous.ms<=ms)return Response.json(previous);
+   if(previous&&previous.ms<=ms){const result={...previous,elapsedMs:ms};this.sql.exec('UPDATE challenges SET result=? WHERE owner=?',JSON.stringify(result),owner);return Response.json(result);}
    const proof=crypto.randomUUID();this.sql.exec('INSERT INTO receipts(owner,proof,ms,timestamp) VALUES(?,?,?,?) ON CONFLICT(owner) DO UPDATE SET proof=excluded.proof,ms=excluded.ms,timestamp=excluded.timestamp',owner,proof,ms,now);
-   return Response.json({proof,ms,timestamp:now});
+   const result={proof,ms,timestamp:now,elapsedMs:ms};this.sql.exec('UPDATE challenges SET result=? WHERE owner=?',JSON.stringify(result),owner);return Response.json(result);
   }
   if(url.pathname==='/ranking/register'){
    const name=cleanName(data.name);if(!name)return fail('nickname');

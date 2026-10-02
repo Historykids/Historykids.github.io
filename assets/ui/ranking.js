@@ -29,7 +29,7 @@
       group = (edition === "v4" ? "v4_" : edition === "v3" ? "v3_" : "") + mode + "_" + era + (edition !== "v2" ? "_" + answers : "");
     $("answerModeWrap").hidden = current || edition === "v2";
     $("eraWrap").hidden = current || mode === "allera";
-    $("key").textContent = " " + key;
+    $("key").textContent = current ? "全期間" : " " + key;
     let best = 0;
     try {
       const storageKey = edition !== "v2" ? "hk_best_" + edition + "_" + period + "_" + key + "_" + mode + "_" + era + "_sprint_" + answers : "hk_best_v2_" + period + "_" + key + "_" + mode + "_" + era;

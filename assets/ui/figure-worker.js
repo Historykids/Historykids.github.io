@@ -22,7 +22,7 @@ self.onmessage = async ({data}) => {
     } else if (data.type === "chat" && generator) {
       stopCriteria.reset();let output="";
       const streamer=new TextStreamer(generator.tokenizer,{skip_prompt:true,skip_special_tokens:true,callback_function:text=>{output+=text;self.postMessage({type:"token",id:data.id,text:output});}});
-      const result=await generator(data.messages,{max_new_tokens:220,do_sample:false,streamer,stopping_criteria:stopCriteria});
+      const result=await generator(data.messages,{max_new_tokens:140,do_sample:false,streamer,stopping_criteria:stopCriteria});
       const final=result[0]?.generated_text;
       self.postMessage({type:"done",id:data.id,text:Array.isArray(final)?final.at(-1).content:output});
     }

@@ -427,9 +427,10 @@
     document
       .querySelectorAll(".view")
       .forEach((el) => (el.hidden = el.id !== "view-" + v));
+    const navView = v === "book" ? "games" : v;
     document.querySelectorAll(".nav [data-view]").forEach((b) => {
-      b.classList.toggle("active", b.dataset.view === v);
-      if (b.dataset.view === v) b.setAttribute("aria-current", "page");
+      b.classList.toggle("active", b.dataset.view === navView);
+      if (b.dataset.view === navView) b.setAttribute("aria-current", "page");
       else b.removeAttribute("aria-current");
     });
     $("pageEyebrow").textContent = labels[v][0];

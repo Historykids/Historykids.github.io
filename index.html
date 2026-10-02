@@ -29,14 +29,14 @@
       property="og:image"
       content="https://historykids.github.io/favicon-512x512.png"
     />
-    <link rel="stylesheet" href="./assets/ui/app.css?v=nav-20261002" />
+    <link rel="stylesheet" href="./assets/ui/app.css?v=book-games-20261002" />
     <script type="importmap">
       { "imports": { "three": "./assets/vendor/three.module.js" } }
     </script>
     <script defer src="./data/dataset.js"></script><script defer src="./data/ancient.js?v=ancient-20261002"></script>
     <script defer src="./assets/ui/core.js?v=api-20261002"></script>
     <script defer src="./assets/ui/residents.js"></script>
-    <script defer src="./assets/ui/app.js?v=api-20261002"></script>
+    <script defer src="./assets/ui/app.js?v=book-games-20261002"></script>
     <script type="module" src="./assets/ui/town.js"></script>
   </head>
   <body>
@@ -50,9 +50,6 @@
       <nav class="nav" aria-label="メインメニュー">
         <button data-view="learn" data-short="クイズ" class="active">
           <span aria-hidden="true">✎</span>クイズで学ぶ
-        </button>
-        <button data-view="book" data-short="図鑑">
-          <span aria-hidden="true">▤</span>カード図鑑
         </button>
         <button data-view="timeline" data-short="年表">
           <span aria-hidden="true">◷</span>歴史の年表
@@ -221,6 +218,7 @@
           <div id="collection" class="card-grid"></div>
         </section>
         <section id="view-book" class="view" hidden>
+          <button type="button" class="text-button" data-view="games">← ゲームで遊ぶに戻る</button>
           <div class="section-heading">
             <h2>カード図鑑</h2>
             <span id="bookCount" class="muted"></span>
@@ -312,6 +310,13 @@
             <h2>ちょっとひと息、ゲームの時間。</h2>
           </div>
           <div class="game-grid">
+            <a class="game-card" href="#book">
+              <span class="game-icon" aria-hidden="true">▤</span>
+              <span class="section-label">HISTORY COLLECTION</span>
+              <h3>カード図鑑</h3>
+              <p>クイズで集めた歴史カードを見てみよう。<br />時代を選んで、出来事や解説を楽しめるよ。</p>
+              <span class="game-cta">図鑑を開く</span>
+            </a>
             <a class="game-card speed" href="./buzzer.html"
               ><span class="game-icon" aria-hidden="true">⚡</span
               ><span class="section-label">HISTORY CHALLENGE</span>

@@ -1327,7 +1327,7 @@ dialog::backdrop {
   .nav {
     margin: 0;
     display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 3px;
     height: 100%;
   }
@@ -1743,6 +1743,3 @@ dialog::backdrop {
 
 .nav a{text-decoration:none}
 
-@media (max-width: 400px) {
-  .nav :is(button,a):after { font-size: 0.625rem; }
-}

@@ -111,7 +111,7 @@ canvas{display:block;cursor:crosshair;}
 .stl{font-size:9px;letter-spacing:3px;color:#334;margin-top:2px;}
 .rsub{font-size:11px;color:#334;letter-spacing:2px;margin:8px 0 22px;}
 </style>
-<link rel="stylesheet" href="./assets/ui/game-fixes.css">
+<link rel="stylesheet" href="./assets/ui/game-fixes.css?v=play-20261002">
 </head>
 <body>
 <a class="game-back" href="./#games">歴史キッズに戻る</a>
@@ -126,7 +126,7 @@ canvas{display:block;cursor:crosshair;}
   <div class="game-cards">
     <div class="game-card">
       <div class="gc-icon">🔫</div>
-      <div class="gc-title">GRID WAR</div>
+      <div class="gc-title">GRID WAR</div><a class="btn y" href="./arcade.html?game=war">新・城下町決戦で遊ぶ</a>
       <div class="gc-desc">1v1 陣地FPS<br>相手を先にキルしろ</div>
       <div class="gc-btns">
         <button class="btn g" onclick="selectGame('fps','create')">[ 作成 ]</button>
@@ -135,7 +135,7 @@ canvas{display:block;cursor:crosshair;}
     </div>
     <div class="game-card">
       <div class="gc-icon">🃏</div>
-      <div class="gc-title">神経衰弱</div>
+      <div class="gc-title">神経衰弱</div><a class="btn y" href="./arcade.html?game=memory">ひとり・CPU・2人で遊ぶ</a>
       <div class="gc-desc">トランプ1v1<br>ペアを多く集めた方が勝ち</div>
       <div class="gc-btns">
         <button class="btn g" onclick="selectGame('memory','create')">[ 作成 ]</button>
@@ -507,7 +507,7 @@ function goHome(){
 var MEM_COLS=8, MEM_ROWS=6; // 48 cards = 24 pairs  (A-K of 2 suits ×2 = 26 pairs → use 24)
 var memCards=[], memFlipped=[], memMatched=[], memPending=[];
 var memMyScore=0, memEnScore=0, memMyTurn=false;
-var memBoardListener=null, memCanClick=true;
+var memBoardListener=null, memCanClick=true, memResolver=null, memResolveKey="";
 
 var SUITS = ['♠','♥','♦','♣'];
 var RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
@@ -532,13 +532,14 @@ function startMemory(){
   showScreen('s-memory');
   gel('mem-name-me').textContent = myName;
   gel('mem-name-en').textContent = enName;
+  clearTimeout(memResolver);memResolveKey='';memCanClick=true;
   memMyScore=0; memEnScore=0; memFlipped=[]; memMatched=[]; memPending=[];
   updateMemHUD();
 
   if(memBoardListener&&roomRef) roomRef.off('value',memBoardListener);
   memBoardListener = roomRef.on('value', function(snap){
     var d=snap.val(); if(!d) return;
-    if(d.winner&&gameActive){ endGame(d.winner===myRole); return; }
+
 
     var cards=[]; try{cards=JSON.parse(d.cards||'[]');}catch(e){}
     var matched=[]; try{matched=JSON.parse(d.matched||'[]');}catch(e){}
@@ -549,62 +550,56 @@ function startMemory(){
     memMyScore  = (myRole==='host'?d.host:d.guest).score||0;
     memEnScore  = (myRole==='host'?d.guest:d.host).score||0;
     memMyTurn   = (d.turn===myRole);
+    memCanClick = pending.length<2;
 
     renderMemBoard();
     updateMemHUD();
+    if(d.winner&&gameActive){ endGame(d.winner==='draw'?'draw':d.winner===myRole); return; }
 
     gel('mem-turn-me').textContent = memMyTurn?'あなたのターン':'相手のターン';
     gel('mem-turn-me').className   = 'mem-turn'+(memMyTurn?' active':'');
     gel('mem-status').textContent  = memMyTurn?'カードを選んでください':'相手が選んでいます...';
 
-    // if pending has 2 and it's our turn as resolver
     if(pending.length===2 && d.pendingOwner===myRole){
       memCanClick=false;
-      var a=pending[0], b=pending[1];
-      setTimeout(function(){
-        var match = memCards[a]===memCards[b];
-        var newMatched = matched.slice();
-        var newScore = {host:d.host.score||0, guest:d.guest.score||0};
-        if(match){
-          newMatched.push(a,b);
-          newScore[d.pendingOwner] = (newScore[d.pendingOwner]||0)+1;
-        }
-        var nextTurn = match ? d.pendingOwner : (d.pendingOwner==='host'?'guest':'host');
-        var updates = {
-          matched: JSON.stringify(newMatched),
-          flipped:  JSON.stringify([]),
-          pending:  JSON.stringify([]),
-          pendingOwner: '',
-          turn: nextTurn,
-          'host/score': newScore.host,
-          'guest/score': newScore.guest
-        };
-        // check if all matched
-        if(newMatched.length===memCards.length){
-          var winner;
-          if(newScore.host>newScore.guest) winner='host';
-          else if(newScore.guest>newScore.host) winner='guest';
-          else winner='draw';
-          updates.winner=winner; updates.status='finished';
-        }
-        roomRef.update(updates);
-        memCanClick=true;
-      }, 1000);
-    }
+      var key=d.cards+'|'+pending.join(',');
+      if(memResolveKey!==key){
+        clearTimeout(memResolver); memResolveKey=key;
+        var expectedCards=d.cards, first=pending[0], second=pending[1];
+        memResolver=setTimeout(function(){
+          if(!gameActive||!roomRef)return;
+          roomRef.transaction(function(room){
+            if(!room||room.status!=='playing'||room.cards!==expectedCards||room.pendingOwner!==myRole)return;
+            var pair=JSON.parse(room.pending||'[]');
+            if(pair.length!==2||pair[0]!==first||pair[1]!==second)return;
+            var deck=JSON.parse(room.cards), done=JSON.parse(room.matched||'[]');
+            var match=deck[first]===deck[second];
+            if(match){done.push(first,second);room[myRole].score=(room[myRole].score||0)+1;}
+            room.matched=JSON.stringify(done);room.flipped='[]';room.pending='[]';room.pendingOwner='';
+            room.turn=match?myRole:(myRole==='host'?'guest':'host');
+            if(done.length===deck.length){room.status='finished';room.winner=room.host.score===room.guest.score?'draw':room.host.score>room.guest.score?'host':'guest';}
+            return room;
+          });
+          memCanClick=true;
+        },1000);
+      }
+    } else { memCanClick=true; memResolveKey=''; }
+
   });
 }
 
 function renderMemBoard(){
   var board=gel('mem-board');
   board.innerHTML='';
-  board.style.gridTemplateColumns='repeat('+MEM_COLS+', 70px)';
+  board.style.gridTemplateColumns='repeat('+MEM_COLS+', minmax(0,1fr))';
 
   for(var i=0;i<memCards.length;i++){
-    var card=document.createElement('div');
-    card.className='mem-card';
+    var card=document.createElement('button');
+    card.type='button';card.className='mem-card';card.setAttribute('aria-label','裏向きのカード '+(i+1));
     var isFlipped = memFlipped.indexOf(i)>=0 || memPending.indexOf(i)>=0;
     var isMatched = memMatched.indexOf(i)>=0;
     if(isFlipped||isMatched) card.classList.add(isMatched?'matched':'flipped');
+    card.setAttribute('aria-label',isFlipped||isMatched?memCards[i]:'裏向きのカード '+(i+1));card.disabled=isMatched||!memMyTurn||!memCanClick;
 
     var val = memCards[i]||'';
     var suit = val[0]||'';
@@ -613,7 +608,7 @@ function renderMemBoard(){
     var front = document.createElement('div'); front.className='mc-front'; front.textContent='?';
     var back  = document.createElement('div'); back.className='mc-back';
     back.style.color = isRed?'#f86':'#c8d8e8';
-    back.innerHTML = '<div style="font-size:14px;line-height:1.2;text-align:center">'+val+'</div>';
+    var label=document.createElement('div');label.style.cssText='font-size:14px;line-height:1.2;text-align:center';label.textContent=val;back.appendChild(label);
     inner.appendChild(front); inner.appendChild(back); card.appendChild(inner);
 
     if(!isMatched){
@@ -629,23 +624,16 @@ function onMemCardClick(idx){
   if(memPending.indexOf(idx)>=0||memFlipped.indexOf(idx)>=0) return;
   if(memPending.length>=2) return;
 
-  var newPending = memPending.slice();
-  var newFlipped  = memFlipped.slice();
-  newPending.push(idx);
-  newFlipped.push(idx);
-
-  if(newPending.length===2){
-    roomRef.update({
-      pending: JSON.stringify(newPending),
-      flipped:  JSON.stringify(newFlipped),
-      pendingOwner: myRole
-    });
-  } else {
-    roomRef.update({
-      flipped:  JSON.stringify(newFlipped),
-      pending:  JSON.stringify(newPending)
-    });
-  }
+  roomRef.transaction(function(room){
+    if(!room||room.status!=='playing'||room.turn!==myRole)return;
+    var deck=JSON.parse(room.cards||'[]');
+    if(!Number.isInteger(idx)||idx<0||idx>=deck.length)return;
+    var matched=JSON.parse(room.matched||'[]'), pending=JSON.parse(room.pending||'[]');
+    if(matched.indexOf(idx)>=0||pending.indexOf(idx)>=0||pending.length>=2)return;
+    pending.push(idx);room.pending=JSON.stringify(pending);room.flipped=JSON.stringify(pending);
+    room.pendingOwner=pending.length===2?myRole:'';
+    return room;
+  });
 }
 
 function updateMemHUD(){
@@ -678,7 +666,7 @@ function startReflex(){
 
   rfxBoardListener = roomRef.on('value', function(snap){
     var d=snap.val(); if(!d) return;
-    if(d.winner&&gameActive){ endGame(d.winner===myRole); return; }
+    if(d.winner&&gameActive){ endGame(d.winner==='draw'?'draw':d.winner===myRole); return; }
     rfxMyScore  = (myRole==='host'?d.host:d.guest).score||0;
     rfxEnScore  = (myRole==='host'?d.guest:d.host).score||0;
     gel('rfx-sc-me').textContent=rfxMyScore;
@@ -1019,6 +1007,7 @@ function tryRematch(){
 }
 
 function cleanupListeners(){
+  clearTimeout(memResolver);memResolver=null;memResolveKey="";memCanClick=true;
   if(fpsEnListener&&enRef){enRef.off('value',fpsEnListener);fpsEnListener=null;}
   if(fpsWinListener&&roomRef){roomRef.child('winner').off('value',fpsWinListener);fpsWinListener=null;}
   if(memBoardListener&&roomRef){roomRef.off('value',memBoardListener);memBoardListener=null;}

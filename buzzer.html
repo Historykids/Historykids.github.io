@@ -4,7 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>歴史の早押し決戦｜歴史キッズ</title><meta name="description" content="早押しボタンで日本史に挑戦！10問決戦、60秒ラッシュ、3命サバイバル。難しい4択と入力、コンボ、成績と復習。"><meta name="theme-color" content="#142b40">
   <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/app.css?v=ancient-20261002"><link rel="stylesheet" href="./assets/ui/subpages.css"><link rel="stylesheet" href="./assets/ui/challenge.css?v=20261002-2">
-  <script defer src="./data/dataset.js"></script><script defer src="./data/ancient.js?v=ancient-20261002"></script><script defer src="./assets/ui/core.js?v=ancient-20261002"></script><script defer src="./assets/ui/cloud.js"></script><script defer src="./assets/ui/challenge.js?v=ancient-20261002"></script>
+  <script defer src="./data/dataset.js"></script><script defer src="./data/ancient.js?v=ancient-20261002"></script><script defer src="./assets/ui/core.js?v=ancient-20261002"></script><script defer src="./assets/ui/cloud.js"></script><script defer src="./assets/ui/challenge.js?v=play-20261002"></script>
 </head>
 <body class="subpage challenge-page">
 <header class="sub-header"><a href="./" class="sub-brand">歴史キッズ</a><nav aria-label="ゲームメニュー"><a href="./#games">学習に戻る</a><a href="./ranking.html">ランキング</a><button id="soundBtn" aria-pressed="false">音 OFF</button><button id="fullscreenBtn" aria-label="全画面にする">全画面</button></nav></header>
@@ -44,7 +44,7 @@
     <div class="result-grid"><div><small>SCORE</small><b id="resultScore">0</b></div><div><small>正解</small><b id="resultCorrect">0 / 10</b></div><div><small>タイム</small><b id="resultTime">0.00秒</b></div><div><small>最大コンボ</small><b id="resultCombo">0</b></div></div>
     <p id="resultSummary" class="muted"></p><div class="dialog-actions"><button id="againBtn" class="primary">同じ設定でもう一度</button><button id="settingsBtn">モードを変える</button><a id="reviewLink" href="./?review=1#learn">間違えた問題を復習</a></div>
     <div class="round-review"><h3>今回の振り返り <small>問題を開くと答えと解説が見られるよ</small></h3><div id="resultReview"></div></div>
-    <div id="submitBox" class="submit-record"><h3>ランキングに参加する</h3><p id="submitRule" class="muted small">10問決戦・全問正解の記録を送れます。4択と入力の記録は別々に競います。</p><label for="player">ニックネーム</label><div class="input-row"><input id="player" maxlength="24" placeholder="24文字まで"><button id="submit">記録を送信</button></div><p class="muted small">名前とタイムが公開されます。本名や連絡先は入力しないでね。同じ期間・範囲・答え方の送信は1回です。</p></div>
+    <div id="submitBox" class="submit-record"><h3>ニックネームでランキング登録</h3><p id="submitRule" class="muted small"></p><form id="rankingForm"><label for="player">ニックネームを入力</label><div class="input-row"><input id="player" maxlength="24" required autocomplete="nickname" placeholder="例：歴史マスター" aria-describedby="nicknameHelp"><button id="submit" type="submit">この名前でランキング登録</button></div></form><p id="nicknameHelp" class="muted small">名前とタイムが公開されます。本名や連絡先は入力しないでね。同じ期間・範囲・答え方の送信は1回です。</p><a id="submittedRanking" href="./ranking.html" hidden>登録したランキングを見る →</a></div>
   </section>
   <p id="note" class="notice" role="status" hidden></p>
   <footer class="page-footer"><span>自己ベストはこのブラウザに保存されます。町の両は消費しません。</span><a href="./">歴史キッズに戻る</a></footer>

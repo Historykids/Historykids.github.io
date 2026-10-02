@@ -48,7 +48,7 @@
     const seed = config.key + "|" + config.mode + "|" + config.era + "|v3" + (game === "sprint" ? "" : "|" + Date.now());
     run = { ...config, qs: C.seededPick(candidates, game === "sprint" ? 10 : candidates.length, seed), start: performance.now() + 3000, phase: "countdown", score: 0, correct: 0, misses: 0, combo: 0, maxCombo: 0, penalty: 0, lives: 3, log: [], nextAt: 0 };
     qi = 0; resultMs = 0; lock(true);
-    $("startBox").hidden = true; $("resultBox").hidden = true; $("quizBox").hidden = false; $("note").hidden = true; $("submit").disabled = false;
+    $("startBox").hidden = true; $("resultBox").hidden = true; $("quizBox").hidden = false; $("note").hidden = true; $("submit").disabled = false; $("submittedRanking").hidden = true;
     $("countdown").hidden = false; $("countdown").textContent = "3"; $("gameLabel").textContent = names[game];
     $("timerLabel").textContent = game === "rush" ? "TIME LEFT" : "TIME";
     $("buzzZone").hidden = true; $("answerZone").hidden = true; $("feedback").hidden = true; $("nextBtn").hidden = true; $("advanceNote").hidden = true;
@@ -140,7 +140,10 @@
     $("resultSummary").textContent = "正答率 " + (run.log.length ? Math.round(run.correct / run.log.length * 100) : 0) + "% · 間違い " + run.misses + "回" + (run.penalty ? " · ペナルティ " + run.penalty / 1000 + "秒を含む" : "") + "。問題を開いて解説を確かめよう。";
     $("resultReview").innerHTML = run.log.map((round, i) => `<details class="${round.ok ? "" : "missed"}"><summary><span class="review-number">${String(i + 1).padStart(2, "0")}</span><b>${E(round.q.prompt)}</b><small>${round.ok ? "正解" : "復習"} · ${(round.ms / 1000).toFixed(1)}秒</small></summary><p class="answer-reading">答え：${E(round.q.answers.join("・"))}</p><p>${E(round.q.text)}</p></details>`).join("");
     $("reviewLink").hidden = !run.misses; const firstMiss = run.log.find((r) => !r.ok); $("reviewLink").href = "./?review=1&era=" + (firstMiss?.q.era || "edo") + "#learn";
-    $("submitBox").hidden = !perfect; $("submit").disabled = !perfect; $("resultBox").scrollIntoView({ block: "start", behavior: "smooth" });
+    $("submitBox").hidden = false; $("submit").disabled = !perfect;
+    $("submitRule").textContent = perfect ? "全問正解おめでとう！好きなニックネームで、このタイムを登録しよう。4択と入力の記録は別々に競います。" : "ランキングは10問決戦で全問正解すると登録できるよ。ニックネームを決めて、もう一度挑戦しよう！";
+    $("submittedRanking").href = "./ranking.html?edition=v3&answerMode=" + run.answerMode + "&period=" + run.period + "&mode=" + run.mode + "&era=" + run.era;
+    $("resultBox").scrollIntoView({ block: "start", behavior: "smooth" });
   }
   function quit() { clearInterval(clock); clock = null; run = null; resultMs = 0; lock(false); $("quizBox").hidden = true; $("resultBox").hidden = true; $("startBox").hidden = false; $("note").hidden = true; renderBest(); }
   $("startBtn").onclick = start; $("buzzBtn").onclick = buzz; $("nextBtn").onclick = advance; $("quitBtn").onclick = quit; $("againBtn").onclick = start; $("settingsBtn").onclick = quit;
@@ -158,9 +161,16 @@
   for (const id of ["period", "mix", "era", "answerMode"]) $(id).onchange = renderBest;
   $("soundBtn").onclick = () => { sound = !sound; $("soundBtn").textContent = sound ? "音 ON" : "音 OFF"; $("soundBtn").setAttribute("aria-pressed", String(sound)); beep("buzz"); };
   $("fullscreenBtn").hidden = !document.fullscreenEnabled; $("fullscreenBtn").onclick = async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { note("このブラウザでは全画面にできません。"); } };
-  $("submit").onclick = async () => {
+  try { $("player").value = localStorage.getItem("hk_buzzer_nickname") || ""; } catch {}
+  $("player").addEventListener("input", () => { $("player").setCustomValidity(""); });
+  $("rankingForm").onsubmit = async (event) => {
+    event.preventDefault();
     if (!run || run.phase !== "finished" || run.game !== "sprint" || run.correct !== 10 || run.misses || !resultMs || $("submit").disabled) return;
-    const snapshot = { ...run, ms: resultMs }, original = run, name = ($("player").value.trim() || "歴史探検家").slice(0, 24);
+    const name = Array.from($("player").value.normalize("NFKC").replace(/[\u0000-\u001f\u007f]/g, "").trim()).slice(0, 24).join("");
+    if (!name) { $("player").setCustomValidity("ニックネームを入力してね。"); $("player").reportValidity(); $("player").focus(); return; }
+    $("player").value = name;
+    try { localStorage.setItem("hk_buzzer_nickname", name); } catch {}
+    const snapshot = { ...run, ms: resultMs }, original = run;
     $("submit").disabled = true; note("ランキングに接続しています…");
     const wait = (promise) => { let timeout; return Promise.race([promise, new Promise((_, reject) => { timeout = setTimeout(() => reject(Error("timeout")), 12000); })]).finally(() => clearTimeout(timeout)); };
     try {
@@ -168,7 +178,7 @@
       const existing = await wait(ref.get());
       if (existing.exists) { if (run === original) note("この期間・範囲・答え方の記録は送信済みです。"); return; }
       await wait(ref.set({ app: "hk-buzzer-v1", uid, name, ms: snapshot.ms, period: snapshot.period, mode: snapshot.mode, era: snapshot.era, dateKey: C.dayKey(), weekKey: C.weekKey(), count: 10, ts: conn.firebase.firestore.FieldValue.serverTimestamp(), ver: 1 }, { merge: false }));
-      if (run === original) note("送信できたよ！新・早押しのランキングで確認しよう。");
+      if (run === original) { note(name + "でランキング登録できたよ！"); $("submittedRanking").hidden = false; }
     } catch (error) { if (run === original) { note("送信できませんでした。自己ベストは保存されています。接続を確認して、再度送信してね。"); $("submit").disabled = false; } console.warn("Ranking submission unavailable", error); }
   };
   window.HKChallenge = { get run() { return run; }, get qi() { return qi; }, get resultMs() { return resultMs; }, tick };

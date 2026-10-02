@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EDO POKER — 5 Players Texas Hold'em</title>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700;900&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -121,7 +121,7 @@ button,input{font-family:'Share Tech Mono',monospace;}
     <div class="poker-icon">♠️♥️♣️♦️</div>
     <div class="desc">最大5人で遊べるチップ制ポーカー。<br>30秒の思考時間つき。フォールド / チェック / コール / ベット / レイズ / オールイン対応。</div>
     <div class="field"><label>プレイヤー名</label><input id="home-name" class="inp" maxlength="12" placeholder="KANA"></div>
-    <div class="row" style="margin-top:12px">
+    <div class="field"><label for="cpu-level">CPUの強さ</label><select id="cpu-level" class="inp"><option value="easy">やさしい</option><option value="normal" selected>ふつう</option><option value="hard">むずかしい</option></select></div><button class="btn g" id="practice-btn">CPU3人と練習する</button><p id="practice-stats" class="help">ゲーム内の無料チップで練習できます。ひとりでもすぐ開始！</p><details class="help"><summary>役とアクションの早見表</summary><p>強い順：ロイヤルフラッシュ ＞ ストレートフラッシュ ＞ フォーカード ＞ フルハウス ＞ フラッシュ ＞ ストレート ＞ スリーカード ＞ ツーペア ＞ ワンペア ＞ ハイカード。</p><p>チェック：追加なしで続ける。コール：相手と同じ額まで払う。レイズ：賭け額を増やす。フォールド：このハンドから降りる。</p></details><div class="row" style="margin-top:12px">
       <button class="btn g" onclick="createRoom()">[ ルーム作成 ]</button>
       <button class="btn" onclick="showScreen('s-join')">[ ルーム参加 ]</button>
     </div>
@@ -195,23 +195,23 @@ button,input{font-family:'Share Tech Mono',monospace;}
       </div>
 
       <section class="my-area">
-        <div class="my-title">YOUR HAND</div>
+        <div class="my-title">YOUR HAND <span id="practice-mark" hidden></span></div><p id="current-hand-name" class="hand-coach"></p>
         <div class="my-cards" id="my-cards"></div>
-        <div class="turn-note" id="turn-note">---</div>
+        <div class="turn-note" id="turn-note">---</div><p id="poker-coach" class="help"></p><p id="chip-change" class="help"></p>
         <div class="action-panel" id="action-panel">
           <div class="action-row">
             <button class="btn r" id="btn-fold" onclick="playerAction('fold')">FOLD</button>
             <button class="btn" id="btn-check" onclick="playerAction('check')">CHECK</button>
             <button class="btn y" id="btn-call" onclick="playerAction('call')">CALL</button>
           </div>
-          <div class="betline">
+          <div class="row bet-presets"><button class="btn" data-preset="0">最低レイズ</button><button class="btn" data-preset="0.5">ポット½</button><button class="btn" data-preset="1">ポット相当</button></div><label for="bet-amount" class="help">今回の合計ベット額</label><div class="betline">
             <input id="bet-amount" class="inp" type="number" step="10" min="20" value="40">
             <button class="btn g" id="btn-bet" onclick="playerAction('betraise')">BET / RAISE</button>
             <button class="btn y" id="btn-allin" onclick="playerAction('allin')">ALL IN</button>
           </div>
         </div>
       </section>
-    </main>
+    <details class="action-history"><summary>直近のアクションを見る</summary><pre id="poker-history"></pre></details></main>
 
     <div class="side" id="players-right"></div>
   </div>
@@ -223,17 +223,18 @@ button,input{font-family:'Share Tech Mono',monospace;}
 // ═══════════════════════════════════════════════
 // FIREBASE
 // ═══════════════════════════════════════════════
-var fbapp = firebase.initializeApp({
-  databaseURL: 'https://edogames-a0e90-default-rtdb.asia-southeast1.firebasedatabase.app'
-});
-var fdb = firebase.database();
-fdb.ref('.info/connected').on('value', function(s){
-  var el = gel('fb-badge');
-  if(s.val()){ el.innerHTML='🟢 オンライン — 友達と対戦できます'; el.className='badge live'; }
-  else { el.innerHTML='<span class="spin"></span>Firebase接続中...'; el.className='badge'; }
-});
+var fbapp=null, fdb=null;
+function initPokerCloud(){
+  if(!window.firebase||!firebase.database){gel('fb-badge').textContent='CPU練習はすぐ遊べます · オンライン接続を待っています';return;}
+  try {
+    fbapp=firebase.initializeApp({databaseURL:'https://edogames-a0e90-default-rtdb.asia-southeast1.firebasedatabase.app'});
+    fdb=firebase.database();
+    fdb.ref('.info/connected').on('value',function(s){gel('fb-badge').textContent=s.val()?'オンライン · 友だちと対戦できます':'CPU練習はすぐ遊べます · オンライン接続中';gel('fb-badge').className=s.val()?'badge live':'badge';});
+  } catch(e){gel('fb-badge').textContent='オンラインに接続できません · CPU練習は遊べます';}
+}
+document.addEventListener('DOMContentLoaded',initPokerCloud);
 
-// ═══════════════════════════════════════════════
+// ═══════════════════════════════
 // GLOBALS
 // ═══════════════════════════════════════════════
 var ROOM_ROOT = 'poker5Rooms';
@@ -283,7 +284,7 @@ function turnTimeLeft(d){
   return Math.max(0, Math.ceil((Number(d.turnDeadline) - Date.now()) / 1000));
 }
 function playerBase(name, seat){
-  return {name:name, seat:seat, chips:STARTING_CHIPS, connected:true, joinedAt:firebase.database.ServerValue.TIMESTAMP,
+  return {name:name, seat:seat, chips:STARTING_CHIPS, connected:true, joinedAt:window.firebase?firebase.database.ServerValue.TIMESTAMP:Date.now(),
     currentBet:0, invested:0, folded:false, allIn:false, out:false, acted:false, hole:'[]', lastAction:'待機中'};
 }
 
@@ -291,6 +292,7 @@ function playerBase(name, seat){
 // ROOM / LOBBY
 // ═══════════════════════════════════════════════
 function createRoom(){
+  if(!fdb){ toast('オンラインに接続できません。CPU練習は遊べます。'); return; }
   var name = cleanName(gel('home-name').value);
   myName = name; localStorage.setItem('edo_poker_name', name); gel('join-name').value = name;
   var tryCount = 0;
@@ -319,6 +321,7 @@ function createRoom(){
 }
 
 function joinRoom(){
+  if(!fdb){ gel('join-err').textContent='オンラインに接続できません。CPU練習は遊べます。'; return; }
   var name = cleanName(gel('join-name').value || gel('home-name').value);
   var code = String(gel('join-code').value||'').trim().toUpperCase();
   if(code.length!==4){ gel('join-err').textContent='4文字のルームコードを入力してね'; return; }
@@ -956,8 +959,8 @@ function renderShowdown(d){
 function cardHTML(card, hidden, small){
   if(hidden || !card) return '<div class="card '+(small?'small ':'')+'hidden"><span class="rank">◆</span></div>';
   var red = isRedCard(card) ? ' red' : '';
-  return '<div class="card '+(small?'small ':'')+red+'"><span class="rank">'+esc(RSYM[card[0]]||card[0])+'</span><span class="suit">'+esc(SSYM[card[1]])+'</span></div>';
+  return '<div data-card="'+esc(card)+'" class="card '+(small?'small ':'')+red+'"><span class="rank">'+esc(RSYM[card[0]]||card[0])+'</span><span class="suit">'+esc(SSYM[card[1]])+'</span></div>';
 }
 </script>
-</body>
+<script src="./assets/ui/poker-practice.js?v=play-20261002"></script><style>.hand-coach{color:#ffe09b;font-size:16px;margin:10px 0}.best-five{outline:2px solid #f6c876;outline-offset:2px}.bet-presets .btn{min-width:0;flex:1;font-size:11px;padding:9px}.action-history{padding:14px;font-size:12px;border:1px solid #394f63;margin-top:20px;text-align:left}.action-history pre{white-space:pre-wrap;line-height:1.8}.home-card select{color:#dce5eb}#practice-mark{font-size:10px;color:#81ebbf;margin-left:10px}</style></body>
 </html>

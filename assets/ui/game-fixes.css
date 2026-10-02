@@ -79,13 +79,19 @@ canvas {
   max-width: 100%;
 }
 .mem-card {
+  border: 0;
+  background: transparent;
+  padding: 0;
   width: clamp(38px, 10vw, 70px);
   height: clamp(62px, 15vw, 100px);
 }
 #mem-board {
+  width: min(620px, 100%);
   max-width: 100%;
   gap: 5px;
 }
+.mem-card:focus-visible { outline: 3px solid #ffa020; outline-offset: 3px; }
+.game-card a.btn { text-decoration: none; min-width: 0; }
 @media (max-width: 700px) {
   .screen {
     padding: 70px 16px 20px;

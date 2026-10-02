@@ -6,12 +6,12 @@
   function timestamp(ms){return ms?new Date(ms).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}):"—";}
   function status(message,kind=""){$("rankStatus").textContent=message;$("rankStatus").className="rank-status "+kind;}
   function renderPersonal(){
-    const best=L.localBest(),position=L.ownRank(entries,own);
+    const best=L.localBest(),verified=L.registerableBest(),position=L.ownRank(entries,own);
     $("personalTime").textContent=best?L.seconds(best.ms):"—";$("personalUnit").hidden=!best;
     $("myRank").textContent=own?position?position+"位":"100位圏外":"—";
     $("myPublished").textContent=own?own.name+" · "+L.seconds(own.ms)+"秒":ownKnown?"まだランキングに登録していません":loading?"登録状態を確認中…":"接続すると登録状態を確認できます";
-    $("personalEmpty").hidden=!!best;$("rankRegister").hidden=!best||(own&&own.ms<=best.ms);
-    $("registrationState").textContent=!best?"10問全問正解で、タイムを登録できます。":own&&own.ms<=best.ms?"登録済みの自己ベストを残しています。":own?"自己ベスト更新！新しいタイムを登録できます。":"ニックネームを入力して、自己ベストを登録しよう。";
+    $("personalEmpty").hidden=!!best;$("rankRegister").hidden=!verified||(own&&own.ms<=verified.ms);
+    $("registrationState").textContent=!verified?"オンラインの10問決戦で全問正解すると、タイムを登録できます。":own&&own.ms<=verified.ms?"登録済みの自己ベストを残しています。":own?"自己ベスト更新！新しいタイムを登録できます。":"ニックネームを入力して、自己ベストを登録しよう。";
     $("myRowBtn").disabled=!own;$("registerBtn").disabled=loading||submitting;
   }
   function render(){
@@ -40,12 +40,12 @@
   $("myRowBtn").onclick=()=>{$("rankSearch").value="";render();const row=$("myScore");if(row)row.scrollIntoView({behavior:"smooth",block:"center"});else{status("あなたの登録は "+L.seconds(own.ms)+"秒です。表示は先頭100件までです。同じタイムの人も同じ順位になります。");$("personalCard").scrollIntoView({behavior:"smooth",block:"center"});}};
   $("rankNickname").value=L.savedName();$("rankNickname").oninput=()=>$("rankNickname").setCustomValidity("");
   $("rankRegister").onsubmit=async event=>{
-    event.preventDefault();const best=L.localBest(),name=L.nickname($("rankNickname").value);if(submitting||loading||!best)return;
+    event.preventDefault();const best=L.registerableBest(),name=L.nickname($("rankNickname").value);if(submitting||loading||!best)return;
     if(!name){$("rankNickname").setCustomValidity("ニックネームを入力してね。");$("rankNickname").reportValidity();return;}
     $("rankNickname").value=name;submitting=true;$("registrationMessage").textContent="自己ベストを登録しています…";renderPersonal();
     try{const result=await L.submit(name,best.ms);own=result.entry;uid=own.id;ownKnown=true;$("registrationMessage").textContent=result.updated?own.name+"で登録しました！ "+L.seconds(own.ms)+"秒":"登録済みの "+L.seconds(own.ms)+"秒を残しました。";$("registrationMessage").className="registration-message success";await load();}
     catch(error){$("registrationMessage").textContent=L.errorText(error);$("registrationMessage").className="registration-message error";}
     finally{submitting=false;renderPersonal();}
   };
-  window.addEventListener("storage",event=>{if(event.key===L.bestKey)renderPersonal();});const cache=L.readCache();if(cache){entries=cache.entries;updatedAt=cache.at;cached=true;}load();
+  window.addEventListener("storage",event=>{if([L.bestKey,L.verifiedKey].includes(event.key))renderPersonal();});const cache=L.readCache();if(cache){entries=cache.entries;updatedAt=cache.at;cached=true;}load();
 })();

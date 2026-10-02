@@ -1,7 +1,7 @@
 /* One leaderboard contract shared by results and the ranking page. */
 (function (root) {
   "use strict";
-  const path = "fast_scores/alltime/ALL/v4_allera_ALL_choice/entries", bestKey = "hk_best_v4_alltime_ALL_allera_ALL_sprint_choice", cacheKey = "hk_leaderboard_cache_v2", nicknameKey = "hk_buzzer_nickname";
+  const bestKey = "hk_best_v4_alltime_ALL_allera_ALL_sprint_choice", verifiedKey="hk_buzzer_verified_best_v1", identityKey="hk_rank_identity_v1", cacheKey = "hk_leaderboard_cache_v3", nicknameKey = "hk_buzzer_nickname";
   function nickname(value) { return Array.from(String(value || "").normalize("NFKC").replace(/[\u0000-\u001f\u007f]/g, "").trim()).slice(0,24).join(""); }
   function validTime(ms) { return Number.isSafeInteger(ms) && ms > 0; }
   function record(value,id) {
@@ -19,32 +19,34 @@
     if(entries.length&&Math.round(own.ms/10)<=Math.round(entries[entries.length-1].ms/10))return entries.filter(r=>Math.round(r.ms/10)<Math.round(own.ms/10)).length+1;
     return null;
   }
-  function localBest(){try{const r=JSON.parse(root.localStorage.getItem(bestKey));return r?.correct===10&&validTime(r.ms)?r:null;}catch{return null;}}
+  function registerableBest(){try{const r=JSON.parse(root.localStorage.getItem(verifiedKey));return r?.correct===10&&validTime(r.ms)&&typeof r.proof==='string'?r:null;}catch{return null;}}
+  function localBest(){const online=registerableBest();if(online)return online;try{const r=JSON.parse(root.localStorage.getItem(bestKey));return r?.correct===10&&validTime(r.ms)?r:null;}catch{return null;}}
   function readCache(){try{const c=JSON.parse(root.localStorage.getItem(cacheKey));if(!c||!Array.isArray(c.entries)||!Number.isFinite(c.at))return null;return{entries:rank(c.entries.map(r=>record(r,r.id)).filter(Boolean)),at:c.at};}catch{return null;}}
   function saveCache(entries,at){try{root.localStorage.setItem(cacheKey,JSON.stringify({entries,at}));}catch{}}
   function savedName(){try{return nickname(root.localStorage.getItem(nicknameKey));}catch{return "";}}
   function saveName(name){try{root.localStorage.setItem(nicknameKey,name);}catch{}}
   function seconds(ms){return (Math.round(ms/10)/100).toFixed(2);}
   function wait(promise,duration=12000){let timeout;return Promise.race([promise,new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Object.assign(Error("timeout"),{code:"timeout"})),duration);})]).finally(()=>clearTimeout(timeout));}
-  async function load(){
-    const conn=await wait(root.HKCloud.connect()),uid=conn.auth?.currentUser?.uid;
-    const [list,mine]=await Promise.allSettled([wait(conn.db.collection(path).orderBy("ms","asc").limit(100).get({source:"server"})),uid?wait(conn.db.doc(path+"/"+uid).get({source:"server"})):Promise.resolve(null)]);
-    if(list.status==="rejected")throw list.reason;const records=[];list.value.forEach(doc=>{const r=record(doc.data(),doc.id);if(r)records.push(r);});
-    const own=mine.status==="fulfilled"&&mine.value?.exists?record(mine.value.data(),uid):null;
-    if(own && !records.some(r=>r.id===own.id) && (records.length<100 || own.ms<=Math.max(...records.map(r=>r.ms)))) records.push(own);
-    return {entries:rank(records).slice(0,100),own,uid,ownKnown:mine.status==="fulfilled"&&!!uid,at:Date.now()};
+  function identity(create=false){let token=root.localStorage.getItem(identityKey)||'';if(!/^[a-f0-9]{64}$/.test(token)){if(!create)return '';token=Array.from(root.crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,'0')).join('');root.localStorage.setItem(identityKey,token);}return token;}
+  async function request(action='',body){
+    const endpoint=root.HKRankingConfig?.endpoint;if(!endpoint)throw Error('not-configured');
+    const token=identity(body!==undefined),headers={...(token?{Authorization:'Bearer '+token}:{}),...(body!==undefined?{'Content-Type':'application/json'}:{})};
+    const controller=new AbortController();let timer=setTimeout(()=>controller.abort(),12000);
+    try{const response=await root.fetch(endpoint+action,{method:body===undefined?'GET':'POST',headers,cache:'no-store',signal:controller.signal,...(body===undefined?{}:{body:JSON.stringify(body)})});const data=await response.json();if(!response.ok)throw Object.assign(Error(data.error||'network'),{code:data.error,status:response.status});return data;}finally{clearTimeout(timer);}
+  }
+  async function load(){const data=await request();if(!Array.isArray(data.entries))throw Error('response');const own=data.own?record(data.own,data.own.id):null;return{entries:rank(data.entries.map(r=>record(r,r.id)).filter(Boolean)).slice(0,100),own,uid:String(data.uid||''),ownKnown:data.ownKnown===true,at:Date.now()};}
+  async function startChallenge(){const result=await request('/start',{});if(typeof result.ticket!=='string'||!Array.isArray(result.ids)||result.ids.length!==10||new Set(result.ids).size!==10)throw Error('response');return result;}
+  async function finishChallenge(ticket,log,score){
+    const result=await request('/finish',{ticket,answers:log.map(r=>({id:r.q.id,raw:r.raw}))});
+    if(!validTime(result.ms)||!validTime(result.elapsedMs)||typeof result.proof!=='string')throw Error('response');
+    const best={correct:10,ms:result.ms,proof:result.proof,score:score.score,combo:score.combo};root.localStorage.setItem(verifiedKey,JSON.stringify(best));return{best,ms:result.elapsedMs};
   }
   async function submit(name,ms){
     name=nickname(name);if(!name)throw Object.assign(Error("nickname"),{code:"nickname"});if(!validTime(ms))throw Error("record");saveName(name);
-    const conn=await wait(root.HKCloud.connect()),uid=conn.auth?.currentUser?.uid;if(!uid)throw Error("identity");const ref=conn.db.doc(path+"/"+uid);
-    return wait(conn.db.runTransaction(async transaction=>{
-      const previous=await transaction.get(ref),old=previous.exists?record(previous.data(),uid):null;
-      if(old&&old.ms<=ms)return{updated:false,entry:old};
-      transaction.set(ref,{app:"hk-buzzer-v1",uid,name,ms,period:"alltime",mode:"allera",era:"ALL",dateKey:root.HKCore.dayKey(),weekKey:root.HKCore.weekKey(),count:10,ts:conn.firebase.firestore.FieldValue.serverTimestamp(),ver:1});
-      return{updated:true,entry:{id:uid,name,ms,timestamp:Date.now()}};
-    }));
+    const best=registerableBest();if(!best||best.ms!==ms)throw Object.assign(Error('verified-record-required'),{code:'verified-record-required'});
+    const result=await request('/register',{name,proof:best.proof});const entry=record(result.entry,result.entry?.id);if(!entry)throw Error('response');return{updated:result.updated===true,entry};
   }
-  function errorText(error){return String(error?.code||"").includes("permission-denied")?"ランキングへのアクセスを確認できませんでした。時間をおいて再接続してください。":"通信を確認できませんでした。接続を確認して、もう一度試してください。自己ベストはこのブラウザに残っています。";}
-  const api={path,bestKey,cacheKey,nicknameKey,nickname,validTime,record,rank,ownRank,localBest,readCache,saveCache,savedName,saveName,seconds,wait,load,submit,errorText};root.HKLeaderboard=api;
+  function errorText(error){return error?.code==='verified-record-required'?"オンラインの10問決戦で全問正解すると登録できます。":error?.code==='rate-limited'?"いま接続が混み合っています。少し待って、もう一度試してください。":error?.code==='challenge-expired'?"結果の確認期限が切れました。もう一度10問決戦に挑戦してください。":"通信を確認できませんでした。接続を確認して、もう一度試してください。自己ベストはこのブラウザに残っています。";}
+  const api={bestKey,verifiedKey,identityKey,cacheKey,nicknameKey,nickname,validTime,record,rank,ownRank,localBest,registerableBest,readCache,saveCache,savedName,saveName,seconds,wait,identity,load,startChallenge,finishChallenge,submit,errorText};root.HKLeaderboard=api;
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
 })(typeof window==="undefined"?globalThis:window);

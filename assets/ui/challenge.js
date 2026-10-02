@@ -16,6 +16,7 @@
     return { period, mode, era, answerMode, game, key, group: "v4_" + mode + "_" + era + "_" + answerMode, scoreKey: "hk_best_v4_" + period + "_" + key + "_" + mode + "_" + era + "_" + game + "_" + answerMode };
   }
   function best(config) {
+    if(config.game==='sprint'&&L.registerableBest())return L.registerableBest();
     try { const record = JSON.parse(localStorage.getItem(config.scoreKey)); return record && Number.isFinite(record.score) && Number.isFinite(record.ms) ? record : null; } catch { return null; }
   }
   function renderBest() {
@@ -46,16 +47,18 @@
     const config = settings(), candidates = config.era === "ALL" ? [...new Map(pool.map((q) => [q.name, q])).values()] : pool.filter((q) => q.era === config.era);
     const seed = Date.now() + "|" + Math.random();
     const mixed = C.eraOrder.flatMap(era=>C.seededPick(candidates.filter(q=>q.era===era),1,seed+era));
-    run = { ...config, qs: C.seededPick(game === "sprint" ? mixed : candidates, game === "sprint" ? 10 : candidates.length, seed), start: performance.now() + 3000, phase: "countdown", score: 0, correct: 0, misses: 0, combo: 0, maxCombo: 0, penalty: 0, lives: 3, log: [], nextAt: 0 };
+    const online=game==='sprint'&&!!window.HKRankingConfig?.endpoint;
+    run = { ...config, qs: C.seededPick(game === "sprint" ? mixed : candidates, game === "sprint" ? 10 : candidates.length, seed), start: performance.now() + 3000, phase: online?'connecting':"countdown", score: 0, correct: 0, misses: 0, combo: 0, maxCombo: 0, penalty: 0, lives: 3, log: [], nextAt: 0 };
     qi = 0; resultMs = 0; registrationMs = 0; lock(true);
     $("submitStatus").textContent = ""; $("player").readOnly = false; $("submit").textContent = "この名前でベストを登録";
     $("startBox").hidden = true; $("resultBox").hidden = true; $("quizBox").hidden = false; $("note").hidden = true; $("submit").disabled = false; $("submittedRanking").hidden = true;
-    $("countdown").hidden = false; $("countdown").textContent = "3"; $("gameLabel").textContent = names[game];
+    $("countdown").hidden = false; $("countdown").textContent = online?'接続中…':"3"; $("gameLabel").textContent = names[game];
     $("timerLabel").textContent = game === "rush" ? "TIME LEFT" : "TIME";
     $("buzzZone").hidden = true; $("answerZone").hidden = true; $("feedback").hidden = true; $("nextBtn").hidden = true; $("advanceNote").hidden = true;
     $("qTitle").textContent = "準備はいい？"; $("countText").textContent = "—"; $("scoreText").textContent = "0"; $("comboText").textContent = "0"; $("livesText").textContent = game === "survival" ? "♥♥♥" : "—";
     $("prog").max = run.qs.length; $("prog").value = 0; $("quizBox").classList.remove("urgent");
     clock = setInterval(tick, 50); tick(); $("quizBox").scrollIntoView({ block: "start", behavior: "smooth" });
+    if(online){const original=run;L.startChallenge().then(session=>{if(run!==original)return;const qs=session.ids.map(id=>pool.find(q=>q.id===id));if(qs.some(q=>!q))throw Error('question-version');run.qs=qs;run.ticket=session.ticket;run.start=performance.now()+3000;run.phase='countdown';tick();}).catch(()=>{if(run!==original)return;run.start=performance.now()+3000;run.phase='countdown';note('ランキングに接続できなかったので、今回は端末内で遊べます。オンラインで挑戦するとタイムを登録できます。');tick();});}
   }
   function show(now = performance.now()) {
     if (!run || run.phase === "finished") return;
@@ -141,11 +144,17 @@
     $("resultSummary").textContent = "正答率 " + (run.log.length ? Math.round(run.correct / run.log.length * 100) : 0) + "% · 間違い " + run.misses + "回" + (run.penalty ? " · ペナルティ " + run.penalty / 1000 + "秒を含む" : "") + "。問題を開いて解説を確かめよう。";
     $("resultReview").innerHTML = run.log.map((round, i) => `<details class="${round.ok ? "" : "missed"}"><summary><span class="review-number">${String(i + 1).padStart(2, "0")}</span><b>${E(round.q.prompt)}</b><small>${round.ok ? "正解" : "復習"} · ${(round.ms / 1000).toFixed(1)}秒</small></summary><p class="answer-reading">答え：${E(round.q.answers.join("・"))}</p><p>${E(round.q.text)}</p></details>`).join("");
     $("reviewLink").hidden = !run.misses; const firstMiss = run.log.find((r) => !r.ok); $("reviewLink").href = "./?review=1&era=" + (firstMiss?.q.era || "edo") + "#learn";
-    $("submitBox").hidden = false; $("submit").disabled = !perfect;
-    registrationMs = perfect ? L.localBest()?.ms || resultMs : 0;
-    $("submitRule").textContent = perfect ? "全問正解！自己ベスト " + L.seconds(registrationMs) + "秒を登録できます。短いタイムほど上位になります。" : "10問決戦で全問正解すると登録できます。ニックネームを決めて、もう一度挑戦しよう！";
+    $("submitBox").hidden = false;registrationMs=perfect?L.registerableBest()?.ms||0:0;$("submit").disabled=!registrationMs;
+    $("submitRule").textContent = registrationMs ? "全問正解！自己ベスト " + L.seconds(registrationMs) + "秒を登録できます。短いタイムほど上位になります。" : perfect?"全問正解！オンラインで10問決戦に挑戦すると、この欄からランキングに登録できます。":"10問決戦で全問正解すると登録できます。ニックネームを決めて、もう一度挑戦しよう！";
     $("submittedRanking").href = "./ranking.html#personalCard";
     $("resultBox").scrollIntoView({ block: "start", behavior: "smooth" });
+    if(perfect&&run.ticket)verifyResult(run);
+  }
+  async function verifyResult(original){
+    if(original.verifying)return;original.verifying=true;$("submit").disabled=true;$("submitStatus").textContent='全問正解の記録を確認しています…';$("submitRule").textContent='サーバーで正解とタイムを確認したら、ニックネームで登録できます。';
+    try{const result=await L.finishChallenge(original.ticket,original.log,{score:original.score,combo:original.maxCombo});if(run!==original)return;resultMs=result.ms;registrationMs=result.best.ms;$("resultTime").textContent=L.seconds(resultMs)+'秒';$("resultBest").textContent='ランキング用自己ベスト '+L.seconds(registrationMs)+'秒';$("submitRule").textContent='全問正解！自己ベスト '+L.seconds(registrationMs)+'秒を登録できます。短いタイムほど上位になります。';$("submitStatus").textContent='記録を確認できました。ニックネームを入力して登録しよう。';$("submitStatus").className='submit-status success';$("submit").textContent='この名前でベストを登録';$("submit").disabled=false;}
+    catch(error){if(run!==original)return;registrationMs=0;$("submitStatus").textContent=L.errorText(error);$("submitStatus").className='submit-status error';$("submit").textContent='確認して登録する';$("submit").disabled=false;}
+    finally{original.verifying=false;}
   }
   function quit() { clearInterval(clock); clock = null; run = null; resultMs = 0; lock(false); $("quizBox").hidden = true; $("resultBox").hidden = true; $("startBox").hidden = false; $("note").hidden = true; renderBest(); }
   $("startBtn").onclick = start; $("buzzBtn").onclick = buzz; $("nextBtn").onclick = advance; $("quitBtn").onclick = quit; $("againBtn").onclick = start; $("settingsBtn").onclick = quit;
@@ -166,7 +175,8 @@
   $("player").addEventListener("input", () => { $("player").setCustomValidity(""); });
   $("rankingForm").onsubmit = async event => {
     event.preventDefault();
-    if (!run || run.phase !== "finished" || run.game !== "sprint" || run.correct !== 10 || run.misses || !registrationMs || $("submit").disabled) return;
+    if (!run || run.phase !== "finished" || run.game !== "sprint" || run.correct !== 10 || run.misses || $("submit").disabled) return;
+    if(!registrationMs){if(run.ticket)await verifyResult(run);if(!registrationMs)return;}
     const name = L.nickname($("player").value);
     if (!name) { $("player").setCustomValidity("ニックネームを入力してね。"); $("player").reportValidity(); $("player").focus(); return; }
     $("player").value = name;
@@ -187,4 +197,3 @@
   window.HKChallenge = { get run() { return run; }, get qi() { return qi; }, get resultMs() { return resultMs; }, tick };
   renderBest();
 })();
-

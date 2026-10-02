@@ -420,9 +420,11 @@
     timeline: ["A JOURNEY THROUGH TIME", "歴史を、ひとつながりに。"],
     town: ["LEARN & BUILD", "わたしだけの町をつくろう。"],
     games: ["TIME TO PLAY", "遊びながら、もっと夢中に。"],
+    howto: ["HOW TO PLAY", "両をゲットして、自分の町を作ろう。"],
   };
   function setView(v, updateHash = true) {
     if (!labels[v]) v = "learn";
+    const previousView = view;
     view = v;
     document
       .querySelectorAll(".view")
@@ -435,7 +437,7 @@
     });
     $("pageEyebrow").textContent = labels[v][0];
     $("pageTitle").textContent = labels[v][1];
-    $("eraSection").hidden = ["town", "games"].includes(v);
+    $("eraSection").hidden = ["town", "games", "howto"].includes(v);
     if (v === "book") renderBook();
     if (v === "timeline") renderTimeline();
     if (v === "town") {
@@ -449,6 +451,7 @@
       }, 1500);
     }
     if (updateHash) history.replaceState(null, "", "#" + v);
+    if (previousView !== v && (previousView === "howto" || v === "howto")) window.scrollTo(0, 0);
   }
   function setEra(era) {
     if (!ds[era]) return;
@@ -766,6 +769,13 @@
     notify("記録を読み込んだよ。");
   }
   document.addEventListener("click", (e) => {
+    const guideLink = e.target.closest("a[data-guide-target]");
+    if (guideLink) {
+      e.preventDefault();
+      const target = document.getElementById(guideLink.dataset.guideTarget);
+      target?.scrollIntoView({behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start"});
+      return;
+    }
     const b = e.target.closest("button");
     if (!b) return;
     if (b.dataset.view) {

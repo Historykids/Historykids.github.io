@@ -1,4 +1,5 @@
 import * as THREE from "three";
+const C = globalThis.HKCore;
 
 export function fitModel(original, footprint) {
   const offset = new THREE.Group();
@@ -13,7 +14,13 @@ export function fitModel(original, footprint) {
   });
   const root = new THREE.Group();
   root.add(offset);
-  root.scale.setScalar(footprint / Math.max(size.x, size.z, size.y * .65, .01));
+  if (typeof footprint === "number") root.scale.setScalar(footprint / Math.max(size.x, size.z, size.y * .65, .01));
+  else {
+    const sx = footprint.width / Math.max(size.x, .01), sz = footprint.depth / Math.max(size.z, .01);
+    const scale = Math.min(sx, sz, footprint.height / Math.max(size.y, .01));
+    if (footprint.stretch) root.scale.set(sx, scale, sz);
+    else root.scale.setScalar(scale);
+  }
   return root;
 }
 
@@ -73,13 +80,25 @@ export function createBuilding(type) {
 }
 
 function disposeLocal(root) {
-  if (!root.userData.localModel) return;
   const materials = new Set();
-  root.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); materials.add(o.material); } });
+  root.traverse((o) => { if (o.isMesh && o.userData.townOwned) { o.geometry.dispose(); materials.add(o.material); } });
   materials.forEach((m) => m.dispose());
+}
+function createPlot(type, original) {
+  const item = C.items.find((i) => i.id === type), root = new THREE.Group();
+  const local = !original;
+  root.userData.localModel = local;
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(item.width - .06, .035, item.depth - .06),
+    new THREE.MeshStandardMaterial({ color: type === "field" ? 0x9a9b66 : type === "castle" ? 0xa4a18e : 0xba9e76, roughness: 1 }));
+  floor.position.y = .015; floor.receiveShadow = true; floor.userData.townOwned = true; root.add(floor);
+  const model = fitModel(original || createBuilding(type), { width: item.width * .9, depth: item.depth * .9, height: item.height, stretch: ["field", "bridge", "road"].includes(type) });
+  if (local) model.traverse((o) => { if (o.isMesh) o.userData.townOwned = true; });
+  model.position.y = .034; root.add(model);
+  return root;
 }
 
 export async function syncBuildings(town, city, loadModel, onError = () => {}) {
+  if (town.disposed) return;
   town.entries ||= new Map();
   const ids = new Set(city.map((b) => b.id));
   for (const [id, entry] of town.entries) {
@@ -94,13 +113,13 @@ export async function syncBuildings(town, city, loadModel, onError = () => {}) {
       town.buildings.remove(entry.root); disposeLocal(entry.root); town.entries.delete(b.id); entry = null;
     }
     if (!entry) {
-      entry = { type: b.type, root: createBuilding(b.type) };
+      entry = { type: b.type, root: createPlot(b.type) };
       town.entries.set(b.id, entry);
       town.buildings.add(entry.root);
       const current = entry;
       current.loading = Promise.resolve().then(() => loadModel(b.type)).then((original) => {
-        if (town.entries.get(b.id) !== current) return;
-        const detailed = fitModel(original, .86);
+        if (town.disposed || town.entries.get(b.id) !== current) return;
+        const detailed = createPlot(b.type, original);
         detailed.position.copy(current.root.position);
         detailed.rotation.copy(current.root.rotation);
         detailed.userData.id = b.id;
@@ -111,7 +130,8 @@ export async function syncBuildings(town, city, loadModel, onError = () => {}) {
       });
     }
     entry.root.userData.id = b.id;
-    entry.root.position.set(b.x - 14.5, 0, b.y - 8.5);
+    const f = C.footprint(b);
+    entry.root.position.set(b.x + f.width / 2 - C.town.width / 2, 0, b.y + f.depth / 2 - C.town.height / 2);
     entry.root.rotation.y = (b.rot || 0) * Math.PI / 180;
     loading.push(entry.loading);
   }
@@ -120,33 +140,34 @@ export async function syncBuildings(town, city, loadModel, onError = () => {}) {
 }
 
 export function createGround(scene, mini) {
-  const base = new THREE.Mesh(new THREE.BoxGeometry(mini ? 5 : 30, .3, mini ? 5 : 18),
+  const width = mini ? 5 : C.town.width, depth = mini ? 5 : C.town.height;
+  const base = new THREE.Mesh(new THREE.BoxGeometry(width, .3, depth),
     new THREE.MeshStandardMaterial({ color: 0xc7ad83, roughness: 1 }));
   base.position.y = -.16; base.receiveShadow = true; scene.add(base);
   if (mini) return base;
-  // Earth plots and faint boundaries use the same 30 by 18 cells as placement.
+  // Rendering, placement and walking share the same land dimensions.
   const earth = new THREE.InstancedMesh(new THREE.PlaneGeometry(.99, .99),
-    new THREE.MeshStandardMaterial({ roughness: 1 }), 540);
+    new THREE.MeshStandardMaterial({ roughness: 1 }), width * depth);
   const dummy = new THREE.Object3D(), color = new THREE.Color();
-  for (let y = 0; y < 18; y++) for (let x = 0; x < 30; x++) {
-    dummy.rotation.x = -Math.PI / 2; dummy.position.set(x - 14.5, -.008, y - 8.5); dummy.updateMatrix();
-    earth.setMatrixAt(y * 30 + x, dummy.matrix);
+  for (let y = 0; y < depth; y++) for (let x = 0; x < width; x++) {
+    dummy.rotation.x = -Math.PI / 2; dummy.position.set(x + .5 - width / 2, -.008, y + .5 - depth / 2); dummy.updateMatrix();
+    earth.setMatrixAt(y * width + x, dummy.matrix);
     color.setHSL(.095, .28, .62 + ((x * 17 + y * 13) % 7) * .008);
-    earth.setColorAt(y * 30 + x, color);
+    earth.setColorAt(y * width + x, color);
   }
   earth.receiveShadow = true; scene.add(earth);
   const vertices = [];
-  for (let x = -15; x <= 15; x++) vertices.push(x, -.006, -9, x, -.006, 9);
-  for (let z = -9; z <= 9; z++) vertices.push(-15, -.006, z, 15, -.006, z);
+  for (let x = -width / 2; x <= width / 2; x++) vertices.push(x, -.006, -depth / 2, x, -.006, depth / 2);
+  for (let z = -depth / 2; z <= depth / 2; z++) vertices.push(-width / 2, -.006, z, width / 2, -.006, z);
   const grid = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3)),
     new THREE.LineBasicMaterial({ color: 0x8c7656, transparent: true, opacity: .24 }));
   scene.add(grid);
   const stoneMaterial = new THREE.MeshStandardMaterial({ color: 0x8a877a, roughness: 1 });
-  for (let x = -14.5; x < 15; x++) for (const z of [-9.14, 9.14]) {
+  for (let x = .5 - width / 2; x < width / 2; x++) for (const z of [-depth / 2 - .14, depth / 2 + .14]) {
     const stone = new THREE.Mesh(new THREE.BoxGeometry(.94, .2, .24), stoneMaterial);
     stone.position.set(x, -.09, z); stone.receiveShadow = true; scene.add(stone);
   }
-  for (let z = -8.5; z < 9; z++) for (const x of [-15.14, 15.14]) {
+  for (let z = .5 - depth / 2; z < depth / 2; z++) for (const x of [-width / 2 - .14, width / 2 + .14]) {
     const stone = new THREE.Mesh(new THREE.BoxGeometry(.24, .2, .94), stoneMaterial);
     stone.position.set(x, -.09, z); stone.receiveShadow = true; scene.add(stone);
   }

@@ -3,25 +3,32 @@ const { pathToFileURL } = require("node:url");
 const { JSDOM } = require("jsdom");
 const root = path.resolve(__dirname, "..");
 const R = require(path.join(root, "assets/ui/residents.js"));
+const C = require(path.join(root, "assets/ui/core.js"));
+global.HKCore = C;
 let checks = 0;
 function test(name, run) { run(); checks++; console.log("PASS", name); }
 const city = [
-  { id: "farm", type: "field", x: 3, y: 4 }, { id: "shop", type: "shop", x: 8, y: 4 },
-  { id: "home", type: "house", x: 11, y: 4 }, { id: "temple", type: "temple", x: 11, y: 9 },
-  { id: "castle", type: "castle", x: 8, y: 9 }, { id: "school", type: "school", x: 3, y: 9 },
-  { id: "tree", type: "tree", x: 3, y: 13 },
-  ...Array.from({ length: 12 }, (_, i) => ({ id: "wall" + i, type: "house", x: 6, y: i })),
+  { id: "farm", type: "field", x: 3, y: 4 }, { id: "shop", type: "shop", x: 10, y: 4 },
+  { id: "home", type: "house", x: 15, y: 4 }, { id: "temple", type: "temple", x: 20, y: 9 },
+  { id: "castle", type: "castle", x: 10, y: 14 }, { id: "school", type: "school", x: 3, y: 20 },
+  { id: "tree", type: "tree", x: 3, y: 27 },
+  ...Array.from({ length: 12 }, (_, i) => ({ id: "wall" + i, type: "tree", x: 8, y: i })),
 ];
 test("farmer walks around obstacles and visits all seven kinds of destination", () => {
   const engine = R.createEngine(); engine.sync([{ id: "walker", x: 1, y: 4 }], city);
   const actions = new Set();
   for (let i = 0; i < 20000; i++) {
     const a = engine.tick(.05)[0];
-    assert(a.x >= 0 && a.x < 30 && a.y >= 0 && a.y < 18);
+    assert(a.x >= 0 && a.x < C.town.width && a.y >= 0 && a.y < C.town.height);
     assert(engine.free(Math.round(a.x), Math.round(a.y)), `walked into a building at ${a.x},${a.y}`);
     if (a.phase === "act") {
       actions.add(a.action);
-      if (a.target) assert.equal(Math.abs(a.x - a.target.x) + Math.abs(a.y - a.target.y), 1);
+      if (a.target) {
+        const f = C.footprint(a.target);
+        const x = Math.max(a.target.x, Math.min(a.x, a.target.x + f.width - 1));
+        const y = Math.max(a.target.y, Math.min(a.y, a.target.y + f.depth - 1));
+        assert.equal(Math.abs(a.x - x) + Math.abs(a.y - y), 1);
+      }
     }
   }
   for (const action of ["farm", "shop", "rest", "pray", "look", "read", "shade", "wave"]) assert(actions.has(action), action);
@@ -38,13 +45,29 @@ test("empty towns still have wandering and newly placed buildings update routes"
 });
 test("unreachable buildings are ignored and a single field still allows strolls", () => {
   const engine = R.createEngine();
-  const sealed = [{ id: "sealed", type: "temple", x: 20, y: 10 }, ...[[19,10],[21,10],[20,9],[20,11]].map(([x,y], i) => ({ id: "barrier" + i, type: "tree", x, y }))];
+  const perimeter = [];
+  for (let x = 20; x < 24; x++) perimeter.push([x,9],[x,14]);
+  for (let y = 10; y < 14; y++) perimeter.push([19,y],[24,y]);
+  const sealed = [{ id: "sealed", type: "temple", x: 20, y: 10 }, ...perimeter.map(([x,y], i) => ({ id: "barrier" + i, type: "tree", x, y }))];
   engine.sync([{ id: "sealed-test", x: 0, y: 0 }], sealed);
   for (let i = 0; i < 3000; i++) assert.notEqual(engine.tick(.1)[0].target?.id, "sealed");
   engine.sync([{ id: "single", x: 3, y: 3 }], [{ id: "field", type: "field", x: 3, y: 4 }]);
   let stroll = false;
   for (let i = 0; i < 2000; i++) { const a = engine.tick(.05)[0]; if (a.phase === "walk" && !a.target) stroll = true; }
   assert(stroll);
+});
+test("farmers visit town-edge buildings at the real perimeter", () => {
+  const engine = R.createEngine(), edge = { id: "edge", type: "house", x: 0, y: 1, rot: 0 };
+  engine.sync([{ id:"edge-walker", x:59, y:0 }], [edge]);
+  let visits=0;
+  for (let i=0; i<5000; i++) {
+    const a=engine.tick(.1)[0];
+    if (a.phase==="act" && a.target) {
+      const x=Math.max(0,Math.min(a.x,1)), y=Math.max(1,Math.min(a.y,2));
+      assert.equal(Math.abs(a.x-x)+Math.abs(a.y-y),1); visits++;
+    }
+  }
+  assert(visits>0);
 });
 function page(seed = {}) {
   const dom = new JSDOM(fs.readFileSync(path.join(root, "index.html"), "utf8"), { url: "https://historykids.github.io/", runScripts: "outside-only", pretendToBeVisual: true });
@@ -93,11 +116,12 @@ test("pause freezes people, resume restarts, grid animates, and dismissal can be
   input.dispatchEvent(new p.w.Event("change", { bubbles: true })); await new Promise(setImmediate);
   test("backups restore farmers and reject invalid positions without losing progress", () => {
     assert.equal(p.w.HK.state.residents[0].id, "restored");
+    assert.equal(p.w.HK.state.residents[0].x, 19);
   });
   p.click("#settingsBtn"); const badInput = p.w.document.getElementById("importFile"); data.residents[0].x = 30;
   Object.defineProperty(badInput, "files", { value: [{ size: 100, text: async () => JSON.stringify(data) }] });
   badInput.dispatchEvent(new p.w.Event("change", { bubbles: true })); await new Promise(setImmediate);
-  assert.equal(p.w.HK.state.residents[0].x, 4); p.dom.window.close();
+  assert.equal(p.w.HK.state.residents[0].x, 19); p.dom.window.close();
   const url = pathToFileURL(path.join(root, "assets/vendor/three.module.js")).href;
   const THREE = await import(url);
   const source = fs.readFileSync(path.join(root, "assets/ui/farmer-3d.js"), "utf8").replace('from "three"', 'from "' + url + '"');

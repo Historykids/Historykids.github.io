@@ -42,12 +42,14 @@ export function createFarmer(id) {
   mesh(scroll, new THREE.BoxGeometry(.21, .015, .13), 0xe9d5a6);
   [-.115, .115].forEach((x) => { const roll = mesh(scroll, new THREE.CylinderGeometry(.018, .018, .15, 6), 0xb69764, x); roll.rotation.x = Math.PI / 2; });
   root.userData.rig = { body, hips, head, hat, leftArm, rightArm, leftLeg, rightLeg, hoe, basket, scroll };
+  root.scale.setScalar(.5);
   return root;
 }
 
 export function animateFarmer(root, actor) {
   const r = root.userData.rig, t = actor.elapsed;
-  root.position.set(actor.x - 14.5, 0, actor.y - 8.5); root.rotation.y = actor.heading;
+  const land = globalThis.HKCore.town;
+  root.position.set(actor.x + .5 - land.width / 2, 0, actor.y + .5 - land.height / 2); root.rotation.y = actor.heading;
   r.body.position.y = .51; r.hips.position.y = .34;
   r.body.rotation.set(0, 0, 0); r.head.rotation.set(0, 0, 0);
   [r.leftArm, r.rightArm, r.leftLeg, r.rightLeg].forEach((limb) => limb.rotation.set(0, 0, 0));

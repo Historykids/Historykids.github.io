@@ -1,7 +1,8 @@
 /* Walking and daily routines also work without WebGL or a network connection. */
 (function (root) {
   "use strict";
-  const WIDTH = 30, HEIGHT = 18;
+  const C = root.HKCore || (typeof require === "function" ? require("./core.js") : null);
+  const WIDTH = C.town.width;
   const actions = {
     field: { key: "farm", text: "畑のそばで農作業", icon: "🌾" },
     shop: { key: "shop", text: "商家で買い物", icon: "🧺" },
@@ -20,11 +21,11 @@
   function createEngine() {
     let city = [], blocked = new Set(), signature = "";
     const actors = new Map();
-    const free = (x, y) => Number.isInteger(x) && Number.isInteger(y) && x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT && !blocked.has(key(x, y));
+    const free = (x, y) => Number.isInteger(x) && Number.isInteger(y) && x >= 0 && x < WIDTH && y >= 0 && y < C.town.height && !blocked.has(key(x, y));
     const neighbors = (x, y) => [[x + 1, y], [x, y + 1], [x - 1, y], [x, y - 1]].filter(([a, b]) => free(a, b));
     function nearest(x, y) {
       let best = null, distance = Infinity;
-      for (let b = 0; b < HEIGHT; b++) for (let a = 0; a < WIDTH; a++) {
+      for (let b = 0; b < C.town.height; b++) for (let a = 0; a < WIDTH; a++) {
         const d = Math.abs(a - x) + Math.abs(b - y);
         if (free(a, b) && d < distance) { best = { x: a, y: b }; distance = d; }
       }
@@ -47,7 +48,10 @@
       const visited = reachable(cell.x, cell.y), candidates = [];
       for (const building of city) {
         if (!actions[building.type]) continue;
-        const destinations = neighbors(building.x, building.y).map(([x, y]) => visited.get(key(x, y))).filter(Boolean).sort((a, b) => a.distance - b.distance);
+        const f = C.footprint(building), perimeter = [];
+        for (let x = building.x; x < building.x + f.width; x++) perimeter.push([x, building.y - 1], [x, building.y + f.depth]);
+        for (let y = building.y; y < building.y + f.depth; y++) perimeter.push([building.x - 1, y], [building.x + f.width, y]);
+        const destinations = perimeter.filter(([x, y]) => free(x, y)).map(([x, y]) => visited.get(key(x, y))).filter(Boolean).sort((a, b) => a.distance - b.distance);
         if (destinations.length) candidates.push({ building, cell: destinations[0], visits: actor.visits.get(building.id) || 0, rank: destinations[0].distance + actor.random() * 8 });
       }
       candidates.sort((a, b) => a.visits - b.visits || a.rank - b.rank);
@@ -72,16 +76,17 @@
       actor.icon = routine?.icon || "👋"; actor.elapsed = 0;
       actor.duration = (actor.action === "farm" ? 7 : 4) + actor.random() * 4;
       if (actor.target) {
-        actor.heading = Math.atan2(actor.target.x - actor.x, actor.target.y - actor.y);
+        const f = C.footprint(actor.target);
+        actor.heading = Math.atan2(actor.target.x + (f.width - 1) / 2 - actor.x, actor.target.y + (f.depth - 1) / 2 - actor.y);
         actor.visits.set(actor.target.id, (actor.visits.get(actor.target.id) || 0) + 1);
       }
     }
     function sync(residents, buildings) {
       city = buildings;
-      const nextSignature = JSON.stringify(city.map((b) => [b.id, b.type, b.x, b.y]));
+      const nextSignature = JSON.stringify([C.town.width, C.town.height, city.map((b) => [b.id, b.type, b.x, b.y, b.rot])]);
       const changed = nextSignature !== signature;
       signature = nextSignature;
-      blocked = new Set(city.filter((b) => b.type !== "road" && b.type !== "bridge").map((b) => key(b.x, b.y)));
+      blocked = new Set(city.filter((b) => b.type !== "road" && b.type !== "bridge").flatMap((b) => C.occupiedCells(b).map((c) => key(c.x, c.y))));
       const ids = new Set(residents.map((r) => r.id));
       for (const id of actors.keys()) if (!ids.has(id)) actors.delete(id);
       for (const resident of residents) {

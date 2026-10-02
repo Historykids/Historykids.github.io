@@ -54,7 +54,7 @@ test("Japanese dates and ISO week boundaries", () => {
 test("placement rejects overlap and out-of-bounds", () => {
   assert(!C.canPlace([{ id: "a", x: 2, y: 2 }], 2, 2));
   assert(C.canPlace([{ id: "a", x: 2, y: 2 }], 2, 2, "a"));
-  assert(!C.canPlace([], 30, 0));
+  assert(!C.canPlace([], 60, 0));
   assert(!C.canPlace([], 0, -1));
   assert(!C.canPlace([], 2.5, 2));
 });
@@ -117,8 +117,9 @@ test("town automatically shows saved buildings on the grid when 3D is unavailabl
   assert(!fw.document.getElementById("townGrid").hidden);
   assert(fw.document.getElementById("townCanvas").hidden);
   assert.equal(fw.document.getElementById("town3d").getAttribute("aria-pressed"), "false");
-  assert(fw.document.querySelector('[data-cell="3,2"]').classList.contains("occupied"));
-  assert(fw.document.querySelector('[data-cell="3,2"]').textContent.includes("🏠"));
+  const saved = fw.HK.state.city[0];
+  assert(fw.document.querySelector(`[data-cell="${saved.x},${saved.y}"]`).classList.contains("occupied"));
+  assert(fw.document.querySelector('[data-building="saved"]').textContent.includes("🏠"));
   fw.close();
 });
 test("repeating a collected card gives no duplicate reward", () => {
@@ -146,7 +147,8 @@ test("wrong answer enters review list and correct answer clears it", () => {
   assert.equal(w.HK.state.money, 30);
 });
 test("book search, state filters and timeline navigation", () => {
-  click(w, '.nav [data-view="book"]');
+  click(w, '.nav [data-view="games"]');
+  click(w, '[data-view="book"]');
   $("bookSearch").value = "1603";
   $("bookSearch").dispatchEvent(new w.Event("input"));
   assert.equal($("bookGrid").querySelectorAll("[data-card]").length, 1);
@@ -192,9 +194,9 @@ test("building movement, rotation, deletion and undo", () => {
   assert.equal(w.HK.state.city.length, 1);
   assert.equal(w.HK.state.city[0].rot, 90);
 });
-test("town accessible grid provides 540 placement cells", () => {
+test("town accessible grid provides 2400 placement cells", () => {
   click(w, "#town2d");
-  assert.equal($("townGrid").querySelectorAll("[data-cell]").length, 540);
+  assert.equal($("townGrid").querySelectorAll("[data-cell]").length, 2400);
 });
 test("saved progress survives recreation and legacy corrections migrate", () => {
   const seed = {};

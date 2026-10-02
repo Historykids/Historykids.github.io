@@ -154,30 +154,37 @@
   if (!ds[state.era]) state.era = "edo";
   if (!Number.isFinite(state.money) || state.money < 0) state.money = 0;
   if (!Array.isArray(state.city)) state.city = [];
-  const migratedCity = [];
+  const storedLayout = safeGet("hk_town_layout_v2", null);
+  const legacyTown = !C.validTownLayout(storedLayout);
+  const sourceLayout = legacyTown ? { width: 30, height: 18 } : storedLayout;
+  const migratedCity = [], sourceCells = new Set();
   for (const [i, b] of state.city.entries()) {
     if (
       !b ||
       !C.items.some((item) => item.id === b.type && item.cat !== "resident") ||
-      !C.canPlace(migratedCity, b.x, b.y)
+      !Number.isInteger(b.x) || !Number.isInteger(b.y) || b.x < 0 || b.x >= sourceLayout.width || b.y < 0 || b.y >= sourceLayout.height ||
+      (legacyTown && sourceCells.has(b.x + "," + b.y))
     )
       continue;
     let id = String(b.id || "legacy-" + i);
     if (migratedCity.some((item) => item.id === id)) id += "-legacy-" + i;
+    sourceCells.add(b.x + "," + b.y);
     migratedCity.push({
       id,
       type: b.type,
       x: b.x,
       y: b.y,
-      rot: Number(b.rot) || 0,
+      rot: Number.isFinite(Number(b.rot)) ? ((Math.round(Number(b.rot) / 90) * 90) % 360 + 360) % 360 : 0,
     });
   }
-  state.city = migratedCity;
+  const arrangedTown = C.arrangeCity(migratedCity, { legacy: legacyTown, layout: legacyTown ? { ...C.town, height: C.town.minHeight } : { ...C.town, ...storedLayout } });
+  state.city = arrangedTown.city;
+  Object.assign(C.town, arrangedTown.layout);
   const residentIds = new Set();
   state.residents = (Array.isArray(state.residents) ? state.residents : []).filter((r) => {
-    if (!r || typeof r.id !== "string" || residentIds.has(r.id) || !Number.isInteger(r.x) || !Number.isInteger(r.y) || r.x < 0 || r.x >= 30 || r.y < 0 || r.y >= 18) return false;
+    if (!r || typeof r.id !== "string" || residentIds.has(r.id) || !Number.isInteger(r.x) || !Number.isInteger(r.y) || r.x < 0 || r.x >= sourceLayout.width || r.y < 0 || r.y >= sourceLayout.height) return false;
     residentIds.add(r.id); return true;
-  }).slice(0, 100).map((r) => ({ id: r.id, x: r.x, y: r.y }));
+  }).slice(0, 100).map((r) => ({ id: r.id, x: r.x + (legacyTown ? 15 : 0), y: r.y + (legacyTown ? 11 : 0) }));
   const residentEngine = window.HKResidents?.createEngine();
   let residentPaused = false, residentFrame = null, residentLastTime = null, residentLastUI = 0;
 
@@ -216,6 +223,7 @@
         localStorage.setItem(set.LS_KEY, JSON.stringify(state.got[era]));
       localStorage.setItem("money_v1", String(state.money));
       localStorage.setItem("city_v1", JSON.stringify(state.city));
+      localStorage.setItem("hk_town_layout_v2", JSON.stringify({ version: C.town.version, width: C.town.width, height: C.town.height }));
       localStorage.setItem("hk_residents_v1", JSON.stringify(state.residents));
       localStorage.setItem("hk_wrong_v2", JSON.stringify(state.wrong));
       localStorage.setItem("hk_ruby_v2", JSON.stringify(state.ruby));
@@ -485,19 +493,22 @@
         .filter((i) => cat === "all" || cat === i.cat)
         .map(
           (i) =>
-            `<article class="shop-item"><span aria-hidden="true">${i.icon}</span><h3>${i.name}</h3><small>${i.price}両</small><button data-buy="${i.id}" ${state.money < i.price ? "disabled" : ""}>${state.money < i.price ? "両が足りない" : i.cat === "resident" ? "町に迎える" : "選んで配置"}</button></article>`,
+            `<article class="shop-item"><span aria-hidden="true">${i.icon}</span><h3>${i.name}</h3><small>${i.price}両${i.cat !== "resident" ? " · " + i.width + "×" + i.depth + "マス" : ""}</small><button data-buy="${i.id}" ${state.money < i.price ? "disabled" : ""}>${state.money < i.price ? "両が足りない" : i.cat === "resident" ? "町に迎える" : "選んで配置"}</button></article>`,
         )
         .join("")}</div>`,
     );
   }
   function renderTown() {
+    $("townExtent").textContent = C.town.width + "×" + C.town.height + "マス · " + (C.town.width * C.town.height).toLocaleString("ja-JP") + "マスの町";
+    $("placeX").max = C.town.width; $("placeY").max = C.town.height;
     $("buildingCount").textContent = "建物 " + state.city.length + " 個 · 農民 " + state.residents.length + " 人";
     renderResidents();
     $("townBuildings").innerHTML = state.city.length
       ? state.city
           .map((b) => {
             const item = C.items.find((i) => i.id === b.type);
-            return `<div class="building-item"><span>${item.icon} ${item.name}<small>横 ${b.x + 1} · 縦 ${b.y + 1}</small></span><button data-move="${E(b.id)}">移動</button><button data-rotate="${E(b.id)}">回転</button><button data-delete="${E(b.id)}">削除</button></div>`;
+            const f = C.footprint(b);
+            return `<div class="building-item"><span>${item.icon} ${item.name}<small>${f.width}×${f.depth}マス · 横 ${b.x + 1} · 縦 ${b.y + 1}</small></span><button data-move="${E(b.id)}">移動</button><button data-rotate="${E(b.id)}">回転</button><button data-delete="${E(b.id)}">削除</button></div>`;
           })
           .join("")
       : '<div class="empty">まだ建物がないよ。クイズに正解して、ショップで選んでみよう！</div>';
@@ -505,13 +516,20 @@
     window.dispatchEvent(new CustomEvent("hk-town-change"));
   }
   function renderGrid() {
-    let html = '<div class="grid-map" role="group" aria-label="町の配置マス">';
-    for (let y = 0; y < 18; y++)
-      for (let x = 0; x < 30; x++) {
-        const b = state.city.find((b) => b.x === x && b.y === y),
-          item = b && C.items.find((i) => i.id === b.type);
-        html += `<button class="grid-cell ${b ? "occupied" : ""} ${pending && pending.x === x && pending.y === y ? "pending" : ""}" data-cell="${x},${y}" aria-label="横${x + 1} 縦${y + 1}${item ? " " + item.name : ""}">${item?.icon || ""}</button>`;
+    const occupied = new Map(), highlighted = new Set(), g = C.gridStyle;
+    for (const b of state.city) for (const c of C.occupiedCells(b)) occupied.set(c.x + "," + c.y, b);
+    const valid = pending && C.canPlace(state.city, pending.x, pending.y, pending.id, pending.type, pending.rot);
+    if (pending) for (const c of C.occupiedCells(pending)) highlighted.add(c.x + "," + c.y);
+    let html = `<div class="grid-map ${pending ? "placing" : ""}" role="group" aria-label="町の配置マス" style="--town-columns:${C.town.width};--town-cell:${g.cell}px;--town-gap:${g.gap}px">`;
+    for (let y = 0; y < C.town.height; y++)
+      for (let x = 0; x < C.town.width; x++) {
+        const k = x + "," + y, b = occupied.get(k), item = b && C.items.find((i) => i.id === b.type);
+        html += `<button class="grid-cell ${b ? "occupied" : ""} ${highlighted.has(k) ? valid ? "pending" : "pending blocked" : ""}" data-cell="${k}" aria-label="横${x + 1} 縦${y + 1}${item ? " " + item.name + "の敷地" : " 空き地"}"></button>`;
       }
+    for (const b of state.city) {
+      const f = C.footprint(b), item = C.items.find((i) => i.id === b.type);
+      html += `<button class="map-building ${f.width * f.depth === 1 ? "compact" : ""} type-${b.type}" data-building="${E(b.id)}" style="left:${b.x * g.pitch}px;top:${b.y * g.pitch}px;width:${f.width * g.pitch - g.gap}px;height:${f.depth * g.pitch - g.gap}px" aria-label="${item.name} ${f.width}×${f.depth}マス 横${b.x + 1} 縦${b.y + 1}"><span aria-hidden="true">${item.icon}</span><small>${item.name}<br>${f.width}×${f.depth}</small></button>`;
+    }
     html += '<div id="residentMapLayer" aria-hidden="true"></div></div>';
     $("townGrid").innerHTML = html;
     updateResidentMap(residentEngine?.snapshot() || []);
@@ -520,7 +538,7 @@
     if (!residentEngine || state.money < 10) { notify("農民を迎えるには10両が必要だよ。"); return; }
     if (state.residents.length >= 100) { notify("この町の農民は100人までです。"); return; }
     residentEngine.sync(state.residents, state.city);
-    const spawn = residentEngine.nearest(14, 8);
+    const spawn = residentEngine.nearest(Math.floor(C.town.width / 2), Math.floor(C.town.height / 2));
     if (!spawn) { notify("農民が歩ける空きマスをつくってね。"); return; }
     const id = crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random();
     state.residents.push({ id, x: spawn.x, y: spawn.y }); state.money -= 10;
@@ -568,7 +586,7 @@
       let el = [...layer.children].find((e) => e.dataset.person === actor.id);
       if (!el) { el = document.createElement("span"); el.className = "map-resident"; el.dataset.person = actor.id; layer.append(el); }
       el.textContent = "👨‍🌾" + (actor.phase === "walk" ? "" : actor.icon);
-      el.style.transform = `translate(${25 + actor.x * 36}px,${24 + actor.y * 34}px)`;
+      el.style.transform = `translate(${C.gridStyle.cell / 2 + actor.x * C.gridStyle.pitch}px,${C.gridStyle.cell / 2 + actor.y * C.gridStyle.pitch}px)`;
       el.title = actor.text;
     }
   }
@@ -600,22 +618,17 @@
     const item = C.items.find((i) => i.id === type),
       b = id && state.city.find((b) => b.id === id);
     if (!item || (!id && state.money < item.price)) return;
-    let cell = b || { x: 14, y: 8 };
-    if (!b && !C.canPlace(state.city, cell.x, cell.y)) {
-      outer: for (let y = 0; y < 18; y++)
-        for (let x = 0; x < 30; x++)
-          if (C.canPlace(state.city, x, y)) {
-            cell = { x, y };
-            break outer;
-          }
-    }
-    pending = { type, id, x: cell.x, y: cell.y };
+    const rot = b?.rot || 0;
+    const cell = b || C.findPlot(state.city, type, rot);
+    if (!cell) { notify("この建物の敷地が入る空き地がないよ。建物を移動して場所を空けてね。"); return; }
+    pending = { type, id, x: cell.x, y: cell.y, rot };
     $("placement").hidden = false;
     $("placementTitle").textContent =
       item.name + (id ? "を移動" : "を配置 · " + item.price + "両");
     $("placeX").value = cell.x + 1;
     $("placeY").value = cell.y + 1;
     updatePlacement();
+    if (!$("townGrid").hidden) $("townGrid").querySelector(`[data-cell="${cell.x},${cell.y}"]`)?.scrollIntoView({ block: "nearest", inline: "center" });
     $("placement").scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
   function updatePlacement() {
@@ -624,11 +637,11 @@
       y = Number($("placeY").value) - 1;
     pending.x = x;
     pending.y = y;
-    const valid = C.canPlace(state.city, x, y, pending.id);
+    const f = C.footprint(pending), valid = C.canPlace(state.city, x, y, pending.id, pending.type, pending.rot);
     $("placeConfirm").disabled = !valid;
     $("placementHint").textContent = valid
-      ? "横 " + (x + 1) + " · 縦 " + (y + 1) + " に置きます。"
-      : "ここには置けないよ。空いているマスを選んでね。";
+      ? f.width + "×" + f.depth + "マス · 横 " + (x + 1) + " · 縦 " + (y + 1) + " から置きます。"
+      : f.width + "×" + f.depth + "マスの敷地が必要だよ。ほかの建物や町の外に重ならない場所を選んでね。";
     if (!$("townGrid").hidden) renderGrid();
     window.dispatchEvent(new CustomEvent("hk-placement", { detail: pending }));
   }
@@ -642,7 +655,7 @@
     if (!pending) return;
     const p = pending,
       item = C.items.find((i) => i.id === p.type);
-    if (!C.canPlace(state.city, p.x, p.y, p.id)) {
+    if (!C.canPlace(state.city, p.x, p.y, p.id, p.type, p.rot)) {
       updatePlacement();
       return;
     }
@@ -651,6 +664,7 @@
       if (!b) return;
       b.x = p.x;
       b.y = p.y;
+      b.rot = p.rot;
     } else {
       if (state.money < item.price) {
         notify("両が足りないよ。");
@@ -664,7 +678,7 @@
         type: p.type,
         x: p.x,
         y: p.y,
-        rot: 0,
+        rot: p.rot,
       });
     }
     save();
@@ -680,7 +694,7 @@
     save();
     renderTown();
     notify("建物を削除したよ。", () => {
-      if (C.canPlace(state.city, b.x, b.y)) {
+      if (C.canPlace(state.city, b.x, b.y, null, b.type, b.rot)) {
         state.city.push(b);
         save();
         renderTown();
@@ -698,7 +712,7 @@
     const blob = new Blob(
         [
           JSON.stringify(
-            { version: 2, exportedAt: new Date().toISOString(), ...state },
+            { version: 3, townLayout: { width: C.town.width, height: C.town.height }, exportedAt: new Date().toISOString(), ...state },
             null,
             2,
           ),
@@ -715,24 +729,31 @@
   function importState(text) {
     const v = JSON.parse(text);
     if (
-      v.version !== 2 ||
+      ![2, 3].includes(v.version) ||
       !v.got ||
       !Number.isSafeInteger(v.money) ||
       v.money < 0 ||
       !Array.isArray(v.city) ||
-      v.city.length > 540
+      v.city.length > C.town.width * C.town.maxHeight
     )
       throw Error("format");
-    const city = [];
+    const legacy = v.version === 2;
+    if (!legacy && !C.validTownLayout(v.townLayout)) throw Error("town-layout");
+    const layout = legacy ? { width: 30, height: 18 } : v.townLayout;
+    if (v.city.length > layout.width * layout.height) throw Error("city-size");
+    const city = [], anchors = new Set();
     for (const b of v.city) {
       if (
         !b ||
         !C.items.some((i) => i.id === b.type && i.cat !== "resident") ||
-        !C.canPlace(city, b.x, b.y) ||
+        !Number.isInteger(b.x) || !Number.isInteger(b.y) || b.x < 0 || b.x >= layout.width || b.y < 0 || b.y >= layout.height ||
+        ![0, 90, 180, 270].includes(Number(b.rot) || 0) ||
+        (legacy ? anchors.has(b.x + "," + b.y) : !C.canPlace(city, b.x, b.y, null, b.type, Number(b.rot) || 0, layout)) ||
         typeof b.id !== "string" ||
         city.some((a) => a.id === b.id)
       )
         throw Error("city");
+      anchors.add(b.x + "," + b.y);
       city.push({
         id: b.id,
         type: b.type,
@@ -745,7 +766,7 @@
     if (!Array.isArray(residents) || residents.length > 100) throw Error("residents");
     const ids = new Set();
     for (const r of residents) {
-      if (!r || typeof r.id !== "string" || ids.has(r.id) || !Number.isInteger(r.x) || !Number.isInteger(r.y) || r.x < 0 || r.x >= 30 || r.y < 0 || r.y >= 18) throw Error("residents");
+      if (!r || typeof r.id !== "string" || ids.has(r.id) || !Number.isInteger(r.x) || !Number.isInteger(r.y) || r.x < 0 || r.x >= layout.width || r.y < 0 || r.y >= layout.height) throw Error("residents");
       ids.add(r.id);
     }
     const got = {};
@@ -754,10 +775,12 @@
       for (const r of records.filter((r) => r.era === era))
         if (v.got[era]?.[r.name] === true) got[era][r.name] = true;
     }
+    const importedTown = legacy ? C.arrangeCity(city, { legacy: true, layout: { ...C.town, height: C.town.minHeight } }) : { city, layout };
+    Object.assign(C.town, importedTown.layout);
     Object.assign(state, {
       money: v.money,
-      city,
-      residents: residents.map((r) => ({ id: r.id, x: r.x, y: r.y })),
+      city: importedTown.city,
+      residents: residents.map((r) => ({ id: r.id, x: r.x + (legacy ? 15 : 0), y: r.y + (legacy ? 11 : 0) })),
       got,
       wrong: {},
       ruby: v.ruby !== false,
@@ -843,7 +866,7 @@
         $("placeY").value = y + 1;
         updatePlacement();
       } else {
-        const item = state.city.find((a) => a.x === x && a.y === y);
+        const item = state.city.find((a) => C.containsCell(a, x, y));
         if (item) buildingDetail(item.id);
         else notify("ショップで建物を選んでから、置く場所を決めてね。");
       }
@@ -854,6 +877,7 @@
       if (a) startPlacement(a.type, a.id);
       return;
     }
+    if (b.dataset.building) { buildingDetail(b.dataset.building); return; }
     if (b.dataset.delete) {
       deleteBuilding(b.dataset.delete);
       return;
@@ -861,7 +885,9 @@
     if (b.dataset.rotate) {
       const a = state.city.find((a) => a.id === b.dataset.rotate);
       if (a) {
-        a.rot = ((a.rot || 0) + 90) % 360;
+        const rot = ((a.rot || 0) + 90) % 360;
+        if (!C.canPlace(state.city, a.x, a.y, a.id, a.type, rot)) { notify("回転すると敷地が重なります。「移動」から向きと場所を選んでね。"); return; }
+        a.rot = rot;
         save();
         renderTown();
       }
@@ -874,7 +900,7 @@
     const item = C.items.find((a) => a.id === b.type);
     openDialog(
       item.icon + " " + item.name,
-      `<p>横 ${b.x + 1} · 縦 ${b.y + 1}</p><div class="dialog-actions"><button data-move="${E(id)}">場所を変える</button><button data-rotate="${E(id)}">90度回転</button><button data-delete="${E(id)}">削除</button></div>`,
+      `<p>${C.footprint(b).width}×${C.footprint(b).depth}マスの敷地 · 横 ${b.x + 1} · 縦 ${b.y + 1}</p><div class="dialog-actions"><button data-move="${E(id)}">場所を変える</button><button data-rotate="${E(id)}">90度回転</button><button data-delete="${E(id)}">削除</button></div>`,
     );
   }
   $("answerForm").onsubmit = (e) => {
@@ -937,6 +963,7 @@
   };
   $("placeX").oninput = updatePlacement;
   $("placeY").oninput = updatePlacement;
+  $("placeRotate").onclick = () => { if (pending) { pending.rot = (pending.rot + 90) % 360; updatePlacement(); } };
   $("placeConfirm").onclick = commitPlacement;
   $("placeCancel").onclick = cancelPlacement;
   $("town2d").onclick = () => {
@@ -947,10 +974,12 @@
     $("town2d").setAttribute("aria-pressed", "true");
     $("town3d").setAttribute("aria-pressed", "false");
     renderGrid();
+    $("townHelp").textContent = "町の地図を横・縦にスクロールできます。建物を選ぶと敷地をまとめて移動できます。";
   };
   $("town3d").onclick = () => {
     $("townCanvas").hidden = false;
     $("townGrid").hidden = true;
+    $("townHelp").textContent = "指1本で回転、2本で拡大・移動。建物をタップすると操作できます。";
     $("town3d").classList.add("active");
     $("town2d").classList.remove("active");
     $("town3d").setAttribute("aria-pressed", "true");
@@ -991,6 +1020,7 @@
       state.money = 0;
       state.city = [];
       state.residents = [];
+      C.town.height = C.town.minHeight;
       state.wrong = {};
       save();
       $("dialog").close();
@@ -1043,6 +1073,7 @@
     notify,
   };
   const reviewParams = new URLSearchParams(location.search);
+  if ((legacyTown && (state.city.length || state.residents.length)) || arrangedTown.moved) save();
   const reviewing = reviewParams.get("review") === "1";
   setEra(reviewing && ds[reviewParams.get("era")] ? reviewParams.get("era") : state.era);
   if (reviewing) { $("practiceFilter").value = "wrong"; rebuildQueue(); }

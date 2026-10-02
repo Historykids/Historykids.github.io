@@ -1,8 +1,9 @@
 import * as THREE from "three";
 import { OrbitControls } from "../vendor/OrbitControls.js";
 import { GLTFLoader } from "../vendor/GLTFLoader.js";
-import { fitModel, createBuilding, createGround, syncBuildings } from "./town-geometry.js";
-import { createFarmerView } from "./farmer-3d.js";
+import { fitModel, createBuilding, createGround, syncBuildings } from "./town-geometry.js?v=plots-20261002";
+import { createFarmerView } from "./farmer-3d.js?v=plots-20261002";
+const C = window.HKCore;
 const urls = {
   house: "house.2a9f3.glb",
   shop: "j8ap2an8eses0ho1p.glb",
@@ -44,28 +45,39 @@ function createScene(host, { mini = false } = {}) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   const scene = new THREE.Scene();
   if (!mini) scene.background = new THREE.Color("#f2eadb");
-  const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 200);
+  const diagonal = Math.hypot(C.town.width, C.town.height);
+  const camera = new THREE.PerspectiveCamera(40, 1, 0.1, Math.max(240, diagonal * 8));
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = false;
   controls.maxPolarAngle = Math.PI * 0.47;
-  controls.minDistance = mini ? 4 : 6;
-  controls.maxDistance = mini ? 20 : 65;
+  controls.minDistance = 4;
+  controls.maxDistance = mini ? 20 : diagonal * 5;
   controls.enableZoom = !mini;
   controls.enablePan = !mini;
   controls.enableRotate = !mini;
   controls.target.set(0, mini ? 1 : 0, 0);
   camera.position.set(mini ? 6 : 23, mini ? 5 : 28, mini ? 8 : 30);
   controls.update();
+  function resetCamera() {
+    if (mini) return;
+    const halfVertical = THREE.MathUtils.degToRad(camera.fov / 2), halfHorizontal = Math.atan(Math.tan(halfVertical) * camera.aspect);
+    const distance = diagonal / 2 / Math.sin(Math.min(halfVertical, halfHorizontal)) * 1.1;
+    controls.target.set(0, 0, 0);
+    camera.position.copy(new THREE.Vector3(.8, 1, 1).normalize().multiplyScalar(distance));
+    controls.update();
+  }
   const ambient = new THREE.HemisphereLight(0xf1faff, 0x536244, 2.4);
   scene.add(ambient);
   const sun = new THREE.DirectionalLight(0xfff0d7, 3.5);
   sun.position.set(12, 23, 12);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
-  sun.shadow.camera.left = -24;
-  sun.shadow.camera.right = 24;
-  sun.shadow.camera.top = 24;
-  sun.shadow.camera.bottom = -24;
+  const shadowSize = mini ? 8 : diagonal / 2 + 10;
+  sun.shadow.camera.left = -shadowSize;
+  sun.shadow.camera.right = shadowSize;
+  sun.shadow.camera.top = shadowSize;
+  sun.shadow.camera.bottom = -shadowSize;
+  sun.shadow.camera.far = Math.max(100, diagonal * 2);
   sun.shadow.bias = -0.0003;
   scene.add(sun);
   const base = createGround(scene, mini);
@@ -74,17 +86,20 @@ function createScene(host, { mini = false } = {}) {
   host.replaceChildren(renderer.domElement);
   let shadowBuildings = "";
   const render = () => {
+    if (disposed) return;
     const signature = buildings.children.map((o) => o.uuid).join(":") || "empty";
     if (signature !== shadowBuildings || !shadowBuildings) {
       renderer.shadowMap.needsUpdate = true; shadowBuildings = signature;
     }
     if (host.clientWidth && host.clientHeight) renderer.render(scene, camera);
   };
+  let framed = mini, disposed = false;
   const observer = new ResizeObserver(() => {
     if (!host.clientWidth || !host.clientHeight) return;
     renderer.setSize(host.clientWidth, host.clientHeight, false);
     camera.aspect = host.clientWidth / host.clientHeight;
     camera.updateProjectionMatrix();
+    if (!framed) { resetCamera(); framed = true; }
     render();
   });
   observer.observe(host);
@@ -108,6 +123,10 @@ function createScene(host, { mini = false } = {}) {
     base,
     buildings,
     render,
+    resetCamera,
+    landWidth: C.town.width,
+    landHeight: C.town.height,
+    dispose() { disposed = true; this.disposed = true; this.entries?.clear(); observer.disconnect(); controls.dispose(); renderer.dispose(); scene.clear(); },
     mini,
   };
 }
@@ -154,8 +173,8 @@ function initTown() {
       if (window.HK.pending) {
         const hit = ray.intersectObject(town.base)[0];
         if (hit) {
-          const x = Math.floor(hit.point.x + 15),
-            y = Math.floor(hit.point.z + 9);
+          const x = Math.floor(hit.point.x + C.town.width / 2),
+            y = Math.floor(hit.point.z + C.town.height / 2);
           window.HK.setCell(x, y);
         }
       } else {
@@ -180,6 +199,10 @@ function initTown() {
 }
 async function syncTown() {
   if (!town || !window.HK) return;
+  if (town.landWidth !== C.town.width || town.landHeight !== C.town.height) {
+    town.dispose(); town = null; marker = null; followResident = null; window.HKTownReady = false;
+    initTown(); showMarker(window.HK.pending); return;
+  }
   farmerView.update(window.HK.residentActors);
   await syncBuildings(town, window.HK.state.city, loadModel, (type, error) => {
     if (!failedTypes.has(type)) {
@@ -204,8 +227,10 @@ function showMarker(p) {
   }
   marker.visible = !!p;
   if (p) {
-    marker.position.set(p.x - 14.5, 0.04, p.y - 8.5);
-    const valid = window.HKCore.canPlace(window.HK.state.city, p.x, p.y, p.id);
+    const f = C.footprint(p);
+    marker.scale.set(f.width, 1, f.depth);
+    marker.position.set(p.x + f.width / 2 - C.town.width / 2, 0.04, p.y + f.depth / 2 - C.town.height / 2);
+    const valid = C.canPlace(window.HK.state.city, p.x, p.y, p.id, p.type, p.rot);
     marker.material.color.set(valid ? 0xffa159 : 0xc44a42);
   }
   town.render();
@@ -223,7 +248,7 @@ function boot() {
     followResident = e.detail;
     const actor = window.HK.residentActors.find((a) => a.id === followResident);
     if (actor) {
-      town.controls.target.set(actor.x - 14.5, .4, actor.y - 8.5);
+      town.controls.target.set(actor.x + .5 - C.town.width / 2, .2, actor.y + .5 - C.town.height / 2);
       town.camera.position.copy(town.controls.target).add(new THREE.Vector3(4, 4.8, 5));
       town.controls.update(); town.render();
     }
@@ -235,7 +260,7 @@ function boot() {
       const actor = e.detail.find((a) => a.id === followResident);
       if (!actor) followResident = null;
       else {
-        const target = new THREE.Vector3(actor.x - 14.5, .4, actor.y - 8.5);
+        const target = new THREE.Vector3(actor.x + .5 - C.town.width / 2, .2, actor.y + .5 - C.town.height / 2);
         town.controls.target.lerp(target, .2);
         town.camera.position.lerp(target.clone().add(new THREE.Vector3(4, 4.8, 5)), .2);
         town.controls.update();
@@ -247,9 +272,7 @@ function boot() {
   window.addEventListener("hk-camera-reset", () => {
     if (!town) return;
     followResident = null;
-    town.camera.position.set(23, 28, 30);
-    town.controls.target.set(0, 0, 0);
-    town.controls.update();
+    town.resetCamera();
     town.render();
   });
   if (location.hash === "#town") initTown();

@@ -3,11 +3,12 @@
   "use strict";
   const bestKey = "hk_best_v4_alltime_ALL_allera_ALL_sprint_choice", verifiedKey="hk_buzzer_verified_best_v1", identityKey="hk_rank_identity_v1", cacheKey = "hk_leaderboard_cache_v3", nicknameKey = "hk_buzzer_nickname", publishedKey="hk_buzzer_published_v1";
   function nickname(value) { return Array.from(String(value || "").normalize("NFKC").replace(/[\u0000-\u001f\u007f]/g, "").trim()).slice(0,24).join(""); }
+  function validCorrect(correct){return Number.isInteger(correct)&&correct>=0&&correct<=10;}
   function validTime(ms) { return Number.isSafeInteger(ms) && ms > 0; }
   function record(value,id) {
-    if (!value || !validTime(value.ms) || (value.count !== undefined && value.count !== 10)) return null;
+    if (!value || !validTime(value.ms) || (value.count !== undefined && value.count !== 10) || (value.correct!==undefined&&!validCorrect(value.correct))) return null;
     let timestamp=0; try { timestamp=value.ts?.toDate ? value.ts.toDate().getTime() : Number(value.timestamp)||0; } catch {}
-    return {id:String(id||value.uid||""),name:nickname(value.name)||"歴史探検家",ms:value.ms,timestamp:Number.isFinite(timestamp)?timestamp:0};
+    return {id:String(id||value.uid||""),name:nickname(value.name)||"歴史探検家",ms:value.ms,correct:value.correct??10,timestamp:Number.isFinite(timestamp)?timestamp:0};
   }
   function rank(records) {
     const unique=new Map(); for(const r of records) if(r?.id && validTime(r.ms) && (!unique.has(r.id)||unique.get(r.id).ms>r.ms)) unique.set(r.id,r);
@@ -19,8 +20,8 @@
     if(entries.length&&Math.round(own.ms/10)<=Math.round(entries[entries.length-1].ms/10))return entries.filter(r=>Math.round(r.ms/10)<Math.round(own.ms/10)).length+1;
     return null;
   }
-  function registerableBest(){try{const r=JSON.parse(root.localStorage.getItem(verifiedKey));return r?.correct===10&&validTime(r.ms)&&typeof r.proof==='string'?r:null;}catch{return null;}}
-  function localBest(){const online=registerableBest();if(online)return online;try{const r=JSON.parse(root.localStorage.getItem(bestKey));return r?.correct===10&&validTime(r.ms)?r:null;}catch{return null;}}
+  function registerableBest(){try{const r=JSON.parse(root.localStorage.getItem(verifiedKey));return validCorrect(r?.correct)&&validTime(r.ms)&&typeof r.proof==='string'?r:null;}catch{return null;}}
+  function localBest(){const online=registerableBest();if(online)return online;try{const r=JSON.parse(root.localStorage.getItem(bestKey));return validCorrect(r?.correct)&&validTime(r.ms)?r:null;}catch{return null;}}
   function readCache(){try{const c=JSON.parse(root.localStorage.getItem(cacheKey));if(!c||!Array.isArray(c.entries)||!Number.isFinite(c.at))return null;return{entries:rank(c.entries.map(r=>record(r,r.id)).filter(Boolean)),at:c.at};}catch{return null;}}
   function saveCache(entries,at){try{root.localStorage.setItem(cacheKey,JSON.stringify({entries,at}));}catch{}}
   function readPublished(){try{const p=JSON.parse(root.localStorage.getItem(publishedKey)),entry=record(p?.entry,p?.entry?.id);return entry&&Number.isFinite(p.at)?{entry,at:p.at}:null;}catch{return null;}}
@@ -39,8 +40,8 @@
   async function startChallenge(){const result=await request('/start',{});if(typeof result.ticket!=='string'||!Array.isArray(result.ids)||result.ids.length!==10||new Set(result.ids).size!==10)throw Error('response');return result;}
   async function finishChallenge(ticket,log,score){
     const result=await request('/finish',{ticket,answers:log.map(r=>({id:r.q.id,raw:r.raw}))});
-    if(!validTime(result.ms)||!validTime(result.elapsedMs)||typeof result.proof!=='string')throw Error('response');
-    const best={correct:10,ms:result.ms,proof:result.proof,score:score.score,combo:score.combo};root.localStorage.setItem(verifiedKey,JSON.stringify(best));return{best,ms:result.elapsedMs};
+    if(!validTime(result.ms)||!validTime(result.elapsedMs)||!validCorrect(result.correct??10)||typeof result.proof!=='string')throw Error('response');
+    const best={correct:result.correct??10,ms:result.ms,proof:result.proof,score:score.score,combo:score.combo};root.localStorage.setItem(verifiedKey,JSON.stringify(best));return{best,ms:result.elapsedMs};
   }
   async function submit(name,ms){
     name=nickname(name);if(!name)throw Object.assign(Error("nickname"),{code:"nickname"});if(!validTime(ms))throw Error("record");saveName(name);
@@ -51,7 +52,7 @@
     try{root.localStorage.setItem(publishedKey,JSON.stringify({entry,at}));}catch{}
     return{updated:result.updated===true,renamed:result.renamed===true,entry};
   }
-  function errorText(error){return error?.code==='verified-record-required'?"オンラインの10問決戦で全問正解すると登録できます。":error?.code==='rate-limited'?"いま接続が混み合っています。少し待って、もう一度試してください。":error?.code==='challenge-expired'?"結果の確認期限が切れました。もう一度10問決戦に挑戦してください。":"通信を確認できませんでした。接続を確認して、もう一度試してください。自己ベストはこのブラウザに残っています。";}
-  const api={bestKey,verifiedKey,identityKey,cacheKey,nicknameKey,publishedKey,readPublished,nickname,validTime,record,rank,ownRank,localBest,registerableBest,readCache,saveCache,savedName,saveName,seconds,wait,identity,load,startChallenge,finishChallenge,submit,errorText};root.HKLeaderboard=api;
+  function errorText(error){return error?.code==='verified-record-required'?"オンラインの10問決戦を最後まで遊ぶと登録できます。":error?.code==='rate-limited'?"いま接続が混み合っています。少し待って、もう一度試してください。":error?.code==='challenge-expired'?"結果の確認期限が切れました。もう一度10問決戦に挑戦してください。":"通信を確認できませんでした。接続を確認して、もう一度試してください。自己ベストはこのブラウザに残っています。";}
+  const api={bestKey,verifiedKey,identityKey,cacheKey,nicknameKey,publishedKey,readPublished,nickname,validTime,validCorrect,record,rank,ownRank,localBest,registerableBest,readCache,saveCache,savedName,saveName,seconds,wait,identity,load,startChallenge,finishChallenge,submit,errorText};root.HKLeaderboard=api;
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
 })(typeof window==="undefined"?globalThis:window);

@@ -7,12 +7,12 @@ const randomIndex=length=>crypto.getRandomValues(new Uint32Array(1))[0]%length;
 function pick(){const selected=C.eraOrder.map(era=>{const pool=questions.filter(q=>q.era===era);return pool[randomIndex(pool.length)].id;});for(let i=selected.length-1;i>0;i--){const j=randomIndex(i+1);[selected[i],selected[j]]=[selected[j],selected[i]];}return selected;}
 function fail(code,status=400){return Response.json({error:code},{status});}
 export class HistoryLeaderboard {
- constructor(ctx){this.ctx=ctx;this.sql=ctx.storage.sql;this.sql.exec(`CREATE TABLE IF NOT EXISTS scores(id TEXT PRIMARY KEY,name TEXT NOT NULL,ms INTEGER NOT NULL,timestamp INTEGER NOT NULL); CREATE INDEX IF NOT EXISTS scores_time ON scores(ms,id); CREATE TABLE IF NOT EXISTS challenges(owner TEXT PRIMARY KEY,ticket TEXT NOT NULL,started INTEGER NOT NULL,ids TEXT NOT NULL,result TEXT); CREATE TABLE IF NOT EXISTS receipts(owner TEXT PRIMARY KEY,proof TEXT NOT NULL,ms INTEGER NOT NULL,timestamp INTEGER NOT NULL);`);if(!this.sql.exec('PRAGMA table_info(challenges)').toArray().some(c=>c.name==='result'))this.sql.exec('ALTER TABLE challenges ADD COLUMN result TEXT');}
+ constructor(ctx){this.ctx=ctx;this.sql=ctx.storage.sql;this.sql.exec(`CREATE TABLE IF NOT EXISTS scores(id TEXT PRIMARY KEY,name TEXT NOT NULL,ms INTEGER NOT NULL,timestamp INTEGER NOT NULL); CREATE INDEX IF NOT EXISTS scores_time ON scores(ms,id); CREATE TABLE IF NOT EXISTS challenges(owner TEXT PRIMARY KEY,ticket TEXT NOT NULL,started INTEGER NOT NULL,ids TEXT NOT NULL,result TEXT); CREATE TABLE IF NOT EXISTS receipts(owner TEXT PRIMARY KEY,proof TEXT NOT NULL,ms INTEGER NOT NULL,timestamp INTEGER NOT NULL);`);if(!this.sql.exec('PRAGMA table_info(challenges)').toArray().some(c=>c.name==='result'))this.sql.exec('ALTER TABLE challenges ADD COLUMN result TEXT');for(const table of ['scores','receipts'])if(!this.sql.exec('PRAGMA table_info('+table+')').toArray().some(c=>c.name==='correct'))this.sql.exec('ALTER TABLE '+table+' ADD COLUMN correct INTEGER NOT NULL DEFAULT 10');}
  async fetch(request){
   const url=new URL(request.url),data=await request.json(),owner=data.owner||'',now=Date.now();
   if(url.pathname==='/ranking'){
-   const entries=this.sql.exec('SELECT id,name,ms,timestamp FROM scores ORDER BY ms,id LIMIT 100').toArray();
-   const own=owner?this.sql.exec('SELECT id,name,ms,timestamp FROM scores WHERE id=?',owner).toArray()[0]||null:null;
+   const entries=this.sql.exec('SELECT id,name,ms,timestamp,correct FROM scores ORDER BY ms,id LIMIT 100').toArray();
+   const own=owner?this.sql.exec('SELECT id,name,ms,timestamp,correct FROM scores WHERE id=?',owner).toArray()[0]||null:null;
    return Response.json({entries,own,uid:owner,ownKnown:true,at:now});
   }
   if(!/^[a-f0-9]{64}$/.test(owner))return fail('identity-required',401);
@@ -27,26 +27,27 @@ export class HistoryLeaderboard {
    if(!row||row.ticket!==data.ticket||now-row.started>expiresAfter)return fail('challenge-expired',409);
    if(row.result)return Response.json(JSON.parse(row.result));
    const ids=JSON.parse(row.ids),answers=data.answers;
-   if(!Array.isArray(answers)||answers.length!==10||answers.some((a,i)=>a?.id!==ids[i]||typeof a.raw!=='string'||a.raw.length>160||!C.answerOK(a.raw,byId.get(ids[i]).answers)))return fail('not-perfect');
+   if(!Array.isArray(answers)||answers.length!==10||answers.some((a,i)=>a?.id!==ids[i]||typeof a.raw!=='string'||a.raw.length>160))return fail('invalid-answers');
    // The server clock decides the published time. Client values cannot shorten it.
-   const ms=now-row.started;if(ms<1000)return fail('too-fast');
-   const previous=this.sql.exec('SELECT proof,ms,timestamp FROM receipts WHERE owner=?',owner).toArray()[0];
-   if(previous&&previous.ms<=ms){const result={...previous,elapsedMs:ms};this.sql.exec('UPDATE challenges SET result=? WHERE owner=?',JSON.stringify(result),owner);return Response.json(result);}
-   const proof=crypto.randomUUID();this.sql.exec('INSERT INTO receipts(owner,proof,ms,timestamp) VALUES(?,?,?,?) ON CONFLICT(owner) DO UPDATE SET proof=excluded.proof,ms=excluded.ms,timestamp=excluded.timestamp',owner,proof,ms,now);
-   const result={proof,ms,timestamp:now,elapsedMs:ms};this.sql.exec('UPDATE challenges SET result=? WHERE owner=?',JSON.stringify(result),owner);return Response.json(result);
+   const durationMs=now-row.started;if(durationMs<1000)return fail('too-fast');
+   const correct=answers.filter((a,i)=>C.answerOK(a.raw,byId.get(ids[i]).answers)).length,penaltyMs=(10-correct)*5000,ms=durationMs+penaltyMs;
+   const previous=this.sql.exec('SELECT proof,ms,timestamp,correct FROM receipts WHERE owner=?',owner).toArray()[0];
+   if(previous&&previous.ms<=ms){const result={...previous,elapsedMs:ms,roundCorrect:correct,durationMs,penaltyMs};this.sql.exec('UPDATE challenges SET result=? WHERE owner=?',JSON.stringify(result),owner);return Response.json(result);}
+   const proof=crypto.randomUUID();this.sql.exec('INSERT INTO receipts(owner,proof,ms,timestamp,correct) VALUES(?,?,?,?,?) ON CONFLICT(owner) DO UPDATE SET proof=excluded.proof,ms=excluded.ms,timestamp=excluded.timestamp,correct=excluded.correct',owner,proof,ms,now,correct);
+   const result={proof,ms,timestamp:now,correct,elapsedMs:ms,roundCorrect:correct,durationMs,penaltyMs};this.sql.exec('UPDATE challenges SET result=? WHERE owner=?',JSON.stringify(result),owner);return Response.json(result);
   }
   if(url.pathname==='/ranking/register'){
    const name=cleanName(data.name);if(!name)return fail('nickname');
-   const receipt=this.sql.exec('SELECT proof,ms FROM receipts WHERE owner=?',owner).toArray()[0];
+   const receipt=this.sql.exec('SELECT proof,ms,correct FROM receipts WHERE owner=?',owner).toArray()[0];
    if(!receipt||receipt.proof!==data.proof)return fail('verified-record-required',409);
-   const old=this.sql.exec('SELECT id,name,ms,timestamp FROM scores WHERE id=?',owner).toArray()[0];
+   const old=this.sql.exec('SELECT id,name,ms,timestamp,correct FROM scores WHERE id=?',owner).toArray()[0];
    if(old&&old.ms<=receipt.ms){
     if(old.name===name)return Response.json({updated:false,entry:old});
     this.sql.exec('UPDATE scores SET name=? WHERE id=?',name,owner);
     return Response.json({updated:true,renamed:true,entry:{...old,name}});
    }
-   this.sql.exec('INSERT INTO scores(id,name,ms,timestamp) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,ms=excluded.ms,timestamp=excluded.timestamp WHERE excluded.ms<scores.ms',owner,name,receipt.ms,now);
-   return Response.json({updated:true,entry:{id:owner,name,ms:receipt.ms,timestamp:now}});
+   this.sql.exec('INSERT INTO scores(id,name,ms,timestamp,correct) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,ms=excluded.ms,timestamp=excluded.timestamp,correct=excluded.correct WHERE excluded.ms<scores.ms',owner,name,receipt.ms,now,receipt.correct);
+   return Response.json({updated:true,entry:{id:owner,name,ms:receipt.ms,timestamp:now,correct:receipt.correct}});
   }
   return fail('not-found',404);
  }

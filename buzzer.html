@@ -4,7 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>歴史の早押し決戦｜歴史キッズ</title><meta name="description" content="早押しボタンで日本史に挑戦！10問決戦、60秒ラッシュ、3命サバイバル。難しい4択と入力、コンボ、成績と復習。"><meta name="theme-color" content="#142b40">
   <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/app.css?v=quiz-nav-rank-20261003"><link rel="stylesheet" href="./assets/ui/subpages.css"><link rel="stylesheet" href="./assets/ui/challenge.css?v=online-rank-20261002">
-  <script defer src="./data/dataset.js"></script><script defer src="./data/ancient.js?v=ancient-20261002"></script><script defer src="./assets/ui/core.js?v=online-rank-20261002"></script><script defer src="./assets/ui/ranking-config.js?v=online-rank-20261002"></script><script defer src="./assets/ui/leaderboard.js?v=quiz-nav-rank-20261003"></script><script defer src="./assets/ui/challenge.js?v=quiz-nav-rank-20261003"></script>
+  <script defer src="./data/dataset.js"></script><script defer src="./data/ancient.js?v=ancient-20261002"></script><script defer src="./assets/ui/core.js?v=online-rank-20261002"></script><script defer src="./assets/ui/ranking-config.js?v=online-rank-20261002"></script><script defer src="./assets/ui/leaderboard.js?v=vex-open-rank-20261003"></script><script defer src="./assets/ui/challenge.js?v=vex-open-rank-20261003"></script>
 </head>
 <body class="subpage challenge-page">
 <header class="sub-header"><a href="./" class="sub-brand">歴史キッズ</a><nav aria-label="ゲームメニュー"><a href="./#games">学習に戻る</a><a href="./ranking.html">ランキング</a><button id="soundBtn" aria-pressed="false">音 OFF</button><button id="fullscreenBtn" aria-label="全画面にする">全画面</button><a href="./#howto">遊び方</a></nav></header>
@@ -12,11 +12,11 @@
   <div class="challenge-hero"><div><p class="eyebrow">HISTORY BUZZER / 決め手は、ひらめき。</p><h1>その一押しで、<br><em>歴史が動く。</em></h1><p>わかった瞬間に押そう。記憶とスピードで、自己ベストのその先へ。</p></div><div class="hero-mark" aria-hidden="true"><span>歴</span><small>READY. BUZZ. WIN.</small></div></div>
   <section id="startBox" aria-label="ゲームの設定">
     <div class="mode-cards" role="group" aria-label="ゲームモード">
-      <button data-game="sprint" class="mode-card active" aria-pressed="true"><span class="mode-number">01</span><b>10問決戦</b><small>10問の速さと正確さを競う<br>全問正解でランキングへ</small><span class="mode-icon" aria-hidden="true">⚡</span></button>
+      <button data-game="sprint" class="mode-card active" aria-pressed="true"><span class="mode-number">01</span><b>10問決戦</b><small>10問の速さと正確さを競う<br>10問完走でランキングへ</small><span class="mode-icon" aria-hidden="true">⚡</span></button>
       <button data-game="rush" class="mode-card" aria-pressed="false"><span class="mode-number">02</span><b>60秒ラッシュ</b><small>制限時間内に何問解ける？<br>連続正解でコンボを伸ばそう</small><span class="mode-icon" aria-hidden="true">⏱</span></button>
       <button data-game="survival" class="mode-card" aria-pressed="false"><span class="mode-number">03</span><b>3命サバイバル</b><small>間違い3回で終了<br>どこまで生き残れる？</small><span class="mode-icon" aria-hidden="true">♥</span></button>
     </div>
-    <div class="setup-panel"><div class="filters fixed-rules" aria-label="統一ルール"><span class="chip">全期間</span><span class="chip">全時代ミックス</span><span class="chip">4択</span>    </div><div class="setup-bottom"><div><p id="modeRule">10問を解こう。間違いは5秒のペナルティ。全問正解でランキングに参加できます。</p><p id="personalBest" class="muted small"></p></div><button id="startBtn" class="primary start-game">決戦をはじめる <span aria-hidden="true">→</span></button></div></div>
+    <div class="setup-panel"><div class="filters fixed-rules" aria-label="統一ルール"><span class="chip">全期間</span><span class="chip">全時代ミックス</span><span class="chip">4択</span>    </div><div class="setup-bottom"><div><p id="modeRule">10問を解こう。間違いは5秒のペナルティ。10問終わるとランキングに参加できます。</p><p id="personalBest" class="muted small"></p></div><button id="startBtn" class="primary start-game">決戦をはじめる <span aria-hidden="true">→</span></button></div></div>
     <div class="how-to"><span><b>1</b> 問題が少しずつ出る</span><span><b>2</b> わかったら早押し！</span><span><b>3</b> 答えてコンボをつなぐ</span><small>PC：Spaceで早押し · 1〜4で選択 · Enterで次へ</small></div>
   </section>
   <section id="quizBox" class="arena" aria-label="早押しの問題" hidden>

@@ -10,9 +10,9 @@
     const best=L.localBest(),verified=L.registerableBest(),position=L.ownRank(entries,own);
     $("personalTime").textContent=best?L.seconds(best.ms):"—";$("personalUnit").hidden=!best;
     $("myRank").textContent=own?position?position+"位":"100位圏外":"—";
-    $("myPublished").textContent=own?own.name+" · "+L.seconds(own.ms)+"秒":ownKnown?"まだランキングに登録していません":loading?"登録状態を確認中…":"接続すると登録状態を確認できます";
+    $("myPublished").textContent=own?own.name+" · "+L.seconds(own.ms)+"秒 · "+own.correct+" / 10問正解":ownKnown?"まだランキングに登録していません":loading?"登録状態を確認中…":"接続すると登録状態を確認できます";
     $("personalEmpty").hidden=!!best;$("rankRegister").hidden=!verified||(own&&own.ms<=verified.ms);
-    $("registrationState").textContent=!verified?"オンラインの10問決戦で全問正解すると、タイムを登録できます。":own&&own.ms<=verified.ms?"登録済みの自己ベストを残しています。":own?"自己ベスト更新！新しいタイムを登録できます。":"ニックネームを入力して、自己ベストを登録しよう。";
+    $("registrationState").textContent=!verified?"オンラインの10問決戦を最後まで遊ぶと、タイムを登録できます。":own&&own.ms<=verified.ms?"登録済みの自己ベストを残しています。":own?"自己ベスト更新！新しいタイムを登録できます。":"ニックネームを入力して、自己ベストを登録しよう。";
     $("myRowBtn").disabled=!own;$("registerBtn").disabled=loading||submitting;
   }
   function render(){
@@ -22,13 +22,13 @@
       const tr=document.createElement("tr");if(r.id===uid){tr.className="my-score";tr.id="myScore";}
       const position=text("td",r.rank,"position"),name=document.createElement("td"),time=document.createElement("td");position.setAttribute("aria-label",r.rank+"位");
       name.append(text("span",r.name,"player-name"));if(r.id===uid)name.append(text("span","あなた","you-label"));time.append(text("b",L.seconds(r.ms)),text("span"," 秒","time-unit"));
-      tr.append(position,name,time,text("td",timestamp(r.timestamp),"registered-date"));$("rankList").append(tr);
+      tr.append(position,name,time,text("td",r.correct+" / 10","correct-count"),text("td",timestamp(r.timestamp),"registered-date"));$("rankList").append(tr);
     }
     $("rankEmpty").hidden=!!filtered.length;$("rankTable").hidden=!filtered.length;
     $("emptyTitle").textContent=search?"そのニックネームは見つかりませんでした":loading?"みんなの記録を読み込んでいます":cached?"保存された記録はありません":"最初の記録を登録しよう！";
-    $("emptyText").textContent=search?"表示している上位100人の中から探しています。別の名前で試してみよう。":loading?"自己ベストは上のカードで確認できます。":cached?"接続を確認して「順位を更新」を押してください。":"10問全問正解して、ニックネームで参加しよう。";
+    $("emptyText").textContent=search?"表示している上位100人の中から探しています。別の名前で試してみよう。":loading?"自己ベストは上のカードで確認できます。":cached?"接続を確認して「順位を更新」を押してください。":"10問最後まで遊んで、ニックネームで参加しよう。";
     $("podium").replaceChildren();$("podium").hidden=!entries.length||!!search;
-    for(const r of entries.slice(0,3)){const card=document.createElement("article");card.className="podium-card place-"+Math.min(r.rank,3);card.append(text("span",r.rank+"位","podium-place"),text("h3",r.name),text("p",L.seconds(r.ms)+" 秒","podium-time"));if(r.id===uid)card.append(text("span","あなた","you-label"));$("podium").append(card);}
+    for(const r of entries.slice(0,3)){const card=document.createElement("article");card.className="podium-card place-"+Math.min(r.rank,3);card.append(text("span",r.rank+"位","podium-place"),text("h3",r.name),text("p",L.seconds(r.ms)+" 秒","podium-time"),text("span",r.correct+" / 10問正解","podium-correct"));if(r.id===uid)card.append(text("span","あなた","you-label"));$("podium").append(card);}
     $("rankFreshness").textContent=updatedAt?(cached?"保存済みの順位 · ":"更新 ")+timestamp(updatedAt):loading?"接続中…":"接続を待っています";renderPersonal();
   }
   async function load(){

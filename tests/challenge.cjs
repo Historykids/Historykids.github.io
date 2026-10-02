@@ -4,7 +4,7 @@ function test(name, run) { run(); checks++; console.log('PASS', name); }
 function page(config = {}) {
   const dom = new JSDOM(fs.readFileSync(path.join(root,'buzzer.html'),'utf8'), { url:'https://historykids.github.io/buzzer.html',runScripts:'outside-only',pretendToBeVisual:true });
   const w=dom.window;let now=0;w.HTMLElement.prototype.scrollIntoView=function(){};Object.defineProperty(w.performance,'now',{value:()=>now});w.setInterval=()=>1;w.clearInterval=()=>{};
-  for(const file of ['data/dataset.js','data/ancient.js','assets/ui/core.js','assets/ui/challenge.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));
+  for(const file of ['data/dataset.js','data/ancient.js','assets/ui/core.js','assets/ui/leaderboard.js','assets/ui/challenge.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));
   const $=id=>w.document.getElementById(id),click=s=>{const e=w.document.querySelector(s);assert(e,s);e.click();};
   if(config.game)click(`[data-game="${config.game}"]`);
   const time=t=>{now=t;w.HKChallenge.tick();};
@@ -27,12 +27,13 @@ test('new distractors keep exact lengths and use geography or religion instead o
  let connects=0;p.w.HKCloud={connect:async()=>{connects++;throw Error('must not connect');}};p.$('player').value='　　';p.$('rankingForm').dispatchEvent(new p.w.Event('submit',{bubbles:true,cancelable:true}));await new Promise(setImmediate);
  test('a blank nickname cannot publish a score and result nickname entry remains visible',()=>{assert.equal(connects,0);assert(p.$('player').validationMessage.includes('入力'));assert(!p.$('submitBox').hidden);assert(!p.$('submit').disabled);});p.$('player').value='';p.$('player').dispatchEvent(new p.w.Event('input'));
  let written=null,refPath='';p.w.HKCloud={connect:async()=>({auth:{currentUser:{uid:'tester'}},firebase:{firestore:{FieldValue:{serverTimestamp:()=>1}}},db:{runTransaction:fn=>fn({get:ref=>ref.get(),set:(ref,value)=>ref.set(value)}),doc:route=>{refPath=route;return {get:async()=>({exists:false}),set:async value=>{written=value;}};}}})};p.$('player').value='<script>test</script>';p.click('#submit');await new Promise(setImmediate);await new Promise(setImmediate);
- test('online submission uses the exact nickname, a frozen result and a distinct ranking group',()=>{assert(written);assert.equal(written.name,'<script>test</script>');assert.equal(p.w.localStorage.getItem('hk_buzzer_nickname'),written.name);assert.equal(written.count,10);assert(refPath.includes('/v4_allera_ALL_choice/entries/tester'));assert.equal(written.ms,p.w.HKChallenge.resultMs);assert(p.$('submit').disabled);assert(p.$('note').textContent.includes('ランキング登録できた'));assert(!p.$('submittedRanking').hidden);assert.equal(p.$('note').querySelectorAll('script').length,0);});p.dom.window.close();
+ test('online submission uses the exact nickname, a frozen result and a distinct ranking group',()=>{assert(written);assert.equal(written.name,'<script>test</script>');assert.equal(p.w.localStorage.getItem('hk_buzzer_nickname'),written.name);assert.equal(written.count,10);assert(refPath.includes('/v4_allera_ALL_choice/entries/tester'));assert.equal(written.ms,p.w.HKChallenge.resultMs);assert(p.$('submit').disabled);assert(p.$('submitStatus').textContent.includes('ランキング登録できた'));assert(!p.$('submittedRanking').hidden);assert.equal(p.$('note').querySelectorAll('script').length,0);});p.dom.window.close();
  for(const oldMs of [2400,3000]){
   const q=page();q.start();for(let i=0;i<10;i++){q.time(3000+i*300);q.answer();if(i<9)q.click('#nextBtn');}
   let saved=null,transactions=0;q.w.HKCloud={connect:async()=>({auth:{currentUser:{uid:'tester'}},firebase:{firestore:{FieldValue:{serverTimestamp:()=>1}}},db:{doc:()=>({}),runTransaction:async fn=>{transactions++;return fn({get:async()=>({exists:true,data:()=>({ms:oldMs})}),set:(ref,value)=>{saved=value;}});}}})};
   q.$('player').value='歴史名人';q.click('#submit');await new Promise(setImmediate);await new Promise(setImmediate);
-  test(oldMs<2700?'all-time rankings keep the faster existing record':'all-time rankings atomically replace a slower existing record',()=>{assert.equal(transactions,1);if(oldMs<2700){assert.equal(saved,null);assert(q.$('note').textContent.includes('速いよ'));}else{assert.equal(saved.ms,2700);assert.equal(saved.name,'歴史名人');}});q.dom.window.close();
+  test(oldMs<2700?'all-time rankings keep the faster existing record':'all-time rankings atomically replace a slower existing record',()=>{assert.equal(transactions,1);if(oldMs<2700){assert.equal(saved,null);assert(q.$('submitStatus').textContent.includes('速いよ'));}else{assert.equal(saved.ms,2700);assert.equal(saved.name,'歴史名人');}});q.dom.window.close();
  }
  console.log(checks+' new challenge checks passed.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
+

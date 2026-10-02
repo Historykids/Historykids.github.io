@@ -1,6 +1,6 @@
 /* Optional online ranking. Learning and local challenges never depend on this. */
 (function () {
-  let ready;
+  let ready, appCheckStarted = false;
   function script(src) {
     return new Promise((resolve, reject) => {
       const el = document.createElement("script");
@@ -30,11 +30,12 @@
               messagingSenderId: "73567574639",
               appId: "1:73567574639:web:c5e91d53c479a55b708b9a",
             });
-          firebase
-            .appCheck()
-            .activate("6LfoXPMrAAAAAO98VYU17M8PFwpz4pv_k2k0ngIk", true);
+          if (!appCheckStarted) {
+            firebase.appCheck().activate("6LfoXPMrAAAAAO98VYU17M8PFwpz4pv_k2k0ngIk", true);
+            appCheckStarted = true;
+          }
           const auth = firebase.auth();
-          await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+          await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
           if (!auth.currentUser) await auth.signInAnonymously();
           return { auth, db: firebase.firestore(), firebase };
         })().catch((error) => { ready = null; throw error; });
@@ -42,3 +43,4 @@
     },
   };
 })();
+

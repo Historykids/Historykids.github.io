@@ -30,6 +30,7 @@ function create(page, scripts, seed = {}) {
   for (const [k, v] of Object.entries(seed)) w.localStorage.setItem(k, v);
   const loaded = scripts.slice();
   if (loaded.includes("assets/ui/app.js") && !loaded.includes("assets/ui/residents.js")) loaded.splice(loaded.indexOf("assets/ui/app.js"), 0, "assets/ui/residents.js");
+  if (loaded.includes("assets/ui/challenge.js")) loaded.splice(loaded.indexOf("assets/ui/challenge.js"), 0, "assets/ui/leaderboard.js");
   for (const file of loaded) { w.eval(read(file)); if (file === "data/dataset.js") w.eval(read("data/ancient.js")); }
   return dom;
 }
@@ -332,68 +333,13 @@ console.log(checks + " checks passed.");
     );
   });
   backup.window.close();
-  const ranking = create("ranking.html", ["assets/ui/core.js"]);
-  const rw = ranking.window;
-  let query = "";
-  rw.document.getElementById("period").value = "weekly";
-  rw.HKCloud = {
-    connect: async () => ({
-      db: {
-        collection(p) {
-          query = p;
-          return {
-            orderBy() {
-              return this;
-            },
-            limit() {
-              return this;
-            },
-            get: async () => ({
-              forEach(fn) {
-                fn({
-                  data: () => ({
-                    name: "<img src=x onerror=alert(1)>",
-                    ms: 3210,
-                  }),
-                });
-              },
-            }),
-          };
-        },
-      },
-    }),
-  };
-  rw.document.getElementById("edition").value="v3";
-  rw.eval(read("assets/ui/ranking.js"));
-  await new Promise((resolve) => setImmediate(resolve));
-  test("weekly leaderboard shares the challenge week key", () => {
-    assert(query.includes("/weekly/" + C.weekKey() + "/"));
-    assert(!rw.document.getElementById("reload").disabled);
+  test("ranking has one clear rule and a saved-best registration form", () => {
+    const rank = new JSDOM(read("ranking.html"));
+    assert.equal(rank.window.document.querySelectorAll("select").length, 0);
+    assert(rank.window.document.getElementById("rankRegister"));
+    assert(rank.window.document.getElementById("myRank"));
+    rank.window.close();
   });
-  test("leaderboard names render as text without injecting HTML", () => {
-    assert.equal(rw.document.querySelectorAll("#tbody img").length, 0);
-    assert(rw.document.getElementById("tbody").textContent.includes("<img"));
-    assert(rw.document.getElementById("tbody").textContent.includes("3.21秒"));
-  });
-  ranking.window.close();
-  const offlineRank = create("ranking.html", ["assets/ui/core.js"]);
-  offlineRank.window.HKCloud = {
-    connect: async () => {
-      throw Error("offline");
-    },
-  };
-  offlineRank.window.console.warn = () => {};
-  offlineRank.window.eval(read("assets/ui/ranking.js"));
-  await new Promise((resolve) => setImmediate(resolve));
-  test("offline ranking ends loading and enables retry", () => {
-    assert(
-      offlineRank.window.document
-        .getElementById("tbody")
-        .textContent.includes("読み込めません"),
-    );
-    assert(!offlineRank.window.document.getElementById("reload").disabled);
-  });
-  offlineRank.window.close();
   test("source HTML has unique IDs and all local assets resolve", () => {
     for (const name of ["index.html", "buzzer.html", "ranking.html"]) {
       const d = new JSDOM(read(name)).window.document;
@@ -411,3 +357,4 @@ console.log(checks + " checks passed.");
   console.error(e);
   process.exitCode = 1;
 });
+

@@ -88,5 +88,22 @@ function page(seed = {}) {
   assert.equal(JSON.stringify(q.w.HK.state), before);
   assert.equal(q.w.HKCore.town.height, 50);
   console.log("PASS new backups keep expanded land and invalid overlapping imports preserve progress");
+  const all=page({money_v1:"1000",hk_town_layout_v2:JSON.stringify({version:2,width:60,height:40})});
+  all.click("#town2d");
+  const items=all.w.HKCore.items.filter(i=>i.cat!=="resident");
+  for(let i=0;i<items.length;i++) {
+    const item=items[i],x=2+i%3*12,y=2+Math.floor(i/3)*10;
+    all.click("#shopBtn");all.click(`[data-buy="${item.id}"]`);all.w.HK.setCell(x,y);all.click("#placeConfirm");
+    const b=all.w.HK.state.city.find(b=>b.type===item.id);
+    assert(b,item.id);all.click(`[data-rotate="${b.id}"]`);
+    const f=all.w.HKCore.footprint(b),overlay=all.w.document.querySelector(`[data-building="${b.id}"]`);
+    assert.equal(parseFloat(overlay.style.width),f.width*36-2);assert.equal(parseFloat(overlay.style.height),f.depth*36-2);
+    all.click(`[data-cell="${b.x+f.width-1},${b.y+f.depth-1}"]`);assert(all.w.document.getElementById("dialogTitle").textContent.includes(item.name));
+    all.click(`#dialog [data-move="${b.id}"]`);all.w.HK.setCell(x+7,y);all.click("#placeConfirm");assert.equal(b.x,x+7);
+    checkCity(all.w.HK.state.city,all.w.HKCore.town);
+  }
+  assert.equal(all.w.HK.state.city.length,9);assert.equal(all.w.document.querySelectorAll(".grid-cell.occupied").length,82);
+  console.log("PASS every building type occupies, rotates, displays and moves its complete footprint");
+  all.w.close();
   p.w.close(); restored.w.close(); q.w.close();
 })().catch(e => { console.error(e); process.exitCode=1; });

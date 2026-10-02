@@ -8,7 +8,7 @@ function page(file, seed = {}) {
   w.HTMLDialogElement.prototype.showModal=function(){this.open=true}; w.HTMLDialogElement.prototype.close=function(){this.open=false};
   let now=0; if(file==='buzzer.html') { Object.defineProperty(w.performance,'now',{value:()=>now}); w.setInterval=()=>1; w.clearInterval=()=>{}; }
   for(const [k,v] of Object.entries(seed)) w.localStorage.setItem(k, JSON.stringify(v));
-  const files = file==='index.html' ? ['data/dataset.js','data/ancient.js','assets/ui/core.js','assets/ui/residents.js','assets/ui/app.js'] : ['data/dataset.js','data/ancient.js','assets/ui/core.js','assets/ui/challenge.js'];
+  const files = file==='index.html' ? ['data/dataset.js','data/ancient.js','assets/ui/core.js','assets/ui/residents.js','assets/ui/app.js'] : ['data/dataset.js','data/ancient.js','assets/ui/core.js','assets/ui/leaderboard.js','assets/ui/challenge.js'];
   for(const file of files)w.eval(read(file));
   return {dom,w,$:id=>w.document.getElementById(id),click:s=>{const e=w.document.querySelector(s);assert(e,s);e.click();},time:t=>{now=t;w.HKChallenge.tick();}};
 }
@@ -45,6 +45,7 @@ test('the unified buzzer includes all six new eras and finishes ten mixed four-c
 test('all-era rush includes the new periods and historic date formatting preserves BCE and approximate labels',()=>{
   const p=page('buzzer.html');p.click('[data-game="rush"]');p.click('#startBtn');p.time(3000);
   for(const era of eras)assert(p.w.HKChallenge.run.qs.some(q=>q.era===era));assert.equal(p.w.HKCore.dateText({year:-900}),'紀元前900年');assert.equal(p.w.HKCore.dateText({year:1008,dateLabel:'11世紀初め'}),'11世紀初め');assert.equal(p.w.HKCore.questionText('-10000 〇〇を使う'),'〇〇を使う');p.dom.window.close();
-  const d=new JSDOM(read('ranking.html'));for(const era of eras)assert(d.window.document.querySelector(`#era option[value="${era}"]`));d.window.close();
+  const d=new JSDOM(read('ranking.html'));assert.equal(d.window.document.querySelectorAll("select").length,0);assert(d.window.document.querySelector(".rank-explanation").textContent.includes("すべての時代"));d.window.close();
 });
 console.log(checks+' ancient-era integration checks passed.');
+

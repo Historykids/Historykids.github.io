@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "../vendor/OrbitControls.js";
 import { GLTFLoader } from "../vendor/GLTFLoader.js";
-import { fitModel, createBuilding, createGround, syncBuildings } from "./town-geometry.js?v=plots-20261002";
+import { fitModel, createBuilding, createGround, syncBuildings } from "./town-geometry.js?v=rank-20261002";
 import { createFarmerView } from "./farmer-3d.js?v=plots-20261002";
 const C = window.HKCore;
 const urls = {
@@ -280,3 +280,4 @@ function boot() {
 if (document.readyState === "loading")
   document.addEventListener("DOMContentLoaded", boot, { once: true });
 else boot();
+

@@ -18,7 +18,7 @@ export function fitModel(original, footprint) {
   else {
     const sx = footprint.width / Math.max(size.x, .01), sz = footprint.depth / Math.max(size.z, .01);
     const scale = Math.min(sx, sz, footprint.height / Math.max(size.y, .01));
-    if (footprint.stretch) root.scale.set(sx, scale, sz);
+    if (footprint.stretch) root.scale.set(sx, footprint.height / Math.max(size.y, .01), sz);
     else root.scale.setScalar(scale);
   }
   return root;
@@ -91,7 +91,7 @@ function createPlot(type, original) {
   const floor = new THREE.Mesh(new THREE.BoxGeometry(item.width - .06, .035, item.depth - .06),
     new THREE.MeshStandardMaterial({ color: type === "field" ? 0x9a9b66 : type === "castle" ? 0xa4a18e : 0xba9e76, roughness: 1 }));
   floor.position.y = .015; floor.receiveShadow = true; floor.userData.townOwned = true; root.add(floor);
-  const model = fitModel(original || createBuilding(type), { width: item.width * .9, depth: item.depth * .9, height: item.height, stretch: ["field", "bridge", "road"].includes(type) });
+  const model = fitModel(original || createBuilding(type), { width: item.width * .9, depth: item.depth * .9, height: item.height, stretch: true });
   if (local) model.traverse((o) => { if (o.isMesh) o.userData.townOwned = true; });
   model.position.y = .034; root.add(model);
   return root;

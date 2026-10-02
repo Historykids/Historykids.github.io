@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>歴史の早押し決戦｜歴史キッズ</title><meta name="description" content="早押しボタンで日本史に挑戦！10問決戦、60秒ラッシュ、3命サバイバル。難しい4択と入力、コンボ、成績と復習。"><meta name="theme-color" content="#142b40">
-  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/app.css?v=api-20261002"><link rel="stylesheet" href="./assets/ui/subpages.css"><link rel="stylesheet" href="./assets/ui/challenge.css?v=20261002-2">
-  <script defer src="./data/dataset.js"></script><script defer src="./data/ancient.js?v=ancient-20261002"></script><script defer src="./assets/ui/core.js?v=api-20261002"></script><script defer src="./assets/ui/cloud.js"></script><script defer src="./assets/ui/challenge.js?v=api-20261002"></script>
+  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/app.css?v=plots-20261002b"><link rel="stylesheet" href="./assets/ui/subpages.css"><link rel="stylesheet" href="./assets/ui/challenge.css?v=rank-20261002">
+  <script defer src="./data/dataset.js"></script><script defer src="./data/ancient.js?v=ancient-20261002"></script><script defer src="./assets/ui/core.js?v=rank-20261002"></script><script defer src="./assets/ui/cloud.js?v=rank-20261002"></script><script defer src="./assets/ui/leaderboard.js?v=rank-20261002"></script><script defer src="./assets/ui/challenge.js?v=rank-20261002"></script>
 </head>
 <body class="subpage challenge-page">
 <header class="sub-header"><a href="./" class="sub-brand">歴史キッズ</a><nav aria-label="ゲームメニュー"><a href="./#games">学習に戻る</a><a href="./ranking.html">ランキング</a><button id="soundBtn" aria-pressed="false">音 OFF</button><button id="fullscreenBtn" aria-label="全画面にする">全画面</button><a href="./#howto">遊び方</a></nav></header>
@@ -37,10 +37,12 @@
   <section id="resultBox" class="result-panel" aria-label="今回の成績" hidden>
     <div class="result-heading"><div><p class="eyebrow">YOUR RESULT</p><h2 id="resultTitle">決戦終了！</h2><p id="resultBest"></p></div><div id="resultMedal" class="result-medal" aria-hidden="true">🏆</div></div>
     <div class="result-grid"><div><small>SCORE</small><b id="resultScore">0</b></div><div><small>正解</small><b id="resultCorrect">0 / 10</b></div><div><small>タイム</small><b id="resultTime">0.00秒</b></div><div><small>最大コンボ</small><b id="resultCombo">0</b></div></div>
+    <div id="submitBox" class="submit-record"><h3>このタイムをランキングに登録</h3><p id="submitRule" class="muted small"></p><form id="rankingForm"><label for="player">ニックネームを入力</label><div class="input-row"><input id="player" maxlength="24" required autocomplete="nickname" placeholder="例：歴史マスター" aria-describedby="nicknameHelp"><button id="submit" type="submit">この名前でベストを登録</button></div></form><p id="nicknameHelp" class="muted small">名前とタイムが公開されます。本名や連絡先は入力しないでね。同じブラウザの記録は、速い自己ベストを残します。</p><p id="submitStatus" class="submit-status" role="status" aria-live="polite"></p><a id="submittedRanking" href="./ranking.html" hidden>登録したランキングを見る →</a></div>
     <p id="resultSummary" class="muted"></p><div class="dialog-actions"><button id="againBtn" class="primary">同じ設定でもう一度</button><button id="settingsBtn">モードを変える</button><a id="reviewLink" href="./?review=1#learn">間違えた問題を復習</a></div>
     <div class="round-review"><h3>今回の振り返り <small>問題を開くと答えと解説が見られるよ</small></h3><div id="resultReview"></div></div>
-    <div id="submitBox" class="submit-record"><h3>ニックネームでランキング登録</h3><p id="submitRule" class="muted small"></p><form id="rankingForm"><label for="player">ニックネームを入力</label><div class="input-row"><input id="player" maxlength="24" required autocomplete="nickname" placeholder="例：歴史マスター" aria-describedby="nicknameHelp"><button id="submit" type="submit">この名前でランキング登録</button></div></form><p id="nicknameHelp" class="muted small">名前とタイムが公開されます。本名や連絡先は入力しないでね。記録は全期間ランキングに登録され、より速い自己ベストで更新できます。</p><a id="submittedRanking" href="./ranking.html" hidden>登録したランキングを見る →</a></div>
+
   </section>
   <p id="note" class="notice" role="status" hidden></p>
   <footer class="page-footer"><span>自己ベストはこのブラウザに保存されます。町の両は消費しません。</span><a href="./">歴史キッズに戻る</a></footer>
 </main></body></html>
+

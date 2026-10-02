@@ -8,7 +8,7 @@
     { id: "temple", name: "寺", price: 70, cat: "building", icon: "⛩️", width: 4, depth: 4, height: 2.6 },
     { id: "tree", name: "木", price: 8, cat: "nature", icon: "🌳", width: 1, depth: 1, height: 1.8 },
     { id: "field", name: "畑", price: 12, cat: "nature", icon: "🌾", width: 3, depth: 2, height: .24 },
-    { id: "road", name: "道路", price: 10, cat: "infrastructure", icon: "🛣️", width: 1, depth: 1, height: .12 },
+    { id: "road", name: "道路", price: 10, cat: "infrastructure", icon: "🛣️", width: 1, depth: 1, height: .04 },
     { id: "bridge", name: "橋", price: 25, cat: "infrastructure", icon: "🌉", width: 1, depth: 3, height: .6 },
     { id: "school", name: "学校", price: 80, cat: "building", icon: "🏫", width: 5, depth: 3, height: 1.7 },
     { id: "farmer", name: "農民", price: 10, cat: "resident", icon: "👨‍🌾" },

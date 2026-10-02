@@ -4,7 +4,7 @@
   "version": "2.0.0",
   "description": "Static Japanese history learning website",
   "scripts": {
-    "test": "node tests/flows.cjs && node tests/town.cjs && node tests/town-scale.cjs && node tests/residents.cjs && node tests/challenge.cjs && node tests/ancient.cjs && node tests/play.cjs && node tests/api.cjs",
+    "test": "node tests/flows.cjs && node tests/town.cjs && node tests/town-scale.cjs && node tests/residents.cjs && node tests/challenge.cjs && node tests/ranking.cjs && node tests/ancient.cjs && node tests/play.cjs && node tests/api.cjs",
     "serve": "python3 -m http.server 8000",
     "preview-file": "python3 tests/build-preview.py"
   },
@@ -12,3 +12,4 @@
     "jsdom": "26.1.0"
   }
 }
+

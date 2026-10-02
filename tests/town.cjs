@@ -73,9 +73,9 @@ async function main() {
     assert(Math.max(size.x, size.z, size.y * .65) <= .86001, file);
     const item=global.HKCore.items.find(i=>i.id===assetTypes[file]);
     assert(item, file);
-    const detailed=fitModel(scene,{width:item.width*.9,depth:item.depth*.9,height:item.height,stretch:["field","road","bridge"].includes(item.id)});
+    const detailed=fitModel(scene,{width:item.width*.9,depth:item.depth*.9,height:item.height,stretch:true});
     const realBounds=new THREE.Box3().setFromObject(detailed), realSize=realBounds.getSize(new THREE.Vector3());
-    assert(realSize.x<=item.width && realSize.z<=item.depth && realSize.y<=item.height+.00001, file);
+    assert(Math.abs(realSize.x-item.width*.9)<1e-5 && Math.abs(realSize.z-item.depth*.9)<1e-5 && Math.abs(realSize.y-item.height)<1e-5,file);
     assert(Math.abs(realBounds.min.y)<1e-5, file);
   }
   console.log("PASS all nine GLB asset bounds fit their building footprint and rest above ground");

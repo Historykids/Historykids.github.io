@@ -48,8 +48,17 @@ jobs:
           import fs from 'node:fs';
           const base = new URL(process.env.DEPLOYMENT_URL);
           if (base.protocol !== 'https:' || !base.hostname.endsWith('.workers.dev')) throw Error('Unexpected deployment URL');
-          const result = await fetch(new URL('/health', base), {signal: AbortSignal.timeout(15000)});
-          if (!result.ok || (await result.json()).ready !== true) throw Error('API is not ready');
+          let ready = false;
+          for (let attempt = 1; attempt <= 12; attempt++) {
+            try {
+              const result = await fetch(new URL('/health', base), {signal: AbortSignal.timeout(15000)});
+              ready = result.ok && (await result.json()).ready === true;
+            } catch {}
+            if (ready) break;
+            console.log('Waiting for the public HTTPS endpoint: attempt ' + attempt);
+            if (attempt < 12) await new Promise(resolve => setTimeout(resolve, 10000));
+          }
+          if (!ready) throw Error('API is not ready after waiting for HTTPS provisioning');
           const chat = await fetch(new URL('/chat', base), {method:'POST', headers:{'Content-Type':'application/json', Origin:'https://historykids.github.io'}, body:JSON.stringify({person:'nobunaga',messages:[{role:'user',content:'楽市楽座を一文で教えて'}]}), signal:AbortSignal.timeout(60000)});
           const reply = await chat.json();
           if (!chat.ok || typeof reply.answer !== 'string' || !reply.answer.trim()) throw Error('AI response check failed: HTTP ' + chat.status);

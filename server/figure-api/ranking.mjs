@@ -40,7 +40,11 @@ export class HistoryLeaderboard {
    const receipt=this.sql.exec('SELECT proof,ms FROM receipts WHERE owner=?',owner).toArray()[0];
    if(!receipt||receipt.proof!==data.proof)return fail('verified-record-required',409);
    const old=this.sql.exec('SELECT id,name,ms,timestamp FROM scores WHERE id=?',owner).toArray()[0];
-   if(old&&old.ms<=receipt.ms)return Response.json({updated:false,entry:old});
+   if(old&&old.ms<=receipt.ms){
+    if(old.name===name)return Response.json({updated:false,entry:old});
+    this.sql.exec('UPDATE scores SET name=? WHERE id=?',name,owner);
+    return Response.json({updated:true,renamed:true,entry:{...old,name}});
+   }
    this.sql.exec('INSERT INTO scores(id,name,ms,timestamp) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,ms=excluded.ms,timestamp=excluded.timestamp WHERE excluded.ms<scores.ms',owner,name,receipt.ms,now);
    return Response.json({updated:true,entry:{id:owner,name,ms:receipt.ms,timestamp:now}});
   }

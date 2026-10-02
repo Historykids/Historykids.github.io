@@ -1,7 +1,7 @@
 /* One leaderboard contract shared by results and the ranking page. */
 (function (root) {
   "use strict";
-  const bestKey = "hk_best_v4_alltime_ALL_allera_ALL_sprint_choice", verifiedKey="hk_buzzer_verified_best_v1", identityKey="hk_rank_identity_v1", cacheKey = "hk_leaderboard_cache_v3", nicknameKey = "hk_buzzer_nickname";
+  const bestKey = "hk_best_v4_alltime_ALL_allera_ALL_sprint_choice", verifiedKey="hk_buzzer_verified_best_v1", identityKey="hk_rank_identity_v1", cacheKey = "hk_leaderboard_cache_v3", nicknameKey = "hk_buzzer_nickname", publishedKey="hk_buzzer_published_v1";
   function nickname(value) { return Array.from(String(value || "").normalize("NFKC").replace(/[\u0000-\u001f\u007f]/g, "").trim()).slice(0,24).join(""); }
   function validTime(ms) { return Number.isSafeInteger(ms) && ms > 0; }
   function record(value,id) {
@@ -23,6 +23,7 @@
   function localBest(){const online=registerableBest();if(online)return online;try{const r=JSON.parse(root.localStorage.getItem(bestKey));return r?.correct===10&&validTime(r.ms)?r:null;}catch{return null;}}
   function readCache(){try{const c=JSON.parse(root.localStorage.getItem(cacheKey));if(!c||!Array.isArray(c.entries)||!Number.isFinite(c.at))return null;return{entries:rank(c.entries.map(r=>record(r,r.id)).filter(Boolean)),at:c.at};}catch{return null;}}
   function saveCache(entries,at){try{root.localStorage.setItem(cacheKey,JSON.stringify({entries,at}));}catch{}}
+  function readPublished(){try{const p=JSON.parse(root.localStorage.getItem(publishedKey)),entry=record(p?.entry,p?.entry?.id);return entry&&Number.isFinite(p.at)?{entry,at:p.at}:null;}catch{return null;}}
   function savedName(){try{return nickname(root.localStorage.getItem(nicknameKey));}catch{return "";}}
   function saveName(name){try{root.localStorage.setItem(nicknameKey,name);}catch{}}
   function seconds(ms){return (Math.round(ms/10)/100).toFixed(2);}
@@ -43,10 +44,14 @@
   }
   async function submit(name,ms){
     name=nickname(name);if(!name)throw Object.assign(Error("nickname"),{code:"nickname"});if(!validTime(ms))throw Error("record");saveName(name);
-    const best=registerableBest();if(!best||best.ms!==ms)throw Object.assign(Error('verified-record-required'),{code:'verified-record-required'});
-    const result=await request('/register',{name,proof:best.proof});const entry=record(result.entry,result.entry?.id);if(!entry)throw Error('response');return{updated:result.updated===true,entry};
+    const best=registerableBest();if(!best)throw Object.assign(Error('verified-record-required'),{code:'verified-record-required'});
+    const result=await request('/register',{name,proof:best.proof});const entry=record(result.entry,result.entry?.id);if(!entry)throw Error('response');
+    saveName(entry.name);
+    const at=Date.now(),cache=readCache();saveCache(rank([...(cache?.entries||[]).filter(r=>r.id!==entry.id),entry]).slice(0,100),at);
+    try{root.localStorage.setItem(publishedKey,JSON.stringify({entry,at}));}catch{}
+    return{updated:result.updated===true,renamed:result.renamed===true,entry};
   }
   function errorText(error){return error?.code==='verified-record-required'?"オンラインの10問決戦で全問正解すると登録できます。":error?.code==='rate-limited'?"いま接続が混み合っています。少し待って、もう一度試してください。":error?.code==='challenge-expired'?"結果の確認期限が切れました。もう一度10問決戦に挑戦してください。":"通信を確認できませんでした。接続を確認して、もう一度試してください。自己ベストはこのブラウザに残っています。";}
-  const api={bestKey,verifiedKey,identityKey,cacheKey,nicknameKey,nickname,validTime,record,rank,ownRank,localBest,registerableBest,readCache,saveCache,savedName,saveName,seconds,wait,identity,load,startChallenge,finishChallenge,submit,errorText};root.HKLeaderboard=api;
+  const api={bestKey,verifiedKey,identityKey,cacheKey,nicknameKey,publishedKey,readPublished,nickname,validTime,record,rank,ownRank,localBest,registerableBest,readCache,saveCache,savedName,saveName,seconds,wait,identity,load,startChallenge,finishChallenge,submit,errorText};root.HKLeaderboard=api;
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
 })(typeof window==="undefined"?globalThis:window);

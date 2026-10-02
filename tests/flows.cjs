@@ -66,6 +66,17 @@ const dom = create("index.html", [
   ]),
   w = dom.window,
   $ = (id) => w.document.getElementById(id);
+test("previous question returns to the same prompt and resets inputs without awarding coins twice", () => {
+  const d=create("index.html",["data/dataset.js","assets/ui/core.js","assets/ui/app.js"]),v=d.window,g=id=>v.document.getElementById(id);
+  assert(g("prevBtn").disabled);const first=g("qTitle").textContent;
+  click(v, '#nextBtn');const second=g("qTitle").textContent;assert(!g("prevBtn").disabled);assert.notEqual(second,first);
+  click(v, '#prevBtn');assert.equal(g("qTitle").textContent,first);assert(g("prevBtn").disabled);
+  click(v, '[data-mode="type"]');g("answerInput").value="えど";g("answerForm").dispatchEvent(new v.Event("submit",{bubbles:true,cancelable:true}));
+  const earned=v.HK.state.money;click(v, '#nextBtn');g("answerInput").value="途中の入力";click(v, '#prevBtn');
+  assert.equal(g("answerInput").value,"");assert(g("quizFeedback").hidden);assert(!g("answerInput").disabled);
+  g("answerInput").value="えど";g("answerForm").dispatchEvent(new v.Event("submit",{bubbles:true,cancelable:true}));assert.equal(v.HK.state.money,earned);
+  click(v, '#nextBtn');assert.equal(g("qTitle").textContent,second);d.window.close();
+});
 test("all 202 questions have answers and valid display names", () => {
   assert.equal(w.HK.records.length, 202);
   for (const r of w.HK.records) {

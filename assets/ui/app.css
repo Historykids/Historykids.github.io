@@ -498,6 +498,16 @@ select {
   justify-content: space-between;
   align-items: center;
   margin-top: 18px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.quiz-navigation {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.quiz-navigation button {
+  font-size: 0.875rem;
 }
 .next-button {
   background: var(--ink);
@@ -1758,4 +1768,5 @@ dialog::backdrop {
 .detail-year.period-date{font-size:clamp(1.25rem,4vw,1.8rem);overflow-wrap:anywhere}
 
 .nav a{text-decoration:none}
+
 

@@ -29,7 +29,7 @@
       property="og:image"
       content="https://historykids.github.io/favicon-512x512.png"
     />
-    <link rel="stylesheet" href="./assets/ui/app.css?v=plots-20261002b" />
+    <link rel="stylesheet" href="./assets/ui/app.css?v=quiz-nav-rank-20261003" />
     <link rel="stylesheet" href="./assets/ui/howto.css?v=howto-inline-20261002" />
     <script type="importmap">
       { "imports": { "three": "./assets/vendor/three.module.js" } }
@@ -37,7 +37,7 @@
     <script defer src="./data/dataset.js"></script><script defer src="./data/ancient.js?v=ancient-20261002"></script>
     <script defer src="./assets/ui/core.js?v=rank-20261002"></script>
     <script defer src="./assets/ui/residents.js?v=plots-20261002"></script>
-    <script defer src="./assets/ui/app.js?v=plots-20261002"></script>
+    <script defer src="./assets/ui/app.js?v=quiz-nav-rank-20261003"></script>
     <script type="module" src="./assets/ui/town.js?v=rank-20261002"></script>
   </head>
   <body>
@@ -61,7 +61,7 @@
         <button data-view="games" data-short="ゲーム">
           <span aria-hidden="true">⚡</span>ゲームで遊ぶ
         </button>
-        <a href="./figures.html" data-short="偉人" title="偉人と話す"><span aria-hidden="true">💬</span>偉人と話す</a>
+        <a href="./figures.html" data-short="偉人AI" title="偉人と話す"><span aria-hidden="true">💬</span>偉人と話す</a>
         <a href="#howto" data-view="howto" data-short="遊び方"><span aria-hidden="true">?</span>遊び方</a>
       </nav>
       <div class="sidebar-bottom">
@@ -164,8 +164,11 @@
                   hidden
                 ></div>
                 <div class="quiz-bottom">
-                  <button id="hintBtn" class="text-button">ヒントを見る</button
-                  ><button id="nextBtn" class="next-button">次の問題</button>
+                  <button id="hintBtn" class="text-button">ヒントを見る</button>
+                  <div class="quiz-navigation" aria-label="問題の移動">
+                    <button id="prevBtn" disabled>前の問題</button>
+                    <button id="nextBtn" class="next-button">次の問題</button>
+                  </div>
                 </div>
                 <p id="hintText" class="hint-text" hidden></p>
               </article>

@@ -303,6 +303,7 @@
     $("hintBtn").disabled = false;
     $("nextBtn").textContent = "次の問題";
     const r = queue[qi];
+    $("prevBtn").disabled = !r || qi === 0;
     if (!r) {
       $("qChapter").textContent = "この範囲は完了！";
       $("qCount").textContent = "";
@@ -910,6 +911,11 @@
   $("answerInput").addEventListener("keydown", (e) => {
     if (e.key === "Enter" && e.isComposing) e.preventDefault();
   });
+  $("prevBtn").onclick = () => {
+    if (!queue.length || qi === 0) return;
+    qi--;
+    renderQuestion();
+  };
   $("nextBtn").onclick = () => {
     if (!queue.length) return;
     qi = (qi + 1) % queue.length;
@@ -1079,3 +1085,4 @@
   if (reviewing) { $("practiceFilter").value = "wrong"; rebuildQueue(); }
   setView(reviewing ? "learn" : location.hash.slice(1) || "learn", false);
 })();
+

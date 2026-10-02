@@ -7,7 +7,7 @@ GitHub Actionsの **Deploy ranking API** が既存の `CLOUDFLARE_API_TOKEN` と
 - `GET /ranking`：タイム順の上位100件、自分の公開記録。
 - `POST /ranking/start`：10時代から1問ずつ選び、挑戦IDを発行。
 - `POST /ranking/finish`：その挑戦の10問の正解を検証。サーバー時計でタイムを決め、速い自己ベストの登録用proofを返す。通信失敗後の同じ挑戦の再送ではタイムを変えない。
-- `POST /ranking/register`：確認済みproofとニックネームを受け取り、速い自己ベストを公開。遅い記録では名前・日時を上書きしない。
+- `POST /ranking/register`：確認済みproofとニックネームを受け取り、速い自己ベストを公開。登録済みの速いタイムと日時を保ち、本人の確認済みproofでニックネームを更新できる。
 
 ブラウザの所有証明は暗号学的乱数32バイトで生成し、localStorageに保存します。Authorizationヘッダーだけで送信し、URLに含めません。サーバーはSHA-256を保存IDに使い、所有証明やproofは公開一覧に返しません。ブラウザの保存データを消すと、その記録を更新する所有証明も失われます。
 

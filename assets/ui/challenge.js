@@ -146,7 +146,7 @@
     $("reviewLink").hidden = !run.misses; const firstMiss = run.log.find((r) => !r.ok); $("reviewLink").href = "./?review=1&era=" + (firstMiss?.q.era || "edo") + "#learn";
     $("submitBox").hidden = false;registrationMs=perfect?L.registerableBest()?.ms||0:0;$("submit").disabled=!registrationMs;
     $("submitRule").textContent = registrationMs ? "全問正解！自己ベスト " + L.seconds(registrationMs) + "秒を登録できます。短いタイムほど上位になります。" : perfect?"全問正解！オンラインで10問決戦に挑戦すると、この欄からランキングに登録できます。":"10問決戦で全問正解すると登録できます。ニックネームを決めて、もう一度挑戦しよう！";
-    $("submittedRanking").href = "./ranking.html#personalCard";
+    $("submittedRanking").href = "./ranking.html?registered=1#personalCard";
     $("resultBox").scrollIntoView({ block: "start", behavior: "smooth" });
     if(perfect&&run.ticket)verifyResult(run);
   }
@@ -186,8 +186,9 @@
     try {
       const published = await L.submit(name, ms);
       if (run !== original) return;
-      $("submitStatus").textContent = published.updated ? published.entry.name + "でランキング登録できたよ！ " + L.seconds(published.entry.ms) + "秒" : "登録済みのベストの方が速いよ。" + published.entry.name + "の " + L.seconds(published.entry.ms) + "秒を残しました。";
+      $("submitStatus").textContent = published.renamed ? published.entry.name + "に名前を変更しました！ ベストは " + L.seconds(published.entry.ms) + "秒" : published.updated ? published.entry.name + "でランキング登録できたよ！ " + L.seconds(published.entry.ms) + "秒" : "登録済みのベストの方が速いよ。" + published.entry.name + "の " + L.seconds(published.entry.ms) + "秒を残しました。";
       $("submitStatus").className = "submit-status success"; $("submit").textContent = "登録済み"; $("player").value = published.entry.name; $("player").readOnly = true; $("submittedRanking").hidden = false;
+      $("submittedRanking").click();
     } catch (error) {
       if (run !== original) return;
       $("submitStatus").textContent = L.errorText(error) + " ランキング画面からも、この自己ベストを登録できます。";

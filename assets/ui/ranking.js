@@ -1,10 +1,11 @@
 (function(){
   "use strict";
   const L=window.HKLeaderboard,$=id=>document.getElementById(id);
-  let entries=[],own=null,ownKnown=false,uid="",revision=0,loading=false,cached=false,updatedAt=0,submitting=false;
+  let entries=[],own=null,ownKnown=false,uid="",revision=0,loading=false,cached=false,updatedAt=0,submitting=false,lastAttempt=0,announce=new URLSearchParams(location.search).get("registered")==="1";
   function text(tag,value,cls){const el=document.createElement(tag);el.textContent=value;if(cls)el.className=cls;return el;}
   function timestamp(ms){return ms?new Date(ms).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}):"—";}
   function status(message,kind=""){$("rankStatus").textContent=message;$("rankStatus").className="rank-status "+kind;}
+  function showRegistration(){if(announce&&own){$("registrationMessage").textContent=own.name+"で登録しました！ "+L.seconds(own.ms)+"秒。あなたの順位を確認しよう。";$("registrationMessage").className="registration-message success";}}
   function renderPersonal(){
     const best=L.localBest(),verified=L.registerableBest(),position=L.ownRank(entries,own);
     $("personalTime").textContent=best?L.seconds(best.ms):"—";$("personalUnit").hidden=!best;
@@ -31,8 +32,8 @@
     $("rankFreshness").textContent=updatedAt?(cached?"保存済みの順位 · ":"更新 ")+timestamp(updatedAt):loading?"接続中…":"接続を待っています";renderPersonal();
   }
   async function load(){
-    const rev=++revision;loading=true;$("reload").disabled=true;$("reload").textContent="更新中…";$("rankBoard").setAttribute("aria-busy","true");status("");render();
-    try{const result=await L.load();if(rev!==revision)return;entries=result.entries;own=result.own;ownKnown=result.ownKnown;uid=result.uid||"";updatedAt=result.at;cached=false;L.saveCache(entries,updatedAt);status(result.ownKnown?"":"みんなの順位を表示しています。自分の登録状態は接続を確認して再読み込みしてください。",result.ownKnown?"":"error");}
+    const rev=++revision;lastAttempt=Date.now();loading=true;$("reload").disabled=true;$("reload").textContent="更新中…";$("rankBoard").setAttribute("aria-busy","true");status("");render();
+    try{const result=await L.load();if(rev!==revision)return;entries=result.entries;own=result.own;ownKnown=result.ownKnown;uid=result.uid||"";updatedAt=result.at;cached=false;L.saveCache(entries,updatedAt);showRegistration();status(result.ownKnown?"":"みんなの順位を表示しています。自分の登録状態は接続を確認して再読み込みしてください。",result.ownKnown?"":"error");}
     catch(error){if(rev!==revision)return;cached=true;ownKnown=false;status(L.errorText(error)+(entries.length?" 表示中の順位は保存済みの記録です。":""),"error");}
     finally{if(rev===revision){loading=false;$("reload").disabled=false;$("reload").textContent="順位を更新";$("rankBoard").setAttribute("aria-busy","false");render();}}
   }
@@ -43,9 +44,17 @@
     event.preventDefault();const best=L.registerableBest(),name=L.nickname($("rankNickname").value);if(submitting||loading||!best)return;
     if(!name){$("rankNickname").setCustomValidity("ニックネームを入力してね。");$("rankNickname").reportValidity();return;}
     $("rankNickname").value=name;submitting=true;$("registrationMessage").textContent="自己ベストを登録しています…";renderPersonal();
-    try{const result=await L.submit(name,best.ms);own=result.entry;uid=own.id;ownKnown=true;$("registrationMessage").textContent=result.updated?own.name+"で登録しました！ "+L.seconds(own.ms)+"秒":"登録済みの "+L.seconds(own.ms)+"秒を残しました。";$("registrationMessage").className="registration-message success";await load();}
+    try{const result=await L.submit(name,best.ms);own=result.entry;uid=own.id;ownKnown=true;announce=true;entries=L.rank([...entries.filter(r=>r.id!==own.id),own]).slice(0,100);updatedAt=Date.now();$("registrationMessage").textContent=result.updated?own.name+"で登録しました！ "+L.seconds(own.ms)+"秒":"登録済みの "+L.seconds(own.ms)+"秒を残しました。";$("registrationMessage").className="registration-message success";await load();}
     catch(error){$("registrationMessage").textContent=L.errorText(error);$("registrationMessage").className="registration-message error";}
     finally{submitting=false;renderPersonal();}
   };
-  window.addEventListener("storage",event=>{if([L.bestKey,L.verifiedKey].includes(event.key))renderPersonal();});const cache=L.readCache();if(cache){entries=cache.entries;updatedAt=cache.at;cached=true;}load();
+  window.addEventListener("storage",event=>{
+    if(event.key===L.publishedKey){announce=true;load();}
+    else if([L.bestKey,L.verifiedKey].includes(event.key))renderPersonal();
+  });
+  function refreshWhenVisible(){if(!document.hidden&&!loading&&Date.now()-lastAttempt>=5000)load();}
+  window.addEventListener("focus",refreshWhenVisible);window.addEventListener("pageshow",refreshWhenVisible);document.addEventListener("visibilitychange",refreshWhenVisible);
+  const cache=L.readCache();if(cache){entries=cache.entries;updatedAt=cache.at;cached=true;}
+  const published=L.readPublished();if(published&&L.identity()){own=published.entry;uid=own.id;showRegistration();}
+  load();
 })();

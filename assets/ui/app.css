@@ -1727,9 +1727,9 @@ dialog::backdrop {
 
 .reward-badge { display: inline-block; padding: 2px 7px; margin-left: 4px; background: #fff0ca; color: #865900; border-radius: 6px; font-size: .75rem; white-space: nowrap; }
 .reward-help { margin: 10px 0 14px; color: var(--muted); font-size: .8rem; }
-.grid-cell:nth-child(7n) { background: #d2bd95; }
-.grid-cell.occupied:nth-child(7n) { background: #f5e9d0; }
-.grid-map { padding: 8px; border: 5px solid #928977; border-radius: 5px; background: #baa17a; }
+.grid-cell:nth-child(7n):not(.pending) { background: #d2bd95; }
+.grid-cell.occupied:nth-child(7n):not(.pending) { background: #f5e9d0; }
+.grid-map { padding: 0; border: 5px solid #928977; border-radius: 5px; background: #baa17a; }
 
 .resident-panel { margin: 22px 0; padding: 20px; border: 1px solid #d7c6a5; border-radius: 14px; background: #faf4e8; }
 .resident-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }

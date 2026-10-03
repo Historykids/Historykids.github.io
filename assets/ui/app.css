@@ -294,46 +294,52 @@ main {
   font-weight: 700;
   white-space: nowrap;
 }
+.era-select-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+  font-size: 0.75rem;
+}
+.era-select-head > span:first-child {
+  font-weight: 700;
+}
 .era-tabs {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 28px;
+  gap: 6px;
+  margin-bottom: 20px;
 }
 .era-tab {
   background: white;
-  text-align: left;
-  padding: 16px 18px;
+  text-align: center;
+  padding: 8px;
+  min-width: 0;
+  min-height: 44px;
   border: 1px solid var(--line);
   position: relative;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 .era-tab.active {
   background: var(--orange-light);
   border-color: #e5a88d;
-  box-shadow: inset 0 3px 0 var(--orange);
-}
-.era-tab small {
-  color: var(--muted);
-  font-size: 0.6875rem;
-  letter-spacing: 0.08em;
+  color: #ac4119;
+  box-shadow: inset 0 2px 0 var(--orange);
 }
 .era-tab strong {
   display: block;
-  font-size: 1rem;
-}
-.era-tab .tab-bottom {
-  font-size: 0.75rem;
-  color: var(--muted);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 10px;
+  font-size: 0.875rem;
+  white-space: nowrap;
 }
 .mini-progress {
   display: block;
-  width: 52px;
-  height: 4px;
+  position: absolute;
+  bottom: 4px;
+  left: 20%;
+  width: 60%;
+  height: 2px;
   background: #e1e7eb;
   border-radius: 4px;
   overflow: hidden;
@@ -1240,9 +1246,6 @@ dialog::backdrop {
     font-size: 0.875rem;
     gap: 10px;
   }
-  .era-tab {
-    padding: 14px;
-  }
   .learn-layout {
     gap: 18px;
     grid-template-columns: minmax(0, 1.5fr) minmax(240px, 1fr);
@@ -1345,9 +1348,6 @@ dialog::backdrop {
   .toast {
     left: calc(50% + 40px);
   }
-  .era-tab .mini-progress {
-    display: none;
-  }
   .building-list {
     grid-template-columns: 1fr 1fr;
   }
@@ -1433,24 +1433,11 @@ dialog::backdrop {
   h1 {
     font-size: 1.5rem;
   }
-  .era-tabs {
-    gap: 7px;
-    margin-bottom: 24px;
-  }
   .era-tab {
-    padding: 12px 8px;
-    border-radius: 8px;
-  }
-  .era-tab small {
-    font-size: 0.5625rem;
-    letter-spacing: 0.02em;
+    padding: 8px 4px;
   }
   .era-tab strong {
-    font-size: 0.8125rem;
-  }
-  .era-tab .tab-bottom {
-    margin-top: 6px;
-    font-size: 0.625rem;
+    font-size: 0.875rem;
   }
   .learn-layout {
     display: flex;
@@ -1691,12 +1678,6 @@ dialog::backdrop {
     content: attr(data-short);
     font-size: 0.75rem;
   }
-  .era-tab small {
-    font-size: 0.6875rem;
-  }
-  .era-tab .tab-bottom {
-    font-size: 0.6875rem;
-  }
   .compact-select {
     font-size: 0.75rem;
   }
@@ -1773,13 +1754,10 @@ dialog::backdrop {
 .map-resident { position: absolute; left: 0; top: 0; font-size: 20px; line-height: 24px; white-space: nowrap; filter: drop-shadow(0 2px 1px #57472b66); translate: -50% -70%; z-index: 3; }
 @media(max-width:600px) { .resident-panel { padding: 14px; } .resident-heading { align-items: flex-start; } .resident-heading button { font-size: .75rem; padding: 8px; white-space: nowrap; } .resident-list { grid-template-columns: 1fr; } }
 
-/* Ten periods stay readable without squeezing the quiz or overflowing the page. */
+/* The ten compact period buttons keep two rows, including on phones. */
 .question-year.period-date > span:first-child{font-size:clamp(1rem,2.6vw,1.45rem);line-height:1.5;overflow-wrap:anywhere}
-@media(max-width:1150px){.era-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:700px){.era-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 .card-year.period-date,.timeline-year.period-date{font-size:1rem;line-height:1.6;overflow-wrap:anywhere;min-width:0}
 .detail-year.period-date{font-size:clamp(1.25rem,4vw,1.8rem);overflow-wrap:anywhere}
 
 .nav a{text-decoration:none}
-

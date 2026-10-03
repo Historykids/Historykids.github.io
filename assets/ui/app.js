@@ -273,9 +273,11 @@
       .map(([era, m]) => {
         const arr = records.filter((r) => r.era === era),
           g = arr.filter(got).length;
-        return `<button class="era-tab ${era === state.era ? "active" : ""}" data-era="${era}" aria-pressed="${era === state.era}"><small>${m.en}</small><strong>${E(ds[era].title)}</strong><span class="tab-bottom"><span>${m.years}</span><span class="mini-progress" aria-label="${g}/${arr.length}枚"><i style="width:${(g / arr.length) * 100}%"></i></span></span></button>`;
+        const label = `${ds[era].title} · ${m.years} · ${g}/${arr.length}枚収集`;
+        return `<button class="era-tab ${era === state.era ? "active" : ""}" data-era="${era}" aria-pressed="${era === state.era}" aria-label="${E(label)}" title="${E(label)}"><strong>${E(ds[era].title.replace(/時代$/, ""))}</strong><span class="mini-progress" aria-hidden="true"><i style="width:${(g / arr.length) * 100}%"></i></span></button>`;
       })
       .join("");
+    $("eraSelectionHint").textContent = `${ds[state.era].title} · ${eraMeta[state.era].years}`;
     $("lessonName").textContent = ds[state.era].title + "を探検";
     $("rubyBtn").innerHTML =
       "ふりがな <b>" + (state.ruby ? "ON" : "OFF") + "</b>";

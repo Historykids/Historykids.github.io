@@ -4,15 +4,10 @@
   let person=people[0], history=[], busy=false, ready=false, controller=null, revision=0;
   const endpoint=window.HKAIConfig?.endpoint||"";
 
-  function sources(div,facts){
-    if(!Array.isArray(facts)||!facts.length)return;const links=document.createElement("div");links.className="sources";links.append("参考資料： ");
-    for(const item of facts.slice(0,6)){try{const url=new URL(item.url);if(url.protocol!=="https:")continue;const a=document.createElement("a");a.href=url.href;a.target="_blank";a.rel="noopener noreferrer";a.textContent=item.label||url.hostname;links.append(a);}catch{}}
-    div.append(links);
-  }
-  function addMessage(role,text,facts=[]){
+  function addMessage(role,text){
     const div=document.createElement("div");div.className="chat-message"+(role==="user"?" user":"");
     const label=document.createElement("span");label.className="speaker";label.textContent=role==="user"?"あなた":person.name+" · AI";
-    const body=document.createElement("div");body.textContent=text;div.append(label,body);$("chatMessages").append(div);sources(div,facts);$("chatMessages").scrollTop=$("chatMessages").scrollHeight;return {div,body};
+    const body=document.createElement("div");body.textContent=text;div.append(label,body);$("chatMessages").append(div);$("chatMessages").scrollTop=$("chatMessages").scrollHeight;return {div,body};
   }
   function updateControls(){
     $("sendChat").disabled=busy||!ready;$("chatInput").disabled=busy||!ready;$("resetChat").disabled=busy;
@@ -50,9 +45,9 @@
       const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},credentials:"omit",signal:abort.signal,body:JSON.stringify({person:person.id,messages:history.slice(-8)})});
       const data=await response.json();if(!response.ok){const error=Error("api");error.status=response.status;throw error;}
       if(id!==revision)return;
-      const answer=typeof data.answer==="string"?data.answer.replace(/<think>[\s\S]*?<\/think>/g,"").trim():"";if(!answer)throw Error("empty");
-      msg.body.textContent=answer.slice(0,4000);sources(msg.div,data.sources);history.push({role:"assistant",content:answer});history=history.slice(-8);
-      $("chatStatus").textContent="本人になりきった創作の会話です。史実は参考資料でも確認してね。";
+      const answer=typeof data.answer==="string"?data.answer.replace(/<think>[\s\S]*?<\/think>/g,"").replace(/(?:\*\*)?【\s*想像の会話\s*】(?:\*\*)?\s*/g,"").trim():"";if(!answer)throw Error("empty");
+      msg.body.textContent=answer.slice(0,4000);history.push({role:"assistant",content:answer});history=history.slice(-8);
+      $("chatStatus").textContent="";
     }catch(error){
       if(id!==revision)return;
       if(history.at(-1)===user)history.pop();

@@ -3,7 +3,10 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/workflows/deploy-figure-api.yml']
+    paths:
+      - '.github/workflows/deploy-figure-api.yml'
+      - 'server/figure-api/**'
+      - 'assets/ui/figure-data.js'
 permissions:
   contents: write
   pages: write
@@ -78,4 +81,3 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds"
-

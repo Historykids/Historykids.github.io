@@ -3,6 +3,8 @@ import { OrbitControls } from "../vendor/OrbitControls.js";
 import { GLTFLoader } from "../vendor/GLTFLoader.js";
 import { fitModel, createBuilding, createGround, syncBuildings } from "./town-geometry.js?v=rank-20261002";
 import { createFarmerView } from "./farmer-3d.js?v=plots-20261002";
+import { createLandscape } from "./town-landscape.js?v=mountains-20261003";
+import { SoftwareTownRenderer } from "./town-software-renderer.js?v=mountains-20261003";
 const C = window.HKCore;
 const urls = {
   house: "house.2a9f3.glb",
@@ -33,25 +35,27 @@ function loadModel(type) {
   return cache.get(type);
 }
 function createScene(host, { mini = false } = {}) {
-  const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: mini,
-    powerPreference: "low-power",
-  });
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: mini, powerPreference: "low-power" });
+  } catch (error) {
+    if (mini) throw error;
+    renderer = new SoftwareTownRenderer();
+  }
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.7));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.autoUpdate = false;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   const scene = new THREE.Scene();
-  if (!mini) scene.background = new THREE.Color("#f2eadb");
   const diagonal = Math.hypot(C.town.width, C.town.height);
-  const camera = new THREE.PerspectiveCamera(40, 1, 0.1, Math.max(240, diagonal * 8));
+  const landscape = mini ? null : createLandscape(scene, C.town.width, C.town.height);
+  const camera = new THREE.PerspectiveCamera(40, 1, 0.1, Math.max(240, diagonal * 16));
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = false;
   controls.maxPolarAngle = Math.PI * 0.47;
   controls.minDistance = 4;
-  controls.maxDistance = mini ? 20 : diagonal * 5;
+  controls.maxDistance = mini ? 20 : diagonal * 2.6;
   controls.enableZoom = !mini;
   controls.enablePan = !mini;
   controls.enableRotate = !mini;
@@ -61,9 +65,9 @@ function createScene(host, { mini = false } = {}) {
   function resetCamera() {
     if (mini) return;
     const halfVertical = THREE.MathUtils.degToRad(camera.fov / 2), halfHorizontal = Math.atan(Math.tan(halfVertical) * camera.aspect);
-    const distance = diagonal / 2 / Math.sin(Math.min(halfVertical, halfHorizontal)) * 1.1;
+    const distance = diagonal / 2 / Math.sin(Math.min(halfVertical, halfHorizontal)) * 1.28;
     controls.target.set(0, 0, 0);
-    camera.position.copy(new THREE.Vector3(.8, 1, 1).normalize().multiplyScalar(distance));
+    camera.position.copy(new THREE.Vector3(.42, .52, 1).normalize().multiplyScalar(distance));
     controls.update();
   }
   const ambient = new THREE.HemisphereLight(0xf1faff, 0x536244, 2.4);
@@ -84,6 +88,12 @@ function createScene(host, { mini = false } = {}) {
   const buildings = new THREE.Group();
   scene.add(buildings);
   host.replaceChildren(renderer.domElement);
+  renderer.domElement.setAttribute("aria-label", "森と山々に囲まれた、わたしの町");
+  if (!mini) {
+    const badge = document.createElement("span"); badge.className = "town-scenery-label";
+    badge.textContent = renderer.isSoftwareRenderer ? "山あいの町 · 軽量3D" : "山あいの町";
+    host.append(badge);
+  }
   let shadowBuildings = "";
   const render = () => {
     if (disposed) return;
@@ -94,6 +104,7 @@ function createScene(host, { mini = false } = {}) {
     if (host.clientWidth && host.clientHeight) renderer.render(scene, camera);
   };
   let framed = mini, disposed = false;
+  landscape?.ready.then(() => { if (!disposed) render(); });
   const observer = new ResizeObserver(() => {
     if (!host.clientWidth || !host.clientHeight) return;
     renderer.setSize(host.clientWidth, host.clientHeight, false);
@@ -122,11 +133,12 @@ function createScene(host, { mini = false } = {}) {
     controls,
     base,
     buildings,
+    landscape,
     render,
     resetCamera,
     landWidth: C.town.width,
     landHeight: C.town.height,
-    dispose() { disposed = true; this.disposed = true; this.entries?.clear(); observer.disconnect(); controls.dispose(); renderer.dispose(); scene.clear(); },
+    dispose() { disposed = true; this.disposed = true; this.entries?.clear(); observer.disconnect(); controls.dispose(); landscape?.dispose(); renderer.dispose(); scene.clear(); },
     mini,
   };
 }
@@ -280,4 +292,3 @@ function boot() {
 if (document.readyState === "loading")
   document.addEventListener("DOMContentLoaded", boot, { once: true });
 else boot();
-

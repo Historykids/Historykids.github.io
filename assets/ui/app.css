@@ -854,8 +854,22 @@ body.no-ruby rt {
   position: relative;
 }
 #townCanvas {
-  height: 480px;
+  height: 560px;
   position: relative;
+}
+.town-scenery-label {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  padding: 7px 12px;
+  border: 1px solid #ffffff70;
+  border-radius: 999px;
+  color: #284a43;
+  background: #f4f8efde;
+  font-size: 11px;
+  letter-spacing: .08em;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
 }
 #townCanvas canvas {
   display: block;
@@ -1621,7 +1635,7 @@ dialog::backdrop {
     padding: 8px 12px;
   }
   #townCanvas {
-    height: 370px;
+    height: 420px;
   }
   .building-list {
     grid-template-columns: 1fr;
@@ -1768,5 +1782,4 @@ dialog::backdrop {
 .detail-year.period-date{font-size:clamp(1.25rem,4vw,1.8rem);overflow-wrap:anywhere}
 
 .nav a{text-decoration:none}
-
 

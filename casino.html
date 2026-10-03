@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>両カジノ｜歴史キッズ</title>
+  <meta name="description" content="クイズで集めた両で、じゃんけん・欧州式ルーレット・3リールスロット。町と同じ両だけで遊べる歴史キッズのゲームコーナー。">
+  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/casino.css?v=ryo-casino-20261003">
+  <script defer src="./assets/ui/wallet.js?v=ryo-casino-20261003"></script>
+  <script defer src="./assets/ui/casino-rules.js?v=ryo-casino-20261003"></script>
+  <script defer src="./assets/ui/casino.js?v=ryo-casino-20261003"></script>
+</head>
+<body>
+  <a class="skip-link" href="#casinoMain">ゲームへ</a>
+  <header class="casino-header">
+    <a class="casino-brand" href="./#games"><span class="brand-seal" aria-hidden="true">両</span><span>両カジノ<small>HISTORY KIDS</small></span></a>
+    <nav aria-label="カジノメニュー"><a href="./#games">ゲームで遊ぶ</a><a href="./#town">わたしの町</a><a href="./#learn">両を集める</a></nav>
+    <div class="wallet-badge"><span aria-hidden="true">◉</span><div><small>あなたの所持金</small><b id="casinoBalance">0</b><span> 両</span></div></div>
+  </header>
+  <main id="casinoMain" class="casino-main">
+    <div class="casino-intro"><div><p class="eyebrow">EDO RYO CASINO</p><h1>一勝負、<em>運だめし。</em></h1><p>じゃんけん。回る玉。止まるリール。<br>クイズで集めた両で、気になる一台に挑戦しよう。</p></div><div class="intro-rule"><span class="gold-coin" aria-hidden="true">両</span><div><b>賭けるのは、両だけ。</b><p>町づくりと同じゲーム内通貨です。<br>現金・別のチップは使いません。</p></div></div></div>
+    <div class="casino-tabs" role="tablist" aria-label="カジノのゲーム">
+      <button id="tab-janken" role="tab" aria-selected="true" aria-controls="panel-janken" data-game="janken"><span>01</span><b>じゃんけん</b><small>勝てば2倍</small></button>
+      <button id="tab-roulette" role="tab" aria-selected="false" aria-controls="panel-roulette" data-game="roulette" tabindex="-1"><span>02</span><b>ルーレット</b><small>0〜36の欧州式</small></button>
+      <button id="tab-slots" role="tab" aria-selected="false" aria-controls="panel-slots" data-game="slots" tabindex="-1"><span>03</span><b>スロット</b><small>3リール・1ライン</small></button>
+    </div>
+    <div class="game-shell">
+      <div class="table-area" id="tableArea">
+        <div class="stage-top"><span id="stageLabel">JANKEN / 一対一の勝負</span><div class="stage-settings"><button id="soundToggle" aria-pressed="false">音 OFF</button><label><input type="checkbox" id="quickToggle">演出を短く</label></div></div>
+        <div class="mobile-bet-tools"><label for="mobileStake">賭ける両 <input id="mobileStake" type="number" min="1" max="1000" step="1" inputmode="numeric" value="10"> 両</label><button data-stake="1">1両</button><button data-stake="10">10両</button><button data-stake="25">25両</button></div>
+        <section id="panel-janken" class="casino-panel" role="tabpanel" aria-labelledby="tab-janken">
+          <div class="janken-stage" id="jankenStage"><div class="stage-halo" aria-hidden="true"></div><div class="duel-player"><span class="player-label">あなた</span><div class="duel-hand" id="playerHand" aria-label="あなたの手">✊</div></div><div class="duel-center"><span class="duel-vs" id="duelCall">VS</span><small>運の一手を。</small></div><div class="duel-player opponent"><span class="player-label">NPC</span><div class="duel-hand" id="opponentHand" aria-label="NPCの手">？</div></div></div>
+          <div class="hand-picker" role="group" aria-label="じゃんけんの手"><button data-hand="0" aria-pressed="true"><span aria-hidden="true">✊</span>グー</button><button data-hand="1" aria-pressed="false"><span aria-hidden="true">✌️</span>チョキ</button><button data-hand="2" aria-pressed="false"><span aria-hidden="true">🖐️</span>パー</button></div>
+          <p class="stage-caption">手を選んで「勝負する」。勝ちで2倍、負けは0。あいこは掛け金を返します。</p>
+        </section>
+        <section id="panel-roulette" class="casino-panel" role="tabpanel" aria-labelledby="tab-roulette" hidden>
+          <div class="roulette-stage"><div class="wheel-rim"><div id="rouletteWheel" class="roulette-wheel" aria-hidden="true"></div><div id="ballOrbit" class="ball-orbit" aria-hidden="true"><span class="roulette-ball"></span></div><div class="wheel-hub"><small>EUROPEAN</small><b id="wheelNumber">両</b><span>ROULETTE</span></div></div><div class="roulette-recent" id="rouletteRecent" aria-label="最近のルーレット結果"></div></div>
+          <p class="stage-caption">下の盤面を押して両を置こう。数字は36倍、赤黒・奇偶・大小は2倍、12個の組は3倍。</p>
+          <div class="roulette-board" id="rouletteBoard" role="group" aria-label="ルーレットの賭ける場所"></div>
+          <div class="bet-tools"><button id="undoBet">ひとつ戻す</button><button id="clearBets">すべて外す</button><span>置いた両は、回すまで引かれません。</span></div>
+        </section>
+        <section id="panel-slots" class="casino-panel" role="tabpanel" aria-labelledby="tab-slots" hidden>
+          <div class="slot-machine" id="slotMachine"><div class="slot-marquee"><span class="marquee-lights" aria-hidden="true"></span><small>THREE REELS · ONE LINE</small><h2>黄金の<em>スロット</em></h2><div class="jackpot-label">7 · 7 · 7 <b>250倍</b></div></div><div class="reel-frame"><span class="payline-arrow left" aria-hidden="true">▶</span><div class="reels"><div class="reel-window" aria-label="左リール"><div class="reel-track" id="reel0"></div></div><div class="reel-window" aria-label="中央リール"><div class="reel-track" id="reel1"></div></div><div class="reel-window" aria-label="右リール"><div class="reel-track" id="reel2"></div></div></div><span class="payline-arrow right" aria-hidden="true">◀</span><div class="payline" aria-hidden="true"></div></div><div class="slot-bottom"><span>中央の1ラインで判定</span><div class="slot-handle" aria-hidden="true"><i></i></div><span>777 = 250倍</span></div></div>
+          <p class="stage-caption">中央で同じ絵柄が3つそろうと配当。チェリー2つは掛け金が戻ります。</p>
+          <div class="slot-mini-paytable" aria-label="スロット配当"><span>🍒×3 <b>5倍</b></span><span>🍋×3 <b>10倍</b></span><span>🔔×3 <b>20倍</b></span><span>BAR×3 <b>50倍</b></span><span>7×3 <b>250倍</b></span><span>🍒×2 <b>1倍</b></span></div>
+        </section>
+        <div id="celebration" class="celebration" aria-hidden="true"></div>
+        <div id="roundResult" class="round-result" role="status" aria-live="polite"><small id="resultKicker">PLACE YOUR BET</small><h2 id="resultHeadline">両を決めて、準備しよう。</h2><p id="resultDetail">1〜1,000両。払い戻しの倍率には、掛け金も含みます。</p><div id="resultNumbers" class="result-numbers" hidden><div><small>掛け金</small><b id="resultBet">0両</b></div><div><small>払い戻し</small><b id="resultPayout">0両</b></div><div><small>差し引き</small><b id="resultNet">0両</b></div></div></div>
+      </div>
+      <aside class="bet-panel" aria-label="掛け金と遊び方">
+        <div class="bet-panel-head"><span class="eyebrow">YOUR BET</span><b id="betGameName">じゃんけん</b></div>
+        <label class="bet-label" for="stake" id="stakeLabel">1回に賭ける両</label><div class="bet-input"><input id="stake" type="number" min="1" max="1000" step="1" inputmode="numeric" value="10" aria-describedby="betLimit"><span>両</span></div><p id="betLimit">1〜1,000両 · 残高の範囲で選べます</p>
+        <div class="chip-picker" role="group" aria-label="掛け金を選ぶ"><button data-stake="1">1両</button><button data-stake="5">5両</button><button data-stake="10" aria-pressed="true">10両</button><button data-stake="25">25両</button><button data-stake="50">50両</button><button data-stake="100">100両</button></div>
+        <div id="rouletteSlip" class="roulette-slip" hidden><b>盤面に置いた両</b><ul id="betSlip"></ul><p>合計 <strong id="rouletteTotal">0両</strong></p></div>
+        <div class="bet-summary"><span>今回の掛け金</span><b id="betTotal">10両</b></div>
+        <button id="playRound" class="play-round"><span id="playLabel">10両で勝負する</span><span aria-hidden="true">→</span></button>
+        <p id="casinoStatus" class="casino-status" role="status" aria-live="polite">グー・チョキ・パーを選んでね。</p>
+        <div id="emptyWallet" class="empty-wallet" hidden><b>まずはクイズで両をゲット。</b><p>初めての正解は選択で10両、入力で20両。</p><a href="./#learn">両を集めにいく →</a></div>
+        <details class="rules-details"><summary>このゲームのルール・配当</summary><div id="gameRules"></div></details>
+        <div class="wallet-note"><span aria-hidden="true">◉</span><p>町のショップと同じ両を使います。<br>勝負を始めると掛け金を引き、終了時に払い戻します。</p></div>
+      </aside>
+    </div>
+    <section class="session-history" aria-labelledby="historyTitle"><div><p class="eyebrow">RECENT ROUNDS</p><h2 id="historyTitle">さっきの勝負。</h2></div><ol id="roundHistory"><li class="history-empty">まだ記録はありません。最初の一勝負へ。</li></ol></section>
+    <footer class="casino-footer"><p>両を集めて、遊んで、町をつくろう。</p><a href="./#town">わたしの町へ →</a><a href="./#games">ほかのゲームへ →</a></footer>
+  </main>
+  <div class="mobile-round-bar"><div><small>今回の掛け金</small><b id="mobileBetTotal">10両</b></div><button id="mobilePlayRound">10両で勝負する →</button></div>
+</body>
+</html>

@@ -8,7 +8,7 @@ function page(file, seed = {}) {
   w.HTMLDialogElement.prototype.showModal=function(){this.open=true}; w.HTMLDialogElement.prototype.close=function(){this.open=false};
   let now=0; if(file==='buzzer.html') { Object.defineProperty(w.performance,'now',{value:()=>now}); w.setInterval=()=>1; w.clearInterval=()=>{}; }
   for(const [k,v] of Object.entries(seed)) w.localStorage.setItem(k, JSON.stringify(v));
-  const files = file==='index.html' ? ['data/dataset.js','data/ancient.js','assets/ui/core.js','assets/ui/residents.js','assets/ui/app.js'] : ['data/dataset.js','data/ancient.js','assets/ui/core.js','assets/ui/leaderboard.js','assets/ui/challenge.js'];
+  const files = file==='index.html' ? ['data/dataset.js','data/ancient.js','assets/ui/core.js','assets/ui/residents.js','assets/ui/wallet.js','assets/ui/app.js'] : ['data/dataset.js','data/ancient.js','assets/ui/core.js','assets/ui/leaderboard.js','assets/ui/challenge.js'];
   for(const file of files)w.eval(read(file));
   return {dom,w,$:id=>w.document.getElementById(id),click:s=>{const e=w.document.querySelector(s);assert(e,s);e.click();},time:t=>{now=t;w.HKChallenge.tick();}};
 }

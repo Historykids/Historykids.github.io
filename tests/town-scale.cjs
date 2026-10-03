@@ -17,7 +17,7 @@ function page(seed = {}) {
   w.HTMLDialogElement.prototype.close = function() { this.open = false; };
   w.requestAnimationFrame = () => 1; w.setTimeout = () => 0;
   for (const [k, v] of Object.entries(seed)) w.localStorage.setItem(k, v);
-  for (const p of ["data/dataset.js", "data/ancient.js", "assets/ui/core.js", "assets/ui/residents.js", "assets/ui/app.js"]) w.eval(fs.readFileSync(path.join(root, p), "utf8"));
+  for (const p of ["data/dataset.js", "data/ancient.js", "assets/ui/core.js", "assets/ui/residents.js", "assets/ui/wallet.js", "assets/ui/app.js"]) w.eval(fs.readFileSync(path.join(root, p), "utf8"));
   const click = (selector) => { const e = w.document.querySelector(selector); assert(e, selector); e.click(); };
   return { w, dom, click };
 }

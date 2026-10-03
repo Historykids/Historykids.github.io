@@ -29,6 +29,7 @@ function create(page, scripts, seed = {}) {
   w.URL.revokeObjectURL = () => {};
   for (const [k, v] of Object.entries(seed)) w.localStorage.setItem(k, v);
   const loaded = scripts.slice();
+  if (loaded.includes("assets/ui/app.js") && !loaded.includes("assets/ui/wallet.js")) loaded.splice(loaded.indexOf("assets/ui/app.js"), 0, "assets/ui/wallet.js");
   if (loaded.includes("assets/ui/app.js") && !loaded.includes("assets/ui/residents.js")) loaded.splice(loaded.indexOf("assets/ui/app.js"), 0, "assets/ui/residents.js");
   if (loaded.includes("assets/ui/challenge.js")) loaded.splice(loaded.indexOf("assets/ui/challenge.js"), 0, "assets/ui/leaderboard.js");
   for (const file of loaded) { w.eval(read(file)); if (file === "data/dataset.js") w.eval(read("data/ancient.js")); }
@@ -254,6 +255,7 @@ test("missing storage displays warning without preventing learning", () => {
   for (const file of [
     "data/dataset.js",
     "assets/ui/core.js",
+    "assets/ui/wallet.js",
     "assets/ui/app.js",
   ])
     { nw.eval(read(file)); if (file === "data/dataset.js") nw.eval(read("data/ancient.js")); }

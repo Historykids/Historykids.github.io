@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  const C = window.HKCore,
+  const C = window.HKCore, W = window.HKWallet,
     $ = (id) => document.getElementById(id),
     E = C.esc,
     ds = window.dataSets;
@@ -145,7 +145,7 @@
   const state = {
     got: {},
     wrong: safeGet("hk_wrong_v2", {}),
-    money: Number(safeGet("money_v1", 0)) || 0,
+    money: W.snapshot().balance,
     city: safeGet("city_v1", []),
     residents: safeGet("hk_residents_v1", []),
     ruby: safeGet("hk_ruby_v2", true),
@@ -221,7 +221,7 @@
     try {
       for (const [era, set] of Object.entries(ds))
         localStorage.setItem(set.LS_KEY, JSON.stringify(state.got[era]));
-      localStorage.setItem("money_v1", String(state.money));
+      state.money = W.snapshot().balance;
       localStorage.setItem("city_v1", JSON.stringify(state.city));
       localStorage.setItem("hk_town_layout_v2", JSON.stringify({ version: C.town.version, width: C.town.width, height: C.town.height }));
       localStorage.setItem("hk_residents_v1", JSON.stringify(state.residents));
@@ -258,6 +258,7 @@
   function renderStats() {
     const a = eraRecords(),
       n = a.filter(got).length;
+    state.money = W.snapshot().balance;
     $("moneyValue").textContent = state.money;
     $("eraGot").textContent = n;
     $("eraTotal").textContent = a.length;
@@ -358,7 +359,7 @@
       state.got[r.era][r.name] = true;
       delete state.wrong[r.id];
       const reward = mode === "type" ? 20 : 10;
-      if (fresh) state.money += reward;
+
       $("quizFeedback").className = "feedback";
       $("quizFeedback").innerHTML =
         `<strong>正解！ ${fresh ? "カードをゲット · ＋" + reward + "両" + (mode === "type" ? "（入力ボーナス2倍！）" : "") : "よく覚えていたね！"}</strong><span>${r.titleHTML}</span><p>${E(r.text)}</p>`;
@@ -374,6 +375,10 @@
       $("hintBtn").disabled = true;
       $("nextBtn").textContent =
         qi === queue.length - 1 ? "もう一周する" : "次の問題";
+      if (fresh) W.adjust(reward, () => { save(); renderStats(); }, () => {
+        delete state.got[r.era][r.name]; $("saveWarning").hidden = false;
+        $("quizFeedback").textContent = "正解！両を保存できなかったので、次にこの問題へ答えると受け取れます。";
+      });
     } else {
       state.wrong[r.id] = true;
       if (btn) {
@@ -535,17 +540,28 @@
     $("townGrid").innerHTML = html;
     updateResidentMap(residentEngine?.snapshot() || []);
   }
+  let walletPurchase = false;
+  function walletError(error) {
+    if (error?.message === "purchase-cancelled") return;
+    if (error?.message === "insufficient") { renderStats(); notify("両が足りないよ。残高を確認してね。"); return; }
+    $("saveWarning").hidden = false; notify("両の更新ができませんでした。ブラウザの保存設定を確認してね。");
+  }
   function addResident() {
+    if (walletPurchase) return;
+    state.money = W.snapshot().balance;
     if (!residentEngine || state.money < 10) { notify("農民を迎えるには10両が必要だよ。"); return; }
     if (state.residents.length >= 100) { notify("この町の農民は100人までです。"); return; }
     residentEngine.sync(state.residents, state.city);
     const spawn = residentEngine.nearest(Math.floor(C.town.width / 2), Math.floor(C.town.height / 2));
     if (!spawn) { notify("農民が歩ける空きマスをつくってね。"); return; }
     const id = crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random();
-    state.residents.push({ id, x: spawn.x, y: spawn.y }); state.money -= 10;
-    save(); renderStats(); $("dialog").close(); setView("town");
-    notify("農民を迎えたよ！10両 · 「農民を見る」で暮らしを眺めよう。");
-    watchResident(id);
+    walletPurchase = true;
+    W.buy(10, () => state.residents.length < 100, () => {
+      walletPurchase = false;
+      state.residents.push({ id, x: spawn.x, y: spawn.y });
+      save(); renderStats(); $("dialog").close(); setView("town");
+      notify("農民を迎えたよ！10両 · 「農民を見る」で暮らしを眺めよう。"); watchResident(id);
+    }, error => { walletPurchase = false; walletError(error); });
   }
   function dismissResident(id) {
     const resident = state.residents.find((r) => r.id === id);
@@ -653,7 +669,8 @@
     renderTown();
   }
   function commitPlacement() {
-    if (!pending) return;
+    if (!pending || walletPurchase) return;
+    state.money = W.snapshot().balance;
     const p = pending,
       item = C.items.find((i) => i.id === p.type);
     if (!C.canPlace(state.city, p.x, p.y, p.id, p.type, p.rot)) {
@@ -671,16 +688,13 @@
         notify("両が足りないよ。");
         return;
       }
-      state.money -= item.price;
-      state.city.push({
-        id: crypto.randomUUID
-          ? crypto.randomUUID()
-          : Date.now() + "-" + Math.random(),
-        type: p.type,
-        x: p.x,
-        y: p.y,
-        rot: p.rot,
-      });
+      walletPurchase = true;
+      W.buy(item.price, () => pending === p && C.canPlace(state.city, p.x, p.y, p.id, p.type, p.rot), () => {
+        walletPurchase = false;
+        state.city.push({ id: crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random(), type: p.type, x: p.x, y: p.y, rot: p.rot });
+        save(); renderStats(); cancelPlacement(); notify(item.name + "を置いたよ！");
+      }, error => { walletPurchase = false; walletError(error); });
+      return;
     }
     save();
     renderStats();
@@ -710,6 +724,7 @@
     );
   }
   function exportState() {
+    state.money = W.snapshot().balance;
     const blob = new Blob(
         [
           JSON.stringify(
@@ -777,6 +792,7 @@
         if (v.got[era]?.[r.name] === true) got[era][r.name] = true;
     }
     const importedTown = legacy ? C.arrangeCity(city, { legacy: true, layout: { ...C.town, height: C.town.minHeight } }) : { city, layout };
+    W.replace(v.money, () => {
     Object.assign(C.town, importedTown.layout);
     Object.assign(state, {
       money: v.money,
@@ -791,6 +807,7 @@
     cancelPlacement();
     setEra(ds[v.era] ? v.era : "edo");
     notify("記録を読み込んだよ。");
+    }, walletError);
   }
   document.addEventListener("click", (e) => {
     const guideLink = e.target.closest("a[data-guide-target]");
@@ -1022,6 +1039,7 @@
       );
     if (id === "resetCancel") settings();
     if (id === "resetConfirm") {
+      W.replace(0, () => {
       for (const era of Object.keys(ds)) state.got[era] = {};
       state.money = 0;
       state.city = [];
@@ -1035,6 +1053,7 @@
       rebuildQueue();
       renderCards();
       notify("記録をリセットしたよ。");
+      }, walletError);
     }
     if (e.target.dataset.delete) $("dialog").close();
   });
@@ -1058,9 +1077,14 @@
   window.addEventListener("hashchange", () =>
     setView(location.hash.slice(1), false),
   );
-  window.addEventListener("storage", () =>
-    notify("別のタブで記録が更新されました。読み直すと反映されます。"),
-  );
+  window.addEventListener("hk-wallet-change", () => {
+    state.money = W.snapshot().balance; renderStats();
+    if (view === "town") renderTown();
+    if ($("dialog").open && $("dialogBody").querySelector("[data-buy]")) shop();
+  });
+  window.addEventListener("storage", e => {
+    if (e.key !== "hk_wallet_v2" && e.key !== "money_v1") notify("別のタブで記録が更新されました。読み直すと反映されます。");
+  });
   window.HK = {
     state,
     records,
@@ -1078,6 +1102,8 @@
     get residentActors() { return residentEngine?.snapshot() || []; },
     notify,
   };
+  const unresolved = W.snapshot().pending;
+  if (unresolved) W.finish(unresolved.id, () => { renderStats(); }, walletError);
   const reviewParams = new URLSearchParams(location.search);
   if ((legacyTown && (state.city.length || state.residents.length)) || arrangedTown.moved) save();
   const reviewing = reviewParams.get("review") === "1";
@@ -1085,4 +1111,3 @@
   if (reviewing) { $("practiceFilter").value = "wrong"; rebuildQueue(); }
   setView(reviewing ? "learn" : location.hash.slice(1) || "learn", false);
 })();
-

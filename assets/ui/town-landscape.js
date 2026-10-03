@@ -159,7 +159,7 @@ export function createLandscape(scene, width, depth) {
     new THREE.TextureLoader().loadAsync(new URL("../textures/mountain-forest-20261003.webp", import.meta.url).href)
   ).then(detail => {
     if (disposed) { detail.dispose(); return false; }
-    detailedTexture = detail; detail.wrapS = detail.wrapT = THREE.RepeatWrapping;
+    detailedTexture = detail; detail.userData.forestCanopy = true; detail.wrapS = detail.wrapT = THREE.RepeatWrapping;
     detail.colorSpace = THREE.SRGBColorSpace; detail.anisotropy = 4; detail.needsUpdate = true;
     for (const geometry of [terrain.geometry, terrain.userData.softwareGeometry]) {
       const p = geometry.attributes.position, colors = geometry.attributes.color;

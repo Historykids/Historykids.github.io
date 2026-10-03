@@ -25,7 +25,7 @@ export class SoftwareTownRenderer {
     if(this.textures.has(map))return this.textures.get(map);
     let result=null;const image=map.image;
     if(image.data && image.width && image.height)result={bytes:image.data,width:image.width,height:image.height,srgb:map.colorSpace===THREE.SRGBColorSpace};
-    else try {const canvas=document.createElement("canvas");canvas.width=canvas.height=128;const ctx=canvas.getContext("2d");ctx.drawImage(image,0,0,128,128);result={bytes:ctx.getImageData(0,0,128,128).data,width:128,height:128,srgb:map.colorSpace===THREE.SRGBColorSpace};}catch{}
+    else try {const size=map.userData.forestCanopy?512:128,canvas=document.createElement("canvas");canvas.width=canvas.height=size;const ctx=canvas.getContext("2d");ctx.drawImage(image,0,0,size,size);result={bytes:ctx.getImageData(0,0,size,size).data,width:size,height:size,srgb:map.colorSpace===THREE.SRGBColorSpace};}catch{}
     this.textures.set(map,result);return result;
   }
   render(scene,camera) {

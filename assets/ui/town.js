@@ -3,8 +3,8 @@ import { OrbitControls } from "../vendor/OrbitControls.js";
 import { GLTFLoader } from "../vendor/GLTFLoader.js";
 import { fitModel, createBuilding, createGround, syncBuildings } from "./town-geometry.js?v=rank-20261002";
 import { createFarmerView } from "./farmer-3d.js?v=plots-20261002";
-import { createLandscape } from "./town-landscape.js?v=mountains-20261003";
-import { SoftwareTownRenderer } from "./town-software-renderer.js?v=mountains-20261003";
+import { createLandscape } from "./town-landscape.js?v=mountains-detail-20261003";
+import { SoftwareTownRenderer } from "./town-software-renderer.js?v=mountains-detail-20261003";
 const C = window.HKCore;
 const urls = {
   house: "house.2a9f3.glb",

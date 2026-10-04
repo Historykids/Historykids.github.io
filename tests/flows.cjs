@@ -67,14 +67,17 @@ const dom = create("index.html", [
   ]),
   w = dom.window,
   $ = (id) => w.document.getElementById(id);
-test("previous question returns to the same prompt and resets inputs without awarding coins twice", () => {
+test("previous question resets unsolved inputs and skips questions just solved", () => {
   const d=create("index.html",["data/dataset.js","assets/ui/core.js","assets/ui/app.js"]),v=d.window,g=id=>v.document.getElementById(id);
   assert(g("prevBtn").disabled);const first=g("qTitle").textContent;
   click(v, '#nextBtn');const second=g("qTitle").textContent;assert(!g("prevBtn").disabled);assert.notEqual(second,first);
-  click(v, '#prevBtn');assert.equal(g("qTitle").textContent,first);assert(g("prevBtn").disabled);
+  click(v, '[data-mode="type"]');g("answerInput").value="途中の入力";
+  click(v, '#prevBtn');assert.equal(g("qTitle").textContent,first);assert(g("prevBtn").disabled);assert.equal(g("answerInput").value,"");
   click(v, '[data-mode="type"]');g("answerInput").value="えど";g("answerForm").dispatchEvent(new v.Event("submit",{bubbles:true,cancelable:true}));
-  const earned=v.HK.state.money;click(v, '#nextBtn');g("answerInput").value="途中の入力";click(v, '#prevBtn');
-  assert.equal(g("answerInput").value,"");assert(g("quizFeedback").hidden);assert(!g("answerInput").disabled);
+  const earned=v.HK.state.money;click(v, '#nextBtn');assert.equal(g("qTitle").textContent,second);assert(g("prevBtn").disabled);
+  click(v, '#nextBtn');g("answerInput").value="途中の入力";click(v, '#prevBtn');
+  assert.equal(g("qTitle").textContent,second);assert.equal(g("answerInput").value,"");assert(g("quizFeedback").hidden);assert(!g("answerInput").disabled);
+  const solved=v.document.querySelector('#collection .history-card.done');solved.click();click(v, '[data-practice]');assert.equal(g("qTitle").textContent,first);assert(g("prevBtn").disabled);
   g("answerInput").value="えど";g("answerForm").dispatchEvent(new v.Event("submit",{bubbles:true,cancelable:true}));assert.equal(v.HK.state.money,earned);
   click(v, '#nextBtn');assert.equal(g("qTitle").textContent,second);d.window.close();
 });
@@ -99,6 +102,72 @@ test("all 202 questions offer four unique choices with matching character counts
     }
   }
 });
+test("all ten eras show only unsolved questions in order and complete immediately after the last correct answer", () => {
+  const seed = {money_v1: "300"}, byEra = {};
+  for (const era of w.HKCore.eraOrder) {
+    const ordered = w.HK.records.filter(r => r.era === era).sort((a,b) => a.year-b.year);
+    byEra[era] = ordered;
+    seed[w.dataSets[era].LS_KEY] = JSON.stringify(Object.fromEntries(ordered.filter((r,i) => ![1,4,ordered.length-1].includes(i)).map(r => [r.name,true])));
+  }
+  const d = create("index.html", ["data/dataset.js","assets/ui/core.js","assets/ui/app.js"], seed), v=d.window, g=id=>v.document.getElementById(id);
+  const prompt = r => assert.equal(g("qTitle").innerHTML, v.dataSets[r.era].ruby[r.name] || r.question);
+  const type = r => {click(v,'[data-mode="type"]');g("answerInput").value=r.answers.join("・");g("answerForm").dispatchEvent(new v.Event("submit",{bubbles:true,cancelable:true}));};
+  let money=300;
+  for (const era of v.HKCore.eraOrder) {
+    const rows=byEra[era];click(v,`[data-era="${era}"]`);
+    assert.equal(g("practiceFilter").value,"new");prompt(rows[1]);assert(g("prevBtn").disabled);
+    click(v,'#nextBtn');prompt(rows[4]);click(v,'#prevBtn');prompt(rows[1]);
+    type(rows[1]);money+=20;assert.equal(v.HK.state.money,money);
+    click(v,'#nextBtn');prompt(rows[4]);assert(g("prevBtn").disabled);
+    click(v,'#nextBtn');prompt(rows.at(-1));click(v,'#prevBtn');prompt(rows[4]);
+    click(v,'[data-mode="choice"]');click(v,`#choices [data-answer="${rows[4].answers.join("・")}"]`);money+=10;
+    click(v,'#nextBtn');prompt(rows.at(-1));type(rows.at(-1));money+=20;
+    assert.equal(g("qTitle").textContent,"すべての問題を正解しました！",era);
+    assert(g("qInstruction").textContent.includes("下の時代カードをタップ"));
+    assert(g("choices").hidden && g("answerForm").hidden && g("quizPanel").querySelector(".answer-mode").hidden);
+    assert(g("prevBtn").disabled && g("nextBtn").disabled);assert.equal(v.HK.state.money,money);
+    assert.equal(g("collection").querySelectorAll(".done").length,rows.length);
+    click(v,'#collection .done');click(v,'[data-practice]');prompt(rows[0]);
+    assert.equal(g("qCount").textContent,"カードから解き直し");assert(g("prevBtn").disabled);
+    g("answerInput").value="まちがい";g("answerForm").dispatchEvent(new v.Event("submit",{bubbles:true,cancelable:true}));
+    assert.equal(g("wrongCount").textContent,"0");type(rows[0]);assert.equal(v.HK.state.money,money);
+    click(v,'#nextBtn');assert.equal(g("qTitle").textContent,"すべての問題を正解しました！");
+  }
+  const saved=Object.fromEntries(Object.keys(v.localStorage).map(k=>[k,v.localStorage.getItem(k)]));
+  const reloaded=create("index.html",["data/dataset.js","assets/ui/core.js","assets/ui/app.js"],saved);
+  for (const era of reloaded.window.HKCore.eraOrder) {click(reloaded.window,`[data-era="${era}"]`);assert.equal(reloaded.window.document.getElementById("qTitle").textContent,"すべての問題を正解しました！");}
+  assert.equal(reloaded.window.HK.state.money,money);reloaded.window.close();v.close();
+});
+test("skipped questions remain available and mode changes never reopen a solved normal question", () => {
+  const rows=w.HK.records.filter(r=>r.era==="edo").sort((a,b)=>a.year-b.year);
+  const seed={[w.dataSets.edo.LS_KEY]:JSON.stringify(Object.fromEntries(rows.filter((r,i)=>![1,rows.length-1].includes(i)).map(r=>[r.name,true])))};
+  const d=create("index.html",["data/dataset.js","assets/ui/core.js","assets/ui/app.js"],seed),v=d.window,g=id=>v.document.getElementById(id);
+  click(v,'#nextBtn');click(v,'[data-mode="type"]');g("answerInput").value=rows.at(-1).answers.join("・");g("answerForm").dispatchEvent(new v.Event("submit",{bubbles:true,cancelable:true}));
+  assert(!g("quizPanel").classList.contains("quiz-complete"));click(v,'[data-mode="choice"]');
+  assert.equal(g("qTitle").innerHTML,v.dataSets.edo.ruby[rows[1].name]);assert(g("prevBtn").disabled);
+  click(v,'#nextBtn');assert.equal(g("qTitle").innerHTML,v.dataSets.edo.ruby[rows[1].name]);
+  click(v,'.nav [data-view="timeline"]');click(v,`[data-detail="${rows[0].id}"]`);
+  assert(!v.document.querySelector('[data-practice]'));click(v,'#dialogClose');v.close();
+});
+test("review excludes historically solved questions and selecting an era resets to the unsolved queue", () => {
+  const rows=w.HK.records.filter(r=>r.era==="edo").sort((a,b)=>a.year-b.year);
+  const seed={[w.dataSets.edo.LS_KEY]:JSON.stringify({[rows[0].name]:true}),hk_wrong_v2:JSON.stringify({[rows[0].id]:true,[rows[1].id]:true})};
+  const d=create("index.html",["data/dataset.js","assets/ui/core.js","assets/ui/app.js"],seed),v=d.window,g=id=>v.document.getElementById(id);
+  assert.equal(g("wrongCount").textContent,"1");click(v,'#reviewBtn');assert.equal(g("qTitle").innerHTML,v.dataSets.edo.ruby[rows[1].name]);
+  click(v,`#choices [data-answer="${rows[1].answers.join("・")}"]`);click(v,'#nextBtn');
+  assert.equal(g("qTitle").textContent,"復習する問題はありません。");assert(!g("quizPanel").classList.contains("quiz-complete"));
+  click(v,'[data-era="edo"]');assert.equal(g("practiceFilter").value,"new");assert.equal(g("qTitle").innerHTML,v.dataSets.edo.ruby[rows[2].name]);v.close();
+});
+test("a failed coin save keeps the final question unsolved and available to retry", () => {
+  const rows=w.HK.records.filter(r=>r.era==="edo").sort((a,b)=>a.year-b.year), last=rows.at(-1);
+  const seed={[w.dataSets.edo.LS_KEY]:JSON.stringify(Object.fromEntries(rows.slice(0,-1).map(r=>[r.name,true])))};
+  const d=create("index.html",["data/dataset.js","assets/ui/core.js","assets/ui/app.js"],seed),v=d.window,g=id=>v.document.getElementById(id);
+  const adjust=v.HKWallet.adjust;v.HKWallet.adjust=(delta,success,failure)=>failure(Error("storage full"));
+  click(v,`#choices [data-answer="${last.answers.join("・")}"]`);
+  assert(!v.HK.state.got.edo[last.name]);assert.equal(v.HK.state.money,0);assert(!g("saveWarning").hidden);
+  assert(!g("quizPanel").classList.contains("quiz-complete"));assert.equal(g("qTitle").innerHTML,v.dataSets.edo.ruby[last.name]);
+  v.HKWallet.adjust=adjust;click(v,`#choices [data-answer="${last.answers.join("・")}"]`);assert.equal(v.HK.state.money,10);assert(g("quizPanel").classList.contains("quiz-complete"));v.close();
+});
 test("a fresh typed answer earns twenty coins and cannot be collected twice", () => {
   const typed = create("index.html", ["data/dataset.js", "assets/ui/core.js", "assets/ui/app.js"]);
   const tw = typed.window;
@@ -107,6 +176,8 @@ test("a fresh typed answer earns twenty coins and cannot be collected twice", ()
   tw.document.getElementById("answerForm").dispatchEvent(new tw.Event("submit", { bubbles: true, cancelable: true }));
   assert.equal(tw.HK.state.money, 20);
   assert(tw.document.getElementById("quizFeedback").textContent.includes("＋20両"));
+  click(tw, '#collection .history-card.done');
+  click(tw, '[data-practice]');
   click(tw, '[data-mode="choice"]');
   click(tw, '[data-answer="えど"]');
   assert.equal(tw.HK.state.money, 20);
@@ -136,6 +207,8 @@ test("town automatically shows saved buildings on the grid when 3D is unavailabl
   fw.close();
 });
 test("repeating a collected card gives no duplicate reward", () => {
+  click(w, '#collection .history-card.done');
+  click(w, '[data-practice]');
   click(w, '[data-mode="type"]');
   $("answerInput").value = "えど";
   $("answerForm").dispatchEvent(
@@ -370,4 +443,3 @@ console.log(checks + " checks passed.");
   console.error(e);
   process.exitCode = 1;
 });
-

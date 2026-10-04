@@ -213,6 +213,7 @@
     mode = "choice",
     queue = [],
     qi = 0,
+    cardPractice = null,
     answered = false,
     pending = null,
     toastTimer,
@@ -267,7 +268,7 @@
     $("eraProgress").value = n;
     $("allGot").textContent = records.filter(got).length;
     $("wrongCount").textContent = records.filter(
-      (r) => state.wrong[r.id],
+      (r) => state.wrong[r.id] && !got(r),
     ).length;
     $("eraTabs").innerHTML = Object.entries(eraMeta)
       .map(([era, m]) => {
@@ -284,19 +285,48 @@
     $("rubyBtn").setAttribute("aria-pressed", state.ruby);
     document.body.classList.toggle("no-ruby", !state.ruby);
   }
+  function pendingQuestions() {
+    return eraRecords().filter(
+      (r) => !got(r) && ($("practiceFilter").value !== "wrong" || state.wrong[r.id]),
+    );
+  }
+  function currentQuestion() {
+    return cardPractice || queue[qi];
+  }
+  function previousQuestion() {
+    if (cardPractice) return;
+    const ordered = eraRecords(), position = ordered.indexOf(currentQuestion());
+    return pendingQuestions().filter((r) => ordered.indexOf(r) < position).pop();
+  }
+  function updateQuizNavigation() {
+    $("prevBtn").disabled = !previousQuestion();
+    $("nextBtn").disabled = !currentQuestion();
+    $("nextBtn").textContent = cardPractice
+      ? (pendingQuestions().length ? "未正解の問題へ" : "時代カードに戻る")
+      : "次の問題";
+  }
   function rebuildQueue(target) {
-    let arr = eraRecords();
-    const f = $("practiceFilter").value;
-    if (f === "new") arr = arr.filter((r) => !got(r));
-    if (f === "wrong") arr = arr.filter((r) => state.wrong[r.id]);
-    queue = arr;
+    cardPractice = null;
+    queue = pendingQuestions();
     qi = Math.max(
       0,
-      arr.findIndex((r) => r.id === target),
+      queue.findIndex((r) => r.id === target),
     );
     renderQuestion();
   }
+  function moveQuestion(direction) {
+    if (cardPractice) { rebuildQueue(); return; }
+    const ordered = eraRecords(), position = ordered.indexOf(currentQuestion());
+    const next = direction < 0
+      ? previousQuestion()
+      : pendingQuestions().find((r) => ordered.indexOf(r) > position) || pendingQuestions()[0];
+    if (direction < 0 && !next) return;
+    rebuildQueue(next?.id);
+  }
   function renderQuestion() {
+    const r = currentQuestion();
+    // Only an explicit card selection can reopen a question already solved.
+    if (!cardPractice && r && got(r)) { moveQuestion(1); return; }
     answered = false;
     $("quizFeedback").hidden = true;
     $("hintText").hidden = true;
@@ -304,21 +334,23 @@
     $("answerInput").disabled = false;
     $("answerForm").querySelector("button").disabled = false;
     $("hintBtn").disabled = false;
-    $("nextBtn").textContent = "次の問題";
-    const r = queue[qi];
-    $("prevBtn").disabled = !r || qi === 0;
+    const complete = !r && eraRecords().every(got);
+    $("quizPanel").classList.toggle("quiz-complete", complete);
+    for (const selector of [".answer-mode", ".reward-help", ".quiz-bottom"])
+      $("quizPanel").querySelector(selector).hidden = !r;
+    updateQuizNavigation();
     if (!r) {
-      $("qChapter").textContent = "この範囲は完了！";
+      $("qChapter").textContent = complete ? ds[state.era].title + " · コンプリート！" : "復習完了";
       $("qCount").textContent = "";
       $("qYear").textContent = "✓";
       $("qYearSuffix").textContent = "";
-      $("qTitle").textContent =
-        $("practiceFilter").value === "wrong"
-          ? "復習する問題はありません。"
-          : "すべてのカードを集めたよ！";
-      $("qInstruction").textContent =
-        "別の出題範囲や時代を選んで、続きを楽しもう。";
+      $("qYear").parentElement.classList.remove("period-date");
+      $("qTitle").textContent = complete ? "すべての問題を正解しました！" : "復習する問題はありません。";
+      $("qInstruction").textContent = complete
+        ? "もう一度解きたいときは、下の時代カードをタップしてね。"
+        : "出題範囲を「未正解の問題」にすると、続きを解けるよ。";
       $("choices").innerHTML = "";
+      $("choices").hidden = true;
       $("answerForm").hidden = true;
       $("hintBtn").disabled = true;
       $("nextBtn").disabled = true;
@@ -326,7 +358,7 @@
     }
     $("nextBtn").disabled = false;
     $("qChapter").textContent = r.chapter;
-    $("qCount").textContent = qi + 1 + " / " + queue.length;
+    $("qCount").textContent = cardPractice ? "カードから解き直し" : qi + 1 + " / " + queue.length;
     $("qYear").textContent = C.dateValue(r);
     $("qYearSuffix").textContent = C.dateSuffix(r);
     $("qYear").parentElement.classList.toggle("period-date", !!r.dateLabel);
@@ -347,7 +379,7 @@
   }
   function check(raw, btn) {
     if (answered) return;
-    const r = queue[qi];
+    const r = currentQuestion();
     if (!r) return;
     if (!C.tokens(raw).length) {
       notify("答えを入力してね。");
@@ -355,6 +387,7 @@
       return;
     }
     const ok = C.answerOK(raw, r.answers);
+    let rewardFailed = false;
     if (ok) {
       answered = true;
       const fresh = !got(r);
@@ -375,14 +408,20 @@
       $("answerInput").disabled = true;
       $("answerForm").querySelector("button").disabled = true;
       $("hintBtn").disabled = true;
-      $("nextBtn").textContent =
-        qi === queue.length - 1 ? "もう一周する" : "次の問題";
       if (fresh) W.adjust(reward, () => { save(); renderStats(); }, () => {
-        delete state.got[r.era][r.name]; $("saveWarning").hidden = false;
-        $("quizFeedback").textContent = "正解！両を保存できなかったので、次にこの問題へ答えると受け取れます。";
+        rewardFailed = true;
+        delete state.got[r.era][r.name];
+        save(); renderStats(); renderCards();
+        if (state.era === r.era && (currentQuestion() === r || !currentQuestion())) {
+          rebuildQueue(r.id);
+          $("quizFeedback").className = "feedback wrong";
+          $("quizFeedback").textContent = "両を保存できませんでした。この問題にもう一度答えると受け取れます。";
+          $("quizFeedback").hidden = false;
+        }
+        $("saveWarning").hidden = false;
       });
     } else {
-      state.wrong[r.id] = true;
+      if (!got(r)) state.wrong[r.id] = true;
       if (btn) {
         btn.classList.add("incorrect");
         btn.disabled = true;
@@ -393,12 +432,19 @@
     }
     $("quizFeedback").hidden = false;
     save();
+    if (rewardFailed) $("saveWarning").hidden = false;
     renderStats();
     renderCards();
+    if (ok && got(r) && !cardPractice && eraRecords().every(got)) {
+      const feedback = $("quizFeedback").innerHTML;
+      rebuildQueue();
+      $("quizFeedback").innerHTML = feedback;
+      $("quizFeedback").hidden = false;
+    } else updateQuizNavigation();
   }
   function cardHTML(r) {
     const done = got(r);
-    return `<button class="history-card ${done ? "done" : ""}" data-card="${E(r.id)}"><span class="card-top"><span class="card-year ${r.dateLabel ? "period-date" : ""}">${E(C.dateValue(r))}<small>${C.dateSuffix(r)}</small></span><span>${done ? "✓" : "？"}</span></span><div class="card-title"><span class="card-icon" aria-hidden="true">${r.icon}</span>${done ? r.titleHTML : ds[r.era].ruby[r.name] || E(r.question)}</div><span class="card-foot ${done ? "card-done" : ""}">${done ? "収集済み · 解説を読む" : E(r.chapter) + " · クイズに挑戦"}</span></button>`;
+    return `<button class="history-card ${done ? "done" : ""}" data-card="${E(r.id)}"><span class="card-top"><span class="card-year ${r.dateLabel ? "period-date" : ""}">${E(C.dateValue(r))}<small>${C.dateSuffix(r)}</small></span><span>${done ? "✓" : "？"}</span></span><div class="card-title"><span class="card-icon" aria-hidden="true">${r.icon}</span>${done ? r.titleHTML : ds[r.era].ruby[r.name] || E(r.question)}</div><span class="card-foot ${done ? "card-done" : ""}">${done ? "収集済み · 解説・解き直し" : E(r.chapter) + " · クイズに挑戦"}</span></button>`;
   }
   function renderCards() {
     $("collection").innerHTML = eraRecords().map(cardHTML).join("");
@@ -472,6 +518,7 @@
   function setEra(era) {
     if (!ds[era]) return;
     state.era = era;
+    $("practiceFilter").value = "new";
     save();
     $("chapterFilter").innerHTML =
       '<option value="all">すべての章</option>' +
@@ -488,10 +535,11 @@
     $("dialogBody").innerHTML = html;
     if (!$("dialog").open) $("dialog").showModal();
   }
-  function detail(r) {
+  function detail(r, fromCard = true) {
+    if (!r) return;
     openDialog(
       "歴史カード",
-      `<div class="detail-year ${r.dateLabel ? "period-date" : ""}">${E(C.dateValue(r))}<small>${C.dateSuffix(r)}</small></div><span class="chip">${E(ds[r.era].title)} · ${E(r.chapter)}</span><h3 class="detail-title">${r.titleHTML}</h3><p class="detail-reading">こたえ：${E(r.answers.join("・"))}</p><p class="detail-text">${E(r.text)}</p>${r.source ? `<a href="${E(r.source)}" target="_blank" rel="noopener">資料で詳しく読む</a>` : ""}<div class="dialog-actions"><button class="primary" data-practice="${E(r.id)}">この問題に挑戦</button></div>`,
+      `<div class="detail-year ${r.dateLabel ? "period-date" : ""}">${E(C.dateValue(r))}<small>${C.dateSuffix(r)}</small></div><span class="chip">${E(ds[r.era].title)} · ${E(r.chapter)}</span><h3 class="detail-title">${r.titleHTML}</h3><p class="detail-reading">こたえ：${E(r.answers.join("・"))}</p><p class="detail-text">${E(r.text)}</p>${r.source ? `<a href="${E(r.source)}" target="_blank" rel="noopener">資料で詳しく読む</a>` : ""}${fromCard || !got(r) ? `<div class="dialog-actions"><button class="primary" data-practice="${E(r.id)}">${got(r) ? "この問題を解き直す" : "この問題に挑戦"}</button></div>` : '<p class="muted">解き直すときは、時代カードをタップしてね。</p>'}`,
     );
   }
   function shop(cat = "all") {
@@ -848,7 +896,6 @@
       if (got(r)) detail(r);
       else {
         setEra(r.era);
-        $("practiceFilter").value = "all";
         rebuildQueue(r.id);
         setView("learn");
         $("quizPanel").scrollIntoView({ block: "center" });
@@ -856,16 +903,18 @@
       return;
     }
     if (b.dataset.detail) {
-      detail(records.find((r) => r.id === b.dataset.detail));
+      detail(records.find((r) => r.id === b.dataset.detail), false);
       return;
     }
     if (b.dataset.practice) {
       const r = records.find((r) => r.id === b.dataset.practice);
+      if (!r) return;
       $("dialog").close();
       setEra(r.era);
-      $("practiceFilter").value = "all";
-      rebuildQueue(r.id);
+      if (got(r)) { cardPractice = r; renderQuestion(); }
+      else rebuildQueue(r.id);
       setView("learn");
+      $("quizPanel").scrollIntoView({ block: "center" });
       return;
     }
     if (b.dataset.shopcat) {
@@ -930,19 +979,10 @@
   $("answerInput").addEventListener("keydown", (e) => {
     if (e.key === "Enter" && e.isComposing) e.preventDefault();
   });
-  $("prevBtn").onclick = () => {
-    if (!queue.length || qi === 0) return;
-    qi--;
-    renderQuestion();
-  };
-  $("nextBtn").onclick = () => {
-    if (!queue.length) return;
-    qi = (qi + 1) % queue.length;
-    if (qi === 0 && $("practiceFilter").value !== "all") rebuildQueue();
-    else renderQuestion();
-  };
+  $("prevBtn").onclick = () => moveQuestion(-1);
+  $("nextBtn").onclick = () => moveQuestion(1);
   $("hintBtn").onclick = () => {
-    const r = queue[qi];
+    const r = currentQuestion();
     if (!r) return;
     $("hintText").textContent =
       r.text +
@@ -976,7 +1016,7 @@
     }
   });
   $("reviewBtn").onclick = () => {
-    const first = records.find((r) => state.wrong[r.id]);
+    const first = records.find((r) => state.wrong[r.id] && !got(r));
     if (!first) {
       notify("間違えた問題はまだないよ。");
       return;

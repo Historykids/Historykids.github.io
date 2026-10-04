@@ -445,6 +445,20 @@ select {
 .quiz-panel > p {
   font-size: 0.875rem;
 }
+.quiz-panel.quiz-complete {
+  min-height: 0;
+  background: linear-gradient(135deg, #f1faf5, #fff 70%);
+}
+.quiz-panel.quiz-complete:before {
+  background: #37815b;
+}
+.quiz-complete .question-year > span:first-child {
+  color: #37815b;
+}
+.quiz-complete .chip {
+  color: #286443;
+  background: #e1f0e7;
+}
 .answer-mode {
   display: flex;
   gap: 0;

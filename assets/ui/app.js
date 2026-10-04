@@ -535,6 +535,36 @@
     $("dialogBody").innerHTML = html;
     if (!$("dialog").open) $("dialog").showModal();
   }
+  $("redeemCodeBtn").onclick = () => {
+    openDialog("コードを入力", '<form id="redeemCodeForm"><label for="redeemCodeInput">コードを入力してね</label><div class="input-row"><input id="redeemCodeInput" type="text" inputmode="numeric" autocomplete="off" maxlength="16" aria-describedby="redeemCodeStatus" required><button class="primary" type="submit">受け取る</button></div><p id="redeemCodeStatus" role="status" aria-live="polite"></p></form>');
+    $("redeemCodeInput").focus();
+  };
+  $("dialogBody").addEventListener("submit", (e) => {
+    if (e.target.id !== "redeemCodeForm") return;
+    e.preventDefault();
+    const form = e.target, input = form.querySelector("input"), button = form.querySelector("button"), status = form.querySelector('[role="status"]');
+    if (button.disabled) return;
+    if (input.value.trim() !== "1940") {
+      status.textContent = "コードが違うよ。もう一度入力してね。";
+      input.focus();
+      return;
+    }
+    input.disabled = button.disabled = true;
+    status.textContent = "受け取り中…";
+    W.adjust(100, () => {
+      save(); renderStats();
+      if (form.isConnected) {
+        status.textContent = "100両ゲット！町づくりに使ってね。";
+        button.textContent = "受け取りました";
+      }
+      notify("＋100両ゲット！");
+    }, () => {
+      if (form.isConnected) {
+        input.disabled = button.disabled = false;
+        status.textContent = "両を保存できませんでした。もう一度お試しください。";
+      }
+    });
+  });
   function detail(r, fromCard = true) {
     if (!r) return;
     openDialog(

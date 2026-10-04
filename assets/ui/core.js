@@ -592,8 +592,24 @@
   }
   function dateSuffix(record) { return record.dateLabel ? "" : "年"; }
   function dateText(record) { return dateValue(record) + dateSuffix(record); }
+  // Shared by the browser and Worker. A round always contains ten questions.
+  function rankingScore(correct, answerMs) {
+    if (!Number.isInteger(correct) || correct < 0 || correct > 10 || !Number.isFinite(answerMs) || answerMs < 0) return 0;
+    return Math.round(correct / 10 * (8000 + 2000 * 60000 / (60000 + answerMs)));
+  }
+  function rankingMetrics(value) {
+    const correct = value?.correct ?? 10;
+    if (!Number.isInteger(correct) || correct < 0 || correct > 10 || !Number.isSafeInteger(value?.ms) || value.ms <= 0) return null;
+    // Legacy times included five seconds per miss. Preserve the record and remove that penalty.
+    const answerMs = Number.isSafeInteger(value.answerMs) && value.answerMs > 0 ? value.answerMs : Math.max(1, value.ms - (value.timingVersion === 2 ? 0 : (10 - correct) * 5000));
+    return {correct, ms:answerMs, answerMs, score:rankingScore(correct, answerMs), timingVersion:value.timingVersion === 2 ? 2 : 1};
+  }
+  function rankingCompare(a, b) { return b.score - a.score || a.answerMs - b.answerMs; }
   const api = {
     eraOrder: ["jomon", "yayoi", "kofun", "asuka", "nara", "heian", "kamakura", "muromachi", "sengoku", "edo"],
+    rankingScore,
+    rankingMetrics,
+    rankingCompare,
     questionText,
     dateValue,
     dateSuffix,

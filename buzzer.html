@@ -2,9 +2,9 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>歴史の早押し決戦｜歴史キッズ</title><meta name="description" content="早押しボタンで日本史に挑戦！10問決戦、60秒ラッシュ、3命サバイバル。難しい4択と入力、コンボ、成績と復習。"><meta name="theme-color" content="#142b40">
-  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/app.css?v=quiz-nav-rank-20261003"><link rel="stylesheet" href="./assets/ui/subpages.css"><link rel="stylesheet" href="./assets/ui/challenge.css?v=online-rank-20261002">
-  <script defer src="./data/dataset.js"></script><script defer src="./data/ancient.js?v=ancient-20261002"></script><script defer src="./assets/ui/core.js?v=online-rank-20261002"></script><script defer src="./assets/ui/ranking-config.js?v=online-rank-20261002"></script><script defer src="./assets/ui/leaderboard.js?v=vex-open-rank-20261003"></script><script defer src="./assets/ui/challenge.js?v=vex-open-rank-20261003"></script>
+  <title>歴史の早押し決戦｜歴史キッズ</title><meta name="description" content="早押しボタンで日本史に挑戦！10問決戦、60秒ラッシュ、3命サバイバル。難しい4択、正答率と回答時間のスコア、成績と復習。"><meta name="theme-color" content="#142b40">
+  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/app.css?v=quiz-nav-rank-20261003"><link rel="stylesheet" href="./assets/ui/subpages.css"><link rel="stylesheet" href="./assets/ui/challenge.css?v=accuracy-score-20261004">
+  <script defer src="./data/dataset.js"></script><script defer src="./data/ancient.js?v=ancient-20261002"></script><script defer src="./assets/ui/core.js?v=accuracy-score-20261004"></script><script defer src="./assets/ui/ranking-config.js?v=online-rank-20261002"></script><script defer src="./assets/ui/leaderboard.js?v=accuracy-score-20261004"></script><script defer src="./assets/ui/challenge.js?v=accuracy-score-20261004"></script>
 </head>
 <body class="subpage challenge-page">
 <header class="sub-header"><a href="./" class="sub-brand">歴史キッズ</a><nav aria-label="ゲームメニュー"><a href="./#games">学習に戻る</a><a href="./ranking.html">ランキング</a><button id="soundBtn" aria-pressed="false">音 OFF</button><button id="fullscreenBtn" aria-label="全画面にする">全画面</button><a href="./#howto">遊び方</a></nav></header>
@@ -16,7 +16,7 @@
       <button data-game="rush" class="mode-card" aria-pressed="false"><span class="mode-number">02</span><b>60秒ラッシュ</b><small>制限時間内に何問解ける？<br>連続正解でコンボを伸ばそう</small><span class="mode-icon" aria-hidden="true">⏱</span></button>
       <button data-game="survival" class="mode-card" aria-pressed="false"><span class="mode-number">03</span><b>3命サバイバル</b><small>間違い3回で終了<br>どこまで生き残れる？</small><span class="mode-icon" aria-hidden="true">♥</span></button>
     </div>
-    <div class="setup-panel"><div class="filters fixed-rules" aria-label="統一ルール"><span class="chip">全期間</span><span class="chip">全時代ミックス</span><span class="chip">4択</span>    </div><div class="setup-bottom"><div><p id="modeRule">10問を解こう。間違いは5秒のペナルティ。10問終わるとランキングに参加できます。</p><p id="personalBest" class="muted small"></p></div><button id="startBtn" class="primary start-game">決戦をはじめる <span aria-hidden="true">→</span></button></div></div>
+    <div class="setup-panel"><div class="filters fixed-rules" aria-label="統一ルール"><span class="chip">全期間</span><span class="chip">全時代ミックス</span><span class="chip">4択</span>    </div><div class="setup-bottom"><div><p id="modeRule">正答率と合計回答時間でスコアが決まるよ。正確さ80％・速さ20％。10問完走でランキングへ！</p><p id="personalBest" class="muted small"></p></div><button id="startBtn" class="primary start-game">決戦をはじめる <span aria-hidden="true">→</span></button></div></div>
     <div class="how-to"><span><b>1</b> 問題が少しずつ出る</span><span><b>2</b> わかったら早押し！</span><span><b>3</b> 答えてコンボをつなぐ</span><small>PC：Spaceで早押し · 1〜4で選択 · Enterで次へ</small></div>
   </section>
   <section id="quizBox" class="arena" aria-label="早押しの問題" hidden>
@@ -36,8 +36,8 @@
   </section>
   <section id="resultBox" class="result-panel" aria-label="今回の成績" hidden>
     <div class="result-heading"><div><p class="eyebrow">YOUR RESULT</p><h2 id="resultTitle">決戦終了！</h2><p id="resultBest"></p></div><div id="resultMedal" class="result-medal" aria-hidden="true">🏆</div></div>
-    <div class="result-grid"><div><small>SCORE</small><b id="resultScore">0</b></div><div><small>正解</small><b id="resultCorrect">0 / 10</b></div><div><small>タイム</small><b id="resultTime">0.00秒</b></div><div><small>最大コンボ</small><b id="resultCombo">0</b></div></div>
-    <div id="submitBox" class="submit-record"><h3>このタイムをランキングに登録</h3><p id="submitRule" class="muted small"></p><form id="rankingForm"><label for="player">ニックネームを入力</label><div class="input-row"><input id="player" maxlength="24" required autocomplete="nickname" placeholder="例：歴史マスター" aria-describedby="nicknameHelp"><button id="submit" type="submit">この名前でベストを登録</button></div></form><p id="nicknameHelp" class="muted small">名前とタイムが公開されます。本名や連絡先は入力しないでね。同じブラウザの記録は、速い自己ベストを残します。</p><p id="submitStatus" class="submit-status" role="status" aria-live="polite"></p><a id="submittedRanking" href="./ranking.html" hidden>登録したランキングを見る →</a></div>
+    <div class="result-grid"><div><small>SCORE</small><b id="resultScore">0</b></div><div><small>正解</small><b id="resultCorrect">0 / 10</b></div><div><small id="resultTimeLabel">合計回答時間</small><b id="resultTime">0.00秒</b></div><div><small>最大コンボ</small><b id="resultCombo">0</b></div></div>
+    <div id="submitBox" class="submit-record"><h3>このスコアをランキングに登録</h3><p id="submitRule" class="muted small"></p><form id="rankingForm"><label for="player">ニックネームを入力</label><div class="input-row"><input id="player" maxlength="24" required autocomplete="nickname" placeholder="例：歴史マスター" aria-describedby="nicknameHelp"><button id="submit" type="submit">この名前でベストを登録</button></div></form><p id="nicknameHelp" class="muted small">名前とスコア・正答率・回答時間が公開されます。本名や連絡先は入力しないでね。同じブラウザの記録は、高いスコアの自己ベストを残します。</p><p id="submitStatus" class="submit-status" role="status" aria-live="polite"></p><a id="submittedRanking" href="./ranking.html" hidden>登録したランキングを見る →</a></div>
     <p id="resultSummary" class="muted"></p><div class="dialog-actions"><button id="againBtn" class="primary">同じ設定でもう一度</button><button id="settingsBtn">モードを変える</button><a id="reviewLink" href="./?review=1#learn">間違えた問題を復習</a></div>
     <div class="round-review"><h3>今回の振り返り <small>問題を開くと答えと解説が見られるよ</small></h3><div id="resultReview"></div></div>
 

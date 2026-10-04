@@ -22,6 +22,41 @@ const assert=require('node:assert/strict'),{DatabaseSync}=require('node:sqlite')
  await test('nine correct answers can publish with a server-calculated five-second penalty',async()=>{const token='d'.repeat(64),game=(await request('/ranking/start',{},token)).body;now+=8000;const answers=game.ids.map((id,i)=>({id,raw:i?questions.find(q=>q.id===id).answers.join('・'):'間違い'}));const finished=(await request('/ranking/finish',{ticket:game.ticket,answers,ms:1,correct:10,penaltyMs:0},token)).body;assert.equal(finished.correct,9);assert.equal(finished.roundCorrect,9);assert.equal(finished.durationMs,5000);assert.equal(finished.penaltyMs,5000);assert.equal(finished.ms,10000);const published=(await request('/ranking/register',{name:'九問正解',proof:finished.proof},token)).body;assert.equal(published.entry.correct,9);assert.equal(published.entry.ms,10000);const read=(await request('/ranking',undefined,token)).body;assert.equal(read.own.correct,9);assert(read.entries.some(r=>r.name==='九問正解'&&r.correct===9));now+=2000;assert.deepEqual((await request('/ranking/finish',{ticket:game.ticket,answers},token)).body,finished);});
  await test('zero correct answers and timeouts remain eligible after completing all ten questions',async()=>{const token='e'.repeat(64),game=(await request('/ranking/start',{},token)).body;now+=8000;const answers=game.ids.map(id=>({id,raw:'読み時間切れ'}));const finished=(await request('/ranking/finish',{ticket:game.ticket,answers},token)).body;assert.equal(finished.correct,0);assert.equal(finished.penaltyMs,50000);assert.equal(finished.ms,55000);assert.equal((await request('/ranking/register',{name:'最後まで挑戦',proof:finished.proof},token)).status,200);});
  await test('expired challenges and unrealistically early finishes are rejected',async()=>{session=(await request('/ranking/start',{})).body;assert.equal((await request('/ranking/finish',{ticket:session.ticket,answers:log()})).status,400);now+=31*60000;assert.equal((await request('/ranking/finish',{ticket:session.ticket,answers:log()})).status,409);});
+ await test('legacy scores and receipts retain names, ownership and dates when converted to points',async()=>{
+  const owner='9'.repeat(64);db.prepare('INSERT INTO scores(id,name,ms,timestamp,correct) VALUES(?,?,?,?,?)').run(owner,'以前の九問',35000,123,9);db.prepare('INSERT INTO receipts(owner,proof,ms,timestamp,correct) VALUES(?,?,?,?,?)').run(owner,'existing-proof',35000,123,9);
+  board=new HistoryLeaderboard(ctx);const old=(await request('/ranking')).body.entries.find(r=>r.id===owner);assert.equal(old.name,'以前の九問');assert.equal(old.timestamp,123);assert.equal(old.answerMs,30000);assert.equal(old.score,8400);assert.equal(old.timingVersion,1);assert.equal(db.prepare('SELECT proof FROM receipts WHERE owner=?').get(owner).proof,'existing-proof');
+ });
+ async function timedGame(token,correctCount,delay,feedback=0){
+  const game=(await request('/ranking/start',{timingVersion:2},token)).body;assert.equal(game.timingVersion,2);now+=3000;const answers=[];
+  for(let index=0;index<10;index++){
+   assert.equal((await request('/ranking/question',{ticket:game.ticket,index},token)).status,200);now+=delay;
+   const id=game.ids[index],raw=index<correctCount?questions.find(q=>q.id===id).answers.join('・'):'まちがい';answers.push({id,raw});
+   const answer=await request('/ranking/answer',{ticket:game.ticket,index,id,raw,answerMs:1,correct:true},token);assert.equal(answer.status,200);assert.equal(answer.body.correct,index<correctCount);assert.equal(answer.body.answerMs,delay);now+=feedback;
+  }
+  const finished=await request('/ranking/finish',{ticket:game.ticket,answers,ms:1,answerMs:1,score:10000,correct:10},token);assert.equal(finished.status,200);return{game,answers,result:finished.body};
+ }
+ await test('server sums answer times and excludes long pauses on explanations',async()=>{
+  const token='1'.repeat(64),{game,answers,result}=await timedGame(token,9,3000,50000);assert.equal(result.correct,9);assert.equal(result.answerMs,30000);assert.equal(result.roundScore,8400);assert.equal(result.score,8400);assert.equal(result.penaltyMs,0);assert.equal(result.ms,30000);
+  now+=30000;assert.deepEqual((await request('/ranking/finish',{ticket:game.ticket,answers},token)).body,result);
+  const published=(await request('/ranking/register',{name:'九問のスコア',proof:result.proof,score:10000},token)).body.entry;assert.equal(published.score,8400);assert.equal(published.correct,9);
+ });
+ await test('a slower accurate challenge replaces a faster inaccurate best by score',async()=>{
+  const token='2'.repeat(64),fast=(await timedGame(token,2,100)).result;await request('/ranking/register',{name:'正答率を重視',proof:fast.proof},token);
+  const accurate=(await timedGame(token,10,6000)).result;assert.equal(accurate.answerMs,60000);assert.equal(accurate.score,9000);assert.notEqual(accurate.proof,fast.proof);
+  const changed=(await request('/ranking/register',{name:'正答率を重視',proof:accurate.proof},token)).body;assert(changed.updated);assert.equal(changed.entry.score,9000);
+  const worse=(await timedGame(token,1,50)).result;assert.equal(worse.proof,accurate.proof);assert.equal(worse.score,9000);assert.equal(worse.roundCorrect,1);
+  const entries=(await request('/ranking')).body.entries;assert(entries.every((r,i)=>!i||r.score<=entries[i-1].score));assert(entries.findIndex(r=>r.name==='正答率を重視')<entries.findIndex(r=>r.name==='九問のスコア'));
+ });
+ await test('zero correct answers receive zero points and can still register',async()=>{const token='3'.repeat(64),{result}=await timedGame(token,0,100);assert.equal(result.score,0);assert.equal(result.answerMs,1000);assert.equal((await request('/ranking/register',{name:'挑戦完了',proof:result.proof},token)).status,200);});
+ await test('question and answer retries are idempotent and cannot reset the clock or skip questions',async()=>{
+  const token='4'.repeat(64),game=(await request('/ranking/start',{timingVersion:2},token)).body;now+=3000;
+  assert.equal((await request('/ranking/question',{ticket:game.ticket,index:1},token)).status,409);
+  const open=(await request('/ranking/question',{ticket:game.ticket,index:0},token)).body;now+=1000;assert.deepEqual((await request('/ranking/question',{ticket:game.ticket,index:0},token)).body,open);now+=1000;
+  const id=game.ids[0],raw=questions.find(q=>q.id===id).answers.join('・'),answer=(await request('/ranking/answer',{ticket:game.ticket,index:0,id,raw},token)).body;assert.equal(answer.answerMs,2000);
+  now+=1000;assert.deepEqual((await request('/ranking/answer',{ticket:game.ticket,index:0,id,raw},token)).body,answer);assert.equal((await request('/ranking/answer',{ticket:game.ticket,index:0,id,raw:'different'},token)).status,409);
+  assert.equal((await request('/ranking/finish',{ticket:game.ticket,answers:game.ids.map(id=>({id,raw:questions.find(q=>q.id===id).answers.join('・')}))},token)).status,409);
+  await request('/ranking/question',{ticket:game.ticket,index:1},token);now+=45001;const late=(await request('/ranking/answer',{ticket:game.ticket,index:1,id:game.ids[1],raw:questions.find(q=>q.id===game.ids[1]).answers.join('・')},token)).body;assert.equal(late.correct,false);assert.equal(late.answerMs,45000);
+ });
  await test('origin, method, credentials and rate limits guard the public API',async()=>{assert.equal((await request('/ranking',undefined,'','https://evil.example')).status,403);assert.equal((await request('/ranking/start',undefined)).status,405);assert.equal((await request('/ranking/start',{},'')).status,401);assert.equal((await request('/ranking/start',{},'bad')).status,401);limited=true;assert.equal((await request('/ranking')).status,429);});
  Date.now=originalNow;db.close();console.log(checks+' server ranking checks passed.');
 })().catch(e=>{console.error(e);process.exitCode=1;});

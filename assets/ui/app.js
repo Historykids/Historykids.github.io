@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  const C = window.HKCore, W = window.HKWallet,
+  const C = window.HKCore, W = window.HKWallet, A = window.HKActivities,
     $ = (id) => document.getElementById(id),
     E = C.esc,
     ds = window.dataSets;
@@ -184,7 +184,7 @@
   state.residents = (Array.isArray(state.residents) ? state.residents : []).filter((r) => {
     if (!r || typeof r.id !== "string" || residentIds.has(r.id) || !Number.isInteger(r.x) || !Number.isInteger(r.y) || r.x < 0 || r.x >= sourceLayout.width || r.y < 0 || r.y >= sourceLayout.height) return false;
     residentIds.add(r.id); return true;
-  }).slice(0, 100).map((r) => ({ id: r.id, x: r.x + (legacyTown ? 15 : 0), y: r.y + (legacyTown ? 11 : 0) }));
+  }).slice(0, 100).map((r) => ({ id: r.id, type: C.items.some(i=>i.cat==="resident" && i.id===r.type) ? r.type : "farmer", x: r.x + (legacyTown ? 15 : 0), y: r.y + (legacyTown ? 11 : 0) }));
   const residentEngine = window.HKResidents?.createEngine();
   let residentPaused = false, residentFrame = null, residentLastTime = null, residentLastUI = 0;
 
@@ -284,6 +284,66 @@
       "ふりがな <b>" + (state.ruby ? "ON" : "OFF") + "</b>";
     $("rubyBtn").setAttribute("aria-pressed", state.ruby);
     document.body.classList.toggle("no-ruby", !state.ruby);
+    renderActivities();
+  }
+  let selectedMissionDay = null, activitySignature = "", eventQuestion = null, eventAnswerPending = false;
+  function recordActivity(action, data = {}) {
+    if (!A) return;
+    W.activity(action, data, result => {
+      renderActivities();
+      if (result.reward) notify(`＋${result.reward}両！${action==="claim" ? "ミッション報酬を受け取ったよ。" : "町イベントを解決したよ！"}`);
+    }, error=>{activitySignature="";renderActivities();walletError(error);});
+  }
+  function renderActivities() {
+    if (!A) return;
+    const now=Date.now(), s=A.summary(W.snapshot().activities,now), selected=selectedMissionDay ?? s.weekday;
+    const claimed=s.missions.filter(m=>m.claimed).length, ready=s.missions.filter(m=>!m.claimed && m.progress>=m.target).length;
+    $("missionBriefCount").textContent=`${claimed} / 5${ready ? " · 報酬あり" : ""}`;
+    const active=s.event && now<s.event.end, config=s.event && A.events[s.event.type];
+    const signature=JSON.stringify([s.daily,selected,s.event?.id,active,s.event?.resolved,s.event?.answers]);
+    if(signature!==activitySignature) {
+      activitySignature=signature;
+      $("missionDayTitle").textContent=`${A.weekdays[selected]}曜日のミッション`;
+      $("missionDate").textContent=selected===s.weekday ? `${s.daily.day} · 毎日0時に切り替え` : "この曜日のミッションをプレビュー中";
+      $("missionWeek").innerHTML=A.weekdays.map((day,i)=>`<button data-mission-day="${i}" class="${i===selected ? "active" : ""}" aria-pressed="${i===selected}">${day}<small>${i===s.weekday ? "今日" : "曜日"}</small></button>`).join("");
+      $("missionList").innerHTML=(selected===s.weekday ? s.missions : A.weekly[selected].map(m=>({...m,progress:0,claimed:false}))).map(m=>`<article class="daily-mission ${m.claimed ? "claimed" : ""}"><div><span class="mission-reward">＋${m.reward}両</span><h3>${E(m.title)}</h3><p>${m.metric==="town" ? "町を開くと達成" : m.metric==="events" ? "町イベントのクイズに挑戦しよう" : m.metric==="read" ? "収集済みのカードをタップして解説を読もう" : "同じ問題は1日1回カウント"}</p><div class="mission-progress"><progress max="${m.target}" value="${m.progress}" aria-label="${E(m.title)}の達成度"></progress><b>${m.progress} / ${m.target}</b></div></div><button data-claim-mission="${m.id}" data-mission-date="${s.daily.day}" class="${!m.claimed && m.progress>=m.target ? "primary" : ""}" ${selected!==s.weekday || m.claimed || m.progress<m.target ? "disabled" : ""}>${selected!==s.weekday ? "この曜日に挑戦" : m.claimed ? "受け取り済み" : m.progress>=m.target ? "報酬を受け取る" : "挑戦中"}</button></article>`).join("");
+      const panel=$("townEventPanel");
+      panel.className=`town-event ${active ? s.event.type : "waiting"} ${s.event?.resolved && active ? "resolved" : ""}`;
+      panel.innerHTML=active ? `<div class="event-symbol" aria-hidden="true">${config.icon}</div><div class="event-content"><div class="event-heading"><h3>${s.event.resolved ? "解決！ " : ""}${config.title}</h3><span id="townEventCountdown"></span></div><p>${s.event.resolved ? `みんなの協力で大成功！＋${config.reward}両を受け取りました。` : E(config.description)}</p><div class="event-bottom"><span>${Math.min(config.target,Object.keys(s.event.answers).length)} / ${config.target}問正解 · 報酬 ${config.reward}両</span>${s.event.resolved ? '<span class="event-done">✓ 解決済み</span>' : '<button class="primary" data-event-quiz="true">クイズで助ける</button>'}</div></div>` : '<span aria-hidden="true">🏘️</span><div><h3>町は穏やかです</h3><p>町を訪れると、祭り・火事・将軍の訪問がランダムに起きるよ。イベントは5分間。</p></div>';
+      $("townAmbience").textContent=active ? (s.event.resolved ? "✨ " : "")+config.icon+" "+config.title : "";
+      $("townAmbience").hidden=!active;
+      $("townAmbience").className="town-ambience "+(active ? s.event.type : "");
+    }
+    if(active && $("townEventCountdown")) {
+      const seconds=Math.max(0,Math.ceil((s.event.end-now)/1000));
+      $("townEventCountdown").textContent=`残り ${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,"0")}`;
+    }
+  }
+  function openEventQuiz() {
+    if(!A) return;
+    const s=A.summary(W.snapshot().activities), config=s.event && A.events[s.event.type];
+    if(!s.eventActive) { notify("イベントは終了しました。次のイベントを待ってね。"); renderActivities(); return; }
+    const pool=records.filter(r=>!s.event.answers[r.id]);
+    eventQuestion={record:pool[Math.floor(Math.random()*pool.length)],eventId:s.event.id};
+    eventAnswerPending=false;
+    const r=eventQuestion.record;
+    openDialog(config.title,`<p class="event-quiz-note">あと${config.target-Object.keys(s.event.answers).length}問正解で解決 · ${config.reward}両</p><span class="chip">${E(ds[r.era].title)} · ${E(C.dateText(r))}</span><h3>${ds[r.era].ruby[r.name] || E(r.question)}</h3><div class="choices">${C.choiceAnswers(r,records).map((answer,i)=>`<button data-event-answer="${E(answer)}"><span>${["A","B","C","D"][i]}</span><span>${E(answer)}</span></button>`).join("")}</div><p id="eventQuizFeedback" role="status"></p><button data-event-next="true" class="primary" hidden>次のイベント問題</button>`);
+  }
+  function answerEvent(raw, button) {
+    if(!eventQuestion || eventAnswerPending) return;
+    const question=eventQuestion, {record:r,eventId}=question, s=A.summary(W.snapshot().activities);
+    if(!s.eventActive || s.event.id!==eventId) { $("eventQuizFeedback").textContent="イベントは終了しました。"; return; }
+    if(!C.answerOK(raw,r.answers)) { $("eventQuizFeedback").textContent="もう一度考えてみよう。ヒント："+r.text; button.disabled=true; button.classList.add("incorrect"); return; }
+    eventAnswerPending=true;
+    document.querySelectorAll("[data-event-answer]").forEach(b=>b.disabled=true);
+    W.activity("quiz",{id:r.id,era:r.era,mode:"choice",eventId},result=>{
+      renderActivities();
+      if(result.reward) notify(`イベント解決！＋${result.reward}両`);
+      if(eventQuestion!==question || !$("eventQuizFeedback")) return;
+      const after=A.summary(W.snapshot().activities);
+      $("eventQuizFeedback").textContent=after.event?.id!==eventId || Date.now()>=after.event.end ? "正解！イベントの制限時間は終了しました。" : result.reward ? `正解！イベント解決！＋${result.reward}両ゲット。` : "正解！ "+r.text;
+      document.querySelector("[data-event-next]").hidden=!after.eventActive || after.event.id!==eventId;
+    },error=>{if(eventQuestion===question){eventAnswerPending=false;document.querySelectorAll("[data-event-answer]").forEach(b=>b.disabled=false);}walletError(error);});
   }
   function pendingQuestions() {
     return eraRecords().filter(
@@ -389,6 +449,7 @@
     const ok = C.answerOK(raw, r.answers);
     let rewardFailed = false;
     if (ok) {
+      recordActivity("quiz",{id:r.id,era:r.era,mode,replay:!!cardPractice});
       answered = true;
       const fresh = !got(r);
       state.got[r.era][r.name] = true;
@@ -483,6 +544,7 @@
     town: ["LEARN & BUILD", "わたしだけの町をつくろう。"],
     games: ["TIME TO PLAY", "遊びながら、もっと夢中に。"],
     howto: ["HOW TO PLAY", "両をゲットして、自分の町を作ろう。"],
+    missions: ["DAILY MISSIONS", "今日の挑戦で、町を育てよう。"],
   };
   function setView(v, updateHash = true) {
     if (!labels[v]) v = "learn";
@@ -499,10 +561,12 @@
     });
     $("pageEyebrow").textContent = labels[v][0];
     $("pageTitle").textContent = labels[v][1];
-    $("eraSection").hidden = ["town", "games", "howto"].includes(v);
+    $("eraSection").hidden = ["town", "games", "howto", "missions"].includes(v);
+    if(v==="missions") { selectedMissionDay=null; renderActivities(); }
     if (v === "book") renderBook();
     if (v === "timeline") renderTimeline();
     if (v === "town") {
+      recordActivity("town");
       renderTown();
       window.dispatchEvent(new CustomEvent("hk-town-open"));
       // Keep the town usable if module/CDN/WebGL support is unavailable.
@@ -567,6 +631,7 @@
   });
   function detail(r, fromCard = true) {
     if (!r) return;
+    if(fromCard && got(r)) recordActivity("read",{id:r.id});
     openDialog(
       "歴史カード",
       `<div class="detail-year ${r.dateLabel ? "period-date" : ""}">${E(C.dateValue(r))}<small>${C.dateSuffix(r)}</small></div><span class="chip">${E(ds[r.era].title)} · ${E(r.chapter)}</span><h3 class="detail-title">${r.titleHTML}</h3><p class="detail-reading">こたえ：${E(r.answers.join("・"))}</p><p class="detail-text">${E(r.text)}</p>${r.source ? `<a href="${E(r.source)}" target="_blank" rel="noopener">資料で詳しく読む</a>` : ""}${fromCard || !got(r) ? `<div class="dialog-actions"><button class="primary" data-practice="${E(r.id)}">${got(r) ? "この問題を解き直す" : "この問題に挑戦"}</button></div>` : '<p class="muted">解き直すときは、時代カードをタップしてね。</p>'}`,
@@ -587,7 +652,7 @@
   function renderTown() {
     $("townExtent").textContent = C.town.width + "×" + C.town.height + "マス · " + (C.town.width * C.town.height).toLocaleString("ja-JP") + "マスの町";
     $("placeX").max = C.town.width; $("placeY").max = C.town.height;
-    $("buildingCount").textContent = "建物 " + state.city.length + " 個 · 農民 " + state.residents.length + " 人";
+    $("buildingCount").textContent = "建物 " + state.city.length + " 個 · 住民 " + state.residents.length + " 人";
     renderResidents();
     $("townBuildings").innerHTML = state.city.length
       ? state.city
@@ -626,28 +691,30 @@
     if (error?.message === "insufficient") { renderStats(); notify("両が足りないよ。残高を確認してね。"); return; }
     $("saveWarning").hidden = false; notify("両の更新ができませんでした。ブラウザの保存設定を確認してね。");
   }
-  function addResident() {
+  function addResident(type="farmer") {
+    const residentType=C.items.find(i=>i.cat==="resident" && i.id===type);
+    if(!residentType) return;
     if (walletPurchase) return;
     state.money = W.snapshot().balance;
-    if (!residentEngine || state.money < 10) { notify("農民を迎えるには10両が必要だよ。"); return; }
-    if (state.residents.length >= 100) { notify("この町の農民は100人までです。"); return; }
+    if (!residentEngine || state.money < 10) { notify(residentType.name+"を迎えるには10両が必要だよ。"); return; }
+    if (state.residents.length >= 100) { notify("この町の住民は100人までです。"); return; }
     residentEngine.sync(state.residents, state.city);
     const spawn = residentEngine.nearest(Math.floor(C.town.width / 2), Math.floor(C.town.height / 2));
-    if (!spawn) { notify("農民が歩ける空きマスをつくってね。"); return; }
+    if (!spawn) { notify("住民が歩ける空きマスをつくってね。"); return; }
     const id = crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random();
     walletPurchase = true;
     W.buy(10, () => state.residents.length < 100, () => {
       walletPurchase = false;
-      state.residents.push({ id, x: spawn.x, y: spawn.y });
+      state.residents.push({ id, type, x: spawn.x, y: spawn.y });
       save(); renderStats(); $("dialog").close(); setView("town");
-      notify("農民を迎えたよ！10両 · 「農民を見る」で暮らしを眺めよう。"); watchResident(id);
+      notify(residentType.name+"を迎えたよ！10両 · 暮らしを眺めよう。"); watchResident(id);
     }, error => { walletPurchase = false; walletError(error); });
   }
   function dismissResident(id) {
     const resident = state.residents.find((r) => r.id === id);
     if (!resident) return;
     state.residents = state.residents.filter((r) => r.id !== id); save(); renderTown();
-    notify("農民が町を出ました。", () => {
+    notify("住民が町を出ました。", () => {
       if (!state.residents.some((r) => r.id === id) && state.residents.length < 100) { state.residents.push(resident); save(); renderTown(); }
     });
   }
@@ -663,9 +730,10 @@
     residentEngine.sync(state.residents, state.city);
     $("residentCount").textContent = state.residents.length + "人";
     $("residentPause").disabled = !state.residents.length;
-    $("residentList").innerHTML = state.residents.length ? state.residents.map((r, i) =>
-      `<div class="resident-item"><span class="resident-avatar" aria-hidden="true">👨‍🌾</span><div><b>農民 ${i + 1}</b><small data-resident-status="${E(r.id)}"></small></div><button data-watch-resident="${E(r.id)}">農民を見る</button><button data-dismiss-resident="${E(r.id)}" class="text-button">帰す</button></div>`
-    ).join("") : '<p class="muted small">ショップの「住民」から、農民を迎えられるよ。</p>';
+    $("residentList").innerHTML = state.residents.length ? state.residents.map((r, i) => {
+      const role=C.items.find(item=>item.id===(r.type || "farmer"));
+      return `<div class="resident-item"><span class="resident-avatar" aria-hidden="true">${role.icon}</span><div><b>${role.name} ${i + 1}</b><small data-resident-status="${E(r.id)}"></small></div><button data-watch-resident="${E(r.id)}">${role.name}を見る</button><button data-dismiss-resident="${E(r.id)}" class="text-button">帰す</button></div>`;
+    }).join("") : '<p class="muted small">ショップの「住民」から、農民・商人・武士・僧侶を各10両で迎えられるよ。</p>';
     updateResidentUI(residentEngine.snapshot()); startResidentLoop();
   }
   function updateResidentUI(actors) {
@@ -682,7 +750,7 @@
     for (const actor of actors) {
       let el = [...layer.children].find((e) => e.dataset.person === actor.id);
       if (!el) { el = document.createElement("span"); el.className = "map-resident"; el.dataset.person = actor.id; layer.append(el); }
-      el.textContent = "👨‍🌾" + (actor.phase === "walk" ? "" : actor.icon);
+      el.textContent = (C.items.find(i=>i.id===actor.type)?.icon || "👨‍🌾") + (actor.phase === "walk" ? "" : actor.icon);
       el.style.transform = `translate(${C.gridStyle.cell / 2 + actor.x * C.gridStyle.pitch}px,${C.gridStyle.cell / 2 + actor.y * C.gridStyle.pitch}px)`;
       el.title = actor.text;
     }
@@ -808,7 +876,7 @@
     const blob = new Blob(
         [
           JSON.stringify(
-            { version: 3, townLayout: { width: C.town.width, height: C.town.height }, exportedAt: new Date().toISOString(), ...state },
+            { version: 3, townLayout: { width: C.town.width, height: C.town.height }, exportedAt: new Date().toISOString(), ...state, activities: W.snapshot().activities },
             null,
             2,
           ),
@@ -862,6 +930,7 @@
     if (!Array.isArray(residents) || residents.length > 100) throw Error("residents");
     const ids = new Set();
     for (const r of residents) {
+      if(r.type!==undefined && !C.items.some(i=>i.cat==="resident" && i.id===r.type)) throw Error("resident-type");
       if (!r || typeof r.id !== "string" || ids.has(r.id) || !Number.isInteger(r.x) || !Number.isInteger(r.y) || r.x < 0 || r.x >= layout.width || r.y < 0 || r.y >= layout.height) throw Error("residents");
       ids.add(r.id);
     }
@@ -877,7 +946,7 @@
     Object.assign(state, {
       money: v.money,
       city: importedTown.city,
-      residents: residents.map((r) => ({ id: r.id, x: r.x + (legacy ? 15 : 0), y: r.y + (legacy ? 11 : 0) })),
+      residents: residents.map((r) => ({ id: r.id, type:r.type || "farmer", x: r.x + (legacy ? 15 : 0), y: r.y + (legacy ? 11 : 0) })),
       got,
       wrong: {},
       ruby: v.ruby !== false,
@@ -887,7 +956,7 @@
     cancelPlacement();
     setEra(ds[v.era] ? v.era : "edo");
     notify("記録を読み込んだよ。");
-    }, walletError);
+    }, walletError, A ? A.normalize(v.activities) : null);
   }
   document.addEventListener("click", (e) => {
     const guideLink = e.target.closest("a[data-guide-target]");
@@ -899,6 +968,10 @@
     }
     const b = e.target.closest("button");
     if (!b) return;
+    if(b.dataset.missionDay!==undefined) {selectedMissionDay=Number(b.dataset.missionDay);renderActivities();return;}
+    if(b.dataset.claimMission) {b.disabled=true;recordActivity("claim",{id:b.dataset.claimMission,day:b.dataset.missionDate});return;}
+    if(b.dataset.eventQuiz || b.dataset.eventNext) {openEventQuiz();return;}
+    if(b.dataset.eventAnswer) {answerEvent(b.dataset.eventAnswer,b);return;}
     if (b.dataset.view) {
       setView(b.dataset.view);
       return;
@@ -951,7 +1024,7 @@
       shop(b.dataset.shopcat);
       return;
     }
-    if (b.dataset.buy === "farmer") { addResident(); return; }
+    if (C.items.some(i=>i.cat==="resident" && i.id===b.dataset.buy)) { addResident(b.dataset.buy); return; }
     if (b.dataset.watchResident) { watchResident(b.dataset.watchResident); return; }
     if (b.dataset.dismissResident) { dismissResident(b.dataset.dismissResident); return; }
     if (b.dataset.buy) {
@@ -1182,4 +1255,15 @@
   setEra(reviewing && ds[reviewParams.get("era")] ? reviewParams.get("era") : state.era);
   if (reviewing) { $("practiceFilter").value = "wrong"; rebuildQueue(); }
   setView(reviewing ? "learn" : location.hash.slice(1) || "learn", false);
+  if(A) {
+    let lastDay=C.dayKey();
+    setInterval(()=>{
+      if(document.hidden) return;
+      const today=C.dayKey();
+      if(today!==lastDay) {lastDay=today;selectedMissionDay=null;}
+      const s=A.summary(W.snapshot().activities);
+      if(view==="town" && (!s.event || Date.now()>=s.nextEventAt)) recordActivity("town");
+      else renderActivities();
+    },1000);
+  }
 })();

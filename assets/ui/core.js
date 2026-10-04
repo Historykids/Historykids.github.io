@@ -12,6 +12,9 @@
     { id: "bridge", name: "橋", price: 25, cat: "infrastructure", icon: "🌉", width: 1, depth: 3, height: .6 },
     { id: "school", name: "学校", price: 80, cat: "building", icon: "🏫", width: 5, depth: 3, height: 1.7 },
     { id: "farmer", name: "農民", price: 10, cat: "resident", icon: "👨‍🌾" },
+    { id: "merchant", name: "商人", price: 10, cat: "resident", icon: "🧺" },
+    { id: "samurai", name: "武士", price: 10, cat: "resident", icon: "⚔️" },
+    { id: "monk", name: "僧侶", price: 10, cat: "resident", icon: "📿" },
   ];
   function normalize(s) {
     return String(s)

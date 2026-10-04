@@ -12,6 +12,11 @@
     school: { key: "read", text: "学校のそばで読み書き", icon: "📜" },
     tree: { key: "shade", text: "木陰で涼んでいます", icon: "🌳" },
   };
+  const roles = {
+    merchant: {shop:{key:"trade",text:"商家で品物を売り買い",icon:"💰"},field:{key:"trade",text:"畑で収穫物の買い付け",icon:"🧺"},castle:{key:"trade",text:"お城へ品物を届けています",icon:"🏯"}},
+    samurai: {castle:{key:"guard",text:"お城の門を警護",icon:"⚔️"},shop:{key:"guard",text:"商家のそばを見回り",icon:"👀"},field:{key:"guard",text:"畑のそばを見回り",icon:"⚔️"},house:{key:"guard",text:"住宅のそばを見回り",icon:"👀"}},
+    monk: {temple:{key:"chant",text:"寺のそばで読経",icon:"📿"},house:{key:"pray",text:"住民の無事をお祈り",icon:"🙏"},school:{key:"read",text:"学校で教えを説いています",icon:"📜"},field:{key:"pray",text:"畑で豊作をお祈り",icon:"🌾"}},
+  };
   const key = (x, y) => y * WIDTH + x;
   function randomFor(id) {
     let seed = 2166136261;
@@ -70,7 +75,7 @@
       if (!route.length) arrive(actor);
     }
     function arrive(actor) {
-      const routine = actor.target && actions[actor.target.type];
+      const routine = actor.target && (roles[actor.type]?.[actor.target.type] || actions[actor.target.type]);
       actor.trips = (actor.trips || 0) + 1;
       actor.phase = "act"; actor.action = routine?.key || "wave"; actor.text = routine?.text || "のんびり周りを眺めています";
       actor.icon = routine?.icon || "👋"; actor.elapsed = 0;
@@ -92,8 +97,9 @@
       for (const resident of residents) {
         let actor = actors.get(resident.id);
         const spawn = resident.x + "," + resident.y;
-        if (!actor || actor.spawn !== spawn) {
-          actor = { id: resident.id, x: resident.x, y: resident.y, spawn, heading: 0, visits: new Map(), random: randomFor(resident.id), route: [], phase: "idle", action: "wave", elapsed: 0, text: "町へようこそ", icon: "👋" };
+        const type = resident.type || "farmer";
+        if (!actor || actor.spawn !== spawn || actor.type !== type) {
+          actor = { id: resident.id, type, x: resident.x, y: resident.y, spawn, heading: 0, visits: new Map(), random: randomFor(resident.id), route: [], phase: "idle", action: "wave", elapsed: 0, text: "町へようこそ", icon: "👋" };
           actor.speed = .85 + actor.random() * .3; actors.set(resident.id, actor); plan(actor);
         } else if (changed) plan(actor);
       }
@@ -118,7 +124,7 @@
     const snapshot = () => [...actors.values()];
     return { sync, tick, snapshot, nearest, free };
   }
-  const api = { createEngine, actions };
+  const api = { createEngine, actions, roles };
   root.HKResidents = api;
   if (typeof module !== "undefined") module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

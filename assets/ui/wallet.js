@@ -33,8 +33,11 @@
   function adjust(delta, success, failure) {
     transact(w => { if (!Number.isSafeInteger(delta) || !integer(w.balance + delta)) throw Error(delta < 0 ? 'insufficient' : 'wallet-limit'); w.balance += delta; return w.balance; }, success, failure);
   }
-  function replace(balance, success, failure) {
-    transact(w => { if (!integer(balance)) throw Error('wallet-invalid'); w.balance = balance; w.pending = null; w.history = []; return balance; }, success, failure);
+  function replace(balance, success, failure, activities = null) {
+    transact(w => { if (!integer(balance)) throw Error('wallet-invalid'); w.balance = balance; w.pending = null; w.history = []; w.activities = activities; return balance; }, success, failure);
+  }
+  function activity(action, data, success, failure) {
+    transact(w => window.HKActivities.apply(w, action, data), success, failure);
   }
   function buy(cost, valid, success, failure) {
     transact(w => {
@@ -71,5 +74,5 @@
   }
   window.addEventListener('storage', e => { if (e.key === KEY || e.key === null) announce(); });
   window.addEventListener('focus', announce);
-  window.HKWallet = { snapshot, adjust, replace, buy, begin, finish };
+  window.HKWallet = { snapshot, adjust, replace, buy, begin, finish, activity };
 })();

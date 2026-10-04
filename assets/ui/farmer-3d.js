@@ -1,12 +1,13 @@
 import * as THREE from "three";
 
-export function createFarmer(id) {
+export function createFarmer(id, type="farmer") {
   const root = new THREE.Group(), body = new THREE.Group(), hips = new THREE.Group();
   root.userData.id = id; root.add(body, hips);
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(.15, 12), new THREE.MeshBasicMaterial({ color: 0x493c2a, transparent: true, opacity: .22, depthWrite: false }));
   shadow.rotation.x = -Math.PI / 2; shadow.position.y = .002; root.add(shadow);
   let hash = 0; for (const c of id) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
-  const coat = [0x485f73, 0x79674e, 0x657454, 0x685976][hash % 4];
+  const coat = type==="merchant" ? 0x297a78 : type==="samurai" ? 0x334466 : type==="monk" ? 0x9a6039 : [0x485f73, 0x79674e, 0x657454, 0x685976][hash % 4];
+  root.userData.type=type;
   const palette = new Map();
   const material = (color) => {
     if (!palette.has(color)) palette.set(color, new THREE.MeshStandardMaterial({ color, roughness: 1 }));
@@ -21,7 +22,22 @@ export function createFarmer(id) {
   const head = new THREE.Group(); head.position.y = .245; body.add(head);
   mesh(head, new THREE.SphereGeometry(.105, 10, 7), 0xd5aa7a);
   const hat = mesh(head, new THREE.ConeGeometry(.225, .09, 12), 0xc5a15f, 0, .09, 0);
-  mesh(head, new THREE.CylinderGeometry(.23, .23, .018, 12), 0xd5b774, 0, .05, 0);
+  const brim=mesh(head, new THREE.CylinderGeometry(.23, .23, .018, 12), 0xd5b774, 0, .05, 0);
+  hat.visible=brim.visible=type==="farmer";
+  if(type==="merchant" || type==="samurai") {
+    mesh(head,new THREE.SphereGeometry(.103,8,6),0x272b2b,0,.05,-.02);
+    mesh(head,new THREE.BoxGeometry(.045,.055,.085),0x272b2b,0,.125,-.035);
+  }
+  if(type==="samurai") {
+    mesh(body,new THREE.BoxGeometry(.27,.18,.14),0x26384d,0,.01,.08);
+    const sword=mesh(hips,new THREE.CylinderGeometry(.025,.025,.48,6),0x2b2f36,-.19,.08,0);sword.rotation.z=-.5;
+    mesh(hips,new THREE.BoxGeometry(.12,.025,.055),0xc7a34d,-.085,.28,0);
+  }
+  if(type==="monk") {
+    const beads=mesh(body,new THREE.TorusGeometry(.1,.018,5,12),0x493b2a,0,.12,.125);beads.rotation.x=.4;
+    mesh(body,new THREE.CylinderGeometry(.018,.018,.78,5),0x836037,.23,-.12,.03);
+    mesh(body,new THREE.TorusGeometry(.045,.009,4,8),0xc7a34d,.23,.29,.03);
+  }
   [-.035, .035].forEach((x) => mesh(head, new THREE.SphereGeometry(.012, 5, 4), 0x34352d, x, .01, .094));
   function limb(parent, x, y, length, color) {
     const pivot = new THREE.Group(); pivot.position.set(x, y, 0); parent.add(pivot);
@@ -53,7 +69,7 @@ export function animateFarmer(root, actor) {
   r.body.position.y = .51; r.hips.position.y = .34;
   r.body.rotation.set(0, 0, 0); r.head.rotation.set(0, 0, 0);
   [r.leftArm, r.rightArm, r.leftLeg, r.rightLeg].forEach((limb) => limb.rotation.set(0, 0, 0));
-  r.hoe.visible = actor.action === "farm"; r.basket.visible = actor.action === "shop"; r.scroll.visible = actor.action === "read";
+  r.hoe.visible = actor.action === "farm"; r.basket.visible = actor.action === "shop" || actor.action === "trade" || (actor.type==="merchant" && actor.phase==="walk"); r.scroll.visible = actor.action === "read";
   const swing = Math.sin(t * 9) * .55;
   if (actor.phase === "walk") {
     r.leftLeg.rotation.x = swing; r.rightLeg.rotation.x = -swing;
@@ -63,7 +79,7 @@ export function animateFarmer(root, actor) {
     r.body.rotation.x = .3 + Math.sin(t * 3) * .16;
     r.rightArm.rotation.x = -1.2 + Math.sin(t * 3) * .7;
     r.leftArm.rotation.x = -.65 + Math.sin(t * 3) * .3;
-  } else if (actor.action === "pray") {
+  } else if (actor.action === "pray" || actor.action === "chant") {
     r.body.rotation.x = .12 + Math.max(0, Math.sin(t * 1.6)) * .25;
     r.leftArm.rotation.x = r.rightArm.rotation.x = -1.05;
     r.leftArm.rotation.z = -.35; r.rightArm.rotation.z = .35;
@@ -76,7 +92,9 @@ export function animateFarmer(root, actor) {
     r.head.rotation.x = -.3; r.rightArm.rotation.x = -2.1; r.rightArm.rotation.z = -.2;
   } else if (actor.action === "read") {
     r.head.rotation.x = .2; r.leftArm.rotation.x = r.rightArm.rotation.x = -1.1;
-  } else if (actor.action === "shop") {
+  } else if (actor.action === "guard") {
+    r.head.rotation.y=Math.sin(t*.8)*.4;r.rightArm.rotation.x=-.4;
+  } else if (actor.action === "shop" || actor.action === "trade") {
     r.leftArm.rotation.x = -.35; r.rightArm.rotation.x = -.8 + Math.sin(t * 2) * .2;
     r.head.rotation.y = Math.sin(t * .8) * .18;
   } else {
@@ -87,14 +105,14 @@ export function animateFarmer(root, actor) {
 export function createFarmerView(scene) {
   const group = new THREE.Group(), people = new Map(); scene.add(group);
   function update(actors) {
-    const ids = new Set(actors.map((a) => a.id));
-    for (const [id, mesh] of people) if (!ids.has(id)) {
+    const types = new Map(actors.map((a) => [a.id,a.type || "farmer"]));
+    for (const [id, mesh] of people) if (!types.has(id) || types.get(id)!==mesh.userData.type) {
       group.remove(mesh); const materials = new Set();
       mesh.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); materials.add(o.material); } });
       materials.forEach((m) => m.dispose()); people.delete(id);
     }
     for (const actor of actors) {
-      if (!people.has(actor.id)) { const mesh = createFarmer(actor.id); people.set(actor.id, mesh); group.add(mesh); }
+      if (!people.has(actor.id)) { const mesh = createFarmer(actor.id,actor.type || "farmer"); people.set(actor.id, mesh); group.add(mesh); }
       animateFarmer(people.get(actor.id), actor);
     }
   }

@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "../vendor/OrbitControls.js";
 import { GLTFLoader } from "../vendor/GLTFLoader.js";
 import { fitModel, createBuilding, createGround, syncBuildings } from "./town-geometry.js?v=rank-20261002";
-import { createFarmerView } from "./farmer-3d.js?v=plots-20261002";
+import { createFarmerView } from "./farmer-3d.js?v=missions-20261005";
 import { createLandscape } from "./town-landscape.js?v=mountains-detail-20261003";
 import { SoftwareTownRenderer } from "./town-software-renderer.js?v=mountains-detail-20261003";
 const C = window.HKCore;

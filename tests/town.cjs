@@ -8,7 +8,7 @@ async function main() {
   const threeURL = pathToFileURL(path.join(root, "assets/vendor/three.module.js")).href;
   const THREE = await import(threeURL);
   const source = fs.readFileSync(path.join(root, "assets/ui/town-geometry.js"), "utf8").replace('from "three"', 'from "' + threeURL + '"');
-  const { fitModel, createBuilding, createGround, syncBuildings } = await import("data:text/javascript;base64," + Buffer.from(source).toString("base64"));
+  const { fitModel, createBuilding, createGround, groundGridOpacity, syncBuildings } = await import("data:text/javascript;base64," + Buffer.from(source).toString("base64"));
   const town = { buildings: new THREE.Group(), render() {} };
   let resolve;
   const model = new Promise((r) => { resolve = r; });
@@ -81,12 +81,47 @@ async function main() {
   console.log("PASS all nine GLB asset bounds fit their building footprint and rest above ground");
   const scene = new THREE.Scene();
   const ground = createGround(scene, false);
-  const terrain = scene.children.find((o) => o.isInstancedMesh);
-  assert.equal(terrain.count, 2400);
+  assert.equal(ground.name, "town-earth");
+  assert(!scene.children.some(o => o.isInstancedMesh));
   assert.equal(ground.geometry.parameters.width, 60);
-  assert.equal(ground.geometry.parameters.depth, 40);
+  assert.equal(ground.geometry.parameters.height, 40);
   const grid = scene.children.find((o) => o.isLineSegments);
   assert.equal(grid.geometry.attributes.position.count, 204);
   console.log("PASS terrain grid matches all 60 by 40 placement cells");
+  scene.updateMatrixWorld();
+  const soilY = new THREE.Box3().setFromObject(ground).max.y;
+  assert(Math.abs(soilY) < 1e-5);
+  const foundation = scene.getObjectByName("town-foundation"), normals = foundation.geometry.attributes.normal, indices = foundation.geometry.index;
+  for(let i=0;i<indices.count;i+=3)assert(!(normals.getY(indices.getX(i))>.9 && normals.getY(indices.getX(i+1))>.9 && normals.getY(indices.getX(i+2))>.9));
+  const floorRay = new THREE.Raycaster(new THREE.Vector3(3,12,4),new THREE.Vector3(0,-1,0)), floorHit = floorRay.intersectObject(ground)[0];
+  assert(floorHit && Math.abs(floorHit.point.y) < 1e-5);assert.equal(Math.floor(floorHit.point.x + 30),33);assert.equal(Math.floor(floorHit.point.z + 20),24);
+  console.log("PASS one continuous visible floor has no competing foundation cap and placement rays hit the correct cell");
+  const camera = new THREE.PerspectiveCamera(40,1.8,.5,1200), target = new THREE.Vector3();
+  for(const distance of [120,150,187]){camera.position.copy(new THREE.Vector3(.42,.52,1).normalize().multiplyScalar(distance));assert.equal(groundGridOpacity(camera,target,560),0);}
+  camera.position.set(5,7,9);assert(groundGridOpacity(camera,target,560)>.2);
+  for(let i=10;i<200;i++){camera.position.copy(new THREE.Vector3(.42,.52,1).normalize().multiplyScalar(i));const opacity=groundGridOpacity(camera,target,560);assert(Number.isFinite(opacity)&&opacity>=0&&opacity<=.24);}
+  console.log("PASS grid lines fade out in distant views while remaining visible close to town");
+  global.document={createElement(){return{getContext(){return{createImageData(w,h){return{data:new Uint8ClampedArray(w*h*4)}},putImageData(){}}}}}};
+  const rendererSource=fs.readFileSync(path.join(root,"assets/ui/town-software-renderer.js"),"utf8").replace('from "three"','from "'+threeURL+'"');
+  const {SoftwareTownRenderer}=await import("data:text/javascript;base64,"+Buffer.from(rendererSource).toString("base64"));
+  const renderer=new SoftwareTownRenderer();renderer.setSize(640,360);camera.aspect=640/360;camera.updateProjectionMatrix();
+  let maxJump=0;
+  for(const distance of [120,150,187]) {
+    let previous=null;
+    for(let step=0;step<8;step++) {
+      camera.position.copy(new THREE.Vector3(.42,.52,1).normalize().multiplyScalar(distance));camera.position.x+=step*.1;camera.lookAt(0,0,0);
+      renderer.last=-Infinity;renderer.render(scene,camera);
+      const values=[];
+      for(let i=0;i<400;i++) {
+        const sample=new THREE.Vector3((i*37.19)%43-21.5,0,(i*19.73)%27-13.5).project(camera);
+        const x=Math.floor((sample.x+1)*320),y=Math.floor((1-sample.y)*180),offset=(y*640+x)*4;
+        values.push(...renderer.image.data.slice(offset,offset+3));
+      }
+      if(previous)for(let i=0;i<values.length;i++)maxJump=Math.max(maxJump,Math.abs(values[i]-previous[i]));
+      previous=values;
+    }
+  }
+  assert(maxJump<=2,"tiny distant camera movement must not make the floor flash between colors");renderer.dispose();
+  console.log("PASS ground pixels remain stable through small camera movements at three distant zoom levels");
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });

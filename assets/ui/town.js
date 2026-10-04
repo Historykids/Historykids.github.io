@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "../vendor/OrbitControls.js";
 import { GLTFLoader } from "../vendor/GLTFLoader.js";
-import { fitModel, createBuilding, createGround, syncBuildings } from "./town-geometry.js?v=rank-20261002";
+import { fitModel, createBuilding, createGround, groundGridOpacity, syncBuildings } from "./town-geometry.js?v=ground-stability-20261005";
 import { createFarmerView } from "./farmer-3d.js?v=missions-20261005";
 import { createLandscape } from "./town-landscape.js?v=mountains-detail-20261003";
 import { SoftwareTownRenderer } from "./town-software-renderer.js?v=mountains-detail-20261003";
@@ -51,7 +51,7 @@ function createScene(host, { mini = false } = {}) {
   const scene = new THREE.Scene();
   const diagonal = Math.hypot(C.town.width, C.town.height);
   const landscape = mini ? null : createLandscape(scene, C.town.width, C.town.height);
-  const camera = new THREE.PerspectiveCamera(40, 1, 0.1, Math.max(240, diagonal * 16));
+  const camera = new THREE.PerspectiveCamera(40, 1, mini ? .1 : .5, Math.max(240, diagonal * 16));
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = false;
   controls.maxPolarAngle = Math.PI * 0.47;
@@ -86,6 +86,7 @@ function createScene(host, { mini = false } = {}) {
   sun.shadow.bias = -0.0003;
   scene.add(sun);
   const base = createGround(scene, mini);
+  const groundGrid = scene.getObjectByName("town-ground-grid");
   const buildings = new THREE.Group();
   scene.add(buildings);
   host.replaceChildren(renderer.domElement);
@@ -98,6 +99,10 @@ function createScene(host, { mini = false } = {}) {
   let shadowBuildings = "";
   const render = () => {
     if (disposed) return;
+    if (groundGrid) {
+      groundGrid.material.opacity = groundGridOpacity(camera, controls.target, host.clientHeight);
+      groundGrid.visible = groundGrid.material.opacity > 0;
+    }
     const signature = buildings.children.map((o) => o.uuid).join(":") || "empty";
     if (signature !== shadowBuildings || !shadowBuildings) {
       renderer.shadowMap.needsUpdate = true; shadowBuildings = signature;

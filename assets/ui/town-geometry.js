@@ -145,23 +145,34 @@ export function createGround(scene, mini) {
     new THREE.MeshStandardMaterial({ color: 0xc7ad83, roughness: 1 }));
   base.position.y = -.16; base.receiveShadow = true; scene.add(base);
   if (mini) return base;
-  // Rendering, placement and walking share the same land dimensions.
-  const earth = new THREE.InstancedMesh(new THREE.PlaneGeometry(.99, .99),
-    new THREE.MeshStandardMaterial({ roughness: 1 }), width * depth);
-  const dummy = new THREE.Object3D(), color = new THREE.Color();
-  for (let y = 0; y < depth; y++) for (let x = 0; x < width; x++) {
-    dummy.rotation.x = -Math.PI / 2; dummy.position.set(x + .5 - width / 2, -.008, y + .5 - depth / 2); dummy.updateMatrix();
-    earth.setMatrixAt(y * width + x, dummy.matrix);
-    color.setHSL(.095, .28, .62 + ((x * 17 + y * 13) % 7) * .008);
-    earth.setColorAt(y * width + x, color);
+  base.name = "town-foundation";
+  // The foundation's top used to sit only .002 below thousands of soil tiles.
+  // Remove that competing face: there is only one visible floor at any distance.
+  const foundation = base.geometry, indices = [], n = foundation.attributes.normal;
+  for (let i = 0; i < foundation.index.count; i += 3) {
+    const a = foundation.index.getX(i), b = foundation.index.getX(i + 1), c = foundation.index.getX(i + 2);
+    if (n.getY(a) > .9 && n.getY(b) > .9 && n.getY(c) > .9) continue;
+    indices.push(a, b, c);
   }
+  foundation.setIndex(indices); foundation.clearGroups();
+  // Broad, softly blended earth tones do not form a repeating one-cell pattern.
+  const surface = new THREE.PlaneGeometry(width, depth, Math.ceil(width / 4), Math.ceil(depth / 4));
+  const p = surface.attributes.position, colors = [], color = new THREE.Color(0xbbaa8d);
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), z = p.getY(i);
+    const variation = 1 + Math.sin(x * .13 + Math.cos(z * .11)) * .018 + Math.cos(z * .17 + x * .06) * .014;
+    colors.push(color.r * variation, color.g * variation, color.b * variation);
+  }
+  surface.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  const earth = new THREE.Mesh(surface, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
+  earth.name = "town-earth"; earth.rotation.x = -Math.PI / 2;
   earth.receiveShadow = true; scene.add(earth);
   const vertices = [];
-  for (let x = -width / 2; x <= width / 2; x++) vertices.push(x, -.006, -depth / 2, x, -.006, depth / 2);
-  for (let z = -depth / 2; z <= depth / 2; z++) vertices.push(-width / 2, -.006, z, width / 2, -.006, z);
+  for (let x = -width / 2; x <= width / 2; x++) vertices.push(x, .02, -depth / 2, x, .02, depth / 2);
+  for (let z = -depth / 2; z <= depth / 2; z++) vertices.push(-width / 2, .02, z, width / 2, .02, z);
   const grid = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3)),
     new THREE.LineBasicMaterial({ color: 0x8c7656, transparent: true, opacity: .24 }));
-  scene.add(grid);
+  grid.name = "town-ground-grid"; scene.add(grid);
   const stoneMaterial = new THREE.MeshStandardMaterial({ color: 0x8a877a, roughness: 1 });
   for (let x = .5 - width / 2; x < width / 2; x++) for (const z of [-depth / 2 - .14, depth / 2 + .14]) {
     const stone = new THREE.Mesh(new THREE.BoxGeometry(.94, .2, .24), stoneMaterial);
@@ -171,5 +182,14 @@ export function createGround(scene, mini) {
     const stone = new THREE.Mesh(new THREE.BoxGeometry(.24, .2, .94), stoneMaterial);
     stone.position.set(x, -.09, z); stone.receiveShadow = true; scene.add(stone);
   }
-  return base;
+  // Placement rays meet the visible soil, not an underground supporting face.
+  return earth;
+}
+
+export function groundGridOpacity(camera, target, viewportHeight) {
+  const distance = camera.position.distanceTo(target);
+  if (!distance || !viewportHeight) return 0;
+  const angle = Math.abs(camera.position.y - target.y) / distance;
+  const pixelsPerCell = viewportHeight * angle / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * distance);
+  return .24 * THREE.MathUtils.clamp((pixelsPerCell - 4) / 6, 0, 1);
 }

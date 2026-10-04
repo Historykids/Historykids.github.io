@@ -18,6 +18,7 @@
     shogun: {title:"将軍が町を訪問！",icon:"🏯",description:"将軍を迎える準備をしよう。クイズに2問正解して、おもてなしを成功させよう！",target:2,reward:30},
   };
   const object = value => value && typeof value === "object" && !Array.isArray(value);
+  const eventPeriod = 30 * 60 * 1000;
   function weekday(day) { return (new Date(day+"T00:00:00Z").getUTCDay()+6)%7; }
   function fresh(day) { return {day,correct:{},type:{},choice:{},eras:{},read:{},replay:{},town:0,events:0,claimed:{}}; }
   function normalize(value, now=Date.now()) {
@@ -27,6 +28,8 @@
     for(const name of ["town","events"]) if(!Number.isSafeInteger(a.daily[name]) || a.daily[name]<0) a.daily[name]=0;
     const e=a.event;
     if(e && (!events[e.type] || typeof e.id!=="string" || !Number.isFinite(e.start) || e.end!==e.start+300000 || !object(e.answers))) a.event=null;
+    // Migrate the earlier short cooldown without restarting an existing event.
+    if(a.cycleMs!==eventPeriod) { a.nextEventAt=a.event ? a.event.start+eventPeriod : 0; a.cycleMs=eventPeriod; }
     if(!Number.isFinite(a.nextEventAt)) a.nextEventAt=0;
     return a;
   }
@@ -42,8 +45,9 @@
       d.town=1;
       if((!a.event || now>=a.event.end) && now>=a.nextEventAt) {
         const options=Object.keys(events).filter(type=>type!==a.event?.type), type=options[Math.floor(random()*options.length)];
-        a.event={id:`event-${now}-${Math.floor(random()*1e9)}`,type,start:now,end:now+300000,answers:{},resolved:false};
-        a.nextEventAt=a.event.end+120000+Math.floor(random()*180000);
+        const start=a.nextEventAt ? a.nextEventAt+Math.floor((now-a.nextEventAt)/eventPeriod)*eventPeriod : now;
+        a.event={id:`event-${start}-${Math.floor(random()*1e9)}`,type,start,end:start+300000,answers:{},resolved:false};
+        a.nextEventAt=start+eventPeriod;
       }
     } else if(action==="read" && typeof data.id==="string") d.read[data.id]=true;
     else if(action==="quiz" && typeof data.id==="string" && C.eraOrder.includes(data.era)) {
@@ -64,6 +68,6 @@
     wallet.balance+=reward;
     return {reward,already,event:a.event};
   }
-  const api={weekdays,weekly,events,weekday,normalize,summary,apply};root.HKActivities=api;
+  const api={weekdays,weekly,events,eventPeriod,weekday,normalize,summary,apply};root.HKActivities=api;
   if(typeof module!=="undefined") module.exports=api;
 })(typeof window!=="undefined"?window:globalThis);

@@ -8,7 +8,7 @@ function page(seed={},time=monday){
  const timers=[];w.setInterval=fn=>{timers.push(fn);return timers.length;};w.setTimeout=()=>0;w.requestAnimationFrame=()=>0;w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=function(){};
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
  for(const [k,v] of Object.entries(seed))w.localStorage.setItem(k,v);
- for(const file of ['data/dataset.js','data/ancient.js','assets/ui/core.js','assets/ui/activities.js','assets/ui/residents.js','assets/ui/wallet.js','assets/ui/app.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));
+ for(const file of ['data/dataset.js','data/ancient.js','assets/ui/core.js','assets/ui/activities.js','assets/ui/town-event-layout.js','assets/ui/residents.js','assets/ui/wallet.js','assets/ui/app.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));
  return{w,dom,$:id=>w.document.getElementById(id),click:s=>{const el=w.document.querySelector(s);assert(el,s);el.click();},time:t=>{time=t;timers.forEach(fn=>fn());},stored:()=>Object.fromEntries(Object.keys(w.localStorage).map(k=>[k,w.localStorage.getItem(k)]))};
 }
 test('seven weekdays each have five learning goals and repeat after seven days at Tokyo midnight',()=>{
@@ -42,12 +42,31 @@ test('expiry and stale event questions cannot earn event rewards or advance a ne
  A.apply(wallet,'town',{},wallet.activities.nextEventAt,()=>0);const current=wallet.activities.event;
  A.apply(wallet,'quiz',{id:'old',era:'edo',mode:'choice',eventId:e.id},current.start+10);assert.equal(Object.keys(current.answers).length,0);
 });
-test('the mission bar, weekly previews and town visit reward work through the UI and survive reload',()=>{
- const p=page({money_v1:'50'});p.click('.nav [data-view="missions"]');assert.equal(p.$('missionList').children.length,5);assert.equal(p.$('missionWeek').children.length,7);
- p.click('[data-mission-day="5"]');assert(p.$('missionDayTitle').textContent.startsWith('土'));assert([...p.$('missionList').querySelectorAll('button')].every(b=>b.disabled));
+function openMissions(p){p.click('.nav [data-view="learn"]');p.click('#missionBar [data-view="missions"]');}
+test('only learning shows the mission shortcut, no mission navigation or weekdays remain, and reward claims survive reload',()=>{
+ const p=page({money_v1:'50'});assert(!p.$('missionBar').hidden);assert.equal(p.w.document.querySelector('.nav [data-view="missions"]'),null);assert.equal(p.w.document.querySelectorAll('.nav > *').length,6);
+ openMissions(p);assert.equal(p.$('missionList').children.length,5);assert.equal(p.$('missionWeek'),null);assert.equal(p.$('missionDayTitle').textContent,'今日のミッション');assert(!p.$('missionList').textContent.includes('曜日'));assert(p.$('missionBar').hidden);
+ for(const view of ['town','games','timeline','howto']){p.click(`.nav [data-view="${view}"]`);assert(p.$('missionBar').hidden);}
  p.click('.nav [data-view="town"]');const e=p.w.HKWallet.snapshot().activities.event;assert.equal(e.end-e.start,300000);assert(p.$('townEventCountdown').textContent.includes('5:00'));
- p.click('.nav [data-view="missions"]');p.click('[data-claim-mission="0-4"]');assert.equal(p.w.HK.state.money,55);p.click('[data-claim-mission="0-4"]');assert.equal(p.w.HK.state.money,55);
- const q=page(p.stored(),monday+120000);q.click('.nav [data-view="town"]');assert.equal(q.w.HKWallet.snapshot().activities.event.id,e.id);assert(q.$('townEventCountdown').textContent.includes('3:00'));q.click('.nav [data-view="missions"]');assert(q.$('missionList').querySelector('[data-claim-mission="0-4"]').disabled);q.w.close();p.w.close();
+ openMissions(p);p.click('[data-claim-mission="0-4"]');assert.equal(p.w.HK.state.money,55);p.click('[data-claim-mission="0-4"]');assert.equal(p.w.HK.state.money,55);
+ const q=page(p.stored(),monday+120000);q.click('.nav [data-view="town"]');assert.equal(q.w.HKWallet.snapshot().activities.event.id,e.id);assert(q.$('townEventCountdown').textContent.includes('3:00'));openMissions(q);assert(q.$('missionList').querySelector('[data-claim-mission="0-4"]').disabled);q.w.close();p.w.close();
+});
+test('in-progress buttons route to the correct answer mode, a fresh era, collected cards and town events',()=>{
+ const p=page();openMissions(p);p.click('[data-start-mission="type"]');assert(!p.$('view-learn').hidden);assert(!p.$('missionBar').hidden);assert(!p.$('answerForm').hidden);assert(p.w.document.querySelector('[data-mode="type"]').classList.contains('active'));
+ p.$('answerInput').value='えど';p.$('answerForm').dispatchEvent(new p.w.Event('submit',{bubbles:true,cancelable:true}));
+ openMissions(p);p.click('[data-start-mission="eras"]');assert.notEqual(p.w.HK.state.era,'edo');assert(!p.$('view-learn').hidden);
+ openMissions(p);p.click('[data-start-mission="read"]');assert(p.$('dialog').open);assert(p.$('dialogBody').querySelector('[data-practice]'));assert.equal(Object.keys(p.w.HKActivities.summary(p.w.HKWallet.snapshot().activities).daily.read).length,1);p.$('dialog').close();
+ openMissions(p);p.click('[data-start-mission="town"]');assert(!p.$('view-town').hidden);assert(!p.$('townEventPanel').textContent.includes('町は穏やか'));p.w.close();
+ const t=page({},monday+86400000);openMissions(t);t.click('[data-start-mission="choice"]');assert(t.w.document.querySelector('[data-mode="choice"]').classList.contains('active'));assert(!t.$('choices').hidden);t.w.close();
+ const w=page({},monday+2*86400000);openMissions(w);w.click('[data-start-mission="events"]');assert(!w.$('view-town').hidden);assert(w.$('dialog').open);assert(w.$('dialogBody').querySelector('[data-event-answer]'));w.w.close();
+});
+test('events begin on a fixed thirty-minute cycle, migrate old cooldowns and skip expired offline windows',()=>{
+ const wallet={balance:0};A.apply(wallet,'town',{},monday,()=>0);const e=wallet.activities.event;assert.equal(wallet.activities.nextEventAt,monday+1800000);
+ A.apply(wallet,'town',{},e.end,()=>0);assert.equal(wallet.activities.event.id,e.id);assert(!A.summary(wallet.activities,e.end).eventActive);
+ A.apply(wallet,'town',{},monday+1800000,()=>0);assert.equal(wallet.activities.event.start,monday+1800000);assert.equal(wallet.activities.nextEventAt,monday+3600000);
+ A.apply(wallet,'town',{},monday+2*1800000+8*60000,()=>0);assert.equal(wallet.activities.event.start,monday+3600000);assert(!A.summary(wallet.activities,monday+2*1800000+8*60000).eventActive);assert.equal(wallet.activities.nextEventAt,monday+5400000);
+ const legacy={event:e,nextEventAt:e.end+120000};assert.equal(A.summary(legacy,monday+600000).nextEventAt,monday+1800000);assert.equal(A.summary(legacy,monday+600000).event.id,e.id);
+ const p=page();p.click('.nav [data-view="town"]');p.time(monday+300000);assert(p.$('nextTownEvent').textContent.includes('25:00'));p.time(monday+1800000);assert(p.$('townEventCountdown').textContent.includes('5:00'));p.w.close();
 });
 test('normal quiz success records daily progress but wrong answers and repeated cards do not inflate it',()=>{
  const p=page();p.click('[data-mode="type"]');p.$('answerInput').value='まちがい';p.$('answerForm').dispatchEvent(new p.w.Event('submit',{bubbles:true,cancelable:true}));assert.equal(Object.keys(p.w.HKActivities.summary(p.w.HKWallet.snapshot().activities).daily.correct).length,0);
@@ -85,10 +104,10 @@ test('each new occupation performs its own routines beside buildings and stays o
   const colors=new Set();for(const type of ['farmer','merchant','samurai','monk']){const mesh=models.createFarmer(type,type);models.animateFarmer(mesh,{type,x:3,y:4,heading:1,elapsed:.3,phase:'walk',action:'walk'});assert.equal(mesh.userData.type,type);assert.equal(mesh.userData.rig.hat.visible,type==='farmer');assert(Number.isFinite(new THREE.Box3().setFromObject(mesh).getSize(new THREE.Vector3()).length()));colors.add(mesh.userData.rig.body.children.find(o=>o.isMesh).material.color.getHex());}assert.equal(colors.size,4);
   const scene=new THREE.Scene(),view=models.createFarmerView(scene);const actor={id:'same-id',type:'farmer',x:0,y:0,heading:0,elapsed:0,phase:'walk',action:'walk'};view.update([actor]);view.update([{...actor,type:'monk'}]);assert.equal(view.people.get(actor.id).userData.type,'monk');view.update([]);assert.equal(view.people.size,0);
  });
- const backup=page({money_v1:'60'});backup.click('#shopBtn');backup.click('[data-buy="monk"]');backup.click('.nav [data-view="missions"]');backup.click('[data-claim-mission="0-4"]');
+ const backup=page({money_v1:'60'});backup.click('#shopBtn');backup.click('[data-buy="monk"]');openMissions(backup);backup.click('[data-claim-mission="0-4"]');
  const payload={version:3,got:backup.w.HK.state.got,money:backup.w.HK.state.money,city:backup.w.HK.state.city,residents:backup.w.HK.state.residents,townLayout:{width:60,height:40},activities:backup.w.HKWallet.snapshot().activities};
  const restored=page();restored.click('#settingsBtn');const input=restored.$('importFile');Object.defineProperty(input,'files',{value:[{size:100,text:async()=>JSON.stringify(payload)}]});input.dispatchEvent(new restored.w.Event('change',{bubbles:true}));await new Promise(setImmediate);
- test('backups preserve occupation and claimed mission rewards together',()=>{assert.equal(restored.w.HK.state.residents[0].type,'monk');assert.equal(restored.w.HK.state.money,payload.money);restored.click('.nav [data-view="missions"]');assert(restored.$('missionList').querySelector('[data-claim-mission="0-4"]').disabled);});restored.w.close();backup.w.close();
+ test('backups preserve occupation and claimed mission rewards together',()=>{assert.equal(restored.w.HK.state.residents[0].type,'monk');assert.equal(restored.w.HK.state.money,payload.money);openMissions(restored);assert(restored.$('missionList').querySelector('[data-claim-mission="0-4"]').disabled);});restored.w.close();backup.w.close();
  const p=page();let queue=Promise.resolve();Object.defineProperty(p.w.navigator,'locks',{value:{request:(name,fn)=>{assert.equal(name,'historykids-wallet');const result=queue.then(fn);queue=result.catch(()=>{});return result;}}});
  await new Promise((resolve,reject)=>p.w.HKWallet.activity('town',{},resolve,reject));
  const event=p.w.HKWallet.snapshot().activities.event,target=p.w.HKActivities.events[event.type].target;

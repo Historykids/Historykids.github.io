@@ -286,7 +286,7 @@
     document.body.classList.toggle("no-ruby", !state.ruby);
     renderActivities();
   }
-  let selectedMissionDay = null, activitySignature = "", eventQuestion = null, eventAnswerPending = false;
+  let activitySignature = "", eventVisualSignature = "", eventMapSignature = "", eventQuestion = null, eventAnswerPending = false;
   function recordActivity(action, data = {}) {
     if (!A) return;
     W.activity(action, data, result => {
@@ -296,27 +296,93 @@
   }
   function renderActivities() {
     if (!A) return;
-    const now=Date.now(), s=A.summary(W.snapshot().activities,now), selected=selectedMissionDay ?? s.weekday;
+    const now=Date.now(), s=A.summary(W.snapshot().activities,now);
     const claimed=s.missions.filter(m=>m.claimed).length, ready=s.missions.filter(m=>!m.claimed && m.progress>=m.target).length;
     $("missionBriefCount").textContent=`${claimed} / 5${ready ? " · 報酬あり" : ""}`;
     const active=s.event && now<s.event.end, config=s.event && A.events[s.event.type];
-    const signature=JSON.stringify([s.daily,selected,s.event?.id,active,s.event?.resolved,s.event?.answers]);
+    const signature=JSON.stringify([s.daily,s.event?.id,active,s.event?.resolved,s.event?.answers]);
     if(signature!==activitySignature) {
       activitySignature=signature;
-      $("missionDayTitle").textContent=`${A.weekdays[selected]}曜日のミッション`;
-      $("missionDate").textContent=selected===s.weekday ? `${s.daily.day} · 毎日0時に切り替え` : "この曜日のミッションをプレビュー中";
-      $("missionWeek").innerHTML=A.weekdays.map((day,i)=>`<button data-mission-day="${i}" class="${i===selected ? "active" : ""}" aria-pressed="${i===selected}">${day}<small>${i===s.weekday ? "今日" : "曜日"}</small></button>`).join("");
-      $("missionList").innerHTML=(selected===s.weekday ? s.missions : A.weekly[selected].map(m=>({...m,progress:0,claimed:false}))).map(m=>`<article class="daily-mission ${m.claimed ? "claimed" : ""}"><div><span class="mission-reward">＋${m.reward}両</span><h3>${E(m.title)}</h3><p>${m.metric==="town" ? "町を開くと達成" : m.metric==="events" ? "町イベントのクイズに挑戦しよう" : m.metric==="read" ? "収集済みのカードをタップして解説を読もう" : "同じ問題は1日1回カウント"}</p><div class="mission-progress"><progress max="${m.target}" value="${m.progress}" aria-label="${E(m.title)}の達成度"></progress><b>${m.progress} / ${m.target}</b></div></div><button data-claim-mission="${m.id}" data-mission-date="${s.daily.day}" class="${!m.claimed && m.progress>=m.target ? "primary" : ""}" ${selected!==s.weekday || m.claimed || m.progress<m.target ? "disabled" : ""}>${selected!==s.weekday ? "この曜日に挑戦" : m.claimed ? "受け取り済み" : m.progress>=m.target ? "報酬を受け取る" : "挑戦中"}</button></article>`).join("");
+      $("missionDayTitle").textContent="今日のミッション";
+      $("missionDate").textContent=`${s.daily.day} · 毎日0時に切り替え`;
+      $("missionList").innerHTML=s.missions.map(m=>`<article class="daily-mission ${m.claimed ? "claimed" : ""}"><div><span class="mission-reward">＋${m.reward}両</span><h3>${E(m.title)}</h3><p>${m.metric==="town" ? "町を開くと達成" : m.metric==="events" ? "町イベントのクイズに挑戦しよう" : m.metric==="read" ? "収集済みのカードをタップして解説を読もう" : "同じ問題は1日1回カウント"}</p><div class="mission-progress"><progress max="${m.target}" value="${m.progress}" aria-label="${E(m.title)}の達成度"></progress><b>${m.progress} / ${m.target}</b></div></div>${m.claimed ? `<button data-claim-mission="${m.id}" disabled>受け取り済み</button>` : m.progress>=m.target ? `<button data-claim-mission="${m.id}" data-mission-date="${s.daily.day}" class="primary">報酬を受け取る</button>` : `<button data-start-mission="${m.metric}" aria-label="${E(m.title)}に挑戦">挑戦中 →</button>`}</article>`).join("");
       const panel=$("townEventPanel");
       panel.className=`town-event ${active ? s.event.type : "waiting"} ${s.event?.resolved && active ? "resolved" : ""}`;
-      panel.innerHTML=active ? `<div class="event-symbol" aria-hidden="true">${config.icon}</div><div class="event-content"><div class="event-heading"><h3>${s.event.resolved ? "解決！ " : ""}${config.title}</h3><span id="townEventCountdown"></span></div><p>${s.event.resolved ? `みんなの協力で大成功！＋${config.reward}両を受け取りました。` : E(config.description)}</p><div class="event-bottom"><span>${Math.min(config.target,Object.keys(s.event.answers).length)} / ${config.target}問正解 · 報酬 ${config.reward}両</span>${s.event.resolved ? '<span class="event-done">✓ 解決済み</span>' : '<button class="primary" data-event-quiz="true">クイズで助ける</button>'}</div></div>` : '<span aria-hidden="true">🏘️</span><div><h3>町は穏やかです</h3><p>町を訪れると、祭り・火事・将軍の訪問がランダムに起きるよ。イベントは5分間。</p></div>';
-      $("townAmbience").textContent=active ? (s.event.resolved ? "✨ " : "")+config.icon+" "+config.title : "";
+      panel.innerHTML=active ? `<div class="event-symbol" aria-hidden="true">${config.icon}</div><div class="event-content"><div class="event-heading"><h3>${s.event.resolved ? "解決！ " : ""}${config.title}</h3><span id="townEventCountdown"></span></div><p>${s.event.resolved ? `みんなの協力で大成功！＋${config.reward}両を受け取りました。` : E(config.description)}</p><div class="event-bottom"><span>${Math.min(config.target,Object.keys(s.event.answers).length)} / ${config.target}問正解 · 報酬 ${config.reward}両</span><div class="event-actions"><button data-event-watch="true">演出を見る</button>${s.event.resolved ? '<span class="event-done">✓ 解決済み</span>' : '<button class="primary" data-event-quiz="true">クイズで助ける</button>'}</div></div></div>` : '<span aria-hidden="true">🏘️</span><div><h3>町は穏やかです</h3><p>祭り・火事・将軍の訪問が30分ごとに起きるよ。開催は5分間。<br><span id="nextTownEvent"></span></p></div>';
+      $("townAmbience").textContent=active ? (s.event.resolved ? "✓ 解決！ " : "")+config.icon+" "+config.title : "";
       $("townAmbience").hidden=!active;
-      $("townAmbience").className="town-ambience "+(active ? s.event.type : "");
+      $("townAmbience").className="town-ambience "+(active ? s.event.type+(s.event.resolved ? " resolved" : "") : "");
+    }
+    const visualSignature=JSON.stringify([active ? s.event : null,state.city,C.town.width,C.town.height]);
+    if(visualSignature!==eventVisualSignature) {
+      eventVisualSignature=visualSignature;
+      window.dispatchEvent(new CustomEvent("hk-town-event",{detail:active ? s.event : null}));
+    }
+    renderTownEventMap();
+    if(!active && $("nextTownEvent")) {
+      const seconds=Math.max(0,Math.ceil((s.nextEventAt-now)/1000));
+      $("nextTownEvent").textContent=seconds ? `次のイベントまで ${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,"0")}` : "町で次のイベントを待とう。";
     }
     if(active && $("townEventCountdown")) {
       const seconds=Math.max(0,Math.ceil((s.event.end-now)/1000));
       $("townEventCountdown").textContent=`残り ${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,"0")}`;
+    }
+  }
+  function startMission(metric) {
+    if(metric==="town" || metric==="events") {
+      setView("town");
+      $("townEventPanel").scrollIntoView({behavior:"smooth",block:"start"});
+      if(metric==="events" && A.summary(W.snapshot().activities).eventActive) openEventQuiz();
+      return;
+    }
+    setView("learn");
+    const summary=A.summary(W.snapshot().activities);
+    if(metric==="eras") {
+      const era=C.eraOrder.find(e=>!summary.daily.eras[e] && records.some(r=>r.era===e && !got(r))) || C.eraOrder.find(e=>!summary.daily.eras[e]);
+      if(era) setEra(era);
+    } else if(metric==="read" || metric==="replay") {
+      const record=records.find(r=>got(r) && !summary.daily[metric][r.id]) || records.find(got);
+      if(record) {
+        setEra(record.era);
+        $("collection").scrollIntoView({behavior:"smooth",block:"start"});
+        if(metric==="replay") {detail(record,true);notify("カードの「この問題を解き直す」から挑戦してね。");}
+        else detail(record,true);
+        return;
+      }
+      notify("まずクイズに正解して、カードを1枚集めよう！");
+    }
+    if(!currentQuestion()) {
+      const record=records.find(r=>!got(r));
+      if(record)setEra(record.era);
+      else {$("collection").scrollIntoView({behavior:"smooth",block:"start"});notify("下の時代カードから問題を解き直そう！");return;}
+    }
+    if(metric==="type" || metric==="choice") document.querySelector(`[data-mode="${metric}"]`).click();
+    $("quizPanel").scrollIntoView({behavior:"smooth",block:"start"});
+  }
+  function renderTownEventMap() {
+    const layer=$("townEventMapLayer"), L=window.HKEventLayout;
+    if(!layer || $("townGrid").hidden || !L || !A)return;
+    const s=A.summary(W.snapshot().activities),event=s.event && Date.now()<s.event.end ? s.event : null;
+    const signature=JSON.stringify([event?.id,event?.resolved,state.city,C.town.width,C.town.height]);
+    if(signature!==eventMapSignature) {
+      eventMapSignature=signature;layer.replaceChildren();
+      if(event) {
+        const layout=L.layout(event,state.city);
+        layer._eventLayout=layout;
+        if(event.type==="fire") for(const p of layout.fires) {
+          const el=document.createElement("span");el.className="map-event-fire"+(event.resolved ? " extinguished" : "");el.textContent=event.resolved ? "💧" : "🔥";el.style.transform=`translate(${p.x*C.gridStyle.pitch-12}px,${p.y*C.gridStyle.pitch-18}px)`;layer.append(el);
+        }
+        if(event.type==="festival" && layout.festival) {
+          const p=layout.festival,el=document.createElement("div");el.className="map-festival";el.textContent="🏮 祭り会場 🏮\n屋台 · やぐら";Object.assign(el.style,{left:p.x*C.gridStyle.pitch+"px",top:p.y*C.gridStyle.pitch+"px",width:p.width*C.gridStyle.pitch+"px",height:p.depth*C.gridStyle.pitch+"px"});layer.append(el);
+        }
+        if(event.type==="shogun") for(let i=0;i<9;i++) {
+          const el=document.createElement("span");el.className="map-event-person"+(i===3 ? " lord" : "");el.textContent=i===3 ? "👑" : i===0 || i===8 ? "🚩" : "⚔️";el.dataset.paradeIndex=i;layer.append(el);
+        }
+      }
+    }
+    if(event?.type==="shogun") for(const el of layer.children) {
+      const p=L.pose(layer._eventLayout,(Date.now()-event.start)/1000,Number(el.dataset.paradeIndex));
+      el.hidden=!p;if(p)el.style.transform=`translate(${(p.x+.5)*C.gridStyle.pitch-11}px,${(p.y+.5)*C.gridStyle.pitch-18}px)`;
     }
   }
   function openEventQuiz() {
@@ -553,7 +619,7 @@
     document
       .querySelectorAll(".view")
       .forEach((el) => (el.hidden = el.id !== "view-" + v));
-    const navView = v === "book" ? "games" : v;
+    const navView = v === "book" ? "games" : v === "missions" ? "learn" : v;
     document.querySelectorAll(".nav [data-view]").forEach((b) => {
       b.classList.toggle("active", b.dataset.view === navView);
       if (b.dataset.view === navView) b.setAttribute("aria-current", "page");
@@ -562,7 +628,8 @@
     $("pageEyebrow").textContent = labels[v][0];
     $("pageTitle").textContent = labels[v][1];
     $("eraSection").hidden = ["town", "games", "howto", "missions"].includes(v);
-    if(v==="missions") { selectedMissionDay=null; renderActivities(); }
+    $("missionBar").hidden=v!=="learn";
+    if(v==="missions") renderActivities();
     if (v === "book") renderBook();
     if (v === "timeline") renderTimeline();
     if (v === "town") {
@@ -681,9 +748,10 @@
       const f = C.footprint(b), item = C.items.find((i) => i.id === b.type);
       html += `<button class="map-building ${f.width * f.depth === 1 ? "compact" : ""} type-${b.type}" data-building="${E(b.id)}" style="left:${b.x * g.pitch}px;top:${b.y * g.pitch}px;width:${f.width * g.pitch - g.gap}px;height:${f.depth * g.pitch - g.gap}px" aria-label="${item.name} ${f.width}×${f.depth}マス 横${b.x + 1} 縦${b.y + 1}"><span aria-hidden="true">${item.icon}</span><small>${item.name}<br>${f.width}×${f.depth}</small></button>`;
     }
-    html += '<div id="residentMapLayer" aria-hidden="true"></div></div>';
+    html += '<div id="residentMapLayer" aria-hidden="true"></div><div id="townEventMapLayer" aria-hidden="true"></div></div>';
     $("townGrid").innerHTML = html;
     updateResidentMap(residentEngine?.snapshot() || []);
+    eventMapSignature="";renderTownEventMap();
   }
   let walletPurchase = false;
   function walletError(error) {
@@ -968,8 +1036,9 @@
     }
     const b = e.target.closest("button");
     if (!b) return;
-    if(b.dataset.missionDay!==undefined) {selectedMissionDay=Number(b.dataset.missionDay);renderActivities();return;}
+    if(b.dataset.startMission) {startMission(b.dataset.startMission);return;}
     if(b.dataset.claimMission) {b.disabled=true;recordActivity("claim",{id:b.dataset.claimMission,day:b.dataset.missionDate});return;}
+    if(b.dataset.eventWatch) {$("town3d").click();window.dispatchEvent(new CustomEvent("hk-event-watch"));$("townCanvas").scrollIntoView({behavior:"smooth",block:"center"});return;}
     if(b.dataset.eventQuiz || b.dataset.eventNext) {openEventQuiz();return;}
     if(b.dataset.eventAnswer) {answerEvent(b.dataset.eventAnswer,b);return;}
     if (b.dataset.view) {
@@ -1233,6 +1302,7 @@
   window.HK = {
     state,
     records,
+    get townEvent() { const s=A?.summary(W.snapshot().activities);return s?.event && Date.now()<s.event.end ? s.event : null; },
     get pending() {
       return pending;
     },
@@ -1256,11 +1326,8 @@
   if (reviewing) { $("practiceFilter").value = "wrong"; rebuildQueue(); }
   setView(reviewing ? "learn" : location.hash.slice(1) || "learn", false);
   if(A) {
-    let lastDay=C.dayKey();
     setInterval(()=>{
       if(document.hidden) return;
-      const today=C.dayKey();
-      if(today!==lastDay) {lastDay=today;selectedMissionDay=null;}
       const s=A.summary(W.snapshot().activities);
       if(view==="town" && (!s.event || Date.now()>=s.nextEventAt)) recordActivity("town");
       else renderActivities();

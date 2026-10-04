@@ -5,6 +5,7 @@ import { fitModel, createBuilding, createGround, syncBuildings } from "./town-ge
 import { createFarmerView } from "./farmer-3d.js?v=missions-20261005";
 import { createLandscape } from "./town-landscape.js?v=mountains-detail-20261003";
 import { SoftwareTownRenderer } from "./town-software-renderer.js?v=mountains-detail-20261003";
+import { createTownEventView } from "./town-events.js?v=town-events-20261005";
 const C = window.HKCore;
 const urls = {
   house: "house.2a9f3.glb",
@@ -19,7 +20,7 @@ const urls = {
 };
 const loader = new GLTFLoader(),
   cache = new Map();
-let farmerView = null, followResident = null;
+let farmerView = null, eventView = null, followResident = null, followEvent = false, eventFrame = null, lastEventFrame = 0, watchedFire = 0;
 let town = null,
   preview = null,
   marker = null,
@@ -165,8 +166,12 @@ function initTown() {
     town = createScene(document.getElementById("townCanvas"));
     window.HKTownReady = true;
     farmerView = createFarmerView(town.scene);
+    eventView = createTownEventView(town.scene);
+    eventView.update(window.HK.townEvent,window.HK.state.city);
+    eventView.animate();
+    startEventLoop();
     farmerView.update(window.HK.residentActors);
-    town.controls.addEventListener("start", () => { followResident = null; });
+    town.controls.addEventListener("start", () => { followResident = null; followEvent = false; });
     const ray = new THREE.Raycaster(),
       pointer = new THREE.Vector2();
     let down = null;
@@ -212,10 +217,13 @@ function initTown() {
 async function syncTown() {
   if (!town || !window.HK) return;
   if (town.landWidth !== C.town.width || town.landHeight !== C.town.height) {
-    town.dispose(); town = null; marker = null; followResident = null; window.HKTownReady = false;
+    eventView?.dispose();eventView=null;
+    town.dispose(); town = null; marker = null; followResident = null; followEvent = false; window.HKTownReady = false;
     initTown(); showMarker(window.HK.pending); return;
   }
   farmerView.update(window.HK.residentActors);
+  eventView?.update(window.HK.townEvent,window.HK.state.city);
+  eventView?.animate();startEventLoop();
   await syncBuildings(town, window.HK.state.city, loadModel, (type, error) => {
     if (!failedTypes.has(type)) {
       failedTypes.add(type);
@@ -223,6 +231,27 @@ async function syncTown() {
     }
     console.warn("Detailed model unavailable", type, error);
   });
+}
+function startEventLoop() {
+  if(eventFrame!==null || !town || !window.HK.townEvent || document.hidden || document.getElementById("view-town").hidden)return;
+  const frame=time=>{
+    eventFrame=null;
+    if(!town || document.hidden || document.getElementById("view-town").hidden || !town.host.clientWidth || !town.host.clientHeight)return;
+    if(time-lastEventFrame>=(town.renderer.isSoftwareRenderer ? 350 : 66)) {
+      lastEventFrame=time;
+      const moving=eventView?.animate();
+      if(followEvent) {
+        const lord=eventView.group.getObjectByName("visiting-shogun");
+        if(lord && moving) {
+          const target=lord.position.clone().add(new THREE.Vector3(0,.4,0));
+          town.controls.target.lerp(target,.25);town.camera.position.lerp(target.clone().add(new THREE.Vector3(5,6,9)),.25);town.controls.update();
+        } else followEvent=false;
+      }
+      town.render();if(!moving)return;
+    }
+    eventFrame=requestAnimationFrame(frame);
+  };
+  eventFrame=requestAnimationFrame(frame);
 }
 function showMarker(p) {
   if (!town) return;
@@ -252,12 +281,27 @@ function boot() {
   window.addEventListener("hk-town-open", () => {
     initTown();
     farmerView?.update(window.HK.residentActors);
+    eventView?.update(window.HK.townEvent,window.HK.state.city);eventView?.animate();startEventLoop();
     town?.render();
   });
   window.addEventListener("hk-town-change", syncTown);
+  window.addEventListener("hk-town-event",e=>{
+    if(!town)return;eventView.update(e.detail,window.HK.state.city);eventView.animate();town.render();startEventLoop();
+  });
+  window.addEventListener("hk-event-watch",()=>{
+    initTown();if(!town || !window.HK.townEvent || !eventView.layout)return;
+    followResident=null;followEvent=false;
+    const layout=eventView.layout,type=window.HK.townEvent.type;let target;
+    if(type==="fire" && layout.fires.length){const p=layout.fires[watchedFire++%layout.fires.length];target=new THREE.Vector3(p.x-C.town.width/2,p.height+.5,p.y-C.town.height/2);}
+    else if(type==="festival" && layout.festival){const p=layout.festival;target=new THREE.Vector3(p.x+p.width/2-C.town.width/2,.7,p.y+p.depth/2-C.town.height/2);}
+    else if(type==="shogun"){target=eventView.group.getObjectByName("visiting-shogun")?.position.clone();followEvent=!!target;}
+    if(target){town.controls.target.copy(target);town.camera.position.copy(target).add(new THREE.Vector3(type==="festival" ? 9 : 5,7,type==="festival" ? 12 : 9));town.controls.update();town.render();startEventLoop();}
+  });
+  document.addEventListener("visibilitychange",startEventLoop);
   window.addEventListener("hk-resident-watch", (e) => {
     initTown(); if (!town) return;
     followResident = e.detail;
+    followEvent=false;
     const actor = window.HK.residentActors.find((a) => a.id === followResident);
     if (actor) {
       town.controls.target.set(actor.x + .5 - C.town.width / 2, .2, actor.y + .5 - C.town.height / 2);
@@ -284,6 +328,7 @@ function boot() {
   window.addEventListener("hk-camera-reset", () => {
     if (!town) return;
     followResident = null;
+    followEvent=false;
     town.resetCamera();
     town.render();
   });

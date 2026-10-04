@@ -3,7 +3,7 @@
   const C = window.HKCore, L = window.HKLeaderboard, $ = (id) => document.getElementById(id), E = C.esc;
   const names = { sprint: "10問決戦", rush: "60秒ラッシュ", survival: "3命サバイバル" };
   const rules = {
-    sprint: "正答率と合計回答時間でスコアが決まるよ。正確さ80％・速さ20％。10問完走でランキングへ！",
+    sprint: "正答率と合計回答時間でスコアが決まるよ。10問完走でランキングへ！",
     rush: "60秒で何問正解できる？間違いは残り時間が5秒減ります。コンボと早押しで高得点を狙おう。",
     survival: "間違い3回で終了。答える時間は15秒。全問突破を目指して、知識の限界に挑もう。",
   };
@@ -157,7 +157,7 @@
     const record = { score: run.score, ms: resultMs, correct: run.correct, combo: run.maxCombo,...(run.game==='sprint'?{answerMs:resultMs,timingVersion:2}:{}) }, old = best(run);
     const improved = !old || (run.game === "sprint" ? C.rankingCompare(record,old)<0 : record.score > old.score || (record.score === old.score && record.ms < old.ms));
     try { if (improved) localStorage.setItem(run.scoreKey, JSON.stringify(record)); $("resultBest").textContent = improved ? "自己ベスト更新！" : "自己ベスト " + old.correct + "問正解 · " + old.score + "点"; } catch { $("resultBest").textContent = "このブラウザでは記録を保存できません。"; }
-    $("resultSummary").textContent = "正答率 " + (run.log.length ? Math.round(run.correct / run.log.length * 100) : 0) + "% · 間違い " + run.misses + "回" + (run.penalty ? " · ペナルティ " + run.penalty / 1000 + "秒を含む" : "") + (run.game==='sprint'?"。正確さ80％・速さ20％のスコア。解説中の時間は含みません。":"。問題を開いて解説を確かめよう。");
+    $("resultSummary").textContent = "正答率 " + (run.log.length ? Math.round(run.correct / run.log.length * 100) : 0) + "% · 間違い " + run.misses + "回" + (run.penalty ? " · ペナルティ " + run.penalty / 1000 + "秒を含む" : "") + (run.game==='sprint'?"。解説中の時間は含みません。":"。問題を開いて解説を確かめよう。");
     $("resultReview").innerHTML = run.log.map((round, i) => `<details class="${round.ok ? "" : "missed"}"><summary><span class="review-number">${String(i + 1).padStart(2, "0")}</span><b>${E(round.q.prompt)}</b><small>${round.ok ? "正解" : "復習"} · ${(round.ms / 1000).toFixed(1)}秒</small></summary><p class="answer-reading">答え：${E(round.q.answers.join("・"))}</p><p>${E(round.q.text)}</p></details>`).join("");
     $("reviewLink").hidden = !run.misses; const firstMiss = run.log.find((r) => !r.ok); $("reviewLink").href = "./?review=1&era=" + (firstMiss?.q.era || "edo") + "#learn";
     const complete=run.game==="sprint"&&run.log.length===10;
@@ -174,7 +174,7 @@
       resultMs=result.ms;registrationMs=result.best.ms;$("resultTime").textContent=L.seconds(resultMs)+'秒';$("resultScore").textContent=result.score.toLocaleString('ja-JP');$("resultCorrect").textContent=result.correct+' / 10';
       $("resultBest").textContent='ランキング用自己ベスト '+result.best.score.toLocaleString('ja-JP')+'点';
       $("submitRule").textContent='自己ベスト '+result.best.score.toLocaleString('ja-JP')+'点を登録できます。高いスコアほど上位になります。';
-      $("resultSummary").textContent='正答率 '+result.correct*10+'％ · 合計回答時間 '+L.seconds(resultMs)+'秒。正確さ80％・速さ20％のスコア。'+(original.timingVersion===2?'解説中の時間は含みません。':'以前の方式で計測した時間から換算しています。');
+      $("resultSummary").textContent='正答率 '+result.correct*10+'％ · 合計回答時間 '+L.seconds(resultMs)+'秒。'+(original.timingVersion===2?'解説中の時間は含みません。':'以前の方式で計測した時間から換算しています。');
       $("submitStatus").textContent='記録を確認できました。ニックネームを入力して登録しよう。';$("submitStatus").className='submit-status success';$("submit").textContent='この名前でベストを登録';$("submit").disabled=false;
     }
     catch(error){if(run!==original)return;registrationMs=0;$("submitStatus").textContent=L.errorText(error);$("submitStatus").className='submit-status error';$("submit").textContent='確認して登録する';$("submit").disabled=false;}

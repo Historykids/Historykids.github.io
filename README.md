@@ -81,3 +81,19 @@ DOMによる操作検証：正誤判定、入力区切り、重複報酬の防�
 | 勘合貿易 | 1404年 | https://www.meihaku.jp/japanese-history-category/kango-boeki/ |
 
 既存94問のその他の問題文は元データを継承しています。新規108問は国立歴史民俗博物館、三内丸山遺跡センター、吉野ヶ里歴史公園、奈良県、京都市、宮内庁などの資料を参照して作成しました。鎌倉幕府の成立など、年号の説明には教科書や研究により違いがある項目もあります。
+
+
+## サイトマップの管理
+
+公開用の `sitemap.xml`、互換用の `sitemap.txt`、`robots.txt` は `sitemap-pages.json` を元に管理します。掲載するのは独立した9ページの正規URLです。トップページの `#learn`、`#town`、`#howto`、`#operator`、`#privacy`、時代選択、ゲーム切替用のクエリ文字列は別URLとして追加しません。旧 `howto.html` の正規URLはトップページです。Google所有権確認用HTMLも掲載しません。
+
+ページを追加・削除したときは `pages` を編集します。内容・構造化データ・リンクなどを実質的に更新したページだけ、そのページの `lastmod` を実際の日付（YYYY-MM-DD）に変更してください。現在の2026-10-06はプライバシー説明と正規URLの整備日です。生成するたびに全ページを今日の日付へ置き換えることはしません。別名ページは `aliases`、検索用コンテンツではないHTMLは理由とともに `excluded` に登録します。
+
+```sh
+npm run sitemap
+npm run sitemap:check
+```
+
+生成した3ファイルも一緒にコミットします。GitHub Actionsの `Validate sitemap` が全push・pull requestで、XML構文、重複URL、日付、ファイルの存在、canonicalとの一致、robots.txt、生成ファイルの更新忘れ、Gitで管理するHTMLの掲載・除外漏れを検査します。検査は読み取り専用で、公開設定や外部APIの権限を変更しません。
+
+Search Consoleのサイトマップ欄には `https://historykids.github.io/sitemap.xml` を登録します。robots.txtからも同じXMLを案内します。

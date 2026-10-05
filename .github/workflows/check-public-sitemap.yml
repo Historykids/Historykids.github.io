@@ -1,0 +1,29 @@
+name: Verify public sitemap
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/check-public-sitemap.py'
+      - '.github/workflows/check-public-sitemap.yml'
+  workflow_run:
+    workflows: ['pages build and deployment']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+      - name: Check public HTTP delivery, XML and canonical URLs
+        run: python3 scripts/check-public-sitemap.py

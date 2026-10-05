@@ -97,3 +97,5 @@ npm run sitemap:check
 生成した3ファイルも一緒にコミットします。GitHub Actionsの `Validate sitemap` が全push・pull requestで、XML構文、重複URL、日付、ファイルの存在、canonicalとの一致、robots.txt、生成ファイルの更新忘れ、Gitで管理するHTMLの掲載・除外漏れを検査します。検査は読み取り専用で、公開設定や外部APIの権限を変更しません。
 
 Search Consoleのサイトマップ欄には `https://historykids.github.io/sitemap.xml` を登録します。robots.txtからも同じXMLを案内します。
+
+`Verify public sitemap` は配信完了後に公開URLへHTTPSで接続し、XML・テキスト版・robots.txt・掲載ページのHTTP 200、配信内容、正規URL、Googlebotに対するrobots.txtの許可を確認します。認証情報を使用せず、通常のHTTPクライアントとして取得します。Search Console内の取得結果は別途、同画面のエラー詳細と「公開URLをテスト」で確認します。

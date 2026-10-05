@@ -90,11 +90,9 @@
   function idleReels() {const cols=[['lemon','seven','bell'],['cherry','bell','bar'],['bar','cherry','lemon']];for(let i=0;i<3;i++){$('reel'+i).innerHTML=cols[i].map((id,row)=>symbolHTML(id,row)).join('');$('reel'+i).style.transform='translateY(0px)';}}
   function slotWins(round) {
     const wins=round.data.wins||[], grid=round.data.grid;
-    $('slotWinLines').replaceChildren();$('slotLineWins').replaceChildren();
+    $('slotLineWins').replaceChildren();
     for(let col=0;col<3;col++)$('reel'+col).querySelectorAll('.is-winning').forEach(e=>e.classList.remove('is-winning'));
     if(!grid)return;
-    const colors=['#ffe19a','#8ce6c5','#ffa7a7','#acb6ff','#fbc894','#d9a7ff','#e2f6b1','#8edfff'];
-    $('slotWinLines').innerHTML=wins.map(w=>{const index=R.paylines.findIndex(l=>l.id===w.id),points=w.cells.map(cell=>((cell%3)*100+50)+','+(Math.floor(cell/3)*90+45)).join(' ');return '<polyline points="'+points+'" fill="none" stroke="'+colors[index]+'" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>';}).join('');
     $('slotLineWins').innerHTML=wins.map(w=>'<span>'+w.name+' · '+R.symbols.find(s=>s.id===w.symbol).name+' <b>'+money(round.slotStake*w.multiplier)+'</b></span>').join('');
     for(const cell of new Set(wins.flatMap(w=>w.cells)))$('reel'+(cell%3)).querySelector('[data-row="'+Math.floor(cell/3)+'"]')?.classList.add('is-winning');
   }
@@ -124,7 +122,7 @@
     later(round,()=>{$('wheelNumber').textContent=round.data.number;$('rouletteBoard').querySelector('[data-position="n'+round.data.number+'"]').classList.add('landed');settle(round);},duration);
   }
   function animateSlots(round) {
-    $('slotMachine').classList.add('spinning');$('slotWinLines').replaceChildren();$('slotLineWins').replaceChildren();tone('start');
+    $('slotMachine').classList.add('spinning');$('slotLineWins').replaceChildren();tone('start');
     for(let i=0;i<3;i++){
       const track=$('reel'+i), index=24+i*8, final=[0,1,2].map(row=>round.data.grid[row*3+i]);
       const display=Array.from({length:index},(_,j)=>symbolHTML(R.strip[(j*7+i*5)%R.strip.length])).join('')+final.map((id,row)=>symbolHTML(id,row)).join('');

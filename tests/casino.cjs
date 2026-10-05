@@ -43,12 +43,12 @@ async function main(){
  await test('slots show all nine cells, highlight a vertical win and pay its exact amount',()=>{
   const p=page({ui:true});p.w.document.querySelector('[data-game="slots"]').click();p.setSequence([0,7,12,0,12,16,0,16,7]);p.$('playRound').click();assert.equal(p.W.snapshot().balance,90);
   p.advance(1800);assert(p.$('reel0').parentElement.classList.contains('stopped'));assert(!p.$('reel2').parentElement.classList.contains('stopped'));p.advance(1300);
-  assert.equal(p.W.snapshot().balance,100);assert.equal(p.$('resultPayout').textContent,'10両');assert.equal(p.$('slotWinLines').querySelectorAll('polyline').length,1);assert(p.$('slotLineWins').textContent.includes('左の縦列'));
+  assert.equal(p.W.snapshot().balance,100);assert.equal(p.$('resultPayout').textContent,'10両');assert.equal(p.$('slotWinLines'),null);assert(p.$('slotLineWins').textContent.includes('左の縦列'));
   assert.equal(p.w.document.querySelectorAll('.reel-item').length,9);assert.equal(p.w.document.querySelectorAll('.is-winning').length,3);p.w.close();
  });
  await test('all eight 777 lines add up instead of hitting the old single-line payout cap',()=>{
   const p=page({ui:true});p.w.document.querySelector('[data-game="slots"]').click();p.setRandom(19);p.$('playRound').click();p.advance(3100);
-  assert.equal(p.W.snapshot().balance,8090);assert.equal(p.$('resultPayout').textContent,'8,000両');assert.equal(p.$('slotWinLines').querySelectorAll('polyline').length,8);assert(p.$('tableArea').classList.contains('big-win'));p.w.close();
+  assert.equal(p.W.snapshot().balance,8090);assert.equal(p.$('resultPayout').textContent,'8,000両');assert.equal(p.$('slotWinLines'),null);assert(p.$('tableArea').classList.contains('big-win'));p.w.close();
  });
  await test('bonus grants five free spins, locks the original stake, doubles payouts and survives reloading',()=>{
   const map=new Map([['money_v1','10']]),p=page({ui:true,storage:map});p.w.document.querySelector('[data-game="slots"]').click();p.setSequence([20,7,12,0,20,16,7,16,20]);p.$('playRound').click();p.advance(3100);

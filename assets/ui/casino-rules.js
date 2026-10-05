@@ -3,13 +3,19 @@
   const wheel = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
   const red = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
   const symbols = [
-    { id:'cherry', icon:'🍒', name:'チェリー', weight:7, multiplier:5 },
-    { id:'lemon', icon:'🍋', name:'レモン', weight:5, multiplier:10 },
-    { id:'bell', icon:'🔔', name:'ベル', weight:4, multiplier:20 },
-    { id:'bar', icon:'BAR', name:'BAR', weight:3, multiplier:50 },
-    { id:'seven', icon:'7', name:'7', weight:1, multiplier:250 },
+    { id:'cherry', icon:'🍒', name:'チェリー', weight:7, multiplier:1 },
+    { id:'lemon', icon:'🍋', name:'レモン', weight:5, multiplier:2 },
+    { id:'bell', icon:'🔔', name:'ベル', weight:4, multiplier:3 },
+    { id:'bar', icon:'BAR', name:'BAR', weight:3, multiplier:5 },
+    { id:'seven', icon:'7', name:'7', weight:1, multiplier:100 },
+    { id:'bonus', icon:'両', name:'ボーナス', weight:1, multiplier:0 },
   ];
   const strip = symbols.flatMap(s => Array(s.weight).fill(s.id));
+  const paylines = [
+    {id:'h0', name:'上の横列', cells:[0,1,2]}, {id:'h1', name:'中央の横列', cells:[3,4,5]}, {id:'h2', name:'下の横列', cells:[6,7,8]},
+    {id:'v0', name:'左の縦列', cells:[0,3,6]}, {id:'v1', name:'中央の縦列', cells:[1,4,7]}, {id:'v2', name:'右の縦列', cells:[2,5,8]},
+    {id:'d0', name:'右下がりの斜め', cells:[0,4,8]}, {id:'d1', name:'右上がりの斜め', cells:[6,4,2]},
+  ];
   function randomIndex(length) {
     if (!Number.isInteger(length) || length < 1 || length > 100000) throw Error('random-range');
     const max = Math.floor(4294967296 / length) * length, bytes = new Uint32Array(1);
@@ -39,12 +45,17 @@
     if (!Number.isInteger(number) || number < 0 || number > 36 || !Array.isArray(bets) || !bets.length) throw Error('invalid-round');
     return bets.reduce((sum, chip) => { if (!Number.isSafeInteger(chip.stake) || chip.stake <= 0) throw Error('invalid-bet'); const b=bet(chip.id); return sum + (b.numbers.includes(number) ? chip.stake*b.multiplier : 0); }, 0);
   }
-  function slots(reels) {
-    if (!Array.isArray(reels) || reels.length !== 3 || reels.some(id=>!symbols.some(s=>s.id===id))) throw Error('invalid-reels');
-    if (reels.every(id=>id===reels[0])) return { multiplier:symbols.find(s=>s.id===reels[0]).multiplier, title:symbols.find(s=>s.id===reels[0]).name+'が3つ！' };
-    return reels.filter(id=>id==='cherry').length===2 ? { multiplier:1, title:'チェリー2つ · 掛け金返還' } : { multiplier:0, title:'今回はそろわず' };
+  function slots(grid, freeSpin=false) {
+    if (!Array.isArray(grid) || grid.length !== 9 || grid.some(id=>!symbols.some(s=>s.id===id))) throw Error('invalid-reels');
+    const wins=paylines.flatMap(line=>{
+      const s=symbols.find(s=>s.id===grid[line.cells[0]]);
+      return s.multiplier && line.cells.every(i=>grid[i]===s.id) ? [{...line, symbol:s.id, multiplier:s.multiplier*(freeSpin?2:1)}] : [];
+    });
+    const multiplier=wins.reduce((n,w)=>n+w.multiplier,0), bonusCount=grid.filter(id=>id==='bonus').length;
+    return {grid:[...grid], wins, multiplier, bonusCount, bonusTriggered:!freeSpin&&bonusCount>=3,
+      title:wins.length ? wins.length+'ライン的中！' : bonusCount>=3&&!freeSpin ? 'ボーナス発動！' : '今回はそろわず'};
   }
-  const rules = { wheel, symbols, strip, randomIndex, janken, color, bet, roulette, slots };
+  const rules = { wheel, symbols, strip, paylines, randomIndex, janken, color, bet, roulette, slots };
   root.HKCasinoRules = rules;
   if (typeof module !== 'undefined' && module.exports) module.exports = rules;
 })(typeof window !== 'undefined' ? window : globalThis);

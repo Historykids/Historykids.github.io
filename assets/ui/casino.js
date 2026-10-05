@@ -9,7 +9,8 @@
   const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const fast = () => reduced || $('quickToggle').checked;
   const stake = () => Number($('stake').value);
-  const total = () => game==='roulette' ? chips.reduce((n,b)=>n+b.stake,0) : stake();
+  const bonus = () => W.snapshot().slotBonus?.remaining>0 ? W.snapshot().slotBonus : null;
+  const total = () => game==='roulette' ? chips.reduce((n,b)=>n+b.stake,0) : game==='slots'&&bonus() ? bonus().stake : stake();
   const validStake = n => Number.isSafeInteger(n) && n>=1 && n<=1000;
   const status = (text,error=false) => { $('casinoStatus').textContent=text; $('casinoStatus').classList.toggle('error',error); };
   function tone(kind) {
@@ -23,7 +24,8 @@
   function rulesHTML() {
     if(game==='janken')return '<p>NPCの手は毎回、グー・チョキ・パーから同じ確率で決まります。</p><table><tr><th>勝ち</th><td>掛け金の2倍</td></tr><tr><th>負け</th><td>0両</td></tr><tr><th>あいこ</th><td>掛け金を返す（1倍）</td></tr></table><p>例：10両を賭けて勝つと20両が戻り、差し引きは＋10両です。</p>';
     if(game==='roulette')return '<p>0〜36の37ポケットを使う欧州式。各数字は毎回1/37の確率です。複数の場所に置けます。1回の合計は1,000両まで。</p><table><tr><th>数字1点（0も可）</th><td>36倍</td></tr><tr><th>赤・黒・奇数・偶数</th><td>2倍</td></tr><tr><th>1〜18・19〜36</th><td>2倍</td></tr><tr><th>12個の組・列</th><td>3倍</td></tr></table><p>0は赤黒・奇偶・大小・12個の組・列のいずれにも入りません。外れた場所の両は戻りません。倍率は掛け金を含む払い戻しです。</p><p>過去の数字で次の確率は変わりません。<a href="https://help.danskespil.dk/en/casino-help/roulette/playtechclassicroulette" target="_blank" rel="noopener">欧州式のルールを確認 ↗</a></p>';
-    return '<p>3リールの中央1ラインで判定します。各リールは独立した20ストップ。自動プレイや途中の停止操作はありません。</p><table>'+R.symbols.map(s=>'<tr><th>'+s.name+'が3つ</th><td>'+s.multiplier+'倍</td></tr>').join('')+'<tr><th>チェリー2つ（位置不問）</th><td>1倍・掛け金返還</td></tr><tr><th>それ以外</th><td>0両</td></tr></table><p>1リールの内訳：チェリー7、レモン5、ベル4、BAR3、7が1。表示した中央の絵柄だけで決まります。倍率には掛け金が含まれます。</p><p>この台の配当表による理論払い戻し率は96.95%。長い期間の計算値で、1回や数回の結果を保証するものではありません。</p>';
+    return '<p>3×3の絵柄を、横3本・縦3本・斜め2本の計8ラインで判定。どのラインも同じ絵柄が3つそろうと的中し、複数の当たりはすべて合算します。</p><table>'+R.symbols.filter(s=>s.multiplier).map(s=>'<tr><th>'+s.name+'が3つ（1ライン）</th><td>'+s.multiplier+'倍</td></tr>').join('')+'<tr><th>「両」ボーナス絵柄が画面内に3つ以上</th><td>無料スピン5回</td></tr></table><p>掛け金は8ライン全部を含む1回分の両です。「両」は並び方に関係なく数えます。ボーナス中は発動時の掛け金を基準に配当が2倍になり、両を引かずに5回回せます。無料スピン中はボーナスの追加抽選をしません。</p><p>9つの絵柄はそれぞれ独立して抽選します。各マスの内訳：チェリー7、レモン5、ベル4、BAR3、7が1、ボーナス1（計21）。2つだけでは配当はありません。</p>';
+
   }
   function renderHistory(wallet) {
     const history=wallet.history.filter(r=>r&&names[r.game]&&Number.isSafeInteger(r.stake)&&Number.isSafeInteger(r.payout)).slice(0,8);
@@ -31,22 +33,26 @@
     $('rouletteRecent').innerHTML=history.filter(r=>r.game==='roulette'&&Number.isInteger(r.data?.number)).slice(0,5).map(r=>'<span class="'+R.color(r.data.number)+'">'+r.data.number+'</span>').join('');
   }
   function refresh() {
-    const wallet=W.snapshot(), busy=!!(active||starting||wallet.pending);
+    const wallet=W.snapshot(), busy=!!(active||starting||wallet.pending), free=game==='slots'&&wallet.slotBonus?.remaining>0;
     $('casinoBalance').textContent=wallet.balance.toLocaleString('ja-JP');
-    $('emptyWallet').hidden=wallet.balance>0 || !!wallet.pending;
-    const amount=total(), legal=validStake(amount)&&amount<=wallet.balance;
-    $('betTotal').textContent=validStake(amount)?money(amount):'—';
+    $('emptyWallet').hidden=wallet.balance>0 || !!wallet.pending || free;
+    const amount=total(), legal=validStake(amount)&&(free||amount<=wallet.balance);
+    $('betTotal').textContent=free?'0両（無料）':validStake(amount)?money(amount):'—';
     $('rouletteTotal').textContent=money(chips.reduce((n,c)=>n+c.stake,0));
-    $('playLabel').textContent=busy?'勝負の途中…':game==='roulette'?money(validStake(amount)?amount:0)+'で回す':game==='slots'?money(validStake(amount)?amount:0)+'でスピン':money(validStake(amount)?amount:0)+'で勝負する';
+    $('playLabel').textContent=busy?'勝負の途中…':free?'無料スピン · 残り'+wallet.slotBonus.remaining+'回':game==='roulette'?money(validStake(amount)?amount:0)+'で回す':game==='slots'?money(validStake(amount)?amount:0)+'でスピン':money(validStake(amount)?amount:0)+'で勝負する';
     $('playRound').disabled=busy||!legal||wallet.unavailable;
     $('mobilePlayRound').disabled=$('playRound').disabled;$('mobilePlayRound').textContent=$('playLabel').textContent+' →';$('mobileBetTotal').textContent=$('betTotal').textContent;$('mobileStake').value=$('stake').value;
-    document.querySelectorAll('[data-game],[data-hand],[data-stake],#stake,#mobileStake,#rouletteBoard button,#undoBet,#clearBets,[data-remove-bet]').forEach(e=>{e.disabled=busy;});
+    document.querySelectorAll('[data-game],[data-hand],[data-stake],#stake,#mobileStake,#rouletteBoard button,#undoBet,#clearBets,[data-remove-bet]').forEach(e=>{e.disabled=busy||(free&&(e.matches('[data-stake],#stake,#mobileStake')));});
     $('undoBet').disabled=busy||!chips.length;$('clearBets').disabled=busy||!chips.length;
     document.querySelectorAll('[data-stake]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.stake)===stake())));
     renderHistory(wallet);
+    const lastFree=wallet.pending?.game==='slots'&&wallet.pending.freeSpin&&!wallet.slotBonus?.remaining;
+    $('slotBonus').classList.toggle('active',!!wallet.slotBonus?.remaining||lastFree);
+    $('slotBonusTitle').textContent=lastFree?'ボーナス中！最後の無料スピン':wallet.slotBonus?.remaining?'ボーナス中！残り '+wallet.slotBonus.remaining+' 回':'ボーナスチャンス';
+    $('slotBonusDetail').textContent=wallet.slotBonus?.remaining||lastFree?'掛け金0両 · '+money(wallet.slotBonus.stake)+'を基準に配当2倍':'「両」が画面内に3つ以上で、無料スピン5回＋配当2倍';
     if(wallet.unavailable)status('両の記録を読み込めません。ブラウザの保存設定を確認してね。',true);
     else if(wallet.pending&&!active&&!starting)status('前の勝負を確認しています…');
-    else if(!busy&&validStake(amount)&&amount>wallet.balance)status('両が足りません。掛け金を小さくするか、クイズで両を集めよう。',true);
+    else if(!busy&&!free&&validStake(amount)&&amount>wallet.balance)status('両が足りません。掛け金を小さくするか、クイズで両を集めよう。',true);
   }
   function selectGame(next,updateURL=true) {
     if(!names[next])next='janken';
@@ -55,10 +61,10 @@
     for(const id of Object.keys(names))$('panel-'+id).hidden=id!==game;
     $('rouletteSlip').hidden=game!=='roulette';
     $('stakeLabel').textContent=game==='roulette'?'1回押すごとに置く両':'1回に賭ける両';
-    $('stageLabel').textContent={janken:'JANKEN / 一対一の勝負',roulette:'EUROPEAN ROULETTE / 37 POCKETS',slots:'GOLDEN SLOTS / 3 REELS · 1 LINE'}[game];
+    $('stageLabel').textContent={janken:'JANKEN / 一対一の勝負',roulette:'EUROPEAN ROULETTE / 37 POCKETS',slots:'GOLDEN SLOTS / 3 × 3 · 8 LINES'}[game];
     $('betGameName').textContent=names[game];$('gameRules').innerHTML=rulesHTML();
-    $('resultKicker').textContent='PLACE YOUR BET';$('resultHeadline').textContent=game==='roulette'?'盤面に両を置こう。':game==='slots'?'中央のラインに、期待を込めて。':'両を決めて、準備しよう。';$('resultDetail').textContent='倍率は、掛け金を含む払い戻しです。';$('resultNumbers').hidden=true;$('roundResult').className='round-result';
-    status(game==='roulette'?'盤面を押すと、選んだ両を置けます。':game==='slots'?'スピンを押すと掛け金を引いて回転します。':'グー・チョキ・パーを選んでね。');
+    $('resultKicker').textContent='PLACE YOUR BET';$('resultHeadline').textContent=game==='roulette'?'盤面に両を置こう。':game==='slots'?'縦・横・斜め、8ラインに期待を。':'両を決めて、準備しよう。';$('resultDetail').textContent='倍率は、掛け金を含む払い戻しです。';$('resultNumbers').hidden=true;$('roundResult').className='round-result';
+    status(game==='roulette'?'盤面を押すと、選んだ両を置けます。':game==='slots'?(bonus()?'無料スピンを押すと、両を使わずに回せます。':'スピンを押すと、8ラインすべてを抽選します。'):'グー・チョキ・パーを選んでね。');
     if(updateURL){const url=new URL(location.href);url.searchParams.set('game',game);history.replaceState(null,'',url);}
     refresh();
   }
@@ -80,12 +86,23 @@
     $('betSlip').innerHTML=groups.length?groups.map(b=>'<li><span>'+esc(R.bet(b.id).label)+' · '+money(b.amount)+'</span><button data-remove-bet="'+b.id+'" aria-label="'+esc(R.bet(b.id).label)+'の両を外す">×</button></li>').join(''):'<li>盤面から賭ける場所を選ぼう。</li>';
     refresh();
   }
-  function symbolHTML(id) {const s=R.symbols.find(s=>s.id===id);return '<div class="reel-item"><div class="reel-symbol symbol-'+s.id+'">'+s.icon+'</div></div>';}
-  function idleReels() {for(let i=0;i<3;i++){$('reel'+i).innerHTML=['lemon','seven','bell'].map(symbolHTML).join('');$('reel'+i).style.transform='translateY(-15px)';}}
-  function outcome(amount) {
+  function symbolHTML(id, row=null) {const s=R.symbols.find(s=>s.id===id);return '<div class="reel-item"'+(row===null?'':' data-row="'+row+'"')+'><div class="reel-symbol symbol-'+s.id+'">'+s.icon+'</div></div>';}
+  function idleReels() {const cols=[['lemon','seven','bell'],['cherry','bell','bar'],['bar','cherry','lemon']];for(let i=0;i<3;i++){$('reel'+i).innerHTML=cols[i].map((id,row)=>symbolHTML(id,row)).join('');$('reel'+i).style.transform='translateY(0px)';}}
+  function slotWins(round) {
+    const wins=round.data.wins||[], grid=round.data.grid;
+    $('slotWinLines').replaceChildren();$('slotLineWins').replaceChildren();
+    for(let col=0;col<3;col++)$('reel'+col).querySelectorAll('.is-winning').forEach(e=>e.classList.remove('is-winning'));
+    if(!grid)return;
+    const colors=['#ffe19a','#8ce6c5','#ffa7a7','#acb6ff','#fbc894','#d9a7ff','#e2f6b1','#8edfff'];
+    $('slotWinLines').innerHTML=wins.map(w=>{const index=R.paylines.findIndex(l=>l.id===w.id),points=w.cells.map(cell=>((cell%3)*100+50)+','+(Math.floor(cell/3)*90+45)).join(' ');return '<polyline points="'+points+'" fill="none" stroke="'+colors[index]+'" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>';}).join('');
+    $('slotLineWins').innerHTML=wins.map(w=>'<span>'+w.name+' · '+R.symbols.find(s=>s.id===w.symbol).name+' <b>'+money(round.slotStake*w.multiplier)+'</b></span>').join('');
+    for(const cell of new Set(wins.flatMap(w=>w.cells)))$('reel'+(cell%3)).querySelector('[data-row="'+Math.floor(cell/3)+'"]')?.classList.add('is-winning');
+  }
+  function outcome(amount, context={}) {
     if(game==='janken'){const opponent=R.randomIndex(3),multiplier=R.janken(hand,opponent);return {payout:amount*multiplier,data:{player:hand,opponent,multiplier}};}
     if(game==='roulette'){const number=R.randomIndex(37),bets=chips.map(c=>({...c}));return {payout:R.roulette(bets,number),data:{number,bets}};}
-    const stops=[0,1,2].map(()=>R.randomIndex(20)),reels=stops.map(i=>R.strip[i]),win=R.slots(reels);return {payout:amount*win.multiplier,data:{stops,reels,...win}};
+    const grid=Array.from({length:9},()=>R.strip[R.randomIndex(R.strip.length)]), win=R.slots(grid,context.freeSpin);
+    return {payout:(context.stake||amount)*win.multiplier,data:win};
   }
   function later(round,fn,ms){setTimeout(()=>{if(active?.id===round.id)fn();},ms);}
   function animateJanken(round) {
@@ -107,20 +124,29 @@
     later(round,()=>{$('wheelNumber').textContent=round.data.number;$('rouletteBoard').querySelector('[data-position="n'+round.data.number+'"]').classList.add('landed');settle(round);},duration);
   }
   function animateSlots(round) {
-    $('slotMachine').classList.add('spinning');tone('start');
+    $('slotMachine').classList.add('spinning');$('slotWinLines').replaceChildren();$('slotLineWins').replaceChildren();tone('start');
     for(let i=0;i<3;i++){
-      const track=$('reel'+i),index=40+i*20+round.data.stops[i],display=Array.from({length:index+3},(_,j)=>R.strip[j%20]);
-      track.parentElement.classList.remove('stopped');track.style.transition='none';track.innerHTML=display.map(symbolHTML).join('');track.style.transform='translateY(75px)';
+      const track=$('reel'+i), index=24+i*8, final=[0,1,2].map(row=>round.data.grid[row*3+i]);
+      const display=Array.from({length:index},(_,j)=>symbolHTML(R.strip[(j*7+i*5)%R.strip.length])).join('')+final.map((id,row)=>symbolHTML(id,row)).join('');
+      track.parentElement.classList.remove('stopped');track.style.transition='none';track.innerHTML=display;track.style.transform='translateY(0px)';
       void track.offsetWidth;
       const duration=fast()?160+i*55:1700+i*650;
-      track.style.transition='transform '+duration+'ms cubic-bezier(.14,.6,.06,1)';track.style.transform='translateY('+(75-index*90)+'px)';
-      later(round,()=>{track.parentElement.classList.add('stopped');track.parentElement.setAttribute('aria-label',['左','中央','右'][i]+'リール：'+R.symbols.find(s=>s.id===round.data.reels[i]).name);tone('tick');if(i===2){$('slotMachine').classList.remove('spinning');settle(round);}},duration);
+      track.style.transition='transform '+duration+'ms cubic-bezier(.14,.6,.06,1)';track.style.transform='translateY('+(-index*90)+'px)';
+      later(round,()=>{track.parentElement.classList.add('stopped');track.parentElement.setAttribute('aria-label',['左','中央','右'][i]+'リール：'+final.map(id=>R.symbols.find(s=>s.id===id).name).join('、'));tone('tick');if(i===2){$('slotMachine').classList.remove('spinning');showStatic(round);settle(round);}},duration);
     }
   }
   function showStatic(round) {
     if(round.game==='janken'){$('playerHand').textContent=hands[round.data.player];$('opponentHand').textContent=hands[round.data.opponent];$('duelCall').textContent=round.data.multiplier===2?'勝ち':round.data.multiplier===1?'あいこ':'負け';}
     if(round.game==='roulette'){$('wheelNumber').textContent=round.data.number;rotation=-R.wheel.indexOf(round.data.number)*360/37;$('rouletteWheel').style.transition='none';$('rouletteWheel').style.transform='rotate('+rotation+'deg)';$('ballOrbit').style.transition='none';$('ballOrbit').style.transform='rotate(0deg)';$('rouletteBoard').querySelector('[data-position="n'+round.data.number+'"]')?.classList.add('landed');}
-    if(round.game==='slots')for(let i=0;i<3;i++){const t=$('reel'+i);t.style.transition='none';const stop=round.data.stops[i];t.innerHTML=[R.strip[(stop+19)%20],R.strip[stop],R.strip[(stop+1)%20]].map(symbolHTML).join('');t.style.transform='translateY(-15px)';t.parentElement.setAttribute('aria-label',['左','中央','右'][i]+'リール：'+R.symbols.find(s=>s.id===round.data.reels[i]).name);}
+    if(round.game==='slots'){
+      for(let i=0;i<3;i++){
+        const t=$('reel'+i), grid=round.data.grid;
+        const col=grid?[0,1,2].map(row=>grid[row*3+i]):[R.strip[(round.data.stops[i]+19)%20],round.data.reels[i],R.strip[(round.data.stops[i]+1)%20]];
+        t.style.transition='none';t.innerHTML=col.map((id,row)=>symbolHTML(id,row)).join('');t.style.transform='translateY(0px)';
+        t.parentElement.setAttribute('aria-label',['左','中央','右'][i]+'リール：'+col.map(id=>R.symbols.find(s=>s.id===id).name).join('、'));
+      }
+      slotWins(round);
+    }
   }
   function confetti(big) {
     if(fast())return;
@@ -128,15 +154,15 @@
     setTimeout(()=>$('celebration').replaceChildren(),3000);
   }
   function showResult(round,recovered=false) {
-    const net=round.payout-round.stake,win=net>0,big=round.game==='slots'&&round.data.multiplier>=50;
-    $('roundResult').className='round-result '+(win?'win':net<0?'loss':'draw');$('resultKicker').textContent=recovered?'RESULT RESTORED':big?'GOLDEN WIN':win?'YOU WIN':net===0?'STAKE RETURNED':'ROUND COMPLETE';
+    const net=round.payout-round.stake,win=net>0,big=round.game==='slots'&&(round.data.multiplier>=50||round.data.bonusTriggered);
+    $('roundResult').className='round-result '+(win||round.data.bonusTriggered?'win':net<0?'loss':'draw');$('resultKicker').textContent=recovered?'RESULT RESTORED':round.data.bonusTriggered?'BONUS START':round.freeSpin?'FREE SPIN':big?'GOLDEN WIN':win?'YOU WIN':net===0?'STAKE RETURNED':'ROUND COMPLETE';
     let title=round.game==='janken'?(round.data.multiplier===2?'あなたの勝ち！':round.data.multiplier===1?'あいこ。掛け金が戻りました。':'NPCの勝ち。'):round.game==='roulette'?'玉は '+round.data.number+'！':round.data.title;
-    $('resultHeadline').textContent=title;
-    $('resultDetail').textContent=round.game==='janken'?'あなた：'+handNames[round.data.player]+' ／ NPC：'+handNames[round.data.opponent]:round.game==='roulette'?'払い戻し '+money(round.payout)+'。的中した場所の両だけが倍率に応じて戻ります。':'中央ライン：'+round.data.reels.map(id=>R.symbols.find(s=>s.id===id).name).join(' · ');
+    $('resultHeadline').textContent=title+(round.data.bonusTriggered&&title!=='ボーナス発動！'?' ボーナスも発動！':'');
+    $('resultDetail').textContent=round.game==='janken'?'あなた：'+handNames[round.data.player]+' ／ NPC：'+handNames[round.data.opponent]:round.game==='roulette'?'払い戻し '+money(round.payout)+'。的中した場所の両だけが倍率に応じて戻ります。':round.data.grid?(round.freeSpin?'ボーナス配当2倍 · ':'')+(round.data.wins.length?'的中 '+round.data.wins.length+'ライン · 合計 '+money(round.payout):'ラインの的中なし')+(round.data.bonusTriggered?'。無料スピン5回を獲得！':''):'中央ライン：'+round.data.reels.map(id=>R.symbols.find(s=>s.id===id).name).join(' · ');
     $('resultNumbers').hidden=false;$('resultBet').textContent=money(round.stake);$('resultPayout').textContent=money(round.payout);$('resultNet').textContent=(net>0?'＋':'')+money(net);
     $('tableArea').classList.toggle('big-win',big);
-    if(win){tone(big?'big':'win');confetti(big);}else if(net<0)tone('lose');
-    status(recovered?'途中だった勝負を復元し、払い戻しを確認しました。':win?'払い戻しを両へ反映しました。次の勝負も好きなタイミングで。':net===0?'掛け金が戻りました。次の一手を選ぼう。':'勝負が終了しました。両の残高を確認して次へ。');
+    if(win||round.data.bonusTriggered){tone(big?'big':'win');confetti(big);}else if(net<0)tone('lose');
+    status(!recovered&&round.data.bonusTriggered?'ボーナス発動！無料スピン5回、配当は2倍です。':!recovered&&round.freeSpin?'無料スピンの配当を反映しました。'+(bonus()?'残り'+bonus().remaining+'回。':'ボーナス終了！'):recovered?'途中だった勝負を復元し、払い戻しを確認しました。':win?'払い戻しを両へ反映しました。次の勝負も好きなタイミングで。':net===0?'掛け金が戻りました。次の一手を選ぼう。':'勝負が終了しました。両の残高を確認して次へ。');
   }
   function errorText(error){return {'insufficient':'両が足りません。掛け金を小さくするか、クイズで集めよう。','pending-round':'ほかの画面で勝負が進んでいます。終了を待ってね。','invalid-bet':'掛け金は整数で1〜1,000両にしてください。','round-gone':'記録が読み込まれたか、リセットされました。この勝負は終了しました。'}[error.message]||'両の更新に失敗しました。保存設定を確認し、ページを読み直すと途中の勝負を復元できます。';}
   function settle(round,recovered=false) {
@@ -147,7 +173,7 @@
     if(active||starting)return;
     const amount=total();if(!validStake(amount)){status('掛け金は整数で1〜1,000両。ルーレットは先に盤面へ両を置こう。',true);return;}
     starting=true;$('tableArea').classList.remove('big-win');$('celebration').replaceChildren();$('resultNumbers').hidden=true;$('resultKicker').textContent='GOOD LUCK';$('resultHeadline').textContent='勝負の準備…';$('resultDetail').textContent='';refresh();
-    W.begin(game,amount,()=>outcome(amount),round=>{starting=false;active=round;refresh();status('掛け金 '+money(amount)+'。結果が決まるまで待ってね。');$('resultHeadline').textContent=game==='janken'?'じゃん、けん…':game==='roulette'?'玉の行方は、どこへ。':'リールが止まる、その瞬間まで。';({janken:animateJanken,roulette:animateRoulette,slots:animateSlots}[game])(round);},error=>{starting=false;refresh();$('resultHeadline').textContent='勝負を始められませんでした。';status(errorText(error),true);});
+    W.begin(game,amount,context=>outcome(amount,context),round=>{starting=false;active=round;refresh();status(round.freeSpin?'無料スピン！配当2倍で抽選中。':'掛け金 '+money(amount)+'。結果が決まるまで待ってね。');$('resultHeadline').textContent=game==='janken'?'じゃん、けん…':game==='roulette'?'玉の行方は、どこへ。':'リールが止まる、その瞬間まで。';({janken:animateJanken,roulette:animateRoulette,slots:animateSlots}[game])(round);},error=>{starting=false;refresh();$('resultHeadline').textContent='勝負を始められませんでした。';status(errorText(error),true);});
   }
   document.querySelectorAll('[data-game]').forEach(b=>{b.onclick=()=>{if(!active&&!starting&&!W.snapshot().pending)selectGame(b.dataset.game);};b.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key)||active||starting||W.snapshot().pending)return;e.preventDefault();const list=Object.keys(names),index=list.indexOf(game),next=e.key==='Home'?0:e.key==='End'?2:(index+(e.key==='ArrowRight'?1:2))%3;selectGame(list[next]);document.querySelector('[data-game="'+list[next]+'"]').focus();};});
   document.querySelectorAll('[data-hand]').forEach(b=>b.onclick=()=>{if(b.disabled)return;hand=Number(b.dataset.hand);document.querySelectorAll('[data-hand]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));$('playerHand').textContent=hands[hand];$('opponentHand').textContent='？';$('duelCall').textContent='VS';$('jankenStage').classList.remove('revealed');tone('tick');});

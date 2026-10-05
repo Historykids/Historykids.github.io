@@ -704,17 +704,34 @@
       `<div class="detail-year ${r.dateLabel ? "period-date" : ""}">${E(C.dateValue(r))}<small>${C.dateSuffix(r)}</small></div><span class="chip">${E(ds[r.era].title)} · ${E(r.chapter)}</span><h3 class="detail-title">${r.titleHTML}</h3><p class="detail-reading">こたえ：${E(r.answers.join("・"))}</p><p class="detail-text">${E(r.text)}</p>${r.source ? `<a href="${E(r.source)}" target="_blank" rel="noopener">資料で詳しく読む</a>` : ""}${fromCard || !got(r) ? `<div class="dialog-actions"><button class="primary" data-practice="${E(r.id)}">${got(r) ? "この問題を解き直す" : "この問題に挑戦"}</button></div>` : '<p class="muted">解き直すときは、時代カードをタップしてね。</p>'}`,
     );
   }
-  function shop(cat = "all") {
+  let shopQuantity = 1, shopCategory = "all";
+  const validQuantity = n => Number.isInteger(n) && n >= 1 && n <= 100;
+  function updateShopQuantity() {
+    const quantity=Number($("shopQuantity").value);shopQuantity=quantity;
+    $("shopQuantityHint").textContent=validQuantity(quantity)?"建物は1つずつ配置した分だけ支払い。住民はまとめて町に迎えます。":"数量は1〜100の整数で選んでね。";
+    for(const item of C.items){
+      const button=$("dialogBody").querySelector(`[data-buy="${item.id}"]`), total=$("dialogBody").querySelector(`[data-shop-total="${item.id}"]`);
+      if(!button)continue;
+      const cost=item.price*quantity, limit=item.cat==="resident"&&state.residents.length+quantity>100, short=cost>W.snapshot().balance;
+      total.textContent=validQuantity(quantity)?"合計 "+cost.toLocaleString("ja-JP")+"両":"合計 —";
+      button.disabled=walletPurchase||!validQuantity(quantity)||short||limit;
+      button.textContent=!validQuantity(quantity)?"数量を選んでね":limit?"住民は100人まで":short?"両が足りない":item.cat==="resident"?quantity+"人を迎える":quantity+"個を配置";
+    }
+  }
+  function shop(cat = shopCategory) {
+    shopCategory=cat;
     openDialog(
       "町づくりショップ",
-      `<p>所持金 <b>${state.money}両</b> · はじめての正解は、選択で10両・入力で2倍の20両！</p><div class="town-tools"><button data-shopcat="all" class="${cat === "all" ? "active" : ""}">すべて</button><button data-shopcat="building" class="${cat === "building" ? "active" : ""}">建物</button><button data-shopcat="nature" class="${cat === "nature" ? "active" : ""}">自然</button><button data-shopcat="infrastructure" class="${cat === "infrastructure" ? "active" : ""}">道・橋</button><button data-shopcat="resident" class="${cat === "resident" ? "active" : ""}">住民</button></div><div class="shop-grid">${C.items
+      `<p>所持金 <b>${state.money}両</b> · はじめての正解は、選択で10両・入力で2倍の20両！</p><div class="shop-bulk"><label for="shopQuantity">まとめ買いの数量 <input id="shopQuantity" type="number" min="1" max="100" step="1" inputmode="numeric" value="${validQuantity(shopQuantity)?shopQuantity:1}"></label><div><button data-shop-quantity="1">1個</button><button data-shop-quantity="5">5個</button><button data-shop-quantity="10">10個</button></div><p id="shopQuantityHint">建物は1つずつ配置した分だけ支払い。住民はまとめて町に迎えます。</p></div><div class="town-tools"><button data-shopcat="all" class="${cat === "all" ? "active" : ""}">すべて</button><button data-shopcat="building" class="${cat === "building" ? "active" : ""}">建物</button><button data-shopcat="nature" class="${cat === "nature" ? "active" : ""}">自然</button><button data-shopcat="infrastructure" class="${cat === "infrastructure" ? "active" : ""}">道・橋</button><button data-shopcat="resident" class="${cat === "resident" ? "active" : ""}">住民</button></div><div class="shop-grid">${C.items
         .filter((i) => cat === "all" || cat === i.cat)
         .map(
           (i) =>
-            `<article class="shop-item"><span aria-hidden="true">${i.icon}</span><h3>${i.name}</h3><small>${i.price}両${i.cat !== "resident" ? " · " + i.width + "×" + i.depth + "マス" : ""}</small><button data-buy="${i.id}" ${state.money < i.price ? "disabled" : ""}>${state.money < i.price ? "両が足りない" : i.cat === "resident" ? "町に迎える" : "選んで配置"}</button></article>`,
+            `<article class="shop-item"><span aria-hidden="true">${i.icon}</span><h3>${i.name}</h3><small>1${i.cat==="resident"?"人":"個"} ${i.price}両${i.cat !== "resident" ? " · " + i.width + "×" + i.depth + "マス" : ""}</small><strong data-shop-total="${i.id}"></strong><button data-buy="${i.id}">選んで購入</button></article>`,
         )
         .join("")}</div>`,
     );
+    $("shopQuantity").oninput=updateShopQuantity;
+    updateShopQuantity();
   }
   function renderTown() {
     $("townExtent").textContent = C.town.width + "×" + C.town.height + "マス · " + (C.town.width * C.town.height).toLocaleString("ja-JP") + "マスの町";
@@ -759,23 +776,31 @@
     if (error?.message === "insufficient") { renderStats(); notify("両が足りないよ。残高を確認してね。"); return; }
     $("saveWarning").hidden = false; notify("両の更新ができませんでした。ブラウザの保存設定を確認してね。");
   }
-  function addResident(type="farmer") {
+  function addResident(type="farmer", quantity=1) {
     const residentType=C.items.find(i=>i.cat==="resident" && i.id===type);
     if(!residentType) return;
-    if (walletPurchase) return;
+    if (walletPurchase || !validQuantity(quantity)) return;
     state.money = W.snapshot().balance;
-    if (!residentEngine || state.money < 10) { notify(residentType.name+"を迎えるには10両が必要だよ。"); return; }
-    if (state.residents.length >= 100) { notify("この町の住民は100人までです。"); return; }
+    const cost=residentType.price*quantity;
+    if (!residentEngine || state.money < cost) { notify(residentType.name+"を"+quantity+"人迎えるには"+cost+"両が必要だよ。"); return; }
+    if (state.residents.length+quantity > 100) { notify("この町の住民は100人までです。"); return; }
     residentEngine.sync(state.residents, state.city);
-    const spawn = residentEngine.nearest(Math.floor(C.town.width / 2), Math.floor(C.town.height / 2));
-    if (!spawn) { notify("住民が歩ける空きマスをつくってね。"); return; }
-    const id = crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random();
+    const findSpawns=()=>{
+      residentEngine.sync(state.residents,state.city);
+      const cells=[];
+      for(let y=0;y<C.town.height;y++)for(let x=0;x<C.town.width;x++)if(residentEngine.free(x,y))cells.push({x,y});
+      cells.sort((a,b)=>(Math.abs(a.x-C.town.width/2)+Math.abs(a.y-C.town.height/2))-(Math.abs(b.x-C.town.width/2)+Math.abs(b.y-C.town.height/2)));
+      return cells.slice(0,quantity);
+    };
+    let spawns=findSpawns();
+    if (spawns.length<quantity) { notify("住民が歩ける空きマスをつくってね。"); return; }
     walletPurchase = true;
-    W.buy(10, () => state.residents.length < 100, () => {
+    W.buy(cost, () => {spawns=findSpawns();return state.residents.length+quantity<=100&&spawns.length===quantity;}, () => {
       walletPurchase = false;
-      state.residents.push({ id, type, x: spawn.x, y: spawn.y });
+      const newcomers=spawns.map(spawn=>({id:crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random(),type,x:spawn.x,y:spawn.y}));
+      state.residents.push(...newcomers);
       save(); renderStats(); $("dialog").close(); setView("town");
-      notify(residentType.name+"を迎えたよ！10両 · 暮らしを眺めよう。"); watchResident(id);
+      notify(residentType.name+"を"+quantity+"人迎えたよ！"+cost+"両 · 暮らしを眺めよう。"); watchResident(newcomers[0].id);
     }, error => { walletPurchase = false; walletError(error); });
   }
   function dismissResident(id) {
@@ -845,19 +870,22 @@
     $("residentPause").setAttribute("aria-pressed", String(residentPaused)); startResidentLoop();
   };
   document.addEventListener("visibilitychange", () => { residentLastTime = null; startResidentLoop(); });
-  function startPlacement(type, id = null) {
+  function startPlacement(type, id = null, quantity = 1, batch = null) {
     $("dialog").close();
     setView("town");
     const item = C.items.find((i) => i.id === type),
       b = id && state.city.find((b) => b.id === id);
-    if (!item || (!id && state.money < item.price)) return;
+    state.money=W.snapshot().balance;
+    if (!item || !validQuantity(quantity)) return;
+    if(!id&&state.money<item.price*quantity){notify("残りの購入に必要な両が足りないよ。ショップで数量を選び直してね。");return;}
     const rot = b?.rot || 0;
     const cell = b || C.findPlot(state.city, type, rot);
     if (!cell) { notify("この建物の敷地が入る空き地がないよ。建物を移動して場所を空けてね。"); return; }
-    pending = { type, id, x: cell.x, y: cell.y, rot };
+    pending = { type, id, x: cell.x, y: cell.y, rot, remaining:quantity, total:batch?.total||quantity, placed:batch?.placed||0 };
     $("placement").hidden = false;
     $("placementTitle").textContent =
-      item.name + (id ? "を移動" : "を配置 · " + item.price + "両");
+      item.name + (id ? "を移動" : "を配置 · "+(pending.placed+1)+" / "+pending.total+"個 · " + item.price + "両ずつ");
+    $("placeCancel").textContent=!id&&pending.total>1?"残りの配置をやめる":"キャンセル";
     $("placeX").value = cell.x + 1;
     $("placeY").value = cell.y + 1;
     updatePlacement();
@@ -873,7 +901,7 @@
     const f = C.footprint(pending), valid = C.canPlace(state.city, x, y, pending.id, pending.type, pending.rot);
     $("placeConfirm").disabled = !valid;
     $("placementHint").textContent = valid
-      ? f.width + "×" + f.depth + "マス · 横 " + (x + 1) + " · 縦 " + (y + 1) + " から置きます。"
+      ? f.width + "×" + f.depth + "マス · 横 " + (x + 1) + " · 縦 " + (y + 1) + " から置きます。"+(!pending.id&&pending.total>1?" 残り"+pending.remaining+"個。配置した分だけ支払います。":"")
       : f.width + "×" + f.depth + "マスの敷地が必要だよ。ほかの建物や町の外に重ならない場所を選んでね。";
     if (!$("townGrid").hidden) renderGrid();
     window.dispatchEvent(new CustomEvent("hk-placement", { detail: pending }));
@@ -908,7 +936,11 @@
       W.buy(item.price, () => pending === p && C.canPlace(state.city, p.x, p.y, p.id, p.type, p.rot), () => {
         walletPurchase = false;
         state.city.push({ id: crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random(), type: p.type, x: p.x, y: p.y, rot: p.rot });
-        save(); renderStats(); cancelPlacement(); notify(item.name + "を置いたよ！");
+        save(); renderStats(); cancelPlacement();
+        if(p.remaining>1){
+          startPlacement(p.type,null,p.remaining-1,{total:p.total,placed:p.placed+1});
+          notify(item.name+"を置いたよ！残り"+(p.remaining-1)+"個の場所を選んでね。");
+        }else notify(item.name+"を"+p.total+"個置いたよ！");
       }, error => { walletPurchase = false; walletError(error); });
       return;
     }
@@ -1093,11 +1125,12 @@
       shop(b.dataset.shopcat);
       return;
     }
-    if (C.items.some(i=>i.cat==="resident" && i.id===b.dataset.buy)) { addResident(b.dataset.buy); return; }
+    if(b.dataset.shopQuantity){$("shopQuantity").value=b.dataset.shopQuantity;updateShopQuantity();return;}
+    if (C.items.some(i=>i.cat==="resident" && i.id===b.dataset.buy)) { addResident(b.dataset.buy,shopQuantity); return; }
     if (b.dataset.watchResident) { watchResident(b.dataset.watchResident); return; }
     if (b.dataset.dismissResident) { dismissResident(b.dataset.dismissResident); return; }
     if (b.dataset.buy) {
-      startPlacement(b.dataset.buy);
+      startPlacement(b.dataset.buy,null,shopQuantity);
       return;
     }
     if (b.dataset.cell) {

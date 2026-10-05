@@ -4,10 +4,10 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>両カジノ｜歴史キッズ</title>
   <meta name="description" content="クイズで集めた両で、じゃんけん・欧州式ルーレット・3リールスロット。町と同じ両だけで遊べる歴史キッズのゲームコーナー。">
-  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/casino.css?v=ryo-casino-20261003">
-  <script defer src="./assets/ui/wallet.js?v=ryo-casino-20261003"></script>
-  <script defer src="./assets/ui/casino-rules.js?v=ryo-casino-20261003"></script>
-  <script defer src="./assets/ui/casino.js?v=ryo-casino-20261003"></script>
+  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/casino.css?v=slots-bulk-20261005">
+  <script defer src="./assets/ui/wallet.js?v=slots-bulk-20261005"></script>
+  <script defer src="./assets/ui/casino-rules.js?v=slots-bulk-20261005"></script>
+  <script defer src="./assets/ui/casino.js?v=slots-bulk-20261005"></script>
 </head>
 <body>
   <a class="skip-link" href="#casinoMain">ゲームへ</a>
@@ -21,7 +21,7 @@
     <div class="casino-tabs" role="tablist" aria-label="カジノのゲーム">
       <button id="tab-janken" role="tab" aria-selected="true" aria-controls="panel-janken" data-game="janken"><span>01</span><b>じゃんけん</b><small>勝てば2倍</small></button>
       <button id="tab-roulette" role="tab" aria-selected="false" aria-controls="panel-roulette" data-game="roulette" tabindex="-1"><span>02</span><b>ルーレット</b><small>0〜36の欧州式</small></button>
-      <button id="tab-slots" role="tab" aria-selected="false" aria-controls="panel-slots" data-game="slots" tabindex="-1"><span>03</span><b>スロット</b><small>3リール・1ライン</small></button>
+      <button id="tab-slots" role="tab" aria-selected="false" aria-controls="panel-slots" data-game="slots" tabindex="-1"><span>03</span><b>スロット</b><small>縦・横・斜め8ライン</small></button>
     </div>
     <div class="game-shell">
       <div class="table-area" id="tableArea">
@@ -39,9 +39,11 @@
           <div class="bet-tools"><button id="undoBet">ひとつ戻す</button><button id="clearBets">すべて外す</button><span>置いた両は、回すまで引かれません。</span></div>
         </section>
         <section id="panel-slots" class="casino-panel" role="tabpanel" aria-labelledby="tab-slots" hidden>
-          <div class="slot-machine" id="slotMachine"><div class="slot-marquee"><span class="marquee-lights" aria-hidden="true"></span><small>THREE REELS · ONE LINE</small><h2>黄金の<em>スロット</em></h2><div class="jackpot-label">7 · 7 · 7 <b>250倍</b></div></div><div class="reel-frame"><span class="payline-arrow left" aria-hidden="true">▶</span><div class="reels"><div class="reel-window" aria-label="左リール"><div class="reel-track" id="reel0"></div></div><div class="reel-window" aria-label="中央リール"><div class="reel-track" id="reel1"></div></div><div class="reel-window" aria-label="右リール"><div class="reel-track" id="reel2"></div></div></div><span class="payline-arrow right" aria-hidden="true">◀</span><div class="payline" aria-hidden="true"></div></div><div class="slot-bottom"><span>中央の1ラインで判定</span><div class="slot-handle" aria-hidden="true"><i></i></div><span>777 = 250倍</span></div></div>
-          <p class="stage-caption">中央で同じ絵柄が3つそろうと配当。チェリー2つは掛け金が戻ります。</p>
-          <div class="slot-mini-paytable" aria-label="スロット配当"><span>🍒×3 <b>5倍</b></span><span>🍋×3 <b>10倍</b></span><span>🔔×3 <b>20倍</b></span><span>BAR×3 <b>50倍</b></span><span>7×3 <b>250倍</b></span><span>🍒×2 <b>1倍</b></span></div>
+          <div class="slot-machine" id="slotMachine"><div class="slot-marquee"><span class="marquee-lights" aria-hidden="true"></span><small>NINE SYMBOLS · EIGHT LINES</small><h2>黄金の<em>スロット</em></h2><div class="jackpot-label">7 · 7 · 7 <b>100倍</b></div></div><div class="reel-frame"><div class="reels"><div class="reel-window" aria-label="左リール"><div class="reel-track" id="reel0"></div></div><div class="reel-window" aria-label="中央リール"><div class="reel-track" id="reel1"></div></div><div class="reel-window" aria-label="右リール"><div class="reel-track" id="reel2"></div></div></div><svg id="slotWinLines" class="slot-win-lines" viewBox="0 0 300 270" preserveAspectRatio="none" aria-hidden="true"></svg></div><div class="slot-bottom"><span>縦・横・斜めの8ライン判定</span><div class="slot-handle" aria-hidden="true"><i></i></div><span>1ライン777 = 100倍</span></div></div>
+          <div id="slotBonus" class="slot-bonus" role="status"><span class="bonus-medallion" aria-hidden="true">両</span><div><b id="slotBonusTitle">ボーナスチャンス</b><p id="slotBonusDetail">「両」が画面内に3つ以上で、無料スピン5回＋配当2倍</p></div></div>
+          <div id="slotLineWins" class="slot-line-wins" aria-label="的中したラインと配当"></div>
+          <p class="stage-caption">横3本・縦3本・斜め2本。3つそろったラインの配当をすべて合算！</p>
+          <div class="slot-mini-paytable" aria-label="スロット配当"><span>🍒×3 <b>1倍</b></span><span>🍋×3 <b>2倍</b></span><span>🔔×3 <b>3倍</b></span><span>BAR×3 <b>5倍</b></span><span>7×3 <b>100倍</b></span></div>
         </section>
         <div id="celebration" class="celebration" aria-hidden="true"></div>
         <div id="roundResult" class="round-result" role="status" aria-live="polite"><small id="resultKicker">PLACE YOUR BET</small><h2 id="resultHeadline">両を決めて、準備しよう。</h2><p id="resultDetail">1〜1,000両。払い戻しの倍率には、掛け金も含みます。</p><div id="resultNumbers" class="result-numbers" hidden><div><small>掛け金</small><b id="resultBet">0両</b></div><div><small>払い戻し</small><b id="resultPayout">0両</b></div><div><small>差し引き</small><b id="resultNet">0両</b></div></div></div>

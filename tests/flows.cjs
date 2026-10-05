@@ -41,6 +41,12 @@ const click = (w, selector) => {
   el.click();
   return el;
 };
+test("privacy opens from the footer and contact dialog, closes the overlay and preserves learning records",()=>{
+  const d=create("index.html",["data/dataset.js","assets/ui/core.js","assets/ui/app.js"],{money_v1:"40"}),w=d.window,g=id=>w.document.getElementById(id);w.scrollTo=()=>{};
+  const before=JSON.stringify(w.HK.state);click(w,".page-footer [data-privacy-link]");assert.equal(w.location.hash,"#privacy");assert(!g("view-privacy").hidden);assert(g("eraSection").hidden);assert(g("missionBar").hidden);assert(g("view-learn").hidden);assert.equal(JSON.stringify(w.HK.state),before);
+  click(w,"[data-contact-open]");assert(g("dialog").open);const form=g("dialogBody").querySelector('a[href^="https://docs.google.com/forms/"]');assert(form);assert.equal(form.target,"_blank");
+  click(w,"#dialog [data-privacy-link]");assert(!g("dialog").open);assert(!g("view-privacy").hidden);click(w,'#view-privacy [data-view="learn"]');assert(!g("view-learn").hidden);assert.equal(w.location.hash,"#learn");assert.equal(JSON.stringify(w.HK.state),before);w.close();
+});
 test("strict answer matching, separators and katakana", () => {
   assert(C.answerOK("シユゴ", ["しゆご"]));
   assert(C.answerOK("ジトウ ／ シュゴ", ["しゅご", "じとう"]));

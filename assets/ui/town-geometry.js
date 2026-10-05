@@ -57,10 +57,20 @@ export function createBuilding(type) {
     mesh(new THREE.ConeGeometry(.36, .62, 7), 0x5c7451, 0, .66, 0);
     mesh(new THREE.ConeGeometry(.28, .48, 7), 0x708557, 0, .94, 0);
   } else if (type === "bridge") {
-    for (let i = 0; i < 7; i++) box(.78, .05, .11, 0x9d7850, 0, .13 + .1 * Math.sin(i / 6 * Math.PI), -.36 + i * .12);
+    for (let i = 0; i < 8; i++) {
+      const plank=box(.82, .07, .22, i%2?0xa98459:0x9d7850, 0, .18, -.805 + i * .23);
+      plank.name="bridge-deck";
+    }
     [-.36, .36].forEach((x) => {
-      [-.35, 0, .35].forEach((z) => box(.05, .35, .05, 0x705139, x, .25, z));
-      box(.045, .045, .83, 0x705139, x, .42, 0);
+      [-.86, 0, .86].forEach((z) => box(.065, .42, .065, 0x705139, x, .28, z));
+      box(.06, .06, 1.86, 0x705139, x, .46, 0);
+      box(.04, .04, 1.86, 0x806046, x, .32, 0);
+    });
+  } else if (type === "fence") {
+    [-.87,.87].forEach(z=>box(.17,.88,.17,0x765038,0,.44,z));
+    [.3,.65].forEach(y=>box(.095,.12,1.82,0x98734e,0,y,0));
+    [-.6,-.3,0,.3,.6].forEach((z,i)=>{
+      box(.06,.62,.15,i%2?0xad895e:0x98734e,.03,.4,z);
     });
   } else {
     const castle = type === "castle", temple = type === "temple";
@@ -91,7 +101,7 @@ function createPlot(type, original) {
   const floor = new THREE.Mesh(new THREE.BoxGeometry(item.width - .06, .035, item.depth - .06),
     new THREE.MeshStandardMaterial({ color: type === "field" ? 0x9a9b66 : type === "castle" ? 0xa4a18e : 0xba9e76, roughness: 1 }));
   floor.position.y = .015; floor.receiveShadow = true; floor.userData.townOwned = true; root.add(floor);
-  const model = fitModel(original || createBuilding(type), { width: item.width * .9, depth: item.depth * .9, height: item.height, stretch: true });
+  const model = fitModel(original || createBuilding(type), { width: item.width * .9, depth: item.depth * .9, height: item.height, stretch: type !== "fence" });
   if (local) model.traverse((o) => { if (o.isMesh) o.userData.townOwned = true; });
   model.position.y = .034; root.add(model);
   return root;

@@ -33,18 +33,18 @@ async function main() {
   assert.equal(town.buildings.children.length, 0);
   console.log("PASS deleted buildings cannot reappear after delayed loading");
   let errors = 0;
-  const types = ["house", "shop", "castle", "temple", "tree", "field", "road", "bridge", "school"];
+  const types = ["house", "shop", "castle", "temple", "tree", "field", "road", "bridge", "fence", "school"];
   await syncBuildings(town, types.map((type, i) => ({ id: type, type, x: i * 6, y: 2 })), () => Promise.reject(Error("offline")), () => errors++);
-  assert.equal(errors, 9); assert.equal(town.buildings.children.length, 9);
+  assert.equal(errors, 10); assert.equal(town.buildings.children.length, 10);
   for (const object of town.buildings.children) {
     const size = new THREE.Box3().setFromObject(object).getSize(new THREE.Vector3());
     assert(size.x > .1 && size.y > .01 && size.z > .1);
     const item = global.HKCore.items.find((i) => i.id === object.userData.id);
     assert(size.x <= item.width && size.z <= item.depth && size.y <= item.height + .04);
   }
-  console.log("PASS all nine building types remain visible if GLB loading fails");
+  console.log("PASS all ten building types remain visible if GLB loading fails");
   // Real asset node transforms and accessor bounds exercise model normalization.
-  const assetTypes = { "house.2a9f3.glb":"house", "j8ap2an8eses0ho1p.glb":"shop", "ja76386p2an8esecas6t9le.glb":"castle", "japanese.tem3pl4e1383.glb":"temple", "t6r7e9e.glb":"tree", "f2i342el2d.glb":"field", "w8a9l0k9w7a2y.glb":"road", "b7r89i6d8g9e.glb":"bridge", "s7c7h9o89ol.glb":"school" };
+  const assetTypes = { "house.2a9f3.glb":"house", "j8ap2an8eses0ho1p.glb":"shop", "ja76386p2an8esecas6t9le.glb":"castle", "japanese.tem3pl4e1383.glb":"temple", "t6r7e9e.glb":"tree", "f2i342el2d.glb":"field", "w8a9l0k9w7a2y.glb":"road", "b7r89i6d8g9e.glb":"bridge", "fence_wood.glb":"fence", "s7c7h9o89ol.glb":"school" };
   for (const file of fs.readdirSync(path.join(root, "assets/_m")).filter((p) => p.endsWith(".glb"))) {
     const bytes = fs.readFileSync(path.join(root, "assets/_m", file));
     const gltf = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString());
@@ -73,12 +73,26 @@ async function main() {
     assert(Math.max(size.x, size.z, size.y * .65) <= .86001, file);
     const item=global.HKCore.items.find(i=>i.id===assetTypes[file]);
     assert(item, file);
-    const detailed=fitModel(scene,{width:item.width*.9,depth:item.depth*.9,height:item.height,stretch:true});
+    const detailed=fitModel(scene,{width:item.width*.9,depth:item.depth*.9,height:item.height,stretch:item.id!=="fence"});
     const realBounds=new THREE.Box3().setFromObject(detailed), realSize=realBounds.getSize(new THREE.Vector3());
-    assert(Math.abs(realSize.x-item.width*.9)<1e-5 && Math.abs(realSize.z-item.depth*.9)<1e-5 && Math.abs(realSize.y-item.height)<1e-5,file);
+    if(item.id==="fence"){assert(realSize.x<=item.width*.9+1e-5&&realSize.z<=item.depth*.9+1e-5&&realSize.y<=item.height+1e-5);assert.equal(detailed.scale.x,detailed.scale.y);assert.equal(detailed.scale.x,detailed.scale.z);}
+    else assert(Math.abs(realSize.x-item.width*.9)<1e-5 && Math.abs(realSize.z-item.depth*.9)<1e-5 && Math.abs(realSize.y-item.height)<1e-5,file);
     assert(Math.abs(realBounds.min.y)<1e-5, file);
   }
-  console.log("PASS all nine GLB asset bounds fit their building footprint and rest above ground");
+  console.log("PASS all packaged GLB asset bounds fit their building footprint and rest above ground");
+  const bridge=createBuilding("bridge"), decks=bridge.children.filter(o=>o.name==="bridge-deck");
+  assert.equal(decks.length,8);
+  const tops=decks.map(o=>new THREE.Box3().setFromObject(o).max.y);
+  assert(tops.every(y=>Math.abs(y-tops[0])<1e-6));
+  const bridgeItem=global.HKCore.items.find(i=>i.id==="bridge");assert.deepEqual([bridgeItem.width,bridgeItem.depth],[1,2]);
+  assert(!fs.readFileSync(path.join(root,"assets/ui/town.js"),"utf8").includes('bridge: "b7r89i6d8g9e.glb"'));
+  console.log("PASS all bridge deck planks are level and the old arched model cannot replace them");
+  const fenceBytes=fs.readFileSync(path.join(root,"assets/_m/fence_wood.glb")),jsonLength=fenceBytes.readUInt32LE(12),fenceJSON=JSON.parse(fenceBytes.subarray(20,20+jsonLength));
+  assert.equal(fenceBytes.readUInt32LE(8),fenceBytes.length);assert.equal(fenceJSON.asset.extras.author,"trentspi (https://sketchfab.com/trentspice)");assert(fenceJSON.asset.extras.license.includes("CC-BY-4.0"));
+  const imageView=fenceJSON.bufferViews[fenceJSON.images[0].bufferView];
+  assert.equal(require("node:crypto").createHash("sha256").update(fenceBytes.subarray(28+jsonLength,28+jsonLength+imageView.byteOffset)).digest("hex"),"0af25f36b2e0d5f2237becd453a41e3ac41e8c72ac5e2dc35ac3b14f8501fee8");
+  for(const v of fenceJSON.bufferViews)assert((v.byteOffset||0)+v.byteLength<=fenceJSON.buffers[0].byteLength);
+  console.log("PASS the supplied fence geometry and license survive texture compression");
   const scene = new THREE.Scene();
   const ground = createGround(scene, false);
   assert.equal(ground.name, "town-earth");

@@ -610,6 +610,7 @@
     town: ["LEARN & BUILD", "わたしだけの町をつくろう。"],
     games: ["TIME TO PLAY", "遊びながら、もっと夢中に。"],
     howto: ["HOW TO PLAY", "両をゲットして、自分の町を作ろう。"],
+    privacy: ["PRIVACY POLICY", "プライバシーポリシー"],
     missions: ["DAILY MISSIONS", "今日の挑戦で、町を育てよう。"],
   };
   function setView(v, updateHash = true) {
@@ -627,7 +628,7 @@
     });
     $("pageEyebrow").textContent = labels[v][0];
     $("pageTitle").textContent = labels[v][1];
-    $("eraSection").hidden = ["town", "games", "howto", "missions"].includes(v);
+    $("eraSection").hidden = ["town", "games", "howto", "missions", "privacy"].includes(v);
     $("missionBar").hidden=v!=="learn";
     if(v==="missions") renderActivities();
     if (v === "book") renderBook();
@@ -644,7 +645,7 @@
       }, 1500);
     }
     if (updateHash) history.replaceState(null, "", "#" + v);
-    if (previousView !== v && (previousView === "howto" || v === "howto")) window.scrollTo(0, 0);
+    if (previousView !== v && (["howto","privacy"].includes(previousView) || ["howto","privacy"].includes(v))) window.scrollTo(0, 0);
   }
   function setEra(era) {
     if (!ds[era]) return;
@@ -1066,8 +1067,10 @@
       target?.scrollIntoView({behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start"});
       return;
     }
+    if(e.target.closest("[data-privacy-link]")){e.preventDefault();$("dialog").close();setView("privacy");return;}
     const b = e.target.closest("button");
     if (!b) return;
+    if(b.hasAttribute("data-contact-open")){$("contactBtn").click();return;}
     if(b.dataset.startMission) {startMission(b.dataset.startMission);return;}
     if(b.dataset.claimMission) {b.disabled=true;recordActivity("claim",{id:b.dataset.claimMission,day:b.dataset.missionDate});return;}
     if(b.dataset.eventWatch) {$("town3d").click();window.dispatchEvent(new CustomEvent("hk-event-watch"));$("townCanvas").scrollIntoView({behavior:"smooth",block:"center"});return;}
@@ -1274,7 +1277,7 @@
   $("contactBtn").onclick = () =>
     openDialog(
       "お問い合わせ",
-      '<p>ご意見・ご要望・誤字や歴史内容のご指摘は、こちらのフォームからお知らせください。</p><div class="dialog-actions"><a href="https://docs.google.com/forms/d/e/1FAIpQLSdHvqKAszs5j860tNIeesVlE83pMpP_qP9QrNLuJJaZ9g3h5Q/viewform" target="_blank" rel="noopener">お問い合わせフォームを開く</a></div>',
+      '<p>ご意見・ご要望・誤字や歴史内容のご指摘は、こちらのフォームからお知らせください。</p><div class="dialog-actions"><a href="https://docs.google.com/forms/d/e/1FAIpQLSdHvqKAszs5j860tNIeesVlE83pMpP_qP9QrNLuJJaZ9g3h5Q/viewform" target="_blank" rel="noopener">お問い合わせフォームを開く</a></div><p class="contact-privacy-note">送信する情報の扱いについては、<a href="#privacy" data-privacy-link>プライバシーポリシー</a>をご確認ください。</p>',
     );
   $("dialogBody").addEventListener("click", (e) => {
     const id = e.target.id;

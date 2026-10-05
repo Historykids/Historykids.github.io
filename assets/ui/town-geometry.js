@@ -1,10 +1,24 @@
 import * as THREE from "three";
 const C = globalThis.HKCore;
 
+// These source models include a yaw in their mesh/node transforms. Correct it
+// before fitting so their long edge follows the plot's depth axis.
+export function alignLinearModel(original, type) {
+  const yaw = { fence: -21.3651286, bridge: 86.7501592 }[type];
+  if (yaw === undefined) return original;
+  const aligned = new THREE.Group();
+  aligned.add(original.clone(true));
+  aligned.rotation.y = yaw * Math.PI / 180;
+  aligned.userData.preciseBounds = true;
+  return aligned;
+}
+
 export function fitModel(original, footprint) {
   const offset = new THREE.Group();
   offset.add(original.clone(true));
-  const box = new THREE.Box3().setFromObject(offset);
+  // Rotating an axis-aligned source bounding box would include empty corners.
+  // Use the actual vertices for the aligned fence and bridge instead.
+  const box = new THREE.Box3().setFromObject(offset, original.userData.preciseBounds === true);
   const size = box.getSize(new THREE.Vector3());
   if (box.isEmpty() || !Number.isFinite(size.length())) throw new Error("Empty model");
   const center = box.getCenter(new THREE.Vector3());
@@ -57,14 +71,20 @@ export function createBuilding(type) {
     mesh(new THREE.ConeGeometry(.36, .62, 7), 0x5c7451, 0, .66, 0);
     mesh(new THREE.ConeGeometry(.28, .48, 7), 0x708557, 0, .94, 0);
   } else if (type === "bridge") {
-    for (let i = 0; i < 8; i++) {
-      const plank=box(.82, .07, .22, i%2?0xa98459:0x9d7850, 0, .18, -.805 + i * .23);
+    const deckHeight = z => .16 + .33 * (1 - (z / 1.36) ** 2);
+    for (let i = 0; i < 12; i++) {
+      const z = -1.265 + i * .23;
+      const plank=box(.82, .07, .22, i%2?0xa98459:0x9d7850, 0, deckHeight(z), z);
       plank.name="bridge-deck";
+      plank.rotation.x = Math.atan(.66 * z / (1.36 ** 2));
     }
     [-.36, .36].forEach((x) => {
-      [-.86, 0, .86].forEach((z) => box(.065, .42, .065, 0x705139, x, .28, z));
-      box(.06, .06, 1.86, 0x705139, x, .46, 0);
-      box(.04, .04, 1.86, 0x806046, x, .32, 0);
+      [-1.27, 0, 1.27].forEach(z => box(.065, .4, .065, 0x705139, x, deckHeight(z) + .21, z));
+      for (let i = 0; i < 12; i++) {
+        const z = -1.265 + i * .23;
+        const rail = box(.06, .06, .24, 0x705139, x, deckHeight(z) + .43, z);
+        rail.rotation.x = Math.atan(.66 * z / (1.36 ** 2));
+      }
     });
   } else if (type === "fence") {
     [-.87,.87].forEach(z=>box(.17,.88,.17,0x765038,0,.44,z));

@@ -611,6 +611,7 @@
     games: ["TIME TO PLAY", "遊びながら、もっと夢中に。"],
     howto: ["HOW TO PLAY", "両をゲットして、自分の町を作ろう。"],
     privacy: ["PRIVACY POLICY", "プライバシーポリシー"],
+    operator: ["SITE INFORMATION", "運営者情報"],
     missions: ["DAILY MISSIONS", "今日の挑戦で、町を育てよう。"],
   };
   function setView(v, updateHash = true) {
@@ -628,7 +629,7 @@
     });
     $("pageEyebrow").textContent = labels[v][0];
     $("pageTitle").textContent = labels[v][1];
-    $("eraSection").hidden = ["town", "games", "howto", "missions", "privacy"].includes(v);
+    $("eraSection").hidden = ["town", "games", "howto", "missions", "privacy", "operator"].includes(v);
     $("missionBar").hidden=v!=="learn";
     if(v==="missions") renderActivities();
     if (v === "book") renderBook();
@@ -645,7 +646,7 @@
       }, 1500);
     }
     if (updateHash) history.replaceState(null, "", "#" + v);
-    if (previousView !== v && (["howto","privacy"].includes(previousView) || ["howto","privacy"].includes(v))) window.scrollTo(0, 0);
+    if (previousView !== v && (["howto","privacy","operator"].includes(previousView) || ["howto","privacy","operator"].includes(v))) window.scrollTo(0, 0);
   }
   function setEra(era) {
     if (!ds[era]) return;
@@ -1068,6 +1069,7 @@
       return;
     }
     if(e.target.closest("[data-privacy-link]")){e.preventDefault();$("dialog").close();setView("privacy");return;}
+    if(e.target.closest("[data-operator-link]")){e.preventDefault();$("dialog").close();setView("operator");return;}
     const b = e.target.closest("button");
     if (!b) return;
     if(b.hasAttribute("data-contact-open")){$("contactBtn").click();return;}
@@ -1269,11 +1271,7 @@
   };
   $("settingsBtn").onclick = settings;
   $("mobileSettings").onclick = settings;
-  $("aboutBtn").onclick = () =>
-    openDialog(
-      "歴史キッズについて",
-      '<div class="dialog-body-text"><img class="about-image" src="./かわいい青いクジラ.png" alt="サイト管理人のクジラのアイコン"><h3>サイト管理人：しろながす</h3><p>クイズ・年表・カードを通じて、子どもたちが歴史に親しめるサイトを目指して開発・運営しています。</p><p>ひらがなでの回答やふりがなに対応。小学生から高校生まで、自分のペースで楽しめます。</p><p>年号や時代の区切りには複数の考え方がある場合があります。学校で使う教科書とあわせて学んでください。</p></div>',
-    );
+  $("aboutBtn").onclick = () => setView("operator");
   $("contactBtn").onclick = () =>
     openDialog(
       "お問い合わせ",

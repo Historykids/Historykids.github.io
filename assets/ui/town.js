@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "../vendor/OrbitControls.js";
 import { GLTFLoader } from "../vendor/GLTFLoader.js";
-import { fitModel, createBuilding, createGround, groundGridOpacity, syncBuildings } from "./town-geometry.js?v=fence-bridge-20261005";
+import { fitModel, alignLinearModel, createBuilding, createGround, groundGridOpacity, syncBuildings } from "./town-geometry.js?v=aligned-bridge-20261005";
 import { createFarmerView } from "./farmer-3d.js?v=missions-20261005";
 import { createLandscape } from "./town-landscape.js?v=mountains-detail-20261003";
 import { SoftwareTownRenderer } from "./town-software-renderer.js?v=mountains-detail-20261003";
@@ -15,6 +15,7 @@ const urls = {
   tree: "t6r7e9e.glb",
   field: "f2i342el2d.glb",
   road: "w8a9l0k9w7a2y.glb",
+  bridge: "b7r89i6d8g9e.glb",
   fence: "fence_wood.glb",
   school: "s7c7h9o89ol.glb",
 };
@@ -27,12 +28,10 @@ let town = null,
   failedTypes = new Set();
 function loadModel(type) {
   if (!cache.has(type)) {
-    // The old arched bridge must not replace the new straight, level deck.
-    if(type==="bridge") {cache.set(type,Promise.resolve(createBuilding("bridge")));return cache.get(type);}
     const url = new URL("../_m/" + urls[type], import.meta.url);
     cache.set(
       type,
-      loader.loadAsync(url.href).then((g) => g.scene),
+      loader.loadAsync(url.href).then((g) => alignLinearModel(g.scene, type)),
     );
   }
   return cache.get(type);

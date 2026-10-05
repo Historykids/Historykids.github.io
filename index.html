@@ -29,19 +29,19 @@
       property="og:image"
       content="https://historykids.github.io/favicon-512x512.png"
     />
-    <link rel="stylesheet" href="./assets/ui/app.css?v=fence-privacy-20261005" />
+    <link rel="stylesheet" href="./assets/ui/app.css?v=operator-20261005" />
     <link rel="stylesheet" href="./assets/ui/howto.css?v=code-reward-20261005" />
     <script type="importmap">
       { "imports": { "three": "./assets/vendor/three.module.js" } }
     </script>
     <script defer src="./data/dataset.js"></script><script defer src="./data/ancient.js?v=ancient-20261002"></script>
-    <script defer src="./assets/ui/core.js?v=fence-bridge-20261005"></script>
+    <script defer src="./assets/ui/core.js?v=aligned-bridge-20261005"></script>
     <script defer src="./assets/ui/activities.js?v=town-events-20261005"></script>
     <script defer src="./assets/ui/town-event-layout.js?v=town-events-20261005"></script>
     <script defer src="./assets/ui/residents.js?v=town-events-20261005"></script>
     <script defer src="./assets/ui/wallet.js?v=slots-bulk-20261005"></script>
-    <script defer src="./assets/ui/app.js?v=fence-privacy-20261005"></script>
-    <script type="module" src="./assets/ui/town.js?v=fence-bridge-20261005"></script>
+    <script defer src="./assets/ui/app.js?v=operator-20261005"></script>
+    <script type="module" src="./assets/ui/town.js?v=aligned-bridge-20261005"></script>
   </head>
   <body>
     <a class="skip" href="#main">学習画面へ</a>
@@ -72,7 +72,7 @@
           学んだ記録は<br />このブラウザに保存されるよ。
         </div>
         <button class="text-button" id="settingsBtn">記録・設定</button
-        ><button class="text-button" id="aboutBtn">歴史キッズについて</button
+        ><button class="text-button" id="aboutBtn">運営者情報</button
         ><a href="./Credits.html">素材のクレジット</a>
       </div>
     </aside>
@@ -368,6 +368,16 @@
 <section id="guide-save" class="guide-section"><span class="section-label">08 / KEEP YOUR PROGRESS</span><h2>集めた記録を、大切に。</h2><p>カード、両、町、ゲームの自己ベストは、同じ端末・同じブラウザに保存されます。ブラウザのデータを消すと記録も消えるので注意してね。</p><ol><li>学習画面の「記録・設定」を開く。</li><li>書き出しでバックアップファイルを保存する。</li><li>別の端末では読み込みで保存したファイルを選ぶ。</li></ol><div class="guide-tip">街づくりの両は、学習クイズの初めての正解で集めます。早押しやポーカーの得点・チップは両にはなりません。両カジノだけは、町と同じ両を掛け金・払い戻しに使います。街を大きくしたいときは「クイズで学ぶ」に戻ろう。</div><a class="link-pill" href="./">学習画面に戻る →</a></section><section id="guide-casino" class="guide-section"><span class="section-label">09 / RYO CASINO</span><h2>両だけで、運だめし。</h2><p>「ゲームで遊ぶ」の両じゃんけん・両ルーレット・両スロットから遊べます。1回の掛け金は整数で1〜1,000両、町のショップと同じ所持金から引かれます。現金や別のチップは使いません。</p><ol><li><b>両じゃんけん。</b>手と掛け金を選んで勝負。勝つと掛け金の2倍、負けは0、あいこは掛け金を返します。</li><li><b>両ルーレット。</b>両を決めて盤面の数字や赤黒などへ置き、「回す」を押そう。数字1点は36倍、赤黒・奇偶・大小は2倍、12個の組は3倍。0は赤黒や奇偶には入りません。</li><li><b>両スロット。</b>掛け金を決めてスピン。縦・横・斜めの8ラインで同じ絵柄が3つそろうと配当を合算。「両」が画面内に3つ以上で、無料スピン5回・配当2倍のボーナス発動！台の配当表で倍率を確認しよう。</li></ol><div class="guide-tip">倍率は掛け金を含む払い戻しです。例：10両を賭けて2倍なら20両が戻り、差し引きは＋10両。「音 ON/OFF」「演出を短く」も選べます。</div><a class="link-pill" href="./casino.html">両カジノへ →</a></section><footer class="guide-footer">クイズで両をゲット。自分の街を、少しずつ。歴史キッズ。</footer><div class="guide-code-entry"><button id="redeemCodeBtn" type="button" aria-haspopup="dialog">コードを入力</button></div>
         </section>
 
+        <section id="view-operator" class="view operator-page" hidden aria-label="運営者情報">
+          <div class="operator-intro"><h2>歴史キッズの運営について</h2><p>歴史キッズは、日本史の学習を支援するウェブサイトです。歴史クイズ、年表、人物・用語のカード、町づくりを通じて、歴史に継続して親しめる学習環境を提供しています。</p></div>
+          <section class="operator-card" aria-labelledby="operator-details-title"><h2 id="operator-details-title">基本情報</h2><dl class="operator-details"><div><dt>サイト名称</dt><dd>歴史キッズ</dd></div><div><dt>運営者</dt><dd>しろながす（ハンドルネーム）</dd></div><div><dt>サイトURL</dt><dd><a href="https://historykids.github.io/">https://historykids.github.io/</a></dd></div><div><dt>主な提供内容</dt><dd>日本史の学習クイズ、年表、カード図鑑、町づくり、歴史人物とのAI会話、各種ゲーム</dd></div><div><dt>お問い合わせ窓口</dt><dd><button class="operator-contact" data-contact-open>お問い合わせフォームの案内を開く</button></dd></div></dl></section>
+          <section class="operator-card"><h2>運営目的・学習内容</h2><p>歴史の出来事や人物への関心を高め、学習を続けるきっかけを提供することを目的としています。ふりがなやひらがなでの回答に対応し、利用者が自分のペースで学習できるよう設計しています。</p><p>年号、時代の区分、歴史上の出来事の解釈には、資料や教科書によって違いが生じる場合があります。学校の授業や試験の学習では、使用している教科書・教材も併せてご確認ください。</p></section>
+          <section class="operator-card"><h2>情報の確認・訂正</h2><p>掲載内容の誤り、不具合、改善のご要望は、お問い合わせフォームで受け付けています。内容を確認のうえ、必要に応じて訂正・更新を行います。ご連絡の際は、対象のページ、問題文、発生した操作などをご記載ください。</p></section>
+          <section class="operator-card"><h2>著作権・利用素材</h2><p>本サイトでは、外部の3Dモデルなどを各素材の利用条件に従って使用しています。素材の作者、配布元、ライセンス、変更内容は<a href="./Credits.html">クレジットページ</a>に掲載しています。外部素材の権利は、それぞれの権利者に帰属します。</p></section>
+          <section class="operator-card"><h2>個人情報・広告について</h2><p>学習記録や外部サービスへ送信する情報の取り扱いは、<a href="#privacy" data-privacy-link>プライバシーポリシー</a>をご確認ください。本サイトにはアフィリエイトリンクがあり、該当箇所に広告であることを表示しています。</p><div class="dialog-actions"><button data-contact-open class="primary">お問い合わせ</button><button data-view="learn">学習画面へ戻る</button></div></section>
+          <p class="operator-date">更新日：2026年10月5日</p>
+        </section>
+
         <section id="view-privacy" class="view privacy-page" hidden aria-label="プライバシーポリシー">
           <div class="privacy-intro"><span class="section-label">YOUR DATA &amp; YOUR CHOICES</span><h2>どこに、何が保存されるの？</h2><p>歴史キッズでは、学習や町づくりの記録をこのブラウザに保存します。ランキングの登録、偉人AI、オンライン対戦、お問い合わせでは、必要な情報を外部サービスへ送ります。</p><p class="privacy-date">運営：歴史キッズ · 制定・更新日：2026年10月5日</p></div>
           <section class="privacy-card"><h2>1. 学習・町・ゲームの記録</h2><p>正解した問題、カード、両、建物、住民、ミッション、町イベント、ゲームの自己ベスト、スロットのボーナスなどをブラウザの保存領域（localStorage）に記録します。続きから遊ぶための保存で、これらの学習・町の記録を自動でサーバーへ同期する仕組みはありません。</p><p>「記録・設定」からバックアップを書き出せます。記録のリセットやブラウザのサイトデータ削除で端末内の記録を消せます。先にバックアップを取り、保存したファイルも自分で管理してください。端末内の削除だけでは、登録済みの公開ランキングやお問い合わせ内容は消えません。</p></section>
@@ -382,7 +392,8 @@
           <span>歴史キッズ — 1問ずつ、歴史がわかる。</span
           ><button id="mobileSettings" class="text-button">記録・設定</button>
           <button id="contactBtn" class="text-button">お問い合わせ</button
-          ><a href="#privacy" data-privacy-link>プライバシーポリシー</a>
+          ><a href="#operator" data-operator-link>運営者情報</a>
+          <a href="#privacy" data-privacy-link>プライバシーポリシー</a>
           <a href="./Credits.html">クレジット</a>
         </footer>
         <aside class="promo">

@@ -8,7 +8,7 @@ async function main() {
   const threeURL = pathToFileURL(path.join(root, "assets/vendor/three.module.js")).href;
   const THREE = await import(threeURL);
   const source = fs.readFileSync(path.join(root, "assets/ui/town-geometry.js"), "utf8").replace('from "three"', 'from "' + threeURL + '"');
-  const { fitModel, createBuilding, createGround, groundGridOpacity, syncBuildings } = await import("data:text/javascript;base64," + Buffer.from(source).toString("base64"));
+  const { fitModel, alignLinearModel, createBuilding, createGround, groundGridOpacity, syncBuildings } = await import("data:text/javascript;base64," + Buffer.from(source).toString("base64"));
   const town = { buildings: new THREE.Group(), render() {} };
   let resolve;
   const model = new Promise((r) => { resolve = r; });
@@ -54,8 +54,17 @@ async function main() {
         const a = gltf.accessors[primitive.attributes.POSITION];
         const min = new THREE.Vector3().fromArray(a.min), max = new THREE.Vector3().fromArray(a.max);
         const size = max.clone().sub(min), center = max.clone().add(min).multiplyScalar(.5);
-        const mesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z));
-        mesh.position.copy(center); group.add(mesh);
+        let geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+        const linear = ["bridge", "fence"].includes(assetTypes[file]);
+        if (linear) {
+          assert.equal(a.componentType,5126);
+          const view=gltf.bufferViews[a.bufferView], positions=[];
+          const start=28+bytes.readUInt32LE(12)+(view.byteOffset||0)+(a.byteOffset||0);
+          for(let i=0;i<a.count;i++)for(let axis=0;axis<3;axis++)positions.push(bytes.readFloatLE(start+i*(view.byteStride||12)+axis*4));
+          geometry=new THREE.BufferGeometry();geometry.setAttribute("position",new THREE.Float32BufferAttribute(positions,3));
+        }
+        const mesh = new THREE.Mesh(geometry);
+        if(!linear)mesh.position.copy(center); group.add(mesh);
       }
       if (node.matrix) { group.matrix.fromArray(node.matrix); group.matrix.decompose(group.position, group.quaternion, group.scale); }
       if (node.translation) group.position.fromArray(node.translation);
@@ -73,20 +82,28 @@ async function main() {
     assert(Math.max(size.x, size.z, size.y * .65) <= .86001, file);
     const item=global.HKCore.items.find(i=>i.id===assetTypes[file]);
     assert(item, file);
-    const detailed=fitModel(scene,{width:item.width*.9,depth:item.depth*.9,height:item.height,stretch:item.id!=="fence"});
-    const realBounds=new THREE.Box3().setFromObject(detailed), realSize=realBounds.getSize(new THREE.Vector3());
-    if(item.id==="fence"){assert(realSize.x<=item.width*.9+1e-5&&realSize.z<=item.depth*.9+1e-5&&realSize.y<=item.height+1e-5);assert.equal(detailed.scale.x,detailed.scale.y);assert.equal(detailed.scale.x,detailed.scale.z);}
+    const aligned=alignLinearModel(scene,item.id);
+    const detailed=fitModel(aligned,{width:item.width*.9,depth:item.depth*.9,height:item.height,stretch:item.id!=="fence"});
+    const realBounds=new THREE.Box3().setFromObject(detailed,true), realSize=realBounds.getSize(new THREE.Vector3());
+    if(item.id==="fence"){assert(realSize.x<.11&&Math.abs(realSize.z-item.depth*.9)<1e-5&&realSize.y<=item.height+1e-5);assert.equal(detailed.scale.x,detailed.scale.y);assert.equal(detailed.scale.x,detailed.scale.z);}
     else assert(Math.abs(realSize.x-item.width*.9)<1e-5 && Math.abs(realSize.z-item.depth*.9)<1e-5 && Math.abs(realSize.y-item.height)<1e-5,file);
     assert(Math.abs(realBounds.min.y)<1e-5, file);
+    if(["bridge","fence"].includes(item.id)){
+      detailed.updateMatrixWorld(true);const points=[];
+      detailed.traverse(o=>{if(o.isMesh){const p=o.geometry.attributes.position;for(let i=0;i<p.count;i++)points.push(new THREE.Vector3().fromBufferAttribute(p,i).applyMatrix4(o.matrixWorld));}});
+      const mx=points.reduce((s,p)=>s+p.x,0)/points.length,mz=points.reduce((s,p)=>s+p.z,0)/points.length;
+      let xx=0,zz=0,xz=0;for(const p of points){xx+=(p.x-mx)**2;zz+=(p.z-mz)**2;xz+=(p.x-mx)*(p.z-mz);}
+      assert(Math.abs(xz/Math.sqrt(xx*zz))<.025,item.id+" must follow the grid axis");
+    }
   }
   console.log("PASS all packaged GLB asset bounds fit their building footprint and rest above ground");
   const bridge=createBuilding("bridge"), decks=bridge.children.filter(o=>o.name==="bridge-deck");
-  assert.equal(decks.length,8);
+  assert.equal(decks.length,12);
   const tops=decks.map(o=>new THREE.Box3().setFromObject(o).max.y);
-  assert(tops.every(y=>Math.abs(y-tops[0])<1e-6));
-  const bridgeItem=global.HKCore.items.find(i=>i.id==="bridge");assert.deepEqual([bridgeItem.width,bridgeItem.depth],[1,2]);
-  assert(!fs.readFileSync(path.join(root,"assets/ui/town.js"),"utf8").includes('bridge: "b7r89i6d8g9e.glb"'));
-  console.log("PASS all bridge deck planks are level and the old arched model cannot replace them");
+  assert(tops[5]>tops[0]+.2&&Math.abs(tops[0]-tops[11])<1e-6);
+  const bridgeItem=global.HKCore.items.find(i=>i.id==="bridge");assert.deepEqual([bridgeItem.width,bridgeItem.depth],[1,3]);
+  assert(fs.readFileSync(path.join(root,"assets/ui/town.js"),"utf8").includes('bridge: "b7r89i6d8g9e.glb"'));
+  console.log("PASS the three-cell bridge uses the original GLB and both linear models align to the grid");
   const fenceBytes=fs.readFileSync(path.join(root,"assets/_m/fence_wood.glb")),jsonLength=fenceBytes.readUInt32LE(12),fenceJSON=JSON.parse(fenceBytes.subarray(20,20+jsonLength));
   assert.equal(fenceBytes.readUInt32LE(8),fenceBytes.length);assert.equal(fenceJSON.asset.extras.author,"trentspi (https://sketchfab.com/trentspice)");assert(fenceJSON.asset.extras.license.includes("CC-BY-4.0"));
   const imageView=fenceJSON.bufferViews[fenceJSON.images[0].bufferView];

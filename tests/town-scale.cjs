@@ -31,6 +31,12 @@ function page(seed = {}) {
   assert(C.canPlace([castle], 2, 5, null, "shop", 90));
   console.log("PASS entire footprints collide and rotated buildings fit town boundaries");
 
+  const enlargedBridge=[{id:"bridge",type:"bridge",x:12,y:12,rot:0},{id:"neighbor",type:"tree",x:12,y:14,rot:0},{id:"edge-bridge",type:"bridge",x:59,y:38,rot:0}];
+  const resized=C.arrangeCity(enlargedBridge);checkCity(resized.city,resized.layout);
+  assert.deepEqual(resized.city.map(b=>b.id),enlargedBridge.map(b=>b.id));assert.equal(resized.city[0].x,12);assert.equal(resized.city[0].y,12);assert.equal(C.occupiedCells(resized.city[0]).length,3);assert.equal(C.occupiedCells(resized.city[2]).length,3);
+  assert(!C.canPlace([resized.city[0]],12,14,null,"tree",0));assert.equal(C.occupiedCells({type:"bridge",rot:90,x:0,y:0}).length,3);
+  console.log("PASS expanding saved bridges preserves all buildings and resolves edge or neighbor overlaps");
+
   const dense = Array.from({ length: 540 }, (_, i) => ({ id: "old-" + i, type: "castle", x: i % 30, y: Math.floor(i / 30), rot: i % 2 ? 90 : 0 }));
   const migrated = C.arrangeCity(dense, { legacy: true });
   assert.equal(migrated.city.length, dense.length);
@@ -102,7 +108,7 @@ function page(seed = {}) {
     all.click(`#dialog [data-move="${b.id}"]`);all.w.HK.setCell(x+7,y);all.click("#placeConfirm");assert.equal(b.x,x+7);
     checkCity(all.w.HK.state.city,all.w.HKCore.town);
   }
-  assert.equal(all.w.HK.state.city.length,10);assert.equal(all.w.document.querySelectorAll(".grid-cell.occupied").length,83);
+  assert.equal(all.w.HK.state.city.length,10);assert.equal(all.w.document.querySelectorAll(".grid-cell.occupied").length,84);
   console.log("PASS every building type occupies, rotates, displays and moves its complete footprint");
   all.w.close();
   p.w.close(); restored.w.close(); q.w.close();

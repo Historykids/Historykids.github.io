@@ -47,6 +47,13 @@ test("privacy opens from the footer and contact dialog, closes the overlay and p
   click(w,"[data-contact-open]");assert(g("dialog").open);const form=g("dialogBody").querySelector('a[href^="https://docs.google.com/forms/"]');assert(form);assert.equal(form.target,"_blank");
   click(w,"#dialog [data-privacy-link]");assert(!g("dialog").open);assert(!g("view-privacy").hidden);click(w,'#view-privacy [data-view="learn"]');assert(!g("view-learn").hidden);assert.equal(w.location.hash,"#learn");assert.equal(JSON.stringify(w.HK.state),before);w.close();
 });
+test("operator information opens from both menus and the footer without changing progress",()=>{
+  const d=create("index.html",["data/dataset.js","assets/ui/core.js","assets/ui/app.js"],{money_v1:"40"}),w=d.window,g=id=>w.document.getElementById(id);w.scrollTo=()=>{};
+  const before=JSON.stringify(w.HK.state);assert.equal(g("aboutBtn").textContent,"運営者情報");click(w,"#aboutBtn");assert.equal(w.location.hash,"#operator");assert(!g("view-operator").hidden);assert(g("eraSection").hidden);assert(g("missionBar").hidden);assert(!g("dialog").open);
+  assert(g("view-operator").textContent.includes("しろながす（ハンドルネーム）"));assert(!g("view-operator").querySelector("img"));
+  click(w,"#view-operator [data-contact-open]");assert(g("dialog").open);click(w,"#dialog [data-privacy-link]");assert(!g("view-privacy").hidden);assert(!g("dialog").open);
+  click(w,".page-footer [data-operator-link]");assert(!g("view-operator").hidden);assert(g("view-privacy").hidden);assert.equal(JSON.stringify(w.HK.state),before);click(w,'#view-operator [data-view="learn"]');assert(!g("view-learn").hidden);w.close();
+});
 test("strict answer matching, separators and katakana", () => {
   assert(C.answerOK("シユゴ", ["しゆご"]));
   assert(C.answerOK("ジトウ ／ シュゴ", ["しゅご", "じとう"]));

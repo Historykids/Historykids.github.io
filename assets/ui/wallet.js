@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const KEY = 'hk_wallet_v2', LIMIT = Number.MAX_SAFE_INTEGER - 1000000;
-  const games = ['janken', 'roulette', 'slots'];
+  const games = ['janken', 'roulette', 'slots', 'bitcoin'];
   const integer = n => Number.isSafeInteger(n) && n >= 0 && n <= LIMIT;
   const uid = () => crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint32Array(4)),n=>n.toString(16).padStart(8,"0")).join("");
   function read() {
@@ -13,6 +13,7 @@
       if (value.pending) {
         const r=value.pending, free=r.game==='slots'&&r.freeSpin===true, basis=free?r.slotStake:r.stake;
         if (!games.includes(r.game) || !integer(r.stake) || (free?r.stake!==0:r.stake<1) || !Number.isSafeInteger(basis) || basis<1 || basis>1000 || !integer(r.payout) || r.payout>basis*(r.game==='slots'?1600:250) || typeof r.id!=='string') throw Error('wallet-invalid');
+        if (r.game === 'bitcoin' && (!window.HKBitcoinRules?.validRound(r.data) || r.payout !== 0)) throw Error('wallet-invalid');
       }
       return value;
     }
@@ -53,7 +54,7 @@
   }
   function begin(game, stake, draw, success, failure) {
     transact(w => {
-      if (!games.includes(game) || !Number.isSafeInteger(stake) || stake < 1 || stake > 1000) throw Error('invalid-bet');
+      if (!games.includes(game) || game === 'bitcoin' || !Number.isSafeInteger(stake) || stake < 1 || stake > 1000) throw Error('invalid-bet');
       if (w.pending) throw Error('pending-round');
       const freeSpin=game==='slots'&&w.slotBonus?.remaining>0, slotStake=freeSpin?w.slotBonus.stake:stake, cost=freeSpin?0:stake;
       if (w.balance < cost) throw Error('insufficient');
@@ -72,6 +73,7 @@
         if (old) return { ...old, already: true };
         throw Error('round-gone');
       }
+      if (w.pending.game === 'bitcoin') throw Error('bitcoin-open');
       const result = { ...w.pending, settledAt: Date.now() };
       w.balance += result.payout; w.pending = null;
       if(result.game==='slots'&&!result.freeSpin&&result.data?.bonusTriggered===true)w.slotBonus={remaining:5,stake:result.slotStake||result.stake};
@@ -79,7 +81,27 @@
       return result;
     }, success, failure);
   }
+  function beginBitcoin(stake, direction, getQuote, success, failure) {
+    transact(w => {
+      const B = window.HKBitcoinRules, quote = getQuote(), now = Date.now();
+      if (!Number.isSafeInteger(stake) || stake < 1 || stake > 1000 || !['up', 'down'].includes(direction)) throw Error('invalid-bet');
+      if (w.pending) throw Error('pending-round');
+      if (!B?.quoteValid(quote, now)) throw Error('price-unavailable');
+      if (w.balance < stake) throw Error('insufficient');
+      const round = { id: uid(), game: 'bitcoin', stake, payout: 0, at: now, data: { direction, startPrice: quote.price, startedAt: now, deadline: now + B.duration } };
+      w.balance -= stake; w.pending = round; return round;
+    }, success, failure);
+  }
+  function finishBitcoin(id, quote, success, failure) {
+    transact(w => {
+      const old = w.history.find(r => r.id === id);
+      if (old) return { ...old, already: true };
+      if (!w.pending || w.pending.id !== id || w.pending.game !== 'bitcoin') throw Error('round-gone');
+      const result = { ...w.pending, ...window.HKBitcoinRules.decide(w.pending.data, w.pending.stake, quote), settledAt: Date.now() };
+      w.balance += result.payout; w.pending = null; w.history = [result, ...w.history].slice(0, 8); return result;
+    }, success, failure);
+  }
   window.addEventListener('storage', e => { if (e.key === KEY || e.key === null) announce(); });
   window.addEventListener('focus', announce);
-  window.HKWallet = { snapshot, adjust, replace, buy, begin, finish, activity };
+  window.HKWallet = { snapshot, adjust, replace, buy, begin, finish, beginBitcoin, finishBitcoin, activity };
 })();

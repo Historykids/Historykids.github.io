@@ -22,14 +22,16 @@ async function test(name,fn){await fn();checks++;console.log('PASS',name);}
   assert.equal(p.w.HK.state.money,180);assert.equal(p.w.HK.state.residents.length,12);assert.equal(p.w.HK.state.city.length,0);assert.equal(JSON.parse(p.w.localStorage.getItem('hk_residents_v1')).length,12);assert.equal(p.w.HKWallet.snapshot().balance,180);
   p.click('#shopBtn');p.quantity(100);assert(p.w.document.querySelector('[data-buy="farmer"]').disabled);p.click('[data-buy="farmer"]');assert.equal(p.w.HK.state.money,180);p.w.close();
  });
- await test('bulk building placement charges per confirmed plot and cancellation keeps all unspent coins',()=>{
-  const p=page(300);p.click('#shopBtn');p.quantity(3);p.click('[data-buy="house"]');assert.equal(p.w.HK.state.money,300);assert.equal(p.w.HK.pending.remaining,3);assert(p.$('placementTitle').textContent.includes('1 / 3個'));
-  p.w.HK.setCell(5,5);p.click('#placeConfirm');assert.equal(p.w.HK.state.money,270);assert.equal(p.w.HK.state.city.length,1);assert.equal(p.w.HK.pending.remaining,2);assert(p.$('placementTitle').textContent.includes('2 / 3個'));
-  p.w.HK.setCell(5,5);assert(p.$('placeConfirm').disabled);p.click('#placeConfirm');assert.equal(p.w.HK.state.money,270);p.click('#placeCancel');assert.equal(p.w.HK.pending,null);assert.equal(p.w.HK.state.money,270);assert.equal(p.w.HK.state.city.length,1);p.w.close();
+ await test('all purchased buildings are previewed and placed in one confirmation above town life',()=>{
+  const p=page(300);p.click('#shopBtn');p.quantity(3);p.click('[data-buy="house"]');assert.equal(p.w.HK.state.money,300);assert.equal(p.w.HK.pending.remaining,3);assert(p.$('placementTitle').textContent.includes('3個まとめて'));
+  assert(p.$('placement').compareDocumentPosition(p.w.document.querySelector('.resident-panel'))&p.w.Node.DOCUMENT_POSITION_FOLLOWING);
+  p.click('#town2d');p.w.HK.setCell(5,5);assert.equal(p.w.document.querySelectorAll('.grid-cell.pending').length,12);
+  p.click('#placeConfirm');assert.equal(p.w.HK.state.money,210);assert.equal(p.w.HK.state.city.length,3);assert.equal(p.w.HK.pending,null);
+  p.click('#shopBtn');p.click('[data-buy="house"]');p.w.HK.setCell(5,5);assert(p.$('placeConfirm').disabled);p.click('#placeConfirm');assert.equal(p.w.HK.state.money,210);p.click('#placeCancel');assert.equal(p.w.HK.state.city.length,3);assert.equal(p.w.HK.state.money,210);p.w.close();
  });
  await test('a complete batch places rotated footprints without overlap and stops after the selected count',()=>{
   const p=page(210);p.click('#shopBtn');p.quantity(3);p.click('[data-buy="temple"]');
-  for(let i=0;i<3;i++){p.w.HK.setCell(5+i*6,10);p.click('#placeRotate');p.click('#placeConfirm');assert.equal(p.w.HK.state.city.length,i+1);}
+  p.w.HK.setCell(5,10);p.click('#placeRotate');p.click('#placeConfirm');assert.equal(p.w.HK.state.city.length,3);
   assert.equal(p.w.HK.state.money,0);assert.equal(p.w.HK.pending,null);for(const b of p.w.HK.state.city){assert.equal(b.rot,90);assert(p.w.HKCore.canPlace(p.w.HK.state.city,b.x,b.y,b.id,b.type,b.rot));}assert.equal(JSON.parse(p.w.localStorage.getItem('city_v1')).length,3);p.w.close();
  });
  await test('a full map rejects a new batch without deducting the selected total',()=>{
@@ -38,7 +40,11 @@ async function test(name,fn){await fn();checks++;console.log('PASS',name);}
  await test('cancelling a batch before its wallet lock executes and repeated confirm clicks cannot double-charge',async()=>{
   let release;const locks={request:(_,fn)=>new Promise((resolve,reject)=>{release=()=>{try{resolve(fn());}catch(e){reject(e);}};})},p=page(100,locks);
   p.click('#shopBtn');p.quantity(3);p.click('[data-buy="tree"]');p.click('#placeConfirm');p.click('#placeConfirm');p.click('#placeCancel');release();await new Promise(setImmediate);assert.equal(p.w.HK.state.money,100);assert.equal(p.w.HK.state.city.length,0);
-  p.click('#shopBtn');p.click('[data-buy="tree"]');p.click('#placeConfirm');p.click('#placeConfirm');release();await new Promise(setImmediate);assert.equal(p.w.HK.state.money,92);assert.equal(p.w.HK.state.city.length,1);assert.equal(p.w.HK.pending.remaining,2);p.w.close();
+  p.click('#shopBtn');p.click('[data-buy="tree"]');p.click('#placeConfirm');p.click('#placeConfirm');release();await new Promise(setImmediate);assert.equal(p.w.HK.state.money,76);assert.equal(p.w.HK.state.city.length,3);assert.equal(p.w.HK.pending,null);p.w.close();
+ });
+ await test('column count, rotations and town boundaries apply to every item in the batch',()=>{
+  const p=page(500);p.click('#shopBtn');p.quantity(5);p.click('[data-buy="fence"]');p.$('placeColumns').value='5';p.$('placeColumns').dispatchEvent(new p.w.Event('input'));p.click('#placeRotate');p.w.HK.setCell(52,5);assert(p.$('placeConfirm').disabled);p.click('#placeConfirm');assert.equal(p.w.HK.state.money,500);assert.equal(p.w.HK.state.city.length,0);
+  p.w.HK.setCell(40,5);p.click('#placeConfirm');assert.equal(p.w.HK.state.money,450);assert.equal(p.w.HK.state.city.length,5);assert.deepEqual(Array.from(p.w.HK.state.city,b=>[b.x,b.y,b.rot]),[[40,5,90],[42,5,90],[44,5,90],[46,5,90],[48,5,90]]);p.w.close();
  });
  console.log(`\n${checks} bulk shop checks passed.`);
 })().catch(e=>{console.error(e);process.exitCode=1;});

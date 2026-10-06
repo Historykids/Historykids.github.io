@@ -117,6 +117,31 @@
       return x < b.x + other.width && x + f.width > b.x && y < b.y + other.depth && y + f.depth > b.y;
     });
   }
+  function batchPlots(p) {
+    const count = p.id ? 1 : p.remaining || 1, columns = p.id ? 1 : p.columns || 1, f = footprint(p);
+    if (!Number.isInteger(count) || count < 1 || count > 100 || !Number.isInteger(columns) || columns < 1 || columns > count) return [];
+    return Array.from({ length: count }, (_, i) => ({ type: p.type, rot: p.rot, x: p.x + (i % columns) * f.width, y: p.y + Math.floor(i / columns) * f.depth, ...(p.id ? { id: p.id } : {}) }));
+  }
+  function canPlaceBatch(city, p, layout = town) {
+    const plots = batchPlots(p), occupied = new Set();
+    if (!plots.length) return false;
+    for (const b of city) if (!p.id || b.id !== p.id) for (const c of occupiedCells(b)) occupied.add(c.y * layout.width + c.x);
+    for (const b of plots) {
+      if (!inTown(b.x, b.y, footprint(b), layout)) return false;
+      for (const c of occupiedCells(b)) { const key = c.y * layout.width + c.x; if (occupied.has(key)) return false; occupied.add(key); }
+    }
+    return true;
+  }
+  function findBatchPlot(city, p, layout = town) {
+    const f = footprint(p), width = Math.min(p.columns || 1, p.remaining || 1) * f.width, depth = Math.ceil((p.remaining || 1) / (p.columns || 1)) * f.depth;
+    const preferred = { x: Math.floor((layout.width - width) / 2), y: Math.floor((layout.height - depth) / 2) };
+    let best = null, distance = Infinity;
+    for (let y = 0; y <= layout.height - depth; y++) for (let x = 0; x <= layout.width - width; x++) {
+      const d = Math.abs(x - preferred.x) + Math.abs(y - preferred.y);
+      if (d < distance && canPlaceBatch(city, { ...p, x, y }, layout)) { best = { x, y }; distance = d; }
+    }
+    return best;
+  }
   function findPlot(city, type, rot = 0, preferred = { x: Math.floor(town.width / 2), y: Math.floor(town.height / 2) }, ignore, layout = town) {
     const f = footprint(type, rot), blocked = new Set();
     for (const b of city) if (ignore == null || b.id !== ignore) for (const c of occupiedCells(b)) blocked.add(c.y * layout.width + c.x);
@@ -635,6 +660,9 @@
     containsCell,
     occupiedCells,
     findPlot,
+    batchPlots,
+    canPlaceBatch,
+    findBatchPlot,
     arrangeCity,
     validTownLayout,
     choiceAnswers,

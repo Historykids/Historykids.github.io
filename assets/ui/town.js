@@ -261,24 +261,14 @@ function startEventLoop() {
 }
 function showMarker(p) {
   if (!town) return;
-  if (!marker) {
-    marker = new THREE.Mesh(
-      new THREE.BoxGeometry(0.95, 0.04, 0.95),
-      new THREE.MeshBasicMaterial({
-        color: 0xffa159,
-        transparent: true,
-        opacity: 0.85,
-      }),
-    );
-    town.scene.add(marker);
-  }
-  marker.visible = !!p;
+  if (!marker) { marker = new THREE.Group(); town.scene.add(marker); }
+  for (const child of [...marker.children]) { marker.remove(child); child.geometry.dispose(); child.material.dispose(); }
   if (p) {
-    const f = C.footprint(p);
-    marker.scale.set(f.width, 1, f.depth);
-    marker.position.set(p.x + f.width / 2 - C.town.width / 2, 0.04, p.y + f.depth / 2 - C.town.height / 2);
-    const valid = C.canPlace(window.HK.state.city, p.x, p.y, p.id, p.type, p.rot);
-    marker.material.color.set(valid ? 0xffa159 : 0xc44a42);
+    const valid = C.canPlaceBatch(window.HK.state.city, p);
+    for (const plot of C.batchPlots(p)) {
+      const f = C.footprint(plot), mesh = new THREE.Mesh(new THREE.BoxGeometry(f.width * .95, .04, f.depth * .95), new THREE.MeshBasicMaterial({ color: valid ? 0xffa159 : 0xc44a42, transparent: true, opacity: .85 }));
+      mesh.position.set(plot.x + f.width / 2 - C.town.width / 2, .04, plot.y + f.depth / 2 - C.town.height / 2); marker.add(mesh);
+    }
   }
   town.render();
 }

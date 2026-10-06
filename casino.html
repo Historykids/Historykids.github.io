@@ -13,11 +13,13 @@
 
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>両カジノ｜歴史キッズ</title>
-  <meta name="description" content="クイズで集めた両で、じゃんけん・欧州式ルーレット・3リールスロット。町と同じ両だけで遊べる歴史キッズのゲームコーナー。">
-  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/casino.css?v=slots-clean-result-20261005">
-  <script defer src="./assets/ui/wallet.js?v=slots-bulk-20261005"></script>
+  <meta name="description" content="クイズで集めた両で、じゃんけん・欧州式ルーレット・3リールスロット・ビットコイン価格予想。町と同じ両だけで遊べる歴史キッズのゲームコーナー。">
+  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/casino.css?v=batch-btc-20261006">
+  <script defer src="./assets/ui/bitcoin-rules.js?v=batch-btc-20261006"></script>
+  <script defer src="./assets/ui/wallet.js?v=batch-btc-20261006"></script>
   <script defer src="./assets/ui/casino-rules.js?v=slots-bulk-20261005"></script>
-  <script defer src="./assets/ui/casino.js?v=slots-no-lines-20261005"></script>
+  <script defer src="./assets/ui/bitcoin.js?v=batch-btc-20261006"></script>
+  <script defer src="./assets/ui/casino.js?v=batch-btc-20261006"></script>
 <link rel="canonical" href="https://historykids.github.io/casino.html" />
 </head>
 <body>
@@ -28,11 +30,12 @@
     <div class="wallet-badge"><span aria-hidden="true">◉</span><div><small>あなたの所持金</small><b id="casinoBalance">0</b><span> 両</span></div></div>
   </header>
   <main id="casinoMain" class="casino-main">
-    <div class="casino-intro"><div><p class="eyebrow">EDO RYO CASINO</p><h1>一勝負、<em>運だめし。</em></h1><p>じゃんけん。回る玉。止まるリール。<br>クイズで集めた両で、気になる一台に挑戦しよう。</p></div><div class="intro-rule"><span class="gold-coin" aria-hidden="true">両</span><div><b>賭けるのは、両だけ。</b><p>町づくりと同じゲーム内通貨です。<br>現金・別のチップは使いません。</p></div></div></div>
+    <div class="casino-intro"><div><p class="eyebrow">EDO RYO CASINO</p><h1>一勝負、<em>運だめし。</em></h1><p>じゃんけん。回る玉。止まるリール。動く価格。<br>クイズで集めた両で、気になる一台に挑戦しよう。</p></div><div class="intro-rule"><span class="gold-coin" aria-hidden="true">両</span><div><b>賭けるのは、両だけ。</b><p>町づくりと同じゲーム内通貨です。<br>現金・別のチップは使いません。</p></div></div></div>
     <div class="casino-tabs" role="tablist" aria-label="カジノのゲーム">
       <button id="tab-janken" role="tab" aria-selected="true" aria-controls="panel-janken" data-game="janken"><span>01</span><b>じゃんけん</b><small>勝てば2倍</small></button>
       <button id="tab-roulette" role="tab" aria-selected="false" aria-controls="panel-roulette" data-game="roulette" tabindex="-1"><span>02</span><b>ルーレット</b><small>0〜36の欧州式</small></button>
       <button id="tab-slots" role="tab" aria-selected="false" aria-controls="panel-slots" data-game="slots" tabindex="-1"><span>03</span><b>スロット</b><small>縦・横・斜め8ライン</small></button>
+      <button id="tab-bitcoin" role="tab" aria-selected="false" aria-controls="panel-bitcoin" data-game="bitcoin" tabindex="-1"><span>04</span><b>ビットコイン</b><small>60秒で価格を予想</small></button>
     </div>
     <div class="game-shell">
       <div class="table-area" id="tableArea">
@@ -55,6 +58,15 @@
           <div id="slotLineWins" class="slot-line-wins" aria-label="的中したラインと配当"></div>
           <p class="stage-caption">横3本・縦3本・斜め2本。3つそろったラインの配当をすべて合算！</p>
           <div class="slot-mini-paytable" aria-label="スロット配当"><span>🍒×3 <b>1倍</b></span><span>🍋×3 <b>2倍</b></span><span>🔔×3 <b>3倍</b></span><span>BAR×3 <b>5倍</b></span><span>7×3 <b>100倍</b></span></div>
+        </section>
+        <section id="panel-bitcoin" class="casino-panel bitcoin-panel" role="tabpanel" aria-labelledby="tab-bitcoin" hidden>
+          <div class="btc-heading"><div><span class="btc-symbol" aria-hidden="true">₿</span><div><h2>Bitcoin <small>BTC / USD</small></h2><p>リアルタイムの価格で、60秒の予想勝負。</p></div></div><span id="btcConnection" class="btc-connection">価格を接続中…</span></div>
+          <div class="btc-quote"><strong id="btcPrice">—</strong><span id="btcChange">価格の更新を待っています</span></div>
+          <div class="btc-chart"><canvas id="btcChart" role="img" aria-label="ビットコイン対米ドルの過去30分の価格チャート"></canvas><p id="btcChartEmpty">公開価格データを読み込んでいます…</p></div>
+          <div class="btc-round"><div><small>開始価格</small><b id="btcStartPrice">—</b></div><div><small>判定まで</small><b id="btcCountdown">60秒</b></div><div><small>あなたの予想</small><b id="btcPrediction">値上がり ↑</b></div></div>
+          <div class="btc-direction" role="group" aria-label="60秒後の価格を予想"><button data-direction="up" aria-pressed="true"><span>↗</span><b>上がる</b><small>値上がりを予想</small></button><button data-direction="down" aria-pressed="false"><span>↘</span><b>下がる</b><small>値下がりを予想</small></button></div>
+          <p class="stage-caption">的中で2倍、外れは0。同じ価格なら返金。掛けるのはゲーム内の両だけ。</p>
+          <p class="btc-source">価格：Coinbase Exchange · BTC/USD · 約定ごとに更新<br><span id="btcUpdated">更新時刻 —</span> · 価格を取得できないときは勝負を開始できません。</p>
         </section>
         <div id="celebration" class="celebration" aria-hidden="true"></div>
         <div id="roundResult" class="round-result" role="status" aria-live="polite"><small id="resultKicker">PLACE YOUR BET</small><h2 id="resultHeadline">両を決めて、準備しよう。</h2><p id="resultDetail">1〜1,000両。払い戻しの倍率には、掛け金も含みます。</p><div id="resultNumbers" class="result-numbers" hidden><div><small>掛け金</small><b id="resultBet">0両</b></div><div><small>払い戻し</small><b id="resultPayout">0両</b></div><div><small>差し引き</small><b id="resultNet">0両</b></div></div></div>

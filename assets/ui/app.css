@@ -932,15 +932,13 @@ body.no-ruby rt {
   gap: 8px;
   font-size: 0.75rem;
 }
-.placement-coords input,
-#placeColumnsLabel input {
+.placement-coords input {
   display: block;
   width: 70px;
   padding: 5px;
   border: 1px solid var(--line);
   border-radius: 5px;
 }
-#placeColumnsLabel { font-size: .75rem; }
 .building-list {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

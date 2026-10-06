@@ -264,8 +264,8 @@ function showMarker(p) {
   if (!marker) { marker = new THREE.Group(); town.scene.add(marker); }
   for (const child of [...marker.children]) { marker.remove(child); child.geometry.dispose(); child.material.dispose(); }
   if (p) {
-    const valid = C.canPlaceBatch(window.HK.state.city, p);
-    for (const plot of C.batchPlots(p)) {
+    const valid = C.canPlace(window.HK.state.city, p.x, p.y, p.id, p.type, p.rot);
+    for (const plot of [p]) {
       const f = C.footprint(plot), mesh = new THREE.Mesh(new THREE.BoxGeometry(f.width * .95, .04, f.depth * .95), new THREE.MeshBasicMaterial({ color: valid ? 0xffa159 : 0xc44a42, transparent: true, opacity: .85 }));
       mesh.position.set(plot.x + f.width / 2 - C.town.width / 2, .04, plot.y + f.depth / 2 - C.town.height / 2); marker.add(mesh);
     }

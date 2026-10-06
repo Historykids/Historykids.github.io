@@ -7,6 +7,7 @@
   const esc = v => String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let game='janken', hand=0, chips=[], active=null, starting=false, settling=false, rotation=0, audio=null, sound=false;
   const B = window.HKBitcoinRules;
+  let btcRange = 60;
   let direction = 'up', btcFeed = null, btcState = {quote:null,points:[],live:false}, btcTimer = null;
   const usd = n => '$' + n.toLocaleString('en-US', {minimumFractionDigits:2,maximumFractionDigits:2});
   const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -25,7 +26,7 @@
     } catch { sound=false; $('soundToggle').textContent='音 OFF'; $('soundToggle').setAttribute('aria-pressed','false'); }
   }
   function rulesHTML() {
-    if(game==='bitcoin')return '<p>Coinbase ExchangeのBTC/USDの実際の価格を使います。「上がる」「下がる」と掛ける両を選ぶと、開始価格を記録して60秒後に判定します。</p><table><tr><th>予想的中</th><td>2倍</td></tr><tr><th>予想が外れる</th><td>0両</td></tr><tr><th>同じ価格</th><td>掛け金を返す</td></tr></table><p>60秒後、最初に取得できた約定価格（15秒以内）で判定します。判定価格を取得できなかった場合は全額返金。途中でページを閉じても掛け金は二重に引かれず、戻ると勝負を復元します。判定時刻を過ぎて15秒以上経った場合は返金します。過去30分の線は1分足の終値とリアルタイムの価格です。</p><p>ゲーム内の両を使った価格予想です。ビットコインの購入・売却・換金はできません。</p>';
+    if(game==='bitcoin')return '<p>Coinbase ExchangeのBTC/USDの実際の価格を使います。「上がる」「下がる」と掛ける両を選ぶと、開始価格を記録して10秒後に判定します。</p><table><tr><th>予想的中</th><td>2倍</td></tr><tr><th>予想が外れる</th><td>0両</td></tr><tr><th>同じ価格</th><td>掛け金を返す</td></tr></table><p>10秒後、最初に取得できた約定価格（5秒以内）で判定します。判定価格を取得できなかった場合は全額返金。途中でページを閉じても掛け金は二重に引かれず、戻ると勝負を復元します。判定時刻を過ぎて5秒以上経った場合は返金します。チャートは直近1分を拡大表示します。15秒・5分・30分にも切り替えられます。最近の約定価格を使い、長い期間の古い部分は1分足の終値を使います。縦軸は表示期間の値動きに合わせて自動調整します。</p><p>ゲーム内の両を使った価格予想です。ビットコインの購入・売却・換金はできません。</p>';
     if(game==='janken')return '<p>NPCの手は毎回、グー・チョキ・パーから同じ確率で決まります。</p><table><tr><th>勝ち</th><td>掛け金の2倍</td></tr><tr><th>負け</th><td>0両</td></tr><tr><th>あいこ</th><td>掛け金を返す（1倍）</td></tr></table><p>例：10両を賭けて勝つと20両が戻り、差し引きは＋10両です。</p>';
     if(game==='roulette')return '<p>0〜36の37ポケットを使う欧州式。各数字は毎回1/37の確率です。複数の場所に置けます。1回の合計は1,000両まで。</p><table><tr><th>数字1点（0も可）</th><td>36倍</td></tr><tr><th>赤・黒・奇数・偶数</th><td>2倍</td></tr><tr><th>1〜18・19〜36</th><td>2倍</td></tr><tr><th>12個の組・列</th><td>3倍</td></tr></table><p>0は赤黒・奇偶・大小・12個の組・列のいずれにも入りません。外れた場所の両は戻りません。倍率は掛け金を含む払い戻しです。</p><p>過去の数字で次の確率は変わりません。<a href="https://help.danskespil.dk/en/casino-help/roulette/playtechclassicroulette" target="_blank" rel="noopener">欧州式のルールを確認 ↗</a></p>';
     return '<p>3×3の絵柄を、横3本・縦3本・斜め2本の計8ラインで判定。どのラインも同じ絵柄が3つそろうと的中し、複数の当たりはすべて合算します。</p><table>'+R.symbols.filter(s=>s.multiplier).map(s=>'<tr><th>'+s.name+'が3つ（1ライン）</th><td>'+s.multiplier+'倍</td></tr>').join('')+'<tr><th>「両」ボーナス絵柄が画面内に3つ以上</th><td>無料スピン5回</td></tr></table><p>掛け金は8ライン全部を含む1回分の両です。「両」は並び方に関係なく数えます。ボーナス中は発動時の掛け金を基準に配当が2倍になり、両を引かずに5回回せます。無料スピン中はボーナスの追加抽選をしません。</p><p>9つの絵柄はそれぞれ独立して抽選します。各マスの内訳：チェリー7、レモン5、ベル4、BAR3、7が1、ボーナス1（計21）。2つだけでは配当はありません。</p>';
@@ -65,9 +66,9 @@
     for(const id of Object.keys(names))$('panel-'+id).hidden=id!==game;
     $('rouletteSlip').hidden=game!=='roulette';
     $('stakeLabel').textContent=game==='roulette'?'1回押すごとに置く両':'1回に賭ける両';
-    $('stageLabel').textContent={janken:'JANKEN / 一対一の勝負',roulette:'EUROPEAN ROULETTE / 37 POCKETS',slots:'GOLDEN SLOTS / 3 × 3 · 8 LINES',bitcoin:'BITCOIN / LIVE PRICE · 60 SECONDS'}[game];
+    $('stageLabel').textContent={janken:'JANKEN / 一対一の勝負',roulette:'EUROPEAN ROULETTE / 37 POCKETS',slots:'GOLDEN SLOTS / 3 × 3 · 8 LINES',bitcoin:'BITCOIN / LIVE PRICE · 10 SECONDS'}[game];
     $('betGameName').textContent=names[game];$('gameRules').innerHTML=rulesHTML();
-    $('resultKicker').textContent='PLACE YOUR BET';$('resultHeadline').textContent=game==='bitcoin'?'60秒後、価格は上がる？下がる？':game==='roulette'?'盤面に両を置こう。':game==='slots'?'縦・横・斜め、8ラインに期待を。':'両を決めて、準備しよう。';$('resultDetail').textContent='倍率は、掛け金を含む払い戻しです。';$('resultNumbers').hidden=true;$('roundResult').className='round-result';
+    $('resultKicker').textContent='PLACE YOUR BET';$('resultHeadline').textContent=game==='bitcoin'?'10秒後、価格は上がる？下がる？':game==='roulette'?'盤面に両を置こう。':game==='slots'?'縦・横・斜め、8ラインに期待を。':'両を決めて、準備しよう。';$('resultDetail').textContent='倍率は、掛け金を含む払い戻しです。';$('resultNumbers').hidden=true;$('roundResult').className='round-result';
     status(game==='bitcoin'?'上がる・下がるを選び、両を決めて予想しよう。':game==='roulette'?'盤面を押すと、選んだ両を置けます。':game==='slots'?(bonus()?'無料スピンを押すと、両を使わずに回せます。':'スピンを押すと、8ラインすべてを抽選します。'):'グー・チョキ・パーを選んでね。');
     if(updateURL){const url=new URL(location.href);url.searchParams.set('game',game);history.replaceState(null,'',url);}
     if(game==='bitcoin')startBitcoinFeed();
@@ -191,15 +192,16 @@
     $('btcConnection').textContent=live?'● LIVE':'価格の再接続を待機中';$('btcConnection').classList.toggle('live',live);
     $('btcPrice').textContent=q?usd(q.price):'—';$('btcUpdated').textContent=q?'更新 '+new Date(q.time).toLocaleTimeString('ja-JP'):'更新時刻 —';
     $('btcChartEmpty').hidden=btcState.points.length>0;$('btcChartEmpty').textContent='価格を取得できません。接続が戻るまでお待ちください。';
-    const first=btcState.points[0], change=q&&first?(q.price-first.price)/first.price*100:null;
-    $('btcChange').textContent=change===null?'価格の更新を待っています':(change>=0?'＋':'')+change.toFixed(3)+'% · 表示期間';
+    const first=window.HKBitcoin?.view?.(btcState.points,btcRange).points[0]||btcState.points[0], change=q&&first?(q.price-first.price)/first.price*100:null;
+    $('btcChange').textContent=change===null?'価格の更新を待っています':(change>=0?'＋':'')+change.toFixed(4)+'% · '+(q.price-first.price>=0?'＋':'−')+usd(Math.abs(q.price-first.price));
     $('btcChange').classList.toggle('negative',change<0);
     $('btcStartPrice').textContent=pending?usd(pending.data.startPrice):'—';
     $('btcPrediction').textContent=(pending?pending.data.direction:direction)==='up'?'値上がり ↑':'値下がり ↓';
     document.querySelectorAll('[data-direction]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.direction===(pending?pending.data.direction:direction))));
-    const remaining=pending?Math.max(0,Math.ceil((pending.data.deadline-Date.now())/1000)):60;
+    const remaining=pending?Math.max(0,Math.ceil((pending.data.deadline-Date.now())/1000)):B.duration/1000;
     $('btcCountdown').textContent=pending&&!remaining?'判定中…':remaining+'秒';
-    window.HKBitcoin?.draw($('btcChart'),btcState.points,pending);
+    $('btcRoundProgress').hidden=!pending;$('btcRoundProgress').max=pending?(pending.data.deadline-pending.data.startedAt)/1000:10;$('btcRoundProgress').value=pending?Math.max(0,(Date.now()-pending.data.startedAt)/1000):0;
+    window.HKBitcoin?.draw($('btcChart'),btcState.points,pending,btcRange);
     if(pending){
       if(!active){active=pending;refresh();}
       if(Date.now()>=pending.data.deadline&&!settling){
@@ -212,9 +214,10 @@
   }
   function playBitcoin(amount) {
     starting=true;refresh();
-    W.beginBitcoin(amount,direction,()=>btcState.quote,round=>{starting=false;active=round;refresh();$('resultNumbers').hidden=true;$('roundResult').className='round-result';$('resultKicker').textContent='60 SECOND PREDICTION';$('resultHeadline').textContent='60秒後の価格を待とう。';$('resultDetail').textContent=usd(round.data.startPrice)+'から'+(direction==='up'?'値上がり':'値下がり')+'を予想';status('掛け金 '+money(amount)+'。予想を受け付けました。');updateBitcoin();},error=>{starting=false;refresh();status(errorText(error),true);});
+    W.beginBitcoin(amount,direction,()=>btcState.quote,round=>{starting=false;active=round;refresh();$('resultNumbers').hidden=true;$('roundResult').className='round-result';$('resultKicker').textContent='10 SECOND PREDICTION';$('resultHeadline').textContent='10秒後の価格を待とう。';$('resultDetail').textContent=usd(round.data.startPrice)+'から'+(direction==='up'?'値上がり':'値下がり')+'を予想';status('掛け金 '+money(amount)+'。予想を受け付けました。');updateBitcoin();},error=>{starting=false;refresh();status(errorText(error),true);});
   }
   document.querySelectorAll('[data-direction]').forEach(b=>b.onclick=()=>{if(b.disabled)return;direction=b.dataset.direction;document.querySelectorAll('[data-direction]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));updateBitcoin();refresh();});
+  document.querySelectorAll('[data-btc-range]').forEach(b=>b.onclick=()=>{btcRange=Number(b.dataset.btcRange);document.querySelectorAll('[data-btc-range]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));$('btcChart').setAttribute('aria-label','ビットコイン対米ドルの直近'+b.textContent+'の価格チャート');updateBitcoin();});
   window.addEventListener('resize',()=>{if(game==='bitcoin')updateBitcoin();});
   document.querySelectorAll('[data-game]').forEach(b=>{b.onclick=()=>{if(!active&&!starting&&!W.snapshot().pending)selectGame(b.dataset.game);};b.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key)||active||starting||W.snapshot().pending)return;e.preventDefault();const list=Object.keys(names),index=list.indexOf(game),next=e.key==='Home'?0:e.key==='End'?list.length-1:(index+(e.key==='ArrowRight'?1:list.length-1))%list.length;selectGame(list[next]);document.querySelector('[data-game="'+list[next]+'"]').focus();};});
   document.querySelectorAll('[data-hand]').forEach(b=>b.onclick=()=>{if(b.disabled)return;hand=Number(b.dataset.hand);document.querySelectorAll('[data-hand]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));$('playerHand').textContent=hands[hand];$('opponentHand').textContent='？';$('duelCall').textContent='VS';$('jankenStage').classList.remove('revealed');tone('tick');});

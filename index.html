@@ -340,6 +340,13 @@
             <h2>ちょっとひと息、ゲームの時間。</h2>
           </div>
           <div class="game-grid">
+            <a class="game-card rank" href="./wealth-ranking.html">
+              <span class="game-icon" aria-hidden="true">🏯</span>
+              <span class="section-label">TOWN ECONOMY</span>
+              <h3>成金ランキング</h3>
+              <p>建造物・住民・資産で、町の経済力を競おう。<br />名前だけで登録。町が育ったら記録を更新！</p>
+              <span class="game-cta">成金ランキングを見る</span>
+            </a>
             <a class="game-card" href="#book">
               <span class="game-icon" aria-hidden="true">▤</span>
               <span class="section-label">HISTORY COLLECTION</span>
@@ -396,9 +403,10 @@
         </section>
 
         <section id="view-privacy" class="view privacy-page" hidden aria-label="プライバシーポリシー">
-          <div class="privacy-intro"><span class="section-label">YOUR DATA &amp; YOUR CHOICES</span><h2>どこに、何が保存されるの？</h2><p>歴史キッズでは、学習や町づくりの記録をこのブラウザに保存します。ランキングの登録、偉人AI、オンライン対戦、お問い合わせでは、必要な情報を外部サービスへ送ります。</p><p class="privacy-date">運営：歴史キッズ · 制定・更新日：2026年10月7日</p></div>
+          <div class="privacy-intro"><span class="section-label">YOUR DATA &amp; YOUR CHOICES</span><h2>どこに、何が保存されるの？</h2><p>歴史キッズでは、学習や町づくりの記録をこのブラウザに保存します。ランキングの登録、偉人AI、オンライン対戦、お問い合わせでは、必要な情報を外部サービスへ送ります。</p><p class="privacy-date">運営：歴史キッズ · 制定・更新日：2026年10月8日</p></div>
           <section class="privacy-card"><h2>1. 学習・町・ゲームの記録</h2><p>正解した問題、カード、両、建物、住民、ミッション、町イベント、ゲームの自己ベスト、スロットのボーナスなどをブラウザの保存領域（localStorage）に記録します。続きから遊ぶための保存で、これらの学習・町の記録を自動でサーバーへ同期する仕組みはありません。</p><p>「記録・設定」からバックアップを書き出せます。記録のリセットやブラウザのサイトデータ削除で端末内の記録を消せます。先にバックアップを取り、保存したファイルも自分で管理してください。端末内の削除だけでは、登録済みの公開ランキングやお問い合わせ内容は消えません。</p></section>
-          <section class="privacy-card"><h2>2. 早押しランキング</h2><p>オンラインの10問決戦では、問題の出題、正誤・回答時間の確認、不正な登録の防止のため、回答内容やプレイ記録をランキング用サーバーへ送ります。同じブラウザの記録を識別するランダムな識別情報も使用します。</p><p>ランキングへ登録すると、<strong>ニックネーム、スコア、正答率、回答時間、登録日時</strong>が公開されます。本名・住所・電話番号・メールアドレスなどはニックネームに入力しないでください。公開済みの記録の確認・訂正・削除を希望する場合は、お問い合わせから連絡してください。</p></section>
+          <section class="privacy-card"><h2>2. ランキング</h2><p>オンラインの10問決戦では、問題の出題、正誤・回答時間の確認、不正な登録の防止のため、回答内容やプレイ記録をランキング用サーバーへ送ります。同じブラウザの記録を識別するランダムな識別情報も使用します。</p><p>ランキングへ登録すると、<strong>ニックネーム、スコア、正答率、回答時間、登録日時</strong>が公開されます。本名・住所・電話番号・メールアドレスなどはニックネームに入力しないでください。公開済みの記録の確認・訂正・削除を希望する場合は、お問い合わせから連絡してください。</p></section>
+          <section class="privacy-card"><h2>成金ランキングで公開する情報</h2><p>成金ランキングは「登録する」「最新の経済力に更新」を押したときに、名前、所持両、建造物・住民の種類別の数をランキング用サーバーへ送ります。建物の座標や個別の住民名は送りません。登録すると、<strong>名前、経済力、総資産、所持両、建造物数・住民数と購入額、更新日時</strong>が公開されます。</p><p>同じブラウザから更新するためのランダムな所有証明を端末に保存し、通信時に利用します。所有証明そのものは公開しません。同じ名前の人がいても、別の記録として扱います。名前には本名や連絡先を入力しないでください。記録の確認・訂正・削除については、お問い合わせから連絡できます。</p></section>
           <section class="privacy-card"><h2>3. 偉人AIとの会話</h2><p>ページを開くとAIへの接続状態を確認します。質問を送信したときに、選んだ偉人、質問、直近の会話（最大8メッセージ）をCloudflare Workers AIへ送り、返答を作ります。AIの利用回数を制限するため、通信元のIPアドレスも使用します。</p><p>会話はこのページ内で保持し、ページを閉じるか「会話を新しくする」で消えます。本サイトの実装では会話本文をデータベースへ保存しません。サービス提供元での情報の扱いは、<a href="https://developers.cloudflare.com/workers-ai/platform/data-usage/" target="_blank" rel="noopener">Workers AIのデータ取り扱い</a>と<a href="https://www.cloudflare.com/ja-jp/privacypolicy/" target="_blank" rel="noopener">Cloudflareのプライバシーポリシー</a>をご確認ください。個人情報や秘密の情報は会話に入力しないでください。</p></section>
           <section class="privacy-card"><h2>4. オンライン対戦</h2><p>友だちとのオンライン対戦では、表示名、部屋情報、対戦の進行や操作に必要なデータをGoogle Firebaseへ保存し、同じ部屋の参加者と共有します。本名や連絡先を表示名に使わず、部屋番号を公開の場所に載せないでください。NPCとの対戦など、一人用のゲームは基本的に端末内で進行します。</p></section>
           <section class="privacy-card"><h2>5. お問い合わせ</h2><p>お問い合わせにはGoogleフォームを使います。フォームへ入力・送信した内容や連絡先は、ご意見の確認、回答、不具合への対応に使用します。必要のない個人情報は記入しないでください。</p><p>入力情報はGoogleのサービスを通じて運営に届きます。Googleによる情報の取り扱いは<a href="https://policies.google.com/privacy?hl=ja" target="_blank" rel="noopener">Googleのプライバシーポリシー</a>をご確認ください。内容の確認・訂正・削除についても、同じお問い合わせフォームからご連絡いただけます。</p></section>

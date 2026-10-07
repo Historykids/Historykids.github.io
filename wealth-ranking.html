@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>成金ランキング｜歴史キッズ</title>
+  <meta name="description" content="建造物・住民・資産で競う成金ランキング。名前だけで自分の町を登録し、町が育ったら最新の経済力に更新しよう。">
+  <meta name="theme-color" content="#322814">
+  <link rel="canonical" href="https://historykids.github.io/wealth-ranking.html">
+  <link rel="icon" href="./favicon.ico">
+  <link rel="stylesheet" href="./assets/ui/wealth.css?v=wealth-20261008">
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-EZP12GC8W1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-EZP12GC8W1');
+  </script>
+  <!-- Google AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4922140858632050" crossorigin="anonymous"></script>
+  <script defer src="./assets/ui/core.js?v=pagoda-torii-20261008"></script>
+  <script defer src="./assets/ui/bitcoin-rules.js?v=btc-ten-seconds-20261006"></script>
+  <script defer src="./assets/ui/wallet.js?v=wealth-20261008"></script>
+  <script defer src="./assets/ui/wealth-rules.js?v=wealth-20261008"></script>
+  <script defer src="./assets/ui/ranking-config.js?v=wealth-20261008"></script>
+  <script defer src="./assets/ui/wealth.js?v=wealth-20261008"></script>
+</head>
+<body>
+  <header class="wealth-header"><a class="brand" href="./">歴史キッズ<span>学んで、町を育てる。</span></a><nav aria-label="ゲームメニュー"><a href="./#games">ゲームで遊ぶ</a><a href="./#town">わたしの町</a></nav></header>
+  <main>
+    <section class="wealth-hero" aria-labelledby="pageTitle">
+      <div><p class="eyebrow">町の発展を、みんなで競おう。</p><h1 id="pageTitle">成金ランキング</h1><p>建造物を増やす。住民を迎える。両を貯める。<br>育てた町の<strong>経済力</strong>を、名前だけでランキングに。</p></div>
+      <div class="hero-emblem" aria-hidden="true"><span>両</span><i></i></div>
+    </section>
+    <section class="personal-card" aria-labelledby="personalTitle">
+      <div class="economy-summary"><p class="eyebrow">このブラウザの町</p><h2 id="personalTitle">あなたの経済力</h2><p class="power"><b id="localScore">—</b><span>点</span></p><div class="own-position"><span>あなたの順位</span><strong id="ownRank">未登録</strong></div><p id="townState" class="small muted">町のデータを確認しています。</p><a class="town-link" href="./#town">町を育てる →</a></div>
+      <div class="economy-details">
+        <div class="stats"><div><span>総資産</span><p><b id="localAssets">—</b> <small>両</small></p></div><div><span>建造物</span><p><b id="localBuildings">—</b> <small>個</small></p></div><div><span>住民</span><p><b id="localResidents">—</b> <small>人</small></p></div><div><span>所持両</span><p><b id="localBalance">—</b> <small>両</small></p></div></div>
+        <form id="wealthRegister"><label for="wealthName">ランキングに使う名前</label><div class="register-row"><input id="wealthName" name="nickname" maxlength="48" autocomplete="nickname" placeholder="例：江戸の大富豪" required><button id="registerWealth" type="submit" disabled>この名前で登録する</button></div><p class="small muted">名前と町の集計値が公開されます。本名や連絡先は入力しないでね。</p></form>
+        <p id="registrationMessage" class="message" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+    <section class="board" aria-labelledby="boardTitle" id="wealthBoard" aria-busy="true">
+      <div class="board-heading"><div><p class="eyebrow">町づくりの成果がここに。</p><h2 id="boardTitle">みんなの経済力</h2><p id="participantCount" class="small muted">上位100人を表示</p></div><div class="refresh"><span id="freshness" class="small muted">接続中…</span><button id="refreshWealth" type="button">順位を更新</button></div></div>
+      <p id="boardStatus" class="small" role="status" aria-live="polite"></p>
+      <div class="search-row"><label for="wealthSearch">名前を探す<input id="wealthSearch" type="search" placeholder="上位100人の名前から検索" autocomplete="off"></label><button id="clearWealthSearch" type="button" hidden>検索を解除</button><span id="shownCount" class="small muted"></span></div>
+      <div class="table-wrap" id="wealthTable" hidden><table><caption class="sr-only">経済力の高い順。同じ経済力は同じ順位です。</caption><thead><tr><th scope="col">順位</th><th scope="col">名前</th><th scope="col">経済力</th><th scope="col">総資産</th><th scope="col">建造物</th><th scope="col">住民</th><th scope="col">更新</th></tr></thead><tbody id="wealthRows"></tbody></table></div>
+      <div id="wealthEmpty" class="empty"><span aria-hidden="true">🏯</span><h3 id="emptyTitle">ランキングを読み込んでいます</h3><p id="emptyDescription">町の大小にかかわらず、誰でも参加できます。</p></div>
+    </section>
+    <details class="explanation"><summary>経済力と登録のしくみ</summary><p>総資産は、所持両＋建造物の購入額＋住民の購入額。経済力は総資産に、建造物1個につき20点、住民1人につき10点を加えます。木・畑・道路・橋・塀も建造物として数えます。</p><p>両や建造物が0でも、名前だけで参加できます。町が育ったら「最新の経済力に更新」を押してね。同じブラウザからの更新や名前の変更は、同じ1件の記録に反映されます。経済力が下がった場合も最新の値を登録します。</p><p>同じ経済力は同じ順位。上位100人に入っていなくても、自分の順位は確認できます。別の端末・ブラウザでは別の参加者になります。ブラウザの保存データを消すと、元の記録を更新できなくなります。</p></details>
+    <footer><span>学んで、集めて、町をつくろう。</span><nav aria-label="サイト情報"><a href="./#operator">運営者情報</a><a href="./#privacy">プライバシーポリシー</a><a href="https://docs.google.com/forms/d/e/1FAIpQLSdHvqKAszs5j860tNIeesVlE83pMpP_qP9QrNLuJJaZ9g3h5Q/viewform" target="_blank" rel="noopener">お問い合わせ</a></nav></footer>
+  </main>
+</body>
+</html>

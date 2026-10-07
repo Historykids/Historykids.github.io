@@ -48,7 +48,25 @@ export class SoftwareTownRenderer {
       const distance=-(view[2]*this.point.x+view[6]*this.point.y+view[10]*this.point.z+view[14]);
       this.clip.set(this.point.x,this.point.y,this.point.z,1).applyMatrix4(this.matrix);
       const iw=1/this.clip.w;
-      return{x:(this.clip.x*iw+1)*w/2,y:(1-this.clip.y*iw)*h/2,z:this.clip.z*iw,iw,distance};
+      return{x:(this.clip.x*iw+1)*w/2,y:(1-this.clip.y*iw)*h/2,z:this.clip.z*iw,iw,distance,cx:this.clip.x,cy:this.clip.y,cz:this.clip.z,cw:this.clip.w};
+    };
+    // A resident's eyes are inside the town's ground polygon. Clip crossing
+    // triangles instead of discarding the ground or buildings behind the near plane.
+    const interpolate=(a,b,t)=>{
+      const p={};
+      for(const key of ["cx","cy","cz","cw","r0","g0","b0","u0","v0","mist0"])p[key]=a[key]+(b[key]-a[key])*t;
+      p.iw=1/p.cw;p.x=(p.cx*p.iw+1)*w/2;p.y=(1-p.cy*p.iw)*h/2;p.z=p.cz*p.iw;
+      for(const key of ["r","g","b","u","v","mist"])p[key]=p[key+"0"]*p.iw;
+      return p;
+    };
+    const clip=(vertices,plane)=>{
+      const out=[];
+      for(let i=0;i<vertices.length;i++){
+        const a=vertices[i],b=vertices[(i+1)%vertices.length],da=plane(a),db=plane(b);
+        if(da>=0)out.push(a);
+        if((da>=0)!==(db>=0))out.push(interpolate(a,b,da/(da-db)));
+      }
+      return out;
     };
     const light=new THREE.Vector3(-.46,.79,.4);
     const pixel=(offset,r,g,b,alpha)=>{
@@ -70,12 +88,18 @@ export class SoftwareTownRenderer {
           const p=project(pos.getX(i),pos.getY(i),pos.getZ(i),this.world),c=this.instanceColor.clone();
           if(colors){c.r*=colors.getX(i);c.g*=colors.getY(i);c.b*=colors.getZ(i);}
           else if(normals&&!material.isMeshBasicMaterial){const n=new THREE.Vector3().fromBufferAttribute(normals,i).transformDirection(this.world);c.multiplyScalar(.56+.62*Math.max(0,n.dot(light)));}
-          p.mist=(fog?clamp((p.distance-fog.near)/(fog.far-fog.near)):0)*p.iw;
+          p.r0=c.r;p.g0=c.g;p.b0=c.b;p.u0=uv?uv.getX(i):0;p.v0=uv?uv.getY(i):0;p.mist0=fog?clamp((p.distance-fog.near)/(fog.far-fog.near)):0;
+          p.mist=p.mist0*p.iw;
           p.r=c.r*p.iw;p.g=c.g*p.iw;p.b=c.b*p.iw;p.u=uv?uv.getX(i)*p.iw:0;p.v=uv?uv.getY(i)*p.iw:0;vertices[i]=p;
         }
         for(let i=0;i<count;i+=3){
-          const a=vertices[index?index.getX(i):i],b=vertices[index?index.getX(i+1):i+1],c=vertices[index?index.getX(i+2):i+2];
-          if(!a||!b||!c||Math.min(a.iw,b.iw,c.iw)<=0||Math.min(a.z,b.z,c.z)<-1||Math.max(a.z,b.z,c.z)>1)continue;
+          const va=vertices[index?index.getX(i):i],vb=vertices[index?index.getX(i+1):i+1],vc=vertices[index?index.getX(i+2):i+2];
+          if(!va||!vb||!vc)continue;
+          let polygon=[va,vb,vc];
+          if(polygon.some(p=>p.cz+p.cw<0))polygon=clip(polygon,p=>p.cz+p.cw);
+          if(polygon.some(p=>p.cw-p.cz<0))polygon=clip(polygon,p=>p.cw-p.cz);
+          for(let k=1;k<polygon.length-1;k++){
+          const a=polygon[0],b=polygon[k],c=polygon[k+1];
           const area=(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
           if(material.side!==THREE.DoubleSide&&area>=0||Math.abs(area)<.01)continue;
           const x0=Math.max(0,Math.floor(Math.min(a.x,b.x,c.x))),x1=Math.min(w-1,Math.ceil(Math.max(a.x,b.x,c.x)));
@@ -91,6 +115,7 @@ export class SoftwareTownRenderer {
             const mist=(wa*a.mist+wb*b.mist+wc*c.mist)/iw;
             if(fog){r=r*(1-mist)+fog.color.r*mist;g=g*(1-mist)+fog.color.g*mist;blue=blue*(1-mist)+fog.color.b*mist;}
             pixel(offset,r,g,blue,material.opacity??1);zbuffer[offset]=depth;
+          }
           }
         }
       }

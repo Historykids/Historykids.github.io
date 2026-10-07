@@ -45,9 +45,16 @@ async function main(){
  renderer.render(scene,camera);assert.equal(paints.length,1);assert(renderer.depth.filter(Number.isFinite).length>10000);renderer.render(scene,camera);assert.equal(paints.length,1);
  const ray=new THREE.Raycaster();ray.setFromCamera(new THREE.Vector2(0,0),camera);assert(ray.intersectObject(castle,true).length>0);
  console.log('PASS the software fallback paints real perspective geometry and the same castle remains ray-pickable');
+ const eyeScene=new THREE.Scene(),floor=new THREE.Mesh(new THREE.PlaneGeometry(60,40),new THREE.MeshBasicMaterial({color:0x80663e}));
+ floor.rotation.x=-Math.PI/2;eyeScene.add(floor);
+ const eyes=new THREE.PerspectiveCamera(75,320/180,.02,1000);eyes.position.set(0,.39,0);eyes.lookAt(0,.39,10);
+ const eyeRenderer=new SoftwareTownRenderer();eyeRenderer.setSize(320,180);eyeRenderer.render(eyeScene,eyes);
+ assert(eyeRenderer.depth.filter(Number.isFinite).length>20000,'near-plane crossing ground must remain visible from resident eyes');
+ assert(Number.isFinite(eyeRenderer.depth[179*320+160]));eyeRenderer.dispose();
+ console.log('PASS first-person software rendering clips the near plane and keeps ground visible beneath the resident');
  if(process.env.LANDSCAPE_PREVIEW){const rgb=Buffer.alloc(1000*560*3),rgba=renderer.image.data;for(let i=0;i<1000*560;i++){rgb[i*3]=rgba[i*4];rgb[i*3+1]=rgba[i*4+1];rgb[i*3+2]=rgba[i*4+2];}fs.writeFileSync(process.env.LANDSCAPE_PREVIEW,Buffer.concat([Buffer.from('P6\n1000 560\n255\n'),rgb]));}
  const disposed=[];for(const o of land.group.children){o.geometry.addEventListener('dispose',()=>disposed.push(o.name));o.material.addEventListener('dispose',()=>disposed.push(o.name+' material'));}land.dispose();assert(!scene.children.includes(land.group));assert.equal(disposed.length,6);
  console.log('PASS rebuilding a town releases the old mountain and forest resources');
- console.log('7 landscape checks passed.');
+ console.log('8 landscape checks passed.');
 }
 main().catch(error=>{console.error(error);process.exitCode=1});

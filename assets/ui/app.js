@@ -815,7 +815,7 @@
   }
   function watchResident(id) {
     if (!state.residents.some((r) => r.id === id)) return;
-    if (window.HKTownReady) $("town3d").click();
+    $("town3d").click();
     window.dispatchEvent(new CustomEvent("hk-resident-watch", { detail: id }));
     const actor = residentEngine?.snapshot().find((r) => r.id === id);
     if (!window.HKTownReady && actor) $("townGrid").querySelector(`[data-cell="${Math.round(actor.x)},${Math.round(actor.y)}"]`)?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });

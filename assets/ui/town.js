@@ -4,8 +4,9 @@ import { GLTFLoader } from "../vendor/GLTFLoader.js";
 import { fitModel, alignLinearModel, createBuilding, createGround, groundGridOpacity, syncBuildings } from "./town-geometry.js?v=aligned-bridge-20261005";
 import { createFarmerView } from "./farmer-3d.js?v=missions-20261005";
 import { createLandscape } from "./town-landscape.js?v=mountains-light-20261007";
-import { SoftwareTownRenderer } from "./town-software-renderer.js?v=mountains-detail-20261003";
+import { SoftwareTownRenderer } from "./town-software-renderer.js?v=first-person-20261007";
 import { createTownEventView } from "./town-events.js?v=town-events-20261005";
+import { createResidentCamera } from "./resident-camera.js?v=first-person-20261007";
 const C = window.HKCore;
 const urls = {
   house: "house.2a9f3.glb",
@@ -21,7 +22,7 @@ const urls = {
 };
 const loader = new GLTFLoader(),
   cache = new Map();
-let farmerView = null, eventView = null, followResident = null, followEvent = false, eventFrame = null, lastEventFrame = 0, watchedFire = 0;
+let farmerView = null, residentCamera = null, eventView = null, followEvent = false, eventFrame = null, lastEventFrame = 0, watchedFire = 0;
 let town = null,
   preview = null,
   marker = null,
@@ -177,14 +178,29 @@ function initTown() {
     eventView.animate();
     startEventLoop();
     farmerView.update(window.HK.residentActors);
-    town.controls.addEventListener("start", () => { followResident = null; followEvent = false; });
+    residentCamera = createResidentCamera(town.camera, town.controls, farmerView.people, (id) => {
+      document.getElementById("residentViewControls").hidden = !id;
+      const resident = window.HK.state.residents.find(r => r.id === id);
+      const role = resident && C.items.find(item => item.id === (resident.type || "farmer"));
+      document.getElementById("residentViewName").textContent = id ? (role?.name || "住民") + "の一人称視点" : "";
+      document.getElementById("townHelp").textContent = id ? "ドラッグで見回せます。住民と一緒に町を歩こう。「町全体に戻る」で終了。" : "指1本で回転、2本で拡大・移動。建物をタップすると操作できます。";
+    });
+    town.controls.addEventListener("start", () => { followEvent = false; });
     const ray = new THREE.Raycaster(),
       pointer = new THREE.Vector2();
     let down = null;
     town.renderer.domElement.addEventListener("pointerdown", (e) => {
       down = [e.clientX, e.clientY];
+      if (residentCamera.id) { town.renderer.domElement.setPointerCapture?.(e.pointerId); }
     });
+    town.renderer.domElement.addEventListener("pointermove", (e) => {
+      if (!residentCamera.id || !down) return;
+      residentCamera.look(e.clientX - down[0], e.clientY - down[1]);
+      down = [e.clientX, e.clientY]; town.render();
+    });
+    town.renderer.domElement.addEventListener("pointercancel", () => { down = null; });
     town.renderer.domElement.addEventListener("pointerup", (e) => {
+      if (residentCamera.id) { down = null; return; }
       if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 8)
         return;
       const rect = town.renderer.domElement.getBoundingClientRect();
@@ -223,11 +239,13 @@ function initTown() {
 async function syncTown() {
   if (!town || !window.HK) return;
   if (town.landWidth !== C.town.width || town.landHeight !== C.town.height) {
+    residentCamera?.exit(); residentCamera = null;
     eventView?.dispose();eventView=null;
-    town.dispose(); town = null; marker = null; followResident = null; followEvent = false; window.HKTownReady = false;
+    town.dispose(); town = null; marker = null; followEvent = false; window.HKTownReady = false;
     initTown(); showMarker(window.HK.pending); return;
   }
   farmerView.update(window.HK.residentActors);
+  residentCamera?.update();
   eventView?.update(window.HK.townEvent,window.HK.state.city);
   eventView?.animate();startEventLoop();
   await syncBuildings(town, window.HK.state.city, loadModel, (type, error) => {
@@ -286,7 +304,7 @@ function boot() {
   });
   window.addEventListener("hk-event-watch",()=>{
     initTown();if(!town || !window.HK.townEvent || !eventView.layout)return;
-    followResident=null;followEvent=false;
+    residentCamera?.exit();followEvent=false;
     const layout=eventView.layout,type=window.HK.townEvent.type;let target;
     if(type==="fire" && layout.fires.length){const p=layout.fires[watchedFire++%layout.fires.length];target=new THREE.Vector3(p.x-C.town.width/2,p.height+.5,p.y-C.town.height/2);}
     else if(type==="festival" && layout.festival){const p=layout.festival;target=new THREE.Vector3(p.x+p.width/2-C.town.width/2,.7,p.y+p.depth/2-C.town.height/2);}
@@ -296,38 +314,30 @@ function boot() {
   document.addEventListener("visibilitychange",startEventLoop);
   window.addEventListener("hk-resident-watch", (e) => {
     initTown(); if (!town) return;
-    followResident = e.detail;
     followEvent=false;
-    const actor = window.HK.residentActors.find((a) => a.id === followResident);
-    if (actor) {
-      town.controls.target.set(actor.x + .5 - C.town.width / 2, .2, actor.y + .5 - C.town.height / 2);
-      town.camera.position.copy(town.controls.target).add(new THREE.Vector3(4, 4.8, 5));
-      town.controls.update(); town.render();
+    farmerView.update(window.HK.residentActors);
+    if (residentCamera.watch(e.detail)) {
+      document.getElementById("townCanvas").scrollIntoView({behavior: "smooth", block: "center"});
+      town.render();
     }
   });
   window.addEventListener("hk-residents-frame", (e) => {
     if (!town || !town.host.clientWidth || !town.host.clientHeight) return;
     farmerView.update(e.detail);
-    if (followResident) {
-      const actor = e.detail.find((a) => a.id === followResident);
-      if (!actor) followResident = null;
-      else {
-        const target = new THREE.Vector3(actor.x + .5 - C.town.width / 2, .2, actor.y + .5 - C.town.height / 2);
-        town.controls.target.lerp(target, .2);
-        town.camera.position.lerp(target.clone().add(new THREE.Vector3(4, 4.8, 5)), .2);
-        town.controls.update();
-      }
-    }
+    residentCamera.update();
     town.render();
   });
-  window.addEventListener("hk-placement", (e) => showMarker(e.detail));
+  window.addEventListener("hk-placement", (e) => { if (e.detail) residentCamera?.exit(); showMarker(e.detail); });
   window.addEventListener("hk-camera-reset", () => {
     if (!town) return;
-    followResident = null;
+    residentCamera?.exit();
     followEvent=false;
     town.resetCamera();
     town.render();
   });
+  document.getElementById("residentViewExit").addEventListener("click", () => window.dispatchEvent(new Event("hk-camera-reset")));
+  document.getElementById("town2d").addEventListener("click", () => residentCamera?.exit());
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && residentCamera?.id) window.dispatchEvent(new Event("hk-camera-reset")); });
   if (location.hash === "#town") initTown();
 }
 if (document.readyState === "loading")

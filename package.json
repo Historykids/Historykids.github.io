@@ -4,7 +4,7 @@
   "version": "2.0.0",
   "description": "Static Japanese history learning website",
   "scripts": {
-    "test": "node tests/flows.cjs && node tests/town.cjs && node tests/landscape.cjs && node tests/town-scale.cjs && node tests/bulk-shop.cjs && node tests/residents.cjs && node tests/activities.cjs && node tests/town-events.cjs && node tests/challenge.cjs && node tests/ranking.cjs && node tests/ranking-api.cjs && node tests/ancient.cjs && node tests/play.cjs && node tests/casino.cjs && node tests/bitcoin.cjs && node tests/api.cjs",
+    "test": "node tests/flows.cjs && node tests/town.cjs && node tests/landscape.cjs && node tests/town-scale.cjs && node tests/bulk-shop.cjs && node tests/residents.cjs && node tests/resident-camera.cjs && node tests/activities.cjs && node tests/town-events.cjs && node tests/challenge.cjs && node tests/ranking.cjs && node tests/ranking-api.cjs && node tests/ancient.cjs && node tests/table-rules.cjs && node tests/play.cjs && node tests/casino.cjs && node tests/bitcoin.cjs && node tests/api.cjs",
     "sitemap": "node scripts/sitemap.cjs --write",
     "sitemap:check": "node scripts/sitemap.cjs --check",
     "serve": "python3 -m http.server 8000",

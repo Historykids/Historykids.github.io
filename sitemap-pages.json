@@ -1,20 +1,66 @@
 {
   "origin": "https://historykids.github.io",
   "pages": [
-    { "file": "index.html", "path": "/", "lastmod": "2026-10-07" },
-    { "file": "figures.html", "path": "/figures.html", "lastmod": "2026-10-06" },
-    { "file": "buzzer.html", "path": "/buzzer.html", "lastmod": "2026-10-06" },
-    { "file": "ranking.html", "path": "/ranking.html", "lastmod": "2026-10-06" },
-    { "file": "arcade.html", "path": "/arcade.html", "lastmod": "2026-10-06" },
-    { "file": "edogames.html", "path": "/edogames.html", "lastmod": "2026-10-06" },
-    { "file": "edogames_poker6.html", "path": "/edogames_poker6.html", "lastmod": "2026-10-06" },
-    { "file": "casino.html", "path": "/casino.html", "lastmod": "2026-10-06" },
-    { "file": "Credits.html", "path": "/Credits.html", "lastmod": "2026-10-06" }
+    {
+      "file": "index.html",
+      "path": "/",
+      "lastmod": "2026-10-07"
+    },
+    {
+      "file": "figures.html",
+      "path": "/figures.html",
+      "lastmod": "2026-10-06"
+    },
+    {
+      "file": "buzzer.html",
+      "path": "/buzzer.html",
+      "lastmod": "2026-10-06"
+    },
+    {
+      "file": "ranking.html",
+      "path": "/ranking.html",
+      "lastmod": "2026-10-06"
+    },
+    {
+      "file": "edogames.html",
+      "path": "/edogames.html",
+      "lastmod": "2026-10-07"
+    },
+    {
+      "file": "edogames_poker6.html",
+      "path": "/edogames_poker6.html",
+      "lastmod": "2026-10-07"
+    },
+    {
+      "file": "casino.html",
+      "path": "/casino.html",
+      "lastmod": "2026-10-06"
+    },
+    {
+      "file": "Credits.html",
+      "path": "/Credits.html",
+      "lastmod": "2026-10-06"
+    },
+    {
+      "file": "blackjack.html",
+      "path": "/blackjack.html",
+      "lastmod": "2026-10-07"
+    }
   ],
   "aliases": [
-    { "file": "howto.html", "canonical": "/" }
+    {
+      "file": "howto.html",
+      "canonical": "/"
+    },
+    {
+      "file": "arcade.html",
+      "canonical": "/edogames.html"
+    }
   ],
   "excluded": [
-    { "file": "google71b999bc694960a2.html", "reason": "Google ownership verification, not a content page" }
+    {
+      "file": "google71b999bc694960a2.html",
+      "reason": "Google ownership verification, not a content page"
+    }
   ]
 }

@@ -8,7 +8,7 @@ function page(seed={},time=monday){
  const timers=[];w.setInterval=fn=>{timers.push(fn);return timers.length;};w.setTimeout=()=>0;w.requestAnimationFrame=()=>0;w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=function(){};
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
  for(const [k,v] of Object.entries(seed))w.localStorage.setItem(k,v);
- for(const file of ['data/dataset.js','data/ancient.js','assets/ui/core.js','assets/ui/activities.js','assets/ui/town-event-layout.js','assets/ui/residents.js','assets/ui/wallet.js','assets/ui/app.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));
+ for(const file of ['data/dataset.js','data/ancient.js','data/meiji.js','assets/ui/core.js','assets/ui/activities.js','assets/ui/town-event-layout.js','assets/ui/residents.js','assets/ui/wallet.js','assets/ui/app.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));
  return{w,dom,$:id=>w.document.getElementById(id),click:s=>{const el=w.document.querySelector(s);assert(el,s);el.click();},time:t=>{time=t;timers.forEach(fn=>fn());},stored:()=>Object.fromEntries(Object.keys(w.localStorage).map(k=>[k,w.localStorage.getItem(k)]))};
 }
 test('seven weekdays each have five learning goals and repeat after seven days at Tokyo midnight',()=>{

@@ -4,7 +4,7 @@ const C=globalThis.HKCore,byId=new Map(questions.map(q=>[q.id,q]));
 const expiresAfter=30*60*1000;
 const cleanName=value=>Array.from(String(value||'').normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g,'').trim()).slice(0,24).join('');
 const randomIndex=length=>crypto.getRandomValues(new Uint32Array(1))[0]%length;
-function pick(){const selected=C.eraOrder.map(era=>{const pool=questions.filter(q=>q.era===era);return pool[randomIndex(pool.length)].id;});for(let i=selected.length-1;i>0;i--){const j=randomIndex(i+1);[selected[i],selected[j]]=[selected[j],selected[i]];}return selected;}
+function pick(){const selected=C.eraOrder.map(era=>{const pool=questions.filter(q=>q.era===era);return pool[randomIndex(pool.length)].id;});for(let i=selected.length-1;i>0;i--){const j=randomIndex(i+1);[selected[i],selected[j]]=[selected[j],selected[i]];}return selected.slice(0,10);}
 function fail(code,status=400){return Response.json({error:code},{status});}
 export class HistoryLeaderboard {
  constructor(ctx){

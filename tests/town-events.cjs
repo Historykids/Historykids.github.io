@@ -38,7 +38,7 @@ async function main(){
  // Placement-mode visuals use the same layout and remain independent of purchased residents.
  const {JSDOM}=require('jsdom'),dom=new JSDOM(fs.readFileSync(path.join(root,'index.html'),'utf8'),{url:'https://historykids.github.io/#town',runScripts:'outside-only',pretendToBeVisual:true}),w=dom.window;
  w.requestAnimationFrame=()=>0;w.setInterval=()=>0;w.setTimeout=()=>0;w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=function(){};
- for(const file of ['data/dataset.js','data/ancient.js','assets/ui/core.js','assets/ui/activities.js','assets/ui/town-event-layout.js','assets/ui/residents.js','assets/ui/wallet.js','assets/ui/app.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));
+ for(const file of ['data/dataset.js','data/ancient.js','data/meiji.js','assets/ui/core.js','assets/ui/activities.js','assets/ui/town-event-layout.js','assets/ui/residents.js','assets/ui/wallet.js','assets/ui/app.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));
  w.document.getElementById('town2d').click();assert(w.document.getElementById('townEventMapLayer').children.length>0);assert.equal(w.HK.state.residents.length,0);w.close();
  console.log('PASS active scenery also appears on the placement map when the town has no residents');
  console.log('5 town event scenery checks passed.');

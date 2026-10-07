@@ -78,7 +78,7 @@ function page(seed = {}) {
   w.requestAnimationFrame = (fn) => { frames.push(fn); return frames.length; };
   w.setTimeout = () => 0;
   for (const [key, value] of Object.entries(seed)) w.localStorage.setItem(key, value);
-  for (const p of ["data/dataset.js", "data/ancient.js", "assets/ui/core.js", "assets/ui/residents.js", "assets/ui/wallet.js", "assets/ui/app.js"]) w.eval(fs.readFileSync(path.join(root, p), "utf8"));
+  for (const p of ["data/dataset.js", "data/ancient.js", "data/meiji.js", "assets/ui/core.js", "assets/ui/residents.js", "assets/ui/wallet.js", "assets/ui/app.js"]) w.eval(fs.readFileSync(path.join(root, p), "utf8"));
   const click = (selector) => { const el = w.document.querySelector(selector); assert(el, selector); el.click(); };
   const advance = (start, count) => { for (let i = 0; i < count; i++) frames.shift()?.(start + i * 40); };
   return { dom, w, click, advance };

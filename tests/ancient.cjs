@@ -8,11 +8,11 @@ function page(file, seed = {}) {
   w.HTMLDialogElement.prototype.showModal=function(){this.open=true}; w.HTMLDialogElement.prototype.close=function(){this.open=false};
   let now=0; if(file==='buzzer.html') { Object.defineProperty(w.performance,'now',{value:()=>now}); w.setInterval=()=>1; w.clearInterval=()=>{}; }
   for(const [k,v] of Object.entries(seed)) w.localStorage.setItem(k, JSON.stringify(v));
-  const files = file==='index.html' ? ['data/dataset.js','data/ancient.js','assets/ui/core.js','assets/ui/residents.js','assets/ui/wallet.js','assets/ui/app.js'] : ['data/dataset.js','data/ancient.js','assets/ui/core.js','assets/ui/leaderboard.js','assets/ui/challenge.js'];
+  const files = file==='index.html' ? ['data/dataset.js','data/ancient.js','data/meiji.js','assets/ui/core.js','assets/ui/residents.js','assets/ui/wallet.js','assets/ui/app.js'] : ['data/dataset.js','data/ancient.js','data/meiji.js','assets/ui/core.js','assets/ui/leaderboard.js','assets/ui/challenge.js'];
   for(const file of files)w.eval(read(file));
   return {dom,w,$:id=>w.document.getElementById(id),click:s=>{const e=w.document.querySelector(s);assert(e,s);e.click();},time:t=>{now=t;w.HKChallenge.tick();}};
 }
-test('ten era tabs appear chronologically and every added era contains eighteen complete cards',()=>{
+test('eleven era tabs appear chronologically and every added era contains eighteen complete cards',()=>{
   const p=page('index.html');
   assert.deepEqual([...p.$('eraTabs').querySelectorAll('button')].map(b=>b.dataset.era), [...p.w.HKCore.eraOrder]);
   const legacyMulti=p.w.HK.records.find(r=>r.answers.includes('しゅご')&&r.answers.includes('じとう'));
@@ -36,9 +36,9 @@ test('books and timelines show all eighteen cards and never turn approximate dat
   for(const era of eras){p.click(`[data-era="${era}"]`);p.click('[data-view="book"]');assert.equal(p.$('bookGrid').querySelectorAll('[data-card]').length,18);assert.equal(p.$('chapterFilter').options.length,4);p.click('[data-view="timeline"]');assert.equal(p.$('timeline').querySelectorAll('.timeline-row').length,18);assert(!p.$('timeline').textContent.match(/-10000|-300|縄文時代年|弥生時代年|古墳時代年/));p.click('[data-view="learn"]');assert(!p.$('qTitle').textContent.match(/^-?\d+ /));if(p.w.HK.records.filter(r=>r.era===era).sort((a,b)=>a.year-b.year)[0].dateLabel)assert.equal(p.$('qYearSuffix').textContent,'');}
   p.dom.window.close();
 });
-test('the unified buzzer includes all six new eras and finishes ten mixed four-choice questions',()=>{
+test('the unified buzzer samples ten different eras and finishes ten mixed four-choice questions',()=>{
  const p=page('buzzer.html');p.click('#startBtn');p.time(3000);assert.equal(p.w.HKChallenge.run.group,'v4_allera_ALL_choice');
- for(const era of eras)assert(p.w.HKChallenge.run.qs.some(q=>q.era===era));
+ assert.equal(p.w.HKChallenge.run.qs.length,10);assert.equal(new Set(p.w.HKChallenge.run.qs.map(q=>q.era)).size,10);assert(p.w.HKChallenge.run.qs.filter(q=>eras.includes(q.era)).length>=5);
  for(let i=0;i<10;i++){p.click('#buzzBtn');const q=p.w.HKChallenge.run.qs[p.w.HKChallenge.qi];assert(!q.prompt.match(/-10000|-300|時代年/));const choices=[...p.$('challengeChoices').querySelectorAll('button')];assert.equal(choices.length,4);assert.equal(new Set(choices.map(b=>Array.from(b.dataset.choice).length)).size,1);choices.find(b=>p.w.HKCore.answerOK(b.dataset.choice,q.answers)).click();if(i<9)p.click('#nextBtn');}
  assert.equal(p.w.HKChallenge.run.correct,10);assert.equal(p.w.HKChallenge.run.phase,'finished');assert.equal(p.$('resultReview').querySelectorAll('details').length,10);p.dom.window.close();
 });

@@ -635,7 +635,7 @@
   }
   function rankingCompare(a, b) { return b.score - a.score || a.answerMs - b.answerMs; }
   const api = {
-    eraOrder: ["jomon", "yayoi", "kofun", "asuka", "nara", "heian", "kamakura", "muromachi", "sengoku", "edo"],
+    eraOrder: ["jomon", "yayoi", "kofun", "asuka", "nara", "heian", "kamakura", "muromachi", "sengoku", "edo", "meiji"],
     rankingScore,
     rankingMetrics,
     rankingCompare,

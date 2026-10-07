@@ -33,18 +33,18 @@ async function main() {
   assert.equal(town.buildings.children.length, 0);
   console.log("PASS deleted buildings cannot reappear after delayed loading");
   let errors = 0;
-  const types = ["house", "shop", "castle", "temple", "tree", "field", "road", "bridge", "fence", "school"];
+  const types = global.HKCore.items.filter(i => i.cat !== "resident").map(i => i.id);
   await syncBuildings(town, types.map((type, i) => ({ id: type, type, x: i * 6, y: 2 })), () => Promise.reject(Error("offline")), () => errors++);
-  assert.equal(errors, 10); assert.equal(town.buildings.children.length, 10);
+  assert.equal(errors, types.length); assert.equal(town.buildings.children.length, types.length);
   for (const object of town.buildings.children) {
     const size = new THREE.Box3().setFromObject(object).getSize(new THREE.Vector3());
     assert(size.x > .1 && size.y > .01 && size.z > .1);
     const item = global.HKCore.items.find((i) => i.id === object.userData.id);
     assert(size.x <= item.width && size.z <= item.depth && size.y <= item.height + .04);
   }
-  console.log("PASS all ten building types remain visible if GLB loading fails");
+  console.log("PASS all twelve building types remain visible if GLB loading fails");
   // Real asset node transforms and accessor bounds exercise model normalization.
-  const assetTypes = { "house.2a9f3.glb":"house", "j8ap2an8eses0ho1p.glb":"shop", "ja76386p2an8esecas6t9le.glb":"castle", "japanese.tem3pl4e1383.glb":"temple", "t6r7e9e.glb":"tree", "f2i342el2d.glb":"field", "w8a9l0k9w7a2y.glb":"road", "b7r89i6d8g9e.glb":"bridge", "fence_wood.glb":"fence", "s7c7h9o89ol.glb":"school" };
+  const assetTypes = { "house.2a9f3.glb":"house", "j8ap2an8eses0ho1p.glb":"shop", "ja76386p2an8esecas6t9le.glb":"castle", "japanese.tem3pl4e1383.glb":"temple", "pagoda.glb":"pagoda", "torii.glb":"torii", "t6r7e9e.glb":"tree", "f2i342el2d.glb":"field", "w8a9l0k9w7a2y.glb":"road", "b7r89i6d8g9e.glb":"bridge", "fence_wood.glb":"fence", "s7c7h9o89ol.glb":"school" };
   for (const file of fs.readdirSync(path.join(root, "assets/_m")).filter((p) => p.endsWith(".glb"))) {
     const bytes = fs.readFileSync(path.join(root, "assets/_m", file));
     const gltf = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString());
@@ -83,10 +83,13 @@ async function main() {
     const item=global.HKCore.items.find(i=>i.id===assetTypes[file]);
     assert(item, file);
     const aligned=alignLinearModel(scene,item.id);
-    const detailed=fitModel(aligned,{width:item.width*.9,depth:item.depth*.9,height:item.height,stretch:item.id!=="fence"});
+    const detailed=fitModel(aligned,{width:item.width*.9,depth:item.depth*.9,height:item.height,stretch:item.id!=="fence"&&!item.preserveAspect});
     const realBounds=new THREE.Box3().setFromObject(detailed,true), realSize=realBounds.getSize(new THREE.Vector3());
     if(item.id==="fence"){assert(realSize.x<.11&&Math.abs(realSize.z-item.depth*.9)<1e-5&&realSize.y<=item.height+1e-5);assert.equal(detailed.scale.x,detailed.scale.y);assert.equal(detailed.scale.x,detailed.scale.z);}
-    else assert(Math.abs(realSize.x-item.width*.9)<1e-5 && Math.abs(realSize.z-item.depth*.9)<1e-5 && Math.abs(realSize.y-item.height)<1e-5,file);
+    else if (item.preserveAspect) {
+      assert.equal(detailed.scale.x,detailed.scale.y);assert.equal(detailed.scale.x,detailed.scale.z);
+      assert(realSize.x<=item.width*.9+1e-5&&realSize.z<=item.depth*.9+1e-5&&realSize.y<=item.height+1e-5,file);
+    } else assert(Math.abs(realSize.x-item.width*.9)<1e-5 && Math.abs(realSize.z-item.depth*.9)<1e-5 && Math.abs(realSize.y-item.height)<1e-5,file);
     assert(Math.abs(realBounds.min.y)<1e-5, file);
     if(["bridge","fence"].includes(item.id)){
       detailed.updateMatrixWorld(true);const points=[];

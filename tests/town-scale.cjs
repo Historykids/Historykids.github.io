@@ -108,7 +108,7 @@ function page(seed = {}) {
     all.click(`#dialog [data-move="${b.id}"]`);all.w.HK.setCell(x+7,y);all.click("#placeConfirm");assert.equal(b.x,x+7);
     checkCity(all.w.HK.state.city,all.w.HKCore.town);
   }
-  assert.equal(all.w.HK.state.city.length,10);assert.equal(all.w.document.querySelectorAll(".grid-cell.occupied").length,84);
+  assert.equal(all.w.HK.state.city.length,12);assert.equal(all.w.document.querySelectorAll(".grid-cell.occupied").length,95);
   console.log("PASS every building type occupies, rotates, displays and moves its complete footprint");
   all.w.close();
   p.w.close(); restored.w.close(); q.w.close();

@@ -70,6 +70,26 @@ export function createBuilding(type) {
     mesh(new THREE.CylinderGeometry(.055, .07, .55, 6), 0x745339, 0, .275, 0);
     mesh(new THREE.ConeGeometry(.36, .62, 7), 0x5c7451, 0, .66, 0);
     mesh(new THREE.ConeGeometry(.28, .48, 7), 0x708557, 0, .94, 0);
+  } else if (type === "pagoda") {
+    box(1.02, .12, 1.02, 0x9b9488, 0, .06, 0);
+    for (let i = 0; i < 3; i++) {
+      const w = .8 - i * .15, y = .12 + i * .47;
+      box(w * .7, .35, w * .7, 0x8e4031, 0, y + .175, 0);
+      const eaves = mesh(new THREE.CylinderGeometry(w * .35, w * .85, .22, 4), 0x424e53, 0, y + .41, 0);
+      eaves.rotation.y = Math.PI / 4; eaves.name = "pagoda-roof";
+    }
+    mesh(new THREE.CylinderGeometry(.022, .035, .36, 8), 0xb0924d, 0, 1.68, 0);
+    for (let i = 0; i < 5; i++) mesh(new THREE.CylinderGeometry(.075 - i * .009, .075 - i * .009, .015, 8), 0xb0924d, 0, 1.53 + i * .055, 0);
+  } else if (type === "torii") {
+    [-.63, .63].forEach(x => {
+      const post = mesh(new THREE.CylinderGeometry(.065, .085, 1.28, 10), 0xb73523, x, .64, 0);
+      post.rotation.z = x > 0 ? .045 : -.045; post.name = "torii-post";
+      mesh(new THREE.CylinderGeometry(.105, .105, .1, 10), 0x4e4841, x, .05, 0);
+    });
+    box(1.63, .1, .12, 0xb73523, 0, 1.04, 0);
+    box(1.9, .12, .17, 0x363b3d, 0, 1.34, 0);
+    [-1, 1].forEach(side => { const tip = box(.28, .12, .17, 0x363b3d, side * .92, 1.37, 0); tip.rotation.z = side * .2; });
+    box(.11, .25, .09, 0xb73523, 0, 1.16, 0);
   } else if (type === "bridge") {
     const deckHeight = z => .16 + .33 * (1 - (z / 1.36) ** 2);
     for (let i = 0; i < 12; i++) {
@@ -121,7 +141,7 @@ function createPlot(type, original) {
   const floor = new THREE.Mesh(new THREE.BoxGeometry(item.width - .06, .035, item.depth - .06),
     new THREE.MeshStandardMaterial({ color: type === "field" ? 0x9a9b66 : type === "castle" ? 0xa4a18e : 0xba9e76, roughness: 1 }));
   floor.position.y = .015; floor.receiveShadow = true; floor.userData.townOwned = true; root.add(floor);
-  const model = fitModel(original || createBuilding(type), { width: item.width * .9, depth: item.depth * .9, height: item.height, stretch: type !== "fence" });
+  const model = fitModel(original || createBuilding(type), { width: item.width * .9, depth: item.depth * .9, height: item.height, stretch: type !== "fence" && !item.preserveAspect });
   if (local) model.traverse((o) => { if (o.isMesh) o.userData.townOwned = true; });
   model.position.y = .034; root.add(model);
   return root;

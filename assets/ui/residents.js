@@ -8,6 +8,8 @@
     shop: { key: "shop", text: "商家で買い物", icon: "🧺" },
     house: { key: "rest", text: "家のそばでひと休み", icon: "🍵" },
     temple: { key: "pray", text: "寺のそばでお参り", icon: "🙏" },
+    pagoda: { key: "look", text: "三重塔を見上げています", icon: "🏯" },
+    torii: { key: "pray", text: "鳥居の前で一礼", icon: "⛩️" },
     castle: { key: "look", text: "お城を見上げています", icon: "🏯" },
     school: { key: "read", text: "学校のそばで読み書き", icon: "📜" },
     tree: { key: "shade", text: "木陰で涼んでいます", icon: "🌳" },
@@ -15,7 +17,7 @@
   const roles = {
     merchant: {shop:{key:"trade",text:"商家で品物を売り買い",icon:"💰"},field:{key:"trade",text:"畑で収穫物の買い付け",icon:"🧺"},castle:{key:"trade",text:"お城へ品物を届けています",icon:"🏯"}},
     samurai: {castle:{key:"guard",text:"お城の門を警護",icon:"⚔️"},shop:{key:"guard",text:"商家のそばを見回り",icon:"👀"},field:{key:"guard",text:"畑のそばを見回り",icon:"⚔️"},house:{key:"guard",text:"住宅のそばを見回り",icon:"👀"}},
-    monk: {temple:{key:"chant",text:"寺のそばで読経",icon:"📿"},house:{key:"pray",text:"住民の無事をお祈り",icon:"🙏"},school:{key:"read",text:"学校で教えを説いています",icon:"📜"},field:{key:"pray",text:"畑で豊作をお祈り",icon:"🌾"}},
+    monk: {temple:{key:"chant",text:"寺のそばで読経",icon:"📿"},pagoda:{key:"chant",text:"三重塔のそばで読経",icon:"📿"},house:{key:"pray",text:"住民の無事をお祈り",icon:"🙏"},school:{key:"read",text:"学校で教えを説いています",icon:"📜"},field:{key:"pray",text:"畑で豊作をお祈り",icon:"🌾"}},
   };
   const key = (x, y) => y * WIDTH + x;
   function randomFor(id) {
@@ -91,7 +93,7 @@
       const nextSignature = JSON.stringify([C.town.width, C.town.height, city.map((b) => [b.id, b.type, b.x, b.y, b.rot])]);
       const changed = nextSignature !== signature;
       signature = nextSignature;
-      blocked = new Set(city.filter((b) => b.type !== "road" && b.type !== "bridge").flatMap((b) => C.occupiedCells(b).map((c) => key(c.x, c.y))));
+      blocked = new Set(city.filter((b) => !["road", "bridge", "torii"].includes(b.type)).flatMap((b) => C.occupiedCells(b).map((c) => key(c.x, c.y))));
       const ids = new Set(residents.map((r) => r.id));
       for (const id of actors.keys()) if (!ids.has(id)) actors.delete(id);
       for (const resident of residents) {

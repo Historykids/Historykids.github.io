@@ -99,3 +99,9 @@ npm run sitemap:check
 Search Consoleのサイトマップ欄には `https://historykids.github.io/sitemap.xml` を登録します。robots.txtからも同じXMLを案内します。
 
 `Verify public sitemap` は配信完了後に公開URLへHTTPSで接続し、XML・テキスト版・robots.txt・掲載ページのHTTP 200、配信内容、正規URL、Googlebotに対するrobots.txtの許可を確認します。認証情報を使用せず、通常のHTTPクライアントとして取得します。Search Console内の取得結果は別途、同画面のエラー詳細と「公開URLをテスト」で確認します。
+
+### 町の三重塔と鳥居（2026-10-08）
+
+- 三重塔は90両・3×3マス、鳥居は20両・2×1マス。両モデルとも元の縦横比を保ち、接地・90度回転・移動・まとめ買い・保存に対応。
+- 元のGLBの形状・UV・ノード変換とライセンス情報を維持し、テクスチャのみ軽量化。鳥居の敷地は住民が通れ、三重塔では見上げる・僧侶が読経する行動を追加。作者と変更点は `Credits.html` に掲載。
+- 元の添付モデルを再加工する場合は、Pillowを用意して `python scripts/prepare-town-model.py /path/to/upload assets/_m` を実行。通常の表示・検証にPythonやPillowは不要。

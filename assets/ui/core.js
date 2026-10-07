@@ -6,6 +6,8 @@
     { id: "shop", name: "商家", price: 40, cat: "building", icon: "🏪", width: 3, depth: 2, height: 1.5 },
     { id: "castle", name: "城", price: 120, cat: "building", icon: "🏯", width: 6, depth: 5, height: 7 },
     { id: "temple", name: "寺", price: 70, cat: "building", icon: "⛩️", width: 4, depth: 4, height: 2.6 },
+    { id: "pagoda", name: "三重塔", price: 90, cat: "building", icon: "🏯", width: 3, depth: 3, height: 4.8, preserveAspect: true, credit: "pagoda-credit" },
+    { id: "torii", name: "鳥居", price: 20, cat: "building", icon: "⛩️", width: 2, depth: 1, height: 1.6, preserveAspect: true, credit: "torii-credit" },
     { id: "tree", name: "木", price: 8, cat: "nature", icon: "🌳", width: 1, depth: 1, height: 1.8 },
     { id: "field", name: "畑", price: 12, cat: "nature", icon: "🌾", width: 3, depth: 2, height: .24 },
     { id: "road", name: "道路", price: 10, cat: "infrastructure", icon: "🛣️", width: 1, depth: 1, height: .04 },

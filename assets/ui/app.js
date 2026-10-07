@@ -728,7 +728,7 @@
         .filter((i) => cat === "all" || cat === i.cat)
         .map(
           (i) =>
-            `<article class="shop-item"><span aria-hidden="true">${i.icon}</span><h3>${i.name}</h3><small>1${i.cat==="resident"?"人":"個"} ${i.price}両${i.cat !== "resident" ? " · " + i.width + "×" + i.depth + "マス" : ""}</small><strong data-shop-total="${i.id}"></strong><button data-buy="${i.id}">選んで購入</button></article>`,
+            `<article class="shop-item"><span aria-hidden="true">${i.icon}</span><h3>${i.name}</h3><small>1${i.cat==="resident"?"人":"個"} ${i.price}両${i.cat !== "resident" ? " · " + i.width + "×" + i.depth + "マス" : ""}</small><strong data-shop-total="${i.id}"></strong><button data-buy="${i.id}">選んで購入</button>${i.credit ? `<small><a href="./Credits.html#${E(i.credit)}" target="_blank" rel="noopener">モデルの作者・ライセンス</a></small>` : ""}</article>`,
         )
         .join("")}</div>`,
     );

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "../vendor/OrbitControls.js";
 import { GLTFLoader } from "../vendor/GLTFLoader.js";
-import { fitModel, alignLinearModel, createBuilding, createGround, groundGridOpacity, syncBuildings } from "./town-geometry.js?v=aligned-bridge-20261005";
+import { fitModel, alignLinearModel, createBuilding, createGround, groundGridOpacity, syncBuildings } from "./town-geometry.js?v=pagoda-torii-20261008";
 import { createFarmerView } from "./farmer-3d.js?v=missions-20261005";
 import { createLandscape } from "./town-landscape.js?v=mountains-light-20261007";
 import { SoftwareTownRenderer } from "./town-software-renderer.js?v=first-person-20261007";
@@ -13,6 +13,8 @@ const urls = {
   shop: "j8ap2an8eses0ho1p.glb",
   castle: "ja76386p2an8esecas6t9le.glb",
   temple: "japanese.tem3pl4e1383.glb",
+  pagoda: "pagoda.glb",
+  torii: "torii.glb",
   tree: "t6r7e9e.glb",
   field: "f2i342el2d.glb",
   road: "w8a9l0k9w7a2y.glb",

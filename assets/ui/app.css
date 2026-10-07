@@ -1203,6 +1203,8 @@ dialog::backdrop {
 .map-building.compact > small { display: none; }
 .map-building.type-field { background: #c3cf9c; border-color: #79874d; }
 .map-building.type-castle { background: #dedccf; border-color: #777566; }
+.map-building.type-pagoda { background: #eddbc6; border-color: #8f4c3e; }
+.map-building.type-torii { background: #f3d8cb; border-color: #ac4535; color: #813a2c; }
 .map-building.type-road, .map-building.type-bridge { background: #ccb695; border-color: #a78b63; }
 .grid-map.placing .map-building { pointer-events: none; opacity: .6; }
 .grid-map.placing .grid-cell.pending { z-index: 4; }

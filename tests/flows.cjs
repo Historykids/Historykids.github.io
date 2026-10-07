@@ -32,7 +32,7 @@ function create(page, scripts, seed = {}) {
   if (loaded.includes("assets/ui/app.js") && !loaded.includes("assets/ui/wallet.js")) loaded.splice(loaded.indexOf("assets/ui/app.js"), 0, "assets/ui/wallet.js");
   if (loaded.includes("assets/ui/app.js") && !loaded.includes("assets/ui/residents.js")) loaded.splice(loaded.indexOf("assets/ui/app.js"), 0, "assets/ui/residents.js");
   if (loaded.includes("assets/ui/challenge.js")) loaded.splice(loaded.indexOf("assets/ui/challenge.js"), 0, "assets/ui/leaderboard.js");
-  for (const file of loaded) { w.eval(read(file)); if (file === "data/dataset.js") { w.eval(read("data/ancient.js")); w.eval(read("data/meiji.js")); } }
+  for (const file of loaded) { w.eval(read(file)); if (file === "data/dataset.js") { w.eval(read("data/ancient.js")); w.eval(read("data/meiji.js")); w.eval(read("data/modern.js")); } }
   return dom;
 }
 const click = (w, selector) => {
@@ -94,8 +94,8 @@ test("previous question resets unsolved inputs and skips questions just solved",
   g("answerInput").value="えど";g("answerForm").dispatchEvent(new v.Event("submit",{bubbles:true,cancelable:true}));assert.equal(v.HK.state.money,earned);
   click(v, '#nextBtn');assert.equal(g("qTitle").textContent,second);d.window.close();
 });
-test("all 226 questions have answers and valid display names", () => {
-  assert.equal(w.HK.records.length, 226);
+test("all 298 questions have answers and valid display names", () => {
+  assert.equal(w.HK.records.length, 298);
   for (const r of w.HK.records) {
     assert(r.answers.length);
     assert(!r.title.includes("undefined"));
@@ -103,7 +103,7 @@ test("all 226 questions have answers and valid display names", () => {
     assert.equal(Number(r.name.split(" ")[0]), r.year);
   }
 });
-test("all 226 questions offer four unique choices with matching character counts", () => {
+test("all 298 questions offer four unique choices with matching character counts", () => {
   for (const r of w.HK.records) {
     const choices = C.choiceAnswers(r, w.HK.records);
     assert.equal(choices.length, 4, r.id);
@@ -115,7 +115,7 @@ test("all 226 questions offer four unique choices with matching character counts
     }
   }
 });
-test("all eleven eras show only unsolved questions in order and complete immediately after the last correct answer", () => {
+test("all fourteen eras show only unsolved questions in order and complete immediately after the last correct answer", () => {
   const seed = {money_v1: "300"}, byEra = {};
   for (const era of w.HKCore.eraOrder) {
     const ordered = w.HK.records.filter(r => r.era === era).sort((a,b) => a.year-b.year);
@@ -364,7 +364,7 @@ test("missing storage displays warning without preventing learning", () => {
     "assets/ui/wallet.js",
     "assets/ui/app.js",
   ])
-    { nw.eval(read(file)); if (file === "data/dataset.js") { nw.eval(read("data/ancient.js")); nw.eval(read("data/meiji.js")); } }
+    { nw.eval(read(file)); if (file === "data/dataset.js") { nw.eval(read("data/ancient.js")); nw.eval(read("data/meiji.js")); nw.eval(read("data/modern.js")); } }
   assert(!nw.document.getElementById("saveWarning").hidden);
   assert(nw.document.querySelector('[data-answer="えど"]'));
   next.window.close();

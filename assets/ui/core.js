@@ -21,7 +21,8 @@
     return String(s)
       .normalize("NFKC")
       .replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 96))
-      .trim();
+      .trim()
+      .replace(/^にっぽん$/u, "にほん");
   }
   function tokens(s) {
     return normalize(s)
@@ -635,7 +636,7 @@
   }
   function rankingCompare(a, b) { return b.score - a.score || a.answerMs - b.answerMs; }
   const api = {
-    eraOrder: ["jomon", "yayoi", "kofun", "asuka", "nara", "heian", "kamakura", "muromachi", "sengoku", "edo", "meiji"],
+    eraOrder: ["jomon", "yayoi", "kofun", "asuka", "nara", "heian", "kamakura", "muromachi", "sengoku", "edo", "meiji", "taisho", "showa", "heisei"],
     rankingScore,
     rankingMetrics,
     rankingCompare,

@@ -10,7 +10,7 @@ s=re.sub(r'<script\b[^>]*\bsrc="[^"]+"[^>]*>\s*</script>','',s)
 s=s.replace('./assets/vendor/three.module.js','https://unpkg.com/three@0.160.0/build/three.module.js')
 # Source-derived local logic; no initial network access is required for learning.
 logic=[]
-for p in ['data/dataset.js','data/ancient.js','data/meiji.js','assets/ui/core.js','assets/ui/residents.js','assets/ui/app.js']:
+for p in ['data/dataset.js','data/ancient.js','data/meiji.js','data/modern.js','assets/ui/core.js','assets/ui/residents.js','assets/ui/app.js']:
  text=(root/p).read_text().replace('</script','<\\/script')
  logic.append('<script>\n'+text+'\n</script>')
 town=(root/'assets/ui/town.js').read_text()

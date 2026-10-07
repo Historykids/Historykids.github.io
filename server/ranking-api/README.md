@@ -15,7 +15,7 @@ GitHub Actionsの **Deploy ranking API** が既存の `CLOUDFLARE_API_TOKEN` と
 ## API
 
 - `GET /ranking`：スコア順の上位100件、自分の公開記録。
-- `POST /ranking/start`：11時代から10時代を選び、各時代1問ずつ出題し、挑戦IDを発行。`timingVersion:2` で問題ごとの計測を開始します。
+- `POST /ranking/start`：14時代から10時代を選び、各時代1問ずつ出題し、挑戦IDを発行。`timingVersion:2` で問題ごとの計測を開始します。
 - `POST /ranking/question`：`ticket,index` を検証してサーバー時刻で問題の計測を開始。同じ問題の再送は開始時刻を変えません。
 - `POST /ranking/answer`：`ticket,index,id,raw` を検証し、正誤とサーバー時計による回答時間を保存。重複送信は元の結果を返します。問題あたり最大45秒で、期限を超えた回答は不正解です。
 - `POST /ranking/finish`：10問すべての計測済み回答を照合し、正解数・合計回答時間・スコアを計算して自己ベストの登録用proofを返します。クライアント指定の時間・正誤・スコアは信用しません。同じ挑戦の再送で結果を変えません。今回の記録（`roundCorrect,roundAnswerMs,roundScore`）と自己ベストを別に返します。

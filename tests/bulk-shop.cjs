@@ -5,7 +5,7 @@ function page(balance=300,locks=null){
  w.HTMLElement.prototype.scrollIntoView=function(){};w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};w.requestAnimationFrame=()=>1;w.setTimeout=()=>0;
  w.localStorage.setItem('money_v1',String(balance));w.localStorage.setItem('hk_town_layout_v2',JSON.stringify({version:2,width:60,height:40}));
  if(locks)Object.defineProperty(w.navigator,'locks',{value:locks});
- for(const file of ['data/dataset.js','data/ancient.js','data/meiji.js','assets/ui/core.js','assets/ui/residents.js','assets/ui/wallet.js','assets/ui/app.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));
+ for(const file of ['data/dataset.js','data/ancient.js','data/meiji.js','data/modern.js','assets/ui/core.js','assets/ui/residents.js','assets/ui/wallet.js','assets/ui/app.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));
  const $=id=>w.document.getElementById(id),click=selector=>{const e=w.document.querySelector(selector);assert(e,selector);e.click();};
  const quantity=n=>{$('shopQuantity').value=String(n);$('shopQuantity').dispatchEvent(new w.Event('input',{bubbles:true}));};
  return {w,$,click,quantity};

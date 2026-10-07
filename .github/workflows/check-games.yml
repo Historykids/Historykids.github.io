@@ -6,6 +6,8 @@ on:
     paths:
       - 'assets/ui/**'
       - 'tests/**'
+      - 'data/**'
+      - 'scripts/ranking-questions.cjs'
       - '*.html'
       - 'package*.json'
       - '.github/workflows/check-games.yml'

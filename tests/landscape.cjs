@@ -20,12 +20,17 @@ async function main(){
  for(let z=-120;z<=120;z+=3){let x=f.riverX(z);assert(x>32,'river stays outside the town');assert(f.height(x,z)<0,'river carves a continuous valley');}
  console.log('PASS the peripheral river never crosses the town or climbs over mountain ridges');
  const scene=new THREE.Scene(),land=createLandscape(scene,60,40),terrain=land.group.children[0],geometry=terrain.geometry;
- assert(geometry.index.count/3<60000);assert(terrain.userData.softwareGeometry.index.count/3<27000);
+ assert.equal(land.quality,'light');assert(geometry.index.count/3<16000);
+ assert.equal(terrain.userData.softwareGeometry,undefined,'default view must not allocate a second terrain');
  let tall=0;
  for(let i=0;i<geometry.attributes.position.count;i++){let x=geometry.attributes.position.getX(i),y=geometry.attributes.position.getY(i),z=geometry.attributes.position.getZ(i);assert(Number.isFinite(x+y+z));if(Math.abs(x)<=30&&Math.abs(z)<=20)assert(y<0);tall=Math.max(tall,y);}
- assert(tall>20);assert.equal(land.group.children.filter(o=>o.isInstancedMesh).length,1);assert(land.group.children.find(o=>o.isInstancedMesh).count<=1700);
- console.log('PASS detail and draw budgets are bounded while the central terrain has no raised vertices');
- for(let row=0;row<=112;row++){const a=new THREE.Vector3().fromBufferAttribute(geometry.attributes.position,row*241),b=new THREE.Vector3().fromBufferAttribute(geometry.attributes.position,row*241+240);assert(a.distanceTo(b)<1e-4);}
+ assert(tall>20);assert.equal(land.group.children.filter(o=>o.isInstancedMesh).length,1);assert(land.group.children.find(o=>o.isInstancedMesh).count<=400);
+ assert(land.group.children.find(o=>o.name==='valley-stream').geometry.index.count/3<=400);
+ const detailed=createLandscape(new THREE.Scene(),60,40,{quality:'detail'});
+ assert.equal(detailed.quality,'detail');assert(geometry.index.count<detailed.group.children[0].geometry.index.count*.3);
+ assert(detailed.group.children[0].userData.softwareGeometry.index.count/3<27000);detailed.dispose();
+ console.log('PASS lightweight mountains are the default, use over 70% fewer terrain triangles and keep the town clear');
+ for(let row=0;row<=64;row++){const a=new THREE.Vector3().fromBufferAttribute(geometry.attributes.position,row*121),b=new THREE.Vector3().fromBufferAttribute(geometry.attributes.position,row*121+120);assert(a.distanceTo(b)<1e-4);}
  console.log('PASS the full 360 degree landscape closes without a visible seam');
  const paints=[],context={createImageData(w,h){return{data:new Uint8ClampedArray(w*h*4)}},putImageData(image){paints.push(image)}};
  global.document={createElement(){return{setAttribute(){},getContext(){return context}}}};

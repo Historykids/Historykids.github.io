@@ -3,7 +3,7 @@ import { OrbitControls } from "../vendor/OrbitControls.js";
 import { GLTFLoader } from "../vendor/GLTFLoader.js";
 import { fitModel, alignLinearModel, createBuilding, createGround, groundGridOpacity, syncBuildings } from "./town-geometry.js?v=aligned-bridge-20261005";
 import { createFarmerView } from "./farmer-3d.js?v=missions-20261005";
-import { createLandscape } from "./town-landscape.js?v=mountains-detail-20261003";
+import { createLandscape } from "./town-landscape.js?v=mountains-light-20261007";
 import { SoftwareTownRenderer } from "./town-software-renderer.js?v=mountains-detail-20261003";
 import { createTownEventView } from "./town-events.js?v=town-events-20261005";
 const C = window.HKCore;
@@ -94,7 +94,7 @@ function createScene(host, { mini = false } = {}) {
   renderer.domElement.setAttribute("aria-label", "森と山々に囲まれた、わたしの町");
   if (!mini) {
     const badge = document.createElement("span"); badge.className = "town-scenery-label";
-    badge.textContent = renderer.isSoftwareRenderer ? "山あいの町 · 軽量3D" : "山あいの町";
+    badge.textContent = landscape.quality === "light" ? "山あいの町 · 軽量版" : "山あいの町";
     host.append(badge);
   }
   let shadowBuildings = "";

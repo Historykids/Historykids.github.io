@@ -100,9 +100,9 @@ function forestTexture() {
   return texture;
 }
 
-function forest(field) {
+function forest(field, limit = 1700, attempts = 7000, detail = 1) {
   const spots = [], radius = field.diagonal * 1.9;
-  for (let i = 0; i < 7000 && spots.length < 1700; i++) {
+  for (let i = 0; i < attempts && spots.length < limit; i++) {
     const angle = hash(i, 41) * Math.PI * 2, distance = Math.sqrt(hash(i, 12)) * radius;
     const x = Math.cos(angle) * distance, z = Math.sin(angle) * distance, d = field.clearance(x, z) / field.unit;
     if (d < 6 || d > 85 || field.riverDistance(x, z) < field.unit * 2.5) continue;
@@ -110,7 +110,7 @@ function forest(field) {
     if (n.y < .56 || hash(i, 44) > .72 + noise(x / 18, z / 18) * .2) continue;
     spots.push({ x, y, z, i });
   }
-  const mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff }), spots.length);
+  const mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, detail), new THREE.MeshBasicMaterial({ color: 0xffffff }), spots.length);
   const object = new THREE.Object3D(); mesh.name = "wooded-foothills"; mesh.userData.canopy = true;
   for (let i = 0; i < spots.length; i++) {
     const s = spots[i], size = (.45 + hash(s.i, 17) * .7) * Math.min(field.unit, 1.6);
@@ -126,29 +126,33 @@ function forest(field) {
   return mesh;
 }
 
-function river(field) {
+function river(field, segments = 600) {
   const positions = [], colors = [], indices = [], extent = field.diagonal * 3;
-  for (let i = 0; i <= 600; i++) {
-    const z = -extent + i / 600 * extent * 2, x = field.riverX(z), width = field.unit * (.56 + .17 * Math.sin(z / field.unit * .07));
+  for (let i = 0; i <= segments; i++) {
+    const z = -extent + i / segments * extent * 2, x = field.riverX(z), width = field.unit * (.56 + .17 * Math.sin(z / field.unit * .07));
     for (const side of [-1, 1]) {
       const px = x + width * side;
       positions.push(px, field.height(px, z) + .065, z);
       const c = new THREE.Color(side === -1 ? 0x477d83 : 0x7ca3a1); colors.push(c.r, c.g, c.b);
     }
-    if (i < 600) { const j = i * 2; indices.push(j, j + 2, j + 1, j + 1, j + 2, j + 3); }
+    if (i < segments) { const j = i * 2; indices.push(j, j + 2, j + 1, j + 1, j + 2, j + 3); }
   }
   const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));g.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));g.setIndex(indices);
   const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide })); mesh.name = "valley-stream";return mesh;
 }
 
-export function createLandscape(scene, width, depth) {
+export function createLandscape(scene, width, depth, { quality = "light" } = {}) {
+  const lightweight = quality !== "detail";
   const field = createTerrainField(width, depth), group = new THREE.Group(); group.name = "surrounding-mountain-landscape";
   const texture = forestTexture();
-  const terrain = new THREE.Mesh(terrainGeometry(field), new THREE.MeshBasicMaterial({ vertexColors: true, map: texture }));
+  // Share one reduced mesh between WebGL and the software fallback in the default
+  // view. Keep the same terrain field, town clearance and photographic forest.
+  const geometry = lightweight ? terrainGeometry(field, 120, 64) : terrainGeometry(field);
+  const terrain = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ vertexColors: true, map: texture }));
   terrain.name = "continuous-ridges-and-valleys";
-  terrain.userData.softwareGeometry = terrainGeometry(field, 160, 80);
-  const trees = forest(field);
-  group.add(terrain, trees, river(field));
+  if (!lightweight) terrain.userData.softwareGeometry = terrainGeometry(field, 160, 80);
+  const trees = lightweight ? forest(field, 400, 2000, 0) : forest(field);
+  group.add(terrain, trees, river(field, lightweight ? 200 : 600));
   scene.add(group);
   scene.background = new THREE.Color(0xb9ced3);
   scene.fog = new THREE.Fog(0xb9ced3, field.diagonal * 1.7, field.diagonal * 6.5);
@@ -161,7 +165,7 @@ export function createLandscape(scene, width, depth) {
     if (disposed) { detail.dispose(); return false; }
     detailedTexture = detail; detail.userData.forestCanopy = true; detail.wrapS = detail.wrapT = THREE.RepeatWrapping;
     detail.colorSpace = THREE.SRGBColorSpace; detail.anisotropy = 4; detail.needsUpdate = true;
-    for (const geometry of [terrain.geometry, terrain.userData.softwareGeometry]) {
+    for (const geometry of [terrain.geometry, terrain.userData.softwareGeometry].filter(Boolean)) {
       const p = geometry.attributes.position, colors = geometry.attributes.color;
       for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i), c = field.color(x, z, p.getY(i), field.normal(x, z), true);colors.setXYZ(i, c.r, c.g, c.b); }
       colors.needsUpdate = true;
@@ -173,7 +177,7 @@ export function createLandscape(scene, width, depth) {
     return true;
   }).catch(() => false);
   return {
-    group, field, ready,
+    group, field, ready, quality: lightweight ? "light" : "detail",
     dispose() { disposed = true; const materials = new Set(); group.traverse(o => { if(o.isMesh) {o.geometry.dispose();o.userData.softwareGeometry?.dispose();materials.add(o.material);} });materials.forEach(m=>m.dispose());texture.dispose();detailedTexture?.dispose();scene.remove(group); }
   };
 }

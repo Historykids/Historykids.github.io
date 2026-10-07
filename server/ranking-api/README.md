@@ -1,6 +1,14 @@
-# 早押しランキングAPI
+# 歴史キッズ ランキングAPI
 
-`historykids-ranking-api` は早押し専用のCloudflare Workerです。SQLite-backed Durable Objectで順位・確認済み自己ベストを永続保存します。偉人AIのWorkerとは独立して動作します。
+`historykids-ranking-api` は早押しと成金ランキングのCloudflare Workerです。SQLite-backed Durable Objectで順位・確認済み自己ベストを永続保存します。偉人AIのWorkerとは独立して動作します。
+
+## 成金ランキング
+
+`GET /wealth` は経済力順の上位100件・本人の記録・全参加者数・本人の正確な順位を返します。同点は同順位です。`POST /wealth/register` は `{name,snapshot:{balance,buildings:{house:2},residents:{farmer:1}},expectedRevision}` を受け取り、名前だけを入力して現在の町を登録・更新できます。0両・建物0個でも参加できます。建物には木・畑・道路・橋・塀も含みます。
+
+総資産は所持両＋建造物の購入額＋住民の購入額。経済力は総資産＋建造物数×20＋住民数×10です。型・件数・町の最大面積・住民100人の上限を検証し、購入価格と合計値はサーバーで計算します。町と所持両はブラウザに保存されたゲームデータの自己申告であり、クイズ回答を検証する早押しランキングとは異なります。
+
+成金用の32バイト所有証明をAuthorizationで送り、サーバーにはSHA-256のIDだけを保存します。同じブラウザの更新は1件を置き換えます。名前が同じ別の利用者も参加でき、名前だけでは他人の記録を上書きできません。`expectedRevision` が古い更新は409で拒否し、同一内容の再送は成功として扱います。更新で経済力が下がっても現在の値を反映します。早押しの既存テーブルには触れず、同じDurable Object内の専用テーブルを使います。`node tests/wealth-api.cjs` で保存・更新・競技順位・所有権・既存早押しとの共存を確認できます。
 
 GitHub Actionsの **Deploy ranking API** が既存の `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID` を使って公開し、公開HTTPSの順位読み込みを確認してから `assets/ui/ranking-config.js` を更新します。ブラウザ用の設定は公開URLだけです。
 

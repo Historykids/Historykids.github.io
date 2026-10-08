@@ -196,7 +196,7 @@ test("a fresh typed answer earns twenty coins and cannot be collected twice", ()
   assert.equal(tw.HK.state.money, 20);
   typed.window.close();
 });
-test("the small help footer opens a code form and adds exactly 100 coins without duplicate submissions", () => {
+test("the small help footer opens a code form and adds exactly 20 coins without duplicate submissions", () => {
   const d=create("index.html",["data/dataset.js","assets/ui/core.js","assets/ui/app.js"],{money_v1:"35"}),v=d.window,g=id=>v.document.getElementById(id);
   assert.equal(v.document.querySelector('#view-howto').lastElementChild.querySelector('button').textContent,"コードを入力");
   click(v,'#redeemCodeBtn');assert(g("dialog").open);g("redeemCodeInput").value="1941";
@@ -205,16 +205,16 @@ test("the small help footer opens a code form and adds exactly 100 coins without
   const adjust=v.HKWallet.adjust;let finish,calls=0;
   v.HKWallet.adjust=(amount,success,failure)=>{calls++;finish=()=>adjust(amount,success,failure);};
   g("redeemCodeInput").value="1940";submit();submit();assert.equal(calls,1);assert.equal(v.HK.state.money,35);
-  finish();assert.equal(v.HK.state.money,135);assert(g("redeemCodeStatus").textContent.includes("100両ゲット"));submit();assert.equal(calls,1);
+  finish();assert.equal(v.HK.state.money,55);assert(g("redeemCodeStatus").textContent.includes("20両ゲット"));submit();assert.equal(calls,1);
   const saved=Object.fromEntries(Object.keys(v.localStorage).map(k=>[k,v.localStorage.getItem(k)]));
-  const again=create("index.html",["data/dataset.js","assets/ui/core.js","assets/ui/app.js"],saved);assert.equal(again.window.HK.state.money,135);again.window.close();v.close();
+  const again=create("index.html",["data/dataset.js","assets/ui/core.js","assets/ui/app.js"],saved);assert.equal(again.window.HK.state.money,55);again.window.close();v.close();
 });
 test("a failed code reward leaves coins intact and allows retry", () => {
   const d=create("index.html",["data/dataset.js","assets/ui/core.js","assets/ui/app.js"],{money_v1:"12"}),v=d.window,g=id=>v.document.getElementById(id);
   click(v,'#redeemCodeBtn');g("redeemCodeInput").value="1940";
   const adjust=v.HKWallet.adjust;v.HKWallet.adjust=(amount,success,failure)=>failure(Error("storage unavailable"));
   const submit=()=>g("redeemCodeForm").dispatchEvent(new v.Event("submit",{bubbles:true,cancelable:true}));submit();assert.equal(v.HK.state.money,12);assert(!g("redeemCodeInput").disabled);assert(g("redeemCodeStatus").textContent.includes("保存できません"));
-  v.HKWallet.adjust=adjust;submit();assert.equal(v.HK.state.money,112);v.close();
+  v.HKWallet.adjust=adjust;submit();assert.equal(v.HK.state.money,32);v.close();
 });
 test("first quiz awards exactly one card and ten coins", () => {
   click(w, '[data-answer="えど"]');

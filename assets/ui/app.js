@@ -684,13 +684,13 @@
     }
     input.disabled = button.disabled = true;
     status.textContent = "受け取り中…";
-    W.adjust(100, () => {
+    W.adjust(20, () => {
       save(); renderStats();
       if (form.isConnected) {
-        status.textContent = "100両ゲット！町づくりに使ってね。";
+        status.textContent = "20両ゲット！町づくりに使ってね。";
         button.textContent = "受け取りました";
       }
-      notify("＋100両ゲット！");
+      notify("＋20両ゲット！");
     }, () => {
       if (form.isConnected) {
         input.disabled = button.disabled = false;

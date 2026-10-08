@@ -3,11 +3,11 @@
   const wheel = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
   const red = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
   const symbols = [
-    { id:'cherry', icon:'🍒', name:'チェリー', weight:7, multiplier:1 },
-    { id:'lemon', icon:'🍋', name:'レモン', weight:5, multiplier:2 },
-    { id:'bell', icon:'🔔', name:'ベル', weight:4, multiplier:3 },
-    { id:'bar', icon:'BAR', name:'BAR', weight:3, multiplier:5 },
-    { id:'seven', icon:'7', name:'7', weight:1, multiplier:100 },
+    { id:'cherry', icon:'🍒', name:'チェリー', weight:7, multiplier:4 },
+    { id:'lemon', icon:'🍋', name:'レモン', weight:5, multiplier:8 },
+    { id:'bell', icon:'🔔', name:'ベル', weight:4, multiplier:15 },
+    { id:'bar', icon:'BAR', name:'BAR', weight:3, multiplier:30 },
+    { id:'seven', icon:'7', name:'7', weight:1, multiplier:300 },
     { id:'bonus', icon:'両', name:'ボーナス', weight:1, multiplier:0 },
   ];
   const strip = symbols.flatMap(s => Array(s.weight).fill(s.id));
@@ -63,7 +63,32 @@
     return { choice, dice:[...dice], sum, triple, side, multiplier,
       title:triple ? 'ゾロ目！大小はどちらも負け。' : multiplier ? '予想的中！'+(side==='small'?'小':'大')+'！' : '今回は'+(side==='small'?'小':'大')+'。予想は外れ。' };
   }
-  const rules = { wheel, symbols, strip, paylines, randomIndex, janken, color, bet, roulette, slots, sicbo };
+  const sicboTotals = [60,20,18,12,8,6,6,6,6,8,12,18,20,60];
+  function sicboBet(id) {
+    if(id==='small'||id==='big')return {id,type:id,label:id==='small'?'小（4〜10）':'大（11〜17）',odds:1};
+    if(id==='any-triple')return {id,type:'any-triple',label:'いずれかのゾロ目',odds:30};
+    const match=/^(double|triple|single)-([1-6])$/.exec(id);
+    if(match){const type=match[1],face=Number(match[2]);return {id,type,face,label:type==='double'?face+'のダブル':type==='triple'?face+'のゾロ目':face+'の目',odds:type==='double'?11:type==='triple'?180:null};}
+    const sum=/^sum-([4-9]|1[0-7])$/.exec(id);
+    if(sum)return {id,type:'sum',sum:Number(sum[1]),label:'合計'+sum[1],odds:sicboTotals[Number(sum[1])-4]};
+    const pair=/^pair-([1-5])-([2-6])$/.exec(id);
+    if(pair&&Number(pair[1])<Number(pair[2]))return {id,type:'pair',faces:[Number(pair[1]),Number(pair[2])],label:pair[1]+'と'+pair[2],odds:6};
+    throw Error('invalid-sicbo-position');
+  }
+  function sicboMultiplier(id,dice) {
+    const b=sicboBet(id),sum=dice.reduce((a,n)=>a+n,0),triple=dice.every(n=>n===dice[0]),count=dice.filter(n=>n===b.face).length;
+    const hit=b.type==='small'?!triple&&sum>=4&&sum<=10:b.type==='big'?!triple&&sum>=11&&sum<=17:b.type==='double'?count>=2:b.type==='triple'?count===3:b.type==='any-triple'?triple:b.type==='sum'?sum===b.sum:b.type==='pair'?b.faces.every(n=>dice.includes(n)):count>0;
+    return hit ? b.type==='single'?count+1:b.odds+1 : 0;
+  }
+  function sicboRound(bets,dice) {
+    if(!Array.isArray(bets)||!bets.length||bets.length>1000)throw Error('invalid-sicbo-bets');
+    const base=sicbo('small',dice);
+    const settled=bets.map(b=>{if(!b||!Number.isSafeInteger(b.stake)||b.stake<1)throw Error('invalid-bet');const multiplier=sicboMultiplier(b.id,dice);return {id:b.id,stake:b.stake,multiplier,payout:b.stake*multiplier};});
+    if(settled.reduce((n,b)=>n+b.stake,0)>1000)throw Error('invalid-bet');
+    const wins=settled.filter(b=>b.payout>0),payout=settled.reduce((n,b)=>n+b.payout,0);
+    return {tableVersion:1,dice:base.dice,sum:base.sum,triple:base.triple,side:base.side,bets:settled,payout,title:wins.length?wins.length+'か所的中！':'今回は的中なし。'};
+  }
+  const rules = { wheel, symbols, strip, paylines, randomIndex, janken, color, bet, roulette, slots, sicbo, sicboBet, sicboMultiplier, sicboRound, sicboTotals };
   root.HKCasinoRules = rules;
   if (typeof module !== 'undefined' && module.exports) module.exports = rules;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -15,6 +15,40 @@ function page({balance=100,storage=null,ui=false,locks=null,game=null,reduced=fa
 }
 function walletCall(W,method,...args){return new Promise((resolve,reject)=>W[method](...args,resolve,reject));}
 async function main(){
+ await test('all 50 Sic Bo cells match the reference odds across every independent dice outcome',()=>{
+  const ids=['small','big','any-triple',...Array.from({length:6},(_,i)=>'double-'+(i+1)),...Array.from({length:6},(_,i)=>'triple-'+(i+1)),...Array.from({length:14},(_,i)=>'sum-'+(i+4)),...Array.from({length:6},(_,i)=>'single-'+(i+1))];
+  for(let a=1;a<6;a++)for(let b=a+1;b<=6;b++)ids.push('pair-'+a+'-'+b);
+  assert.equal(new Set(ids).size,50);
+  const sumCounts=[3,6,10,15,21,25,27,27,25,21,15,10,6,3],sumOdds=[61,21,19,13,9,7,7,7,7,9,13,19,21,61];
+  for(const id of ids){let hits=0;const mults=new Set();for(let a=1;a<=6;a++)for(let b=1;b<=6;b++)for(let c=1;c<=6;c++){const m=R.sicboMultiplier(id,[a,b,c]);if(m){hits++;mults.add(m);}}
+   const type=R.sicboBet(id).type;
+   const expected=type==='small'||type==='big'?105:type==='double'?16:type==='triple'?1:type==='any-triple'?6:type==='sum'?sumCounts[Number(id.slice(4))-4]:type==='pair'?30:91;
+   assert.equal(hits,expected,id);
+   if(type==='sum')assert.deepEqual([...mults],[sumOdds[Number(id.slice(4))-4]],id);
+   else if(type==='single')assert.deepEqual([...mults].sort(),[2,3,4]);
+   else assert.deepEqual([...mults],[type==='double'?12:type==='triple'?181:type==='any-triple'?31:type==='pair'?7:2],id);
+  }
+  for(const id of ['double-0','triple-7','sum-3','sum-18','pair-2-1','pair-1-1','single-9','fake'])assert.throws(()=>R.sicboBet(id));
+ });
+ await test('Sic Bo multi-bet table pays doubles, triples, totals and single faces together on a triple',()=>{
+  const p=page({ui:true,game:'sicbo',balance:500,reduced:true});assert.equal(p.w.document.querySelectorAll('[data-sicbo]').length,50);assert(p.$('playRound').disabled);
+  for(const id of ['small','big','double-4','triple-4','any-triple','sum-12','single-4','pair-3-4'])p.w.document.querySelector('[data-sicbo="'+id+'"]').click();
+  assert.equal(p.$('sicboTotal').textContent,'80両');assert.equal(p.W.snapshot().balance,500);p.setRandom(3);p.$('playRound').click();assert.equal(p.W.snapshot().balance,420);assert(p.$('sicboClear').disabled);p.advance(350);
+  assert.equal(p.$('resultPayout').textContent,'2,350両');assert.equal(p.W.snapshot().balance,2770);assert.equal(p.$('sicboTotal').textContent,'0両');assert.equal(p.W.snapshot().history.length,1);p.advance(1000);assert.equal(p.W.snapshot().balance,2770);p.w.close();
+ });
+ await test('Sic Bo chip undo, removal, balance and cap checks preserve the wager before rolling',()=>{
+  const p=page({ui:true,game:'sicbo',balance:1100});const b=id=>p.w.document.querySelector('[data-sicbo="'+id+'"]');b('small').click();b('small').click();b('big').click();assert.equal(p.$('sicboTotal').textContent,'30両');p.$('sicboUndo').click();assert.equal(p.$('sicboTotal').textContent,'20両');p.$('sicboBetSlip').querySelector('[data-remove-sicbo]').click();assert.equal(p.$('sicboTotal').textContent,'0両');
+  p.$('stake').value=1000;p.$('stake').dispatchEvent(new p.w.Event('input'));b('single-1').click();b('single-2').click();assert.equal(p.$('sicboTotal').textContent,'1,000両');assert.equal(p.W.snapshot().balance,1100);p.$('sicboClear').click();assert.equal(p.$('sicboTotal').textContent,'0両');p.w.close();
+  const q=page({ui:true,game:'sicbo',balance:15});q.w.document.querySelector('[data-sicbo="small"]').click();q.w.document.querySelector('[data-sicbo="big"]').click();assert.equal(q.$('sicboTotal').textContent,'10両');assert.equal(q.W.snapshot().balance,15);q.w.close();
+ });
+ await test('Sic Bo multi-bet reload uses the saved dice and credits its original payout exactly once',()=>{
+  const map=new Map([['money_v1','100']]),p=page({ui:true,game:'sicbo',storage:map});for(const id of ['small','pair-1-2','single-1'])p.w.document.querySelector('[data-sicbo="'+id+'"]').click();p.setSequence([0,0,1]);p.$('playRound').click();assert.equal(p.W.snapshot().balance,70);
+  const q=page({ui:true,storage:map});assert.equal(q.W.snapshot().balance,190);assert.equal(q.$('resultPayout').textContent,'120両');assert.equal(q.$('sicboDie2').getAttribute('aria-label'),'右のサイコロ：2');p.advance(2000);assert.equal(p.W.snapshot().balance,190);assert.equal(q.W.snapshot().history.length,1);p.w.close();q.w.close();
+ });
+ await test('wallet rejects altered Sic Bo chip multipliers and still restores older two-choice rounds',async()=>{
+  const p=page();const d=R.sicboRound([{id:'triple-1',stake:10}],[1,1,1]);d.bets[0].multiplier=999;await assert.rejects(walletCall(p.W,'begin','sicbo',10,()=>({payout:1810,data:d})),/invalid-payout/);assert.equal(p.W.snapshot().balance,100);p.w.close();
+  const w={version:2,balance:90,pending:{id:'old-sicbo',game:'sicbo',stake:10,payout:20,data:R.sicbo('small',[1,2,3]),at:1},history:[]},q=page({ui:true,storage:new Map([['hk_wallet_v2',JSON.stringify(w)]])});assert.equal(q.W.snapshot().balance,110);assert.equal(q.$('resultPayout').textContent,'20両');q.w.close();
+ });
  await test('Sic Bo covers all 216 independent dice results: 105 small, 105 big and six triples that lose both',()=>{
   let small=0,big=0,triples=0;
   for(let a=1;a<=6;a++)for(let b=1;b<=6;b++)for(let c=1;c<=6;c++){
@@ -28,9 +62,9 @@ async function main(){
  });
  await test('Sic Bo starts from its game link, reveals actual pips in order, locks betting and pays exactly once',()=>{
   const p=page({ui:true,game:'sicbo'});assert(!p.$('panel-sicbo').hidden);assert(p.$('playLabel').textContent.includes('サイコロ'));assert(p.$('gameRules').textContent.includes('ゾロ目'));
-  p.setSequence([0,2,5]);p.$('playRound').click();p.$('mobilePlayRound').click();assert.equal(p.W.snapshot().balance,90);assert.equal(p.W.snapshot().pending.game,'sicbo');assert(p.w.document.querySelector('[data-sicbo="big"]').disabled);
+  p.w.document.querySelector('[data-sicbo="small"]').click();p.setSequence([0,2,5]);p.$('playRound').click();p.$('mobilePlayRound').click();assert.equal(p.W.snapshot().balance,90);assert.equal(p.W.snapshot().pending.game,'sicbo');assert(p.w.document.querySelector('[data-sicbo="big"]').disabled);
   p.advance(1260);assert.equal(p.$('sicboDie0').getAttribute('aria-label'),'左のサイコロ：1');assert(p.$('sicboDie2').classList.contains('rolling'));assert.equal(p.$('sicboSum').textContent,'？');
-  p.advance(500);assert.equal(p.W.snapshot().balance,110);assert.equal(p.$('sicboSum').textContent,'10');assert.equal(p.$('sicboCall').textContent,'小');assert.equal(p.$('resultPayout').textContent,'20両');assert(p.$('resultHeadline').textContent.includes('予想的中'));assert.equal(p.w.document.querySelectorAll('.dice-cube.rolling').length,0);assert.equal(p.w.document.querySelectorAll('.dice-face').length,18);
+  p.advance(500);assert.equal(p.W.snapshot().balance,110);assert.equal(p.$('sicboSum').textContent,'10');assert.equal(p.$('sicboCall').textContent,'小');assert.equal(p.$('resultPayout').textContent,'20両');assert(p.$('resultHeadline').textContent.includes('的中'));assert.equal(p.w.document.querySelectorAll('.dice-cube.rolling').length,0);assert.equal(p.w.document.querySelectorAll('.dice-face').length,18);
   for(let n=1;n<=6;n++)assert.equal(p.$('sicboDie0').querySelectorAll('.face-'+n+' .pip').length,n);
   p.advance(10000);assert.equal(p.W.snapshot().balance,110);assert.equal(p.W.snapshot().history.length,1);p.w.close();
  });
@@ -39,11 +73,11 @@ async function main(){
    const p=page({ui:true,game:'sicbo',reduced:true});p.w.document.querySelector('[data-sicbo="'+choice+'"]').click();p.setRandom(n-1);p.$('playRound').click();p.advance(350);
    assert.equal(p.W.snapshot().balance,90);assert.equal(p.$('sicboSum').textContent,String(n*3));assert.equal(p.$('resultPayout').textContent,'0両');assert(p.$('resultDetail').textContent.includes('ゾロ目'));assert(p.$('sicboStage').classList.contains('triple'));p.w.close();
   }
-  const p=page({ui:true,game:'sicbo'});p.$('quickToggle').checked=true;p.setSequence([4,5,5]);p.$('playRound').click();p.advance(350);assert.equal(p.$('sicboCall').textContent,'大');assert.equal(p.W.snapshot().balance,90);assert(p.$('resultHeadline').textContent.includes('外れ'));p.w.close();
+  const p=page({ui:true,game:'sicbo'});p.$('quickToggle').checked=true;p.w.document.querySelector('[data-sicbo="small"]').click();p.setSequence([4,5,5]);p.$('playRound').click();p.advance(350);assert.equal(p.$('sicboCall').textContent,'大');assert.equal(p.W.snapshot().balance,90);assert(p.$('resultHeadline').textContent.includes('的中なし'));p.w.close();
  });
  await test('Sic Bo restores its chosen side and dice after reload without redrawing, charging or paying twice',()=>{
   const map=new Map([['money_v1','100']]),p=page({ui:true,storage:map,game:'sicbo'});p.w.document.querySelector('[data-sicbo="big"]').click();p.setSequence([0,3,5]);p.$('playRound').click();assert.equal(p.W.snapshot().balance,90);
-  const q=page({ui:true,storage:map});assert(!q.$('panel-sicbo').hidden);assert.equal(q.$('sicboSum').textContent,'11');assert.equal(q.w.document.querySelector('[data-sicbo="big"]').getAttribute('aria-pressed'),'true');assert.equal(q.W.snapshot().balance,110);assert.equal(q.$('resultKicker').textContent,'RESULT RESTORED');
+  const q=page({ui:true,storage:map});assert(!q.$('panel-sicbo').hidden);assert.equal(q.$('sicboSum').textContent,'11');assert(q.w.document.querySelector('[data-sicbo="big"]').classList.contains('landed'));assert.equal(q.$('sicboTotal').textContent,'0両');assert.equal(q.W.snapshot().balance,110);assert.equal(q.$('resultKicker').textContent,'RESULT RESTORED');
   p.advance(2000);assert.equal(p.W.snapshot().balance,110);assert.equal(p.W.snapshot().history.length,1);assert(q.$('roundHistory').textContent.includes('大小'));p.w.close();q.w.close();
  });
  await test('Sic Bo rejects inconsistent results before spending and rejects malformed saved dice',async()=>{
@@ -58,9 +92,9 @@ async function main(){
  await test('every supported roulette bet has correct coverage, payout and expected return',()=>{for(const id of ['red','black','odd','even','low','high','d1','d2','d3','c1','c2','c3',...Array.from({length:37},(_,i)=>'n'+i)]){const b=R.bet(id);assert.equal(b.numbers.length*b.multiplier,36,id);assert.equal(Array.from({length:37},(_,i)=>R.roulette([{id,stake:1}],i)).reduce((a,b)=>a+b,0),36,id);}assert.equal(R.roulette([{id:'n1',stake:5},{id:'red',stake:10},{id:'d1',stake:5}],1),215);assert.throws(()=>R.bet('n37'));assert.throws(()=>R.roulette([{id:'red',stake:-1}],1));});
  await test('slots pay each of the eight horizontal, vertical and diagonal lines and sum overlaps',()=>{
   assert.equal(R.strip.length,21);assert.equal(R.paylines.length,8);
-  for(const line of R.paylines){const grid=['cherry','lemon','bell','lemon','bell','bar','bell','bar','cherry'];for(const cell of line.cells)grid[cell]='seven';const win=R.slots(grid);assert(win.wins.some(w=>w.id===line.id),line.name);assert.equal(win.multiplier,100);}
-  const all=Array(9).fill('seven');assert.equal(R.slots(all).multiplier,800);assert.equal(R.slots(all,true).multiplier,1600);
-  assert.equal(R.slots(['cherry','lemon','bell','cherry','bell','bar','cherry','bar','lemon']).multiplier,1);
+  for(const line of R.paylines){const grid=['cherry','lemon','bell','lemon','bell','bar','bell','bar','cherry'];for(const cell of line.cells)grid[cell]='seven';const win=R.slots(grid);assert(win.wins.some(w=>w.id===line.id),line.name);assert.equal(win.multiplier,300);}
+  const all=Array(9).fill('seven');assert.equal(R.slots(all).multiplier,2400);assert.equal(R.slots(all,true).multiplier,4800);
+  assert.equal(R.slots(['cherry','lemon','bell','cherry','bell','bar','cherry','bar','lemon']).multiplier,4);
   assert.throws(()=>R.slots(Array(9).fill('fake')));assert.throws(()=>R.slots(['seven','seven','seven']));
  });
  await test('scatter bonus needs three symbols anywhere, awards no fake line payout and never retriggers in free spins',()=>{
@@ -81,19 +115,19 @@ async function main(){
  await test('slots show all nine cells, highlight a vertical win and pay its exact amount',()=>{
   const p=page({ui:true});p.w.document.querySelector('[data-game="slots"]').click();p.setSequence([0,7,12,0,12,16,0,16,7]);p.$('playRound').click();assert.equal(p.W.snapshot().balance,90);
   p.advance(1800);assert(p.$('reel0').parentElement.classList.contains('stopped'));assert(!p.$('reel2').parentElement.classList.contains('stopped'));p.advance(1300);
-  assert.equal(p.W.snapshot().balance,100);assert.equal(p.$('resultPayout').textContent,'10両');assert.equal(p.$('slotWinLines'),null);assert(p.$('slotLineWins').textContent.includes('左の縦列'));
+  assert.equal(p.W.snapshot().balance,130);assert.equal(p.$('resultPayout').textContent,'40両');assert.equal(p.$('slotWinLines'),null);assert(p.$('slotLineWins').textContent.includes('左の縦列'));
   assert.equal(p.w.document.querySelectorAll('.reel-item').length,9);assert.equal(p.w.document.querySelectorAll('.is-winning').length,3);p.w.close();
  });
  await test('all eight 777 lines add up instead of hitting the old single-line payout cap',()=>{
   const p=page({ui:true});p.w.document.querySelector('[data-game="slots"]').click();p.setRandom(19);p.$('playRound').click();p.advance(3100);
-  assert.equal(p.W.snapshot().balance,8090);assert.equal(p.$('resultPayout').textContent,'8,000両');assert.equal(p.$('slotWinLines'),null);assert(p.$('tableArea').classList.contains('big-win'));p.w.close();
+  assert.equal(p.W.snapshot().balance,24090);assert.equal(p.$('resultPayout').textContent,'24,000両');assert.equal(p.$('slotWinLines'),null);assert(p.$('tableArea').classList.contains('big-win'));p.w.close();
  });
  await test('bonus grants five free spins, locks the original stake, doubles payouts and survives reloading',()=>{
   const map=new Map([['money_v1','10']]),p=page({ui:true,storage:map});p.w.document.querySelector('[data-game="slots"]').click();p.setSequence([20,7,12,0,20,16,7,16,20]);p.$('playRound').click();p.advance(3100);
   assert.equal(p.W.snapshot().balance,0);assert.equal(p.W.snapshot().slotBonus.remaining,5);assert(!p.$('playRound').disabled);assert(p.$('stake').disabled);assert(p.$('emptyWallet').hidden);assert(p.$('resultHeadline').textContent.includes('ボーナス発動'));
   const q=page({ui:true,storage:map});q.w.document.querySelector('[data-game="slots"]').click();assert(q.$('playLabel').textContent.includes('無料スピン'));q.setRandom(19);q.$('playRound').click();q.$('playRound').click();assert.equal(q.W.snapshot().balance,0);assert.equal(q.W.snapshot().pending.stake,0);assert.equal(q.W.snapshot().pending.slotStake,10);assert.equal(q.W.snapshot().slotBonus.remaining,4);
-  const recovered=page({ui:true,storage:map});assert.equal(recovered.W.snapshot().balance,16000);assert.equal(recovered.W.snapshot().slotBonus.remaining,4);assert.equal(recovered.$('resultPayout').textContent,'16,000両');q.advance(3100);assert.equal(q.W.snapshot().balance,16000);
-  recovered.setRandom(20);for(let i=0;i<4;i++){recovered.$('playRound').click();recovered.advance(3100);}assert.equal(recovered.W.snapshot().slotBonus.remaining,0);assert.equal(recovered.W.snapshot().balance,16000);assert(!recovered.$('stake').disabled);assert.equal(recovered.W.snapshot().history.filter(r=>r.freeSpin).length,5);
+  const recovered=page({ui:true,storage:map});assert.equal(recovered.W.snapshot().balance,48000);assert.equal(recovered.W.snapshot().slotBonus.remaining,4);assert.equal(recovered.$('resultPayout').textContent,'48,000両');q.advance(3100);assert.equal(q.W.snapshot().balance,48000);
+  recovered.setRandom(20);for(let i=0;i<4;i++){recovered.$('playRound').click();recovered.advance(3100);}assert.equal(recovered.W.snapshot().slotBonus.remaining,0);assert.equal(recovered.W.snapshot().balance,48000);assert(!recovered.$('stake').disabled);assert.equal(recovered.W.snapshot().history.filter(r=>r.freeSpin).length,5);
   p.w.close();q.w.close();recovered.w.close();
  });
  await test('two tabs cannot consume a bonus spin twice and duplicate settlement cannot grant a second bonus',async()=>{

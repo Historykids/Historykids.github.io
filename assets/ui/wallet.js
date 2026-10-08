@@ -6,8 +6,28 @@
   const uid = () => crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint32Array(4)),n=>n.toString(16).padStart(8,"0")).join("");
   function validSicbo(round) {
     const d=round.data;
-    if(!d || !['small','big'].includes(d.choice) || !Array.isArray(d.dice) || d.dice.length!==3 || d.dice.some(n=>!Number.isInteger(n)||n<1||n>6))return false;
+    if(!d || !Array.isArray(d.dice) || d.dice.length!==3 || d.dice.some(n=>!Number.isInteger(n)||n<1||n>6))return false;
     const sum=d.dice.reduce((a,b)=>a+b,0),triple=d.dice.every(n=>n===d.dice[0]);
+    if(d.sum!==sum || d.triple!==triple)return false;
+    if(d.tableVersion===1){
+      if(!Array.isArray(d.bets)||!d.bets.length||d.bets.length>1000)return false;
+      let stake=0,payout=0;
+      for(const b of d.bets){
+        if(!b||typeof b.id!=='string'||!Number.isSafeInteger(b.stake)||b.stake<1)return false;
+        let multiplier=0;
+        const face=/^(double|triple|single)-([1-6])$/.exec(b.id),total=/^sum-([4-9]|1[0-7])$/.exec(b.id),pair=/^pair-([1-5])-([2-6])$/.exec(b.id);
+        if(b.id==='small'||b.id==='big')multiplier=!triple&&(b.id==='small'?sum>=4&&sum<=10:sum>=11&&sum<=17)?2:0;
+        else if(b.id==='any-triple')multiplier=triple?31:0;
+        else if(face){const count=d.dice.filter(n=>n===Number(face[2])).length;multiplier=face[1]==='double'?count>=2?12:0:face[1]==='triple'?count===3?181:0:count?count+1:0;}
+        else if(total)multiplier=sum===Number(total[1])?[60,20,18,12,8,6,6,6,6,8,12,18,20,60][sum-4]+1:0;
+        else if(pair&&Number(pair[1])<Number(pair[2]))multiplier=d.dice.includes(Number(pair[1]))&&d.dice.includes(Number(pair[2]))?7:0;
+        else return false;
+        if(b.multiplier!==multiplier||b.payout!==b.stake*multiplier)return false;
+        stake+=b.stake;payout+=b.payout;
+      }
+      return stake===round.stake && stake<=1000 && payout===round.payout && d.payout===payout;
+    }
+    if(!['small','big'].includes(d.choice))return false;
     const wins=!triple&&(d.choice==='small'?sum>=4&&sum<=10:sum>=11&&sum<=17);
     return d.sum===sum && d.triple===triple && d.multiplier===(wins?2:0) && round.payout===round.stake*(wins?2:0);
   }
@@ -19,7 +39,7 @@
       if (value.slotBonus && (!Number.isInteger(value.slotBonus.remaining) || value.slotBonus.remaining < 0 || value.slotBonus.remaining > 5 || !Number.isInteger(value.slotBonus.stake) || value.slotBonus.stake < 1 || value.slotBonus.stake > 1000)) throw Error('wallet-invalid');
       if (value.pending) {
         const r=value.pending, free=r.game==='slots'&&r.freeSpin===true, basis=free?r.slotStake:r.stake;
-        if (!games.includes(r.game) || !integer(r.stake) || (free?r.stake!==0:r.stake<1) || !Number.isSafeInteger(basis) || basis<1 || basis>1000 || !integer(r.payout) || r.payout>basis*(r.game==='slots'?1600:250) || typeof r.id!=='string') throw Error('wallet-invalid');
+        if (!games.includes(r.game) || !integer(r.stake) || (free?r.stake!==0:r.stake<1) || !Number.isSafeInteger(basis) || basis<1 || basis>1000 || !integer(r.payout) || r.payout>basis*(r.game==='slots'?4800:250) || typeof r.id!=='string') throw Error('wallet-invalid');
         if (r.game === 'bitcoin' && (!window.HKBitcoinRules?.validRound(r.data) || r.payout !== 0)) throw Error('wallet-invalid');
         if (r.game === 'sicbo' && !validSicbo(r)) throw Error('wallet-invalid');
       }
@@ -67,7 +87,7 @@
       const freeSpin=game==='slots'&&w.slotBonus?.remaining>0, slotStake=freeSpin?w.slotBonus.stake:stake, cost=freeSpin?0:stake;
       if (w.balance < cost) throw Error('insufficient');
       const outcome = draw({freeSpin, stake:slotStake});
-      if (!integer(outcome.payout) || outcome.payout > slotStake * (game==='slots'?1600:250)) throw Error('invalid-payout');
+      if (!integer(outcome.payout) || outcome.payout > slotStake * (game==='slots'?4800:250)) throw Error('invalid-payout');
       const round = { id: uid(), game, stake:cost, payout: outcome.payout, data: outcome.data, at: Date.now(), ...(game==='slots'?{freeSpin,slotStake}:{}) };
       if(game==='sicbo' && !validSicbo(round))throw Error('invalid-payout');
       if(freeSpin)w.slotBonus.remaining--;

@@ -47,3 +47,62 @@
 @keyframes sicbo-shake{0%,100%{transform:translateX(-5px) rotate(-2deg)}50%{transform:translateX(5px) rotate(2deg)}}@keyframes dice-roll{from{transform:rotateX(0deg) rotateY(0deg)}to{transform:rotateX(360deg) rotateY(720deg)}}
 @media(max-width:760px){.casino-tabs{grid-template-columns:repeat(5,minmax(84px,1fr));overflow-x:auto;scroll-snap-type:x proximity}.casino-tabs button{scroll-snap-align:center}.sicbo-stage{padding:20px 12px 16px}.sicbo-tray{--die:46px;margin-top:32px;padding:28px 8px 25px}.sicbo-dice{gap:25px}.dice-face{gap:4px;padding:6px;border-radius:7px}.sicbo-picker button{gap:16px;padding:13px 8px}.sicbo-picker button>span{font-size:31px}.sicbo-picker b{font-size:21px}}
 @media(prefers-reduced-motion:reduce){.sicbo-cover,.dice-cube{transition:none!important;animation:none!important}}
+
+/* Sic Bo table: the same seven sections and payout ratios as the reference. */
+.casino-main:has(.sicbo-layout){max-width:1560px}
+.game-shell.sicbo-layout{grid-template-columns:minmax(0,1fr) 280px}
+.sicbo-layout .table-area{min-width:0}
+.sicbo-layout .sicbo-stage{padding:16px 18px 12px}
+.sicbo-layout .sicbo-heading h2{font-size:30px}
+.sicbo-layout .sicbo-tray{--die:44px;margin:23px auto 8px;padding:25px 12px 23px;max-width:330px}
+.sicbo-layout .sicbo-total{margin-top:8px}
+.sicbo-board-intro{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:24px 0 12px;font-size:12px;color:#e1dec4}
+.sicbo-board-intro span{font-size:10px;color:#adbeab}
+.sicbo-board-scroll{max-width:100%;overflow-x:auto;padding:4px 2px 12px;overscroll-behavior-x:contain;scrollbar-color:#d2bc7e #193b29;scrollbar-width:thin;border-radius:12px}
+.sicbo-board{min-width:960px;padding:12px;background:#329648;border-radius:10px;font-family:Arial,'Noto Sans JP',sans-serif;color:#242424;box-shadow:inset 0 0 30px #246b3933}
+.sicbo-board-top{display:grid;grid-template-columns:2.4fr 2.8fr 1.5fr 1.05fr 1.5fr 2.8fr 2.4fr;gap:8px;min-height:150px}
+.sicbo-cell,.sicbo-group-label,.sicbo-pair-label,.sicbo-single-odds b{position:relative;border:4px solid #282828;border-radius:9px;background:#fffefc;color:#242424;box-shadow:0 3px 3px #1a412b66}
+.sicbo-cell{display:flex;align-items:center;justify-content:center;gap:5px;padding:6px;min-width:0;font-weight:700;transition:box-shadow .12s,background .12s;touch-action:manipulation}
+.sicbo-cell:hover:not(:disabled){background:#fff5ce}
+.sicbo-cell.has-chip{box-shadow:inset 0 0 0 3px #e9b83f,0 3px 3px #1a412b66;background:#fff1c2}
+.sicbo-cell.landed{border-color:#f9d565;box-shadow:0 0 0 2px #2c382a,inset 0 0 0 2px #dcb441;background:#fff5c9}
+.sicbo-cell:disabled{opacity:.75}
+.sicbo-cell .board-chip{top:3px;right:3px;min-width:27px;height:27px;font-size:10px;border-color:#806424;background:#ffe193;color:#252717}
+.sicbo-side{flex-direction:column;gap:8px;text-align:center;padding:10px 5px}
+.sicbo-side strong{font-size:42px;color:#e63c2b;line-height:1}
+.sicbo-side>b{font-size:22px;letter-spacing:.025em;color:#e63c2b;line-height:1}
+.sicbo-side>span,.sicbo-side small{font-size:12px;line-height:1.4}
+.sicbo-group{display:flex;flex-direction:column;gap:7px;min-width:0}
+.sicbo-group-label{display:block;padding:7px 2px;text-align:center;white-space:nowrap;font-size:11px;line-height:1.1}
+.sicbo-doubles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;flex:1}
+.sicbo-doubles .sicbo-cell{flex-direction:column;gap:9px;padding:6px 2px}
+.board-die{display:inline-grid;grid-template:repeat(3,1fr)/repeat(3,1fr);flex:none;width:32px;height:32px;gap:3px;padding:5px;background:#e43a29;border:1px solid #c83224;border-radius:1px}
+.board-die i{display:block;border-radius:50%}
+.board-die .pip{background:#fff}
+.sicbo-triples{display:grid;grid-template-rows:repeat(3,1fr);gap:6px;flex:1}
+.sicbo-triples .sicbo-cell{gap:3px;padding:3px 2px}
+.sicbo-triples .board-die{width:22px;height:22px;gap:2px;padding:3px}
+.sicbo-any{flex-direction:column;gap:5px;padding:6px 2px;font-size:11px}
+.sicbo-any small{font-size:9px;white-space:nowrap}
+.sicbo-any-dice{display:grid;gap:2px}
+.sicbo-any-dice>span{display:flex;gap:2px}
+.sicbo-any-dice .board-die{width:15px;height:15px;gap:1px;padding:2px}
+.sicbo-sums{display:grid;grid-template-columns:repeat(14,1fr);gap:6px;margin-top:12px}
+.sicbo-sums .sicbo-cell{flex-direction:column;gap:10px;min-height:100px;padding:10px 2px}
+.sicbo-sums strong{color:#e63c2b;font-size:37px;line-height:1}
+.sicbo-sums small{font-size:12px}
+.sicbo-pairs{display:grid;grid-template-columns:1.6fr repeat(15,1fr);gap:6px;margin-top:12px}
+.sicbo-pair-label{display:grid;place-content:center;text-align:center;border-color:#e6402e;font-size:14px;line-height:1.4;border-radius:0 18px 18px 0}
+.sicbo-pairs .sicbo-cell{flex-direction:column;gap:4px;padding:6px 2px}
+.sicbo-pairs .board-die{width:31px;height:31px}
+.sicbo-pairs small{font-size:9px;white-space:nowrap}
+.sicbo-singles{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:12px}
+.sicbo-singles .sicbo-cell{justify-content:space-around;padding:9px 6px;min-height:57px}
+.sicbo-singles strong{font-size:22px}
+.sicbo-singles .board-die{width:36px;height:36px;gap:4px}
+.sicbo-single-odds{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:9px}
+.sicbo-single-odds b{padding:5px;text-align:center;font-size:16px}
+.sicbo-tools{max-width:none}
+.sicbo-scroll-hint{margin:2px 0 10px;color:#b9c9b4;font-size:11px;text-align:center}
+@media(max-width:1000px){.game-shell.sicbo-layout{grid-template-columns:minmax(0,1fr) 250px}}
+@media(max-width:760px){.game-shell.sicbo-layout{grid-template-columns:minmax(0,1fr)}.sicbo-layout .table-area{padding:14px}.sicbo-layout .sicbo-heading h2{font-size:26px}.sicbo-layout .sicbo-stage{padding:15px 10px 12px}.sicbo-board-intro{margin-top:18px;gap:6px}.sicbo-board-scroll{margin-inline:-4px;max-width:calc(100% + 8px)}.sicbo-layout .sicbo-tray{--die:40px}.sicbo-layout .sicbo-dice{gap:22px}.sicbo-tools button{min-height:44px;font-size:12px}}

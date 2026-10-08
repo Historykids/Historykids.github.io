@@ -3,11 +3,11 @@
   const wheel = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
   const red = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
   const symbols = [
-    { id:'cherry', icon:'🍒', name:'チェリー', weight:7, multiplier:4 },
-    { id:'lemon', icon:'🍋', name:'レモン', weight:5, multiplier:8 },
-    { id:'bell', icon:'🔔', name:'ベル', weight:4, multiplier:15 },
-    { id:'bar', icon:'BAR', name:'BAR', weight:3, multiplier:30 },
-    { id:'seven', icon:'7', name:'7', weight:1, multiplier:300 },
+    { id:'cherry', icon:'🍒', name:'チェリー', weight:7, multiplier:2 },
+    { id:'lemon', icon:'🍋', name:'レモン', weight:5, multiplier:4 },
+    { id:'bell', icon:'🔔', name:'ベル', weight:4, multiplier:9 },
+    { id:'bar', icon:'BAR', name:'BAR', weight:3, multiplier:25 },
+    { id:'seven', icon:'7', name:'7', weight:1, multiplier:200 },
     { id:'bonus', icon:'両', name:'ボーナス', weight:1, multiplier:0 },
   ];
   const strip = symbols.flatMap(s => Array(s.weight).fill(s.id));

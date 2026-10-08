@@ -91,10 +91,11 @@ async function main(){
  await test('roulette uses the 37-pocket European sequence and zero loses every outside bet',()=>{assert.equal(R.wheel.length,37);assert.equal(new Set(R.wheel).size,37);assert.equal(R.wheel[0],0);for(const id of ['red','black','odd','even','low','high','d1','d2','d3','c1','c2','c3'])assert.equal(R.roulette([{id,stake:10}],0),0);assert.equal(R.roulette([{id:'n0',stake:10}],0),360);});
  await test('every supported roulette bet has correct coverage, payout and expected return',()=>{for(const id of ['red','black','odd','even','low','high','d1','d2','d3','c1','c2','c3',...Array.from({length:37},(_,i)=>'n'+i)]){const b=R.bet(id);assert.equal(b.numbers.length*b.multiplier,36,id);assert.equal(Array.from({length:37},(_,i)=>R.roulette([{id,stake:1}],i)).reduce((a,b)=>a+b,0),36,id);}assert.equal(R.roulette([{id:'n1',stake:5},{id:'red',stake:10},{id:'d1',stake:5}],1),215);assert.throws(()=>R.bet('n37'));assert.throws(()=>R.roulette([{id:'red',stake:-1}],1));});
  await test('slots pay each of the eight horizontal, vertical and diagonal lines and sum overlaps',()=>{
+  assert.deepEqual(Object.fromEntries(R.symbols.filter(s=>s.multiplier).map(s=>[s.id,s.multiplier])),{cherry:2,lemon:4,bell:9,bar:25,seven:200});
   assert.equal(R.strip.length,21);assert.equal(R.paylines.length,8);
-  for(const line of R.paylines){const grid=['cherry','lemon','bell','lemon','bell','bar','bell','bar','cherry'];for(const cell of line.cells)grid[cell]='seven';const win=R.slots(grid);assert(win.wins.some(w=>w.id===line.id),line.name);assert.equal(win.multiplier,300);}
-  const all=Array(9).fill('seven');assert.equal(R.slots(all).multiplier,2400);assert.equal(R.slots(all,true).multiplier,4800);
-  assert.equal(R.slots(['cherry','lemon','bell','cherry','bell','bar','cherry','bar','lemon']).multiplier,4);
+  for(const line of R.paylines){const grid=['cherry','lemon','bell','lemon','bell','bar','bell','bar','cherry'];for(const cell of line.cells)grid[cell]='seven';const win=R.slots(grid);assert(win.wins.some(w=>w.id===line.id),line.name);assert.equal(win.multiplier,200);}
+  const all=Array(9).fill('seven');assert.equal(R.slots(all).multiplier,1600);assert.equal(R.slots(all,true).multiplier,3200);
+  assert.equal(R.slots(['cherry','lemon','bell','cherry','bell','bar','cherry','bar','lemon']).multiplier,2);
   assert.throws(()=>R.slots(Array(9).fill('fake')));assert.throws(()=>R.slots(['seven','seven','seven']));
  });
  await test('scatter bonus needs three symbols anywhere, awards no fake line payout and never retriggers in free spins',()=>{
@@ -115,19 +116,19 @@ async function main(){
  await test('slots show all nine cells, highlight a vertical win and pay its exact amount',()=>{
   const p=page({ui:true});p.w.document.querySelector('[data-game="slots"]').click();p.setSequence([0,7,12,0,12,16,0,16,7]);p.$('playRound').click();assert.equal(p.W.snapshot().balance,90);
   p.advance(1800);assert(p.$('reel0').parentElement.classList.contains('stopped'));assert(!p.$('reel2').parentElement.classList.contains('stopped'));p.advance(1300);
-  assert.equal(p.W.snapshot().balance,130);assert.equal(p.$('resultPayout').textContent,'40両');assert.equal(p.$('slotWinLines'),null);assert(p.$('slotLineWins').textContent.includes('左の縦列'));
+  assert.equal(p.W.snapshot().balance,110);assert.equal(p.$('resultPayout').textContent,'20両');assert.equal(p.$('slotWinLines'),null);assert(p.$('slotLineWins').textContent.includes('左の縦列'));
   assert.equal(p.w.document.querySelectorAll('.reel-item').length,9);assert.equal(p.w.document.querySelectorAll('.is-winning').length,3);p.w.close();
  });
  await test('all eight 777 lines add up instead of hitting the old single-line payout cap',()=>{
   const p=page({ui:true});p.w.document.querySelector('[data-game="slots"]').click();p.setRandom(19);p.$('playRound').click();p.advance(3100);
-  assert.equal(p.W.snapshot().balance,24090);assert.equal(p.$('resultPayout').textContent,'24,000両');assert.equal(p.$('slotWinLines'),null);assert(p.$('tableArea').classList.contains('big-win'));p.w.close();
+  assert.equal(p.W.snapshot().balance,16090);assert.equal(p.$('resultPayout').textContent,'16,000両');assert.equal(p.$('slotWinLines'),null);assert(p.$('tableArea').classList.contains('big-win'));p.w.close();
  });
  await test('bonus grants five free spins, locks the original stake, doubles payouts and survives reloading',()=>{
   const map=new Map([['money_v1','10']]),p=page({ui:true,storage:map});p.w.document.querySelector('[data-game="slots"]').click();p.setSequence([20,7,12,0,20,16,7,16,20]);p.$('playRound').click();p.advance(3100);
   assert.equal(p.W.snapshot().balance,0);assert.equal(p.W.snapshot().slotBonus.remaining,5);assert(!p.$('playRound').disabled);assert(p.$('stake').disabled);assert(p.$('emptyWallet').hidden);assert(p.$('resultHeadline').textContent.includes('ボーナス発動'));
   const q=page({ui:true,storage:map});q.w.document.querySelector('[data-game="slots"]').click();assert(q.$('playLabel').textContent.includes('無料スピン'));q.setRandom(19);q.$('playRound').click();q.$('playRound').click();assert.equal(q.W.snapshot().balance,0);assert.equal(q.W.snapshot().pending.stake,0);assert.equal(q.W.snapshot().pending.slotStake,10);assert.equal(q.W.snapshot().slotBonus.remaining,4);
-  const recovered=page({ui:true,storage:map});assert.equal(recovered.W.snapshot().balance,48000);assert.equal(recovered.W.snapshot().slotBonus.remaining,4);assert.equal(recovered.$('resultPayout').textContent,'48,000両');q.advance(3100);assert.equal(q.W.snapshot().balance,48000);
-  recovered.setRandom(20);for(let i=0;i<4;i++){recovered.$('playRound').click();recovered.advance(3100);}assert.equal(recovered.W.snapshot().slotBonus.remaining,0);assert.equal(recovered.W.snapshot().balance,48000);assert(!recovered.$('stake').disabled);assert.equal(recovered.W.snapshot().history.filter(r=>r.freeSpin).length,5);
+  const recovered=page({ui:true,storage:map});assert.equal(recovered.W.snapshot().balance,32000);assert.equal(recovered.W.snapshot().slotBonus.remaining,4);assert.equal(recovered.$('resultPayout').textContent,'32,000両');q.advance(3100);assert.equal(q.W.snapshot().balance,32000);
+  recovered.setRandom(20);for(let i=0;i<4;i++){recovered.$('playRound').click();recovered.advance(3100);}assert.equal(recovered.W.snapshot().slotBonus.remaining,0);assert.equal(recovered.W.snapshot().balance,32000);assert(!recovered.$('stake').disabled);assert.equal(recovered.W.snapshot().history.filter(r=>r.freeSpin).length,5);
   p.w.close();q.w.close();recovered.w.close();
  });
  await test('two tabs cannot consume a bonus spin twice and duplicate settlement cannot grant a second bonus',async()=>{

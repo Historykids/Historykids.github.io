@@ -18,12 +18,12 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>両カジノ｜歴史キッズ</title>
   <meta name="description" content="クイズで集めた両で、じゃんけん・欧州式ルーレット・スロット・大小・ビットコイン価格予想。町と同じ両だけで遊べる歴史キッズのゲームコーナー。">
-  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/casino.css?v=sicbo-table-20261009">
+  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/casino.css?v=saikoroza-20261009">
   <script defer src="./assets/ui/bitcoin-rules.js?v=ten-seconds-20261006"></script>
   <script defer src="./assets/ui/wallet.js?v=sicbo-table-20261009"></script>
-  <script defer src="./assets/ui/casino-rules.js?v=sicbo-table-20261009"></script>
+  <script defer src="./assets/ui/casino-rules.js?v=saikoroza-20261009"></script>
   <script defer src="./assets/ui/bitcoin.js?v=ten-seconds-20261006"></script>
-  <script defer src="./assets/ui/casino.js?v=sicbo-table-20261009"></script>
+  <script defer src="./assets/ui/casino.js?v=saikoroza-20261009"></script>
 <link rel="canonical" href="https://historykids.github.io/casino.html" />
 </head>
 <body>
@@ -58,11 +58,11 @@
           <div class="bet-tools"><button id="undoBet">ひとつ戻す</button><button id="clearBets">すべて外す</button><span>置いた両は、回すまで引かれません。</span></div>
         </section>
         <section id="panel-slots" class="casino-panel" role="tabpanel" aria-labelledby="tab-slots" hidden>
-          <div class="slot-machine" id="slotMachine"><div class="slot-marquee"><span class="marquee-lights" aria-hidden="true"></span><small>NINE SYMBOLS · EIGHT LINES</small><h2>黄金の<em>スロット</em></h2><div class="jackpot-label">7 · 7 · 7 <b>300倍</b></div></div><div class="reel-frame"><div class="reels"><div class="reel-window" aria-label="左リール"><div class="reel-track" id="reel0"></div></div><div class="reel-window" aria-label="中央リール"><div class="reel-track" id="reel1"></div></div><div class="reel-window" aria-label="右リール"><div class="reel-track" id="reel2"></div></div></div></div><div class="slot-bottom"><span>縦・横・斜めの8ライン判定</span><div class="slot-handle" aria-hidden="true"><i></i></div><span>1ライン777 = 300倍</span></div></div>
+          <div class="slot-machine" id="slotMachine"><div class="slot-marquee"><span class="marquee-lights" aria-hidden="true"></span><small>NINE SYMBOLS · EIGHT LINES</small><h2>黄金の<em>スロット</em></h2><div class="jackpot-label">7 · 7 · 7 <b>200倍</b></div></div><div class="reel-frame"><div class="reels"><div class="reel-window" aria-label="左リール"><div class="reel-track" id="reel0"></div></div><div class="reel-window" aria-label="中央リール"><div class="reel-track" id="reel1"></div></div><div class="reel-window" aria-label="右リール"><div class="reel-track" id="reel2"></div></div></div></div><div class="slot-bottom"><span>縦・横・斜めの8ライン判定</span><div class="slot-handle" aria-hidden="true"><i></i></div><span>1ライン777 = 200倍</span></div></div>
           <div id="slotBonus" class="slot-bonus" role="status"><span class="bonus-medallion" aria-hidden="true">両</span><div><b id="slotBonusTitle">ボーナスチャンス</b><p id="slotBonusDetail">「両」が画面内に3つ以上で、無料スピン5回＋配当2倍</p></div></div>
           <div id="slotLineWins" class="slot-line-wins" aria-label="的中したラインと配当"></div>
           <p class="stage-caption">横3本・縦3本・斜め2本。3つそろったラインの配当をすべて合算！</p>
-          <div class="slot-mini-paytable" aria-label="スロット配当"><span>🍒×3 <b>4倍</b></span><span>🍋×3 <b>8倍</b></span><span>🔔×3 <b>15倍</b></span><span>BAR×3 <b>30倍</b></span><span>7×3 <b>300倍</b></span></div>
+          <div class="slot-mini-paytable" aria-label="スロット配当"><span>🍒×3 <b>2倍</b></span><span>🍋×3 <b>4倍</b></span><span>🔔×3 <b>9倍</b></span><span>BAR×3 <b>25倍</b></span><span>7×3 <b>200倍</b></span></div>
         </section>
         <section id="panel-bitcoin" class="casino-panel bitcoin-panel" role="tabpanel" aria-labelledby="tab-bitcoin" hidden>
           <div class="btc-heading"><div><span class="btc-symbol" aria-hidden="true">₿</span><div><h2>Bitcoin <small>BTC / USD</small></h2><p>リアルタイムの価格で、10秒の予想勝負。</p></div></div><span id="btcConnection" class="btc-connection">価格を接続中…</span></div>
@@ -77,16 +77,15 @@
         </section>
         <section id="panel-sicbo" class="casino-panel" role="tabpanel" aria-labelledby="tab-sicbo" hidden>
           <div class="sicbo-stage" id="sicboStage">
-            <div class="sicbo-heading"><span>THREE DICE · FIFTY BETS</span><h2>三つの目、<em>五十の賭け。</em></h2><p>好きなマスに両を置いて、いざ勝負。</p></div>
+            <div class="sicbo-heading"><span>両で遊ぶ、三つのサイコロ</span><h2>三つの目に、<em>運をのせて。</em></h2><p>小か、大か。それとも、目の組合せか。</p></div>
             <div class="sicbo-tray"><div class="sicbo-cover" aria-hidden="true"><span>両</span></div><div class="sicbo-dice" role="group" aria-label="3つのサイコロ"><div class="dice-space"><div class="dice-cube" id="sicboDie0" role="img" aria-label="左のサイコロ：未確定"></div></div><div class="dice-space"><div class="dice-cube" id="sicboDie1" role="img" aria-label="中央のサイコロ：未確定"></div></div><div class="dice-space"><div class="dice-cube" id="sicboDie2" role="img" aria-label="右のサイコロ：未確定"></div></div></div></div>
             <div class="sicbo-total"><span>合計</span><strong id="sicboSum">？</strong><b id="sicboCall">盤面に両を置こう</b></div>
           </div>
           <div class="sicbo-board-intro"><b>掛け金を選んで、マスを押そう。</b><span>複数の場所に置けます · 合計1,000両まで</span></div>
-          <div class="sicbo-board-scroll" tabindex="0" role="region" aria-label="大小の盤面。横にスクロールできます"><div id="sicboBoard" class="sicbo-board" role="group" aria-label="大小の50か所の賭け場所"></div></div>
-          <p class="sicbo-scroll-hint">↔ 盤面は横にスワイプできます</p>
+          <div class="sicbo-board-wrap"><div id="sicboBoard" class="sicbo-board" role="group" aria-label="さいころ座の賭け場所"></div></div>
           <div class="bet-tools sicbo-tools"><button id="sicboUndo">ひとつ戻す</button><button id="sicboClear">すべて外す</button><span>置いた両は、振るまで引かれません。</span></div>
           <p class="sicbo-triple-note"><b>ゾロ目は、小・大どちらも負け。</b><span>ゾロ目・ダブル・合計・単独の目への賭けは、それぞれの条件で判定します。</span></p>
-          <p class="stage-caption">盤面の比率は利益の配当です。1:11なら利益11倍＋掛け金返却で12倍。的中した場所の払い戻しを合算します。</p>
+          <p class="stage-caption">気になる場所に両を置いて、サイコロを振ろう。的中した場所の払い戻しを合算します。</p>
         </section>
         <div id="celebration" class="celebration" aria-hidden="true"></div>
         <div id="roundResult" class="round-result" role="status" aria-live="polite"><small id="resultKicker">PLACE YOUR BET</small><h2 id="resultHeadline">両を決めて、準備しよう。</h2><p id="resultDetail">1〜1,000両。払い戻しの倍率には、掛け金も含みます。</p><div id="resultNumbers" class="result-numbers" hidden><div><small>掛け金</small><b id="resultBet">0両</b></div><div><small>払い戻し</small><b id="resultPayout">0両</b></div><div><small>差し引き</small><b id="resultNet">0両</b></div></div></div>

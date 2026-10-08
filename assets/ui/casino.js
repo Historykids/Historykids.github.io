@@ -27,7 +27,7 @@
     } catch { sound=false; $('soundToggle').textContent='音 OFF'; $('soundToggle').setAttribute('aria-pressed','false'); }
   }
   function rulesHTML() {
-    if(game==='sicbo')return '<p>盤面を押すたび、選んだ両を置きます。複数の場所に賭けられ、合計1,000両まで。各サイコロは1〜6から独立に同じ確率で抽選します。</p><table><tr><th>小・大（ゾロ目は負け）</th><td>2倍</td></tr><tr><th>指定のダブル（同じ目が2個以上）</th><td>12倍</td></tr><tr><th>指定のゾロ目</th><td>181倍</td></tr><tr><th>いずれかのゾロ目</th><td>31倍</td></tr><tr><th>異なる2つの目</th><td>7倍</td></tr><tr><th>指定の目が1・2・3個</th><td>2・3・4倍</td></tr><tr><th>合計4・17／5・16／6・15</th><td>61／21／19倍</td></tr><tr><th>合計7・14／8・13／9〜12</th><td>13／9／7倍</td></tr></table><p>表の倍率は掛け金を含む払い戻しです。盤面の「1:11」は利益11倍＋掛け金返却＝12倍。10両なら120両が戻ります。ゾロ目でも合計・ダブル・単独の目への賭けは通常どおり判定します。途中で閉じても同じ結果を復元し、二重に引いたり払ったりしません。</p>';
+    if(game==='sicbo')return '<p>盤面を押すたび、選んだ両を置きます。複数の場所に賭けられ、合計1,000両まで。各サイコロは1〜6から独立に同じ確率で抽選します。</p><table><tr><th>小・大（ゾロ目は負け）</th><td>2倍</td></tr><tr><th>指定のダブル（同じ目が2個以上）</th><td>12倍</td></tr><tr><th>指定のゾロ目</th><td>181倍</td></tr><tr><th>いずれかのゾロ目</th><td>31倍</td></tr><tr><th>異なる2つの目</th><td>7倍</td></tr><tr><th>指定の目が1・2・3個</th><td>2・3・4倍</td></tr><tr><th>合計4・17／5・16／6・15</th><td>61／21／19倍</td></tr><tr><th>合計7・14／8・13／9〜12</th><td>13／9／7倍</td></tr></table><p>表示は掛け金を含む払い戻し倍率です。ダブルの12倍に10両を賭けて的中すると、120両が戻ります。ゾロ目でも合計・ダブル・単独の目への賭けは通常どおり判定します。途中で閉じても同じ結果を復元し、二重に引いたり払ったりしません。</p>';
     if(game==='bitcoin')return '<p>Coinbase ExchangeのBTC/USDの実際の価格を使います。「上がる」「下がる」と掛ける両を選ぶと、開始価格を記録して10秒後に判定します。</p><table><tr><th>予想的中</th><td>2倍</td></tr><tr><th>予想が外れる</th><td>0両</td></tr><tr><th>同じ価格</th><td>掛け金を返す</td></tr></table><p>10秒後、最初に取得できた約定価格（5秒以内）で判定します。判定価格を取得できなかった場合は全額返金。途中でページを閉じても掛け金は二重に引かれず、戻ると勝負を復元します。判定時刻を過ぎて5秒以上経った場合は返金します。チャートは直近1分を拡大表示します。15秒・5分・30分にも切り替えられます。最近の約定価格を使い、長い期間の古い部分は1分足の終値を使います。縦軸は表示期間の値動きに合わせて自動調整します。</p><p>ゲーム内の両を使った価格予想です。ビットコインの購入・売却・換金はできません。</p>';
     if(game==='janken')return '<p>NPCの手は毎回、グー・チョキ・パーから同じ確率で決まります。</p><table><tr><th>勝ち</th><td>掛け金の2倍</td></tr><tr><th>負け</th><td>0両</td></tr><tr><th>あいこ</th><td>掛け金を返す（1倍）</td></tr></table><p>例：10両を賭けて勝つと20両が戻り、差し引きは＋10両です。</p>';
     if(game==='roulette')return '<p>0〜36の37ポケットを使う欧州式。各数字は毎回1/37の確率です。複数の場所に置けます。1回の合計は1,000両まで。</p><table><tr><th>数字1点（0も可）</th><td>36倍</td></tr><tr><th>赤・黒・奇数・偶数</th><td>2倍</td></tr><tr><th>1〜18・19〜36</th><td>2倍</td></tr><tr><th>12個の組・列</th><td>3倍</td></tr></table><p>0は赤黒・奇偶・大小・12個の組・列のいずれにも入りません。外れた場所の両は戻りません。倍率は掛け金を含む払い戻しです。</p><p>過去の数字で次の確率は変わりません。<a href="https://help.danskespil.dk/en/casino-help/roulette/playtechclassicroulette" target="_blank" rel="noopener">欧州式のルールを確認 ↗</a></p>';
@@ -125,17 +125,24 @@
     for(let i=0;i<3;i++)$('sicboDie'+i).innerHTML=[1,2,3,4,5,6].map(n=>'<span class="dice-face face-'+n+'" aria-hidden="true">'+Array.from({length:9},(_,cell)=>'<i class="'+(dicePips[n].includes(cell)?'pip':'')+'"></i>').join('')+'</span>').join('');
   }
   function revealDie(i,n){const die=$('sicboDie'+i);die.classList.remove('rolling');die.style.transform='rotateX(-12deg) rotateY(-16deg) '+diceTurns[n];die.setAttribute('aria-label',['左','中央','右'][i]+'のサイコロ：'+n);}
-  function boardDice(n){return '<span class="board-die" aria-hidden="true">'+Array.from({length:9},(_,i)=>'<i'+(dicePips[n].includes(i)?' class="pip"':'')+'></i>').join('')+'</span>';}
+  function boardDice(n){return '<span class="board-die die-mark-'+n+'" aria-hidden="true">'+Array.from({length:9},(_,i)=>'<i'+(dicePips[n].includes(i)?' class="pip"':'')+'></i>').join('')+'</span>';}
   function makeSicboBoard(){
     const button=(id,body,cls='')=>{const b=R.sicboBet(id);return '<button class="sicbo-cell '+cls+'" data-sicbo="'+id+'" aria-pressed="false" aria-label="'+esc(b.label)+'に両を置く">'+body+'</button>';};
-    const doubles=faces=>'<div class="sicbo-group"><b class="sicbo-group-label">ダブル 1:11</b><div class="sicbo-doubles">'+faces.map(n=>button('double-'+n,boardDice(n)+boardDice(n))).join('')+'</div></div>';
-    const triples=faces=>'<div class="sicbo-group"><b class="sicbo-group-label">各ゾロ目 1:180</b><div class="sicbo-triples">'+faces.map(n=>button('triple-'+n,boardDice(n).repeat(3))).join('')+'</div></div>';
-    const side=id=>button(id,'<strong>'+(id==='small'?'小':'大')+'</strong><b>'+(id==='small'?'SMALL':'BIG')+'</b><span>合計 '+(id==='small'?'4〜10':'11〜17')+'</span><small>1:1<br>ゾロ目は負け</small>','sicbo-side');
-    let html='<div class="sicbo-board-top">'+side('small')+doubles([1,2,3])+triples([1,2,3])+button('any-triple','<small>どのゾロ目も</small><b>1:30</b><div class="sicbo-any-dice">'+[1,2,3,4,5,6].map(n=>'<span>'+boardDice(n).repeat(3)+'</span>').join('')+'</div>','sicbo-any')+triples([4,5,6])+doubles([4,5,6])+side('big')+'</div>';
-    html+='<div class="sicbo-sums">'+R.sicboTotals.map((odds,i)=>button('sum-'+(i+4),'<strong>'+(i+4)+'</strong><small>1:'+odds+'</small>')).join('')+'</div>';
-    html+='<div class="sicbo-pairs"><div class="sicbo-pair-label">2つの目<br><b>1:6</b></div>';
-    for(let a=1;a<=5;a++)for(let b=a+1;b<=6;b++)html+=button('pair-'+a+'-'+b,boardDice(a)+'<small>'+a+' と '+b+'</small>'+boardDice(b));
-    html+='</div><div class="sicbo-singles">'+[1,2,3,4,5,6].map(n=>button('single-'+n,'<strong>'+['ONE','TWO','THREE','FOUR','FIVE','SIX'][n-1]+'</strong>'+boardDice(n))).join('')+'</div><div class="sicbo-single-odds"><b>1個出る 1:1</b><b>2個出る 2:1</b><b>3個出る 3:1</b></div>';
+    const faces=[1,2,3,4,5,6];
+    const odds=n=>'<span class="sicbo-odds"><b>'+n+'</b>倍</span>';
+    const section=(number,title,note,body,cls)=>'<section class="sicbo-bet-section"><div class="sicbo-section-head"><h4><span>'+number+'</span>'+title+'</h4><p>'+note+'</p></div><div class="'+cls+'">'+body+'</div></section>';
+    const side=id=>button(id,'<span class="sicbo-side-seal" aria-hidden="true">'+(id==='small'?'小':'大')+'</span><span class="sicbo-side-copy"><strong>'+(id==='small'?'小さい目':'大きい目')+'</strong><span class="sicbo-range">'+(id==='small'?'4 <em>〜</em> 10':'11 <em>〜</em> 17')+'</span><small>ゾロ目は対象外</small></span>'+odds(2),'sicbo-side side-'+id);
+    let html='<div class="sicbo-board-heading"><span class="sicbo-brand-dice" aria-hidden="true">'+boardDice(3)+'</span><div><p>両で遊ぶ、運だめしの一座</p><h3>さいころ座</h3></div><span class="sicbo-board-caption">的中した場所を<br>まとめて払い戻し</span></div>';
+    html+=section('壱','小か、大か','ゾロ目以外の合計で勝負。',side('small')+side('big'),'sicbo-sides');
+    const any=button('any-triple','<span class="sicbo-any-seal" aria-hidden="true">三</span><strong>どのゾロ目でも</strong><small>3個とも同じ目</small>'+odds(31),'sicbo-any');
+    const triples=faces.map(n=>button('triple-'+n,'<span class="sicbo-die-group">'+boardDice(n).repeat(3)+'</span><span class="sicbo-cell-label">'+n+'のゾロ目</span>'+odds(181),'sicbo-triple-cell')).join('');
+    html+=section('弐','三つそろい','3個とも同じ目を狙おう。',any+'<div class="sicbo-triples">'+triples+'</div>','sicbo-triple-choice');
+    html+=section('参','二つそろい','選んだ目が2個以上で的中。',faces.map(n=>button('double-'+n,'<span class="sicbo-die-group">'+boardDice(n).repeat(2)+'</span><span class="sicbo-cell-label">'+n+'のダブル</span>'+odds(12),'sicbo-double-cell')).join(''),'sicbo-doubles');
+    html+=section('四','合計を狙う','三つの目を足した数は？',R.sicboTotals.map((n,i)=>button('sum-'+(i+4),'<strong class="sicbo-sum-number">'+(i+4)+'</strong>'+odds(n+1),'sicbo-sum-cell')).join(''),'sicbo-sums');
+    let pairs='';for(let a=1;a<=5;a++)for(let b=a+1;b<=6;b++)pairs+=button('pair-'+a+'-'+b,'<span class="sicbo-die-group">'+boardDice(a)+'<i class="sicbo-pair-plus" aria-hidden="true">＋</i>'+boardDice(b)+'</span><span class="sicbo-cell-label">'+a+'と'+b+'</span>'+odds(7),'sicbo-pair-cell');
+    html+=section('五','二つの目を組み合わせる','3個の中に、両方の目が出れば的中。',pairs,'sicbo-pairs');
+    html+=section('六','ひとつの目にかける','1個で2倍、2個で3倍、3個で4倍。',faces.map(n=>button('single-'+n,boardDice(n)+'<strong>'+n+'の目</strong><small>2・3・4倍</small>','sicbo-single-cell')).join(''),'sicbo-singles');
+    html+='<p class="sicbo-payout-note">表示は掛け金を含む払い戻し倍率です。</p>';
     $('sicboBoard').innerHTML=html;
     $('sicboBoard').onclick=e=>{const b=e.target.closest('[data-sicbo]');if(!b||b.disabled)return;const amount=stake(),sum=sicboChips.reduce((n,c)=>n+c.stake,0)+amount;if(!validStake(amount)||sum>1000){status('1回の合計は1〜1,000両です。',true);return;}if(sum>W.snapshot().balance){status('置く両の合計が残高を超えています。',true);return;}sicboChips.push({id:b.dataset.sicbo,stake:amount});renderSicboBets();tone('tick');status(R.sicboBet(b.dataset.sicbo).label+'に'+money(amount)+'を置きました。');};
   }

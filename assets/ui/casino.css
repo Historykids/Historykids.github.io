@@ -48,61 +48,87 @@
 @media(max-width:760px){.casino-tabs{grid-template-columns:repeat(5,minmax(84px,1fr));overflow-x:auto;scroll-snap-type:x proximity}.casino-tabs button{scroll-snap-align:center}.sicbo-stage{padding:20px 12px 16px}.sicbo-tray{--die:46px;margin-top:32px;padding:28px 8px 25px}.sicbo-dice{gap:25px}.dice-face{gap:4px;padding:6px;border-radius:7px}.sicbo-picker button{gap:16px;padding:13px 8px}.sicbo-picker button>span{font-size:31px}.sicbo-picker b{font-size:21px}}
 @media(prefers-reduced-motion:reduce){.sicbo-cover,.dice-cube{transition:none!important;animation:none!important}}
 
-/* Sic Bo table: the same seven sections and payout ratios as the reference. */
-.casino-main:has(.sicbo-layout){max-width:1560px}
+/* Saikoroza: an original indigo-and-gold betting room, with responsive wager cards. */
+.casino-main:has(.sicbo-layout){max-width:1500px}
 .game-shell.sicbo-layout{grid-template-columns:minmax(0,1fr) 280px}
 .sicbo-layout .table-area{min-width:0}
-.sicbo-layout .sicbo-stage{padding:16px 18px 12px}
-.sicbo-layout .sicbo-heading h2{font-size:30px}
-.sicbo-layout .sicbo-tray{--die:44px;margin:23px auto 8px;padding:25px 12px 23px;max-width:330px}
+.sicbo-layout .bet-panel{position:sticky;top:18px;align-self:start}
+.sicbo-layout .sicbo-stage{padding:22px 18px 14px;background:radial-gradient(ellipse at 50% 80%,#344940,#172c32 58%,#112329);border-color:#c8aa6a45}
+.sicbo-layout .sicbo-heading>span{color:#cbbb91;letter-spacing:.15em}
+.sicbo-layout .sicbo-heading h2{font-family:'Noto Serif JP',serif;font-size:32px;letter-spacing:.06em}
+.sicbo-layout .sicbo-tray{--die:44px;margin:24px auto 8px;padding:25px 12px 23px;max-width:330px}
 .sicbo-layout .sicbo-total{margin-top:8px}
 .sicbo-board-intro{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:24px 0 12px;font-size:12px;color:#e1dec4}
 .sicbo-board-intro span{font-size:10px;color:#adbeab}
-.sicbo-board-scroll{max-width:100%;overflow-x:auto;padding:4px 2px 12px;overscroll-behavior-x:contain;scrollbar-color:#d2bc7e #193b29;scrollbar-width:thin;border-radius:12px}
-.sicbo-board{min-width:960px;padding:12px;background:#329648;border-radius:10px;font-family:Arial,'Noto Sans JP',sans-serif;color:#242424;box-shadow:inset 0 0 30px #246b3933}
-.sicbo-board-top{display:grid;grid-template-columns:2.4fr 2.8fr 1.5fr 1.05fr 1.5fr 2.8fr 2.4fr;gap:8px;min-height:150px}
-.sicbo-cell,.sicbo-group-label,.sicbo-pair-label,.sicbo-single-odds b{position:relative;border:4px solid #282828;border-radius:9px;background:#fffefc;color:#242424;box-shadow:0 3px 3px #1a412b66}
-.sicbo-cell{display:flex;align-items:center;justify-content:center;gap:5px;padding:6px;min-width:0;font-weight:700;transition:box-shadow .12s,background .12s;touch-action:manipulation}
-.sicbo-cell:hover:not(:disabled){background:#fff5ce}
-.sicbo-cell.has-chip{box-shadow:inset 0 0 0 3px #e9b83f,0 3px 3px #1a412b66;background:#fff1c2}
-.sicbo-cell.landed{border-color:#f9d565;box-shadow:0 0 0 2px #2c382a,inset 0 0 0 2px #dcb441;background:#fff5c9}
-.sicbo-cell:disabled{opacity:.75}
-.sicbo-cell .board-chip{top:3px;right:3px;min-width:27px;height:27px;font-size:10px;border-color:#806424;background:#ffe193;color:#252717}
-.sicbo-side{flex-direction:column;gap:8px;text-align:center;padding:10px 5px}
-.sicbo-side strong{font-size:42px;color:#e63c2b;line-height:1}
-.sicbo-side>b{font-size:22px;letter-spacing:.025em;color:#e63c2b;line-height:1}
-.sicbo-side>span,.sicbo-side small{font-size:12px;line-height:1.4}
-.sicbo-group{display:flex;flex-direction:column;gap:7px;min-width:0}
-.sicbo-group-label{display:block;padding:7px 2px;text-align:center;white-space:nowrap;font-size:11px;line-height:1.1}
-.sicbo-doubles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;flex:1}
-.sicbo-doubles .sicbo-cell{flex-direction:column;gap:9px;padding:6px 2px}
-.board-die{display:inline-grid;grid-template:repeat(3,1fr)/repeat(3,1fr);flex:none;width:32px;height:32px;gap:3px;padding:5px;background:#e43a29;border:1px solid #c83224;border-radius:1px}
-.board-die i{display:block;border-radius:50%}
-.board-die .pip{background:#fff}
-.sicbo-triples{display:grid;grid-template-rows:repeat(3,1fr);gap:6px;flex:1}
-.sicbo-triples .sicbo-cell{gap:3px;padding:3px 2px}
-.sicbo-triples .board-die{width:22px;height:22px;gap:2px;padding:3px}
-.sicbo-any{flex-direction:column;gap:5px;padding:6px 2px;font-size:11px}
-.sicbo-any small{font-size:9px;white-space:nowrap}
-.sicbo-any-dice{display:grid;gap:2px}
-.sicbo-any-dice>span{display:flex;gap:2px}
-.sicbo-any-dice .board-die{width:15px;height:15px;gap:1px;padding:2px}
-.sicbo-sums{display:grid;grid-template-columns:repeat(14,1fr);gap:6px;margin-top:12px}
-.sicbo-sums .sicbo-cell{flex-direction:column;gap:10px;min-height:100px;padding:10px 2px}
-.sicbo-sums strong{color:#e63c2b;font-size:37px;line-height:1}
-.sicbo-sums small{font-size:12px}
-.sicbo-pairs{display:grid;grid-template-columns:1.6fr repeat(15,1fr);gap:6px;margin-top:12px}
-.sicbo-pair-label{display:grid;place-content:center;text-align:center;border-color:#e6402e;font-size:14px;line-height:1.4;border-radius:0 18px 18px 0}
-.sicbo-pairs .sicbo-cell{flex-direction:column;gap:4px;padding:6px 2px}
-.sicbo-pairs .board-die{width:31px;height:31px}
-.sicbo-pairs small{font-size:9px;white-space:nowrap}
-.sicbo-singles{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:12px}
-.sicbo-singles .sicbo-cell{justify-content:space-around;padding:9px 6px;min-height:57px}
-.sicbo-singles strong{font-size:22px}
-.sicbo-singles .board-die{width:36px;height:36px;gap:4px}
-.sicbo-single-odds{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:9px}
-.sicbo-single-odds b{padding:5px;text-align:center;font-size:16px}
+.sicbo-board-wrap{max-width:100%;min-width:0}
+.sicbo-board{--dice-gold:#e6c281;--dice-mint:#a3d5c6;--dice-coral:#e8b090;min-width:0;padding:22px;border:1px solid #bf9e6250;border-radius:22px;color:#f6eddb;background:radial-gradient(circle at 100% 0,#c7a36a15,transparent 34%),repeating-linear-gradient(135deg,transparent 0 24px,#e8cc9510 25px,transparent 26px),#15242b;box-shadow:inset 0 1px 0 #f1ddb91a,0 12px 28px #0002}
+.sicbo-board-heading{display:flex;align-items:center;gap:15px;padding:0 0 22px;border-bottom:1px solid #b798602e}
+.sicbo-brand-dice{display:grid;place-items:center;width:52px;height:52px;border:1px solid #cfb07055;border-radius:50%;background:#e6c2810c}
+.sicbo-brand-dice .board-die{width:29px;height:29px;transform:rotate(-12deg)}
+.sicbo-board-heading h3{font-family:'Noto Serif JP',serif;font-size:27px;letter-spacing:.13em;margin:4px 0 0;color:#f1d397}
+.sicbo-board-heading p{font-size:10px;color:#afbbb6;letter-spacing:.13em;margin:0}
+.sicbo-board-caption{margin-left:auto;text-align:right;font-size:10px;color:#b8c4bb;line-height:1.8}
+.sicbo-bet-section{margin-top:22px;min-width:0}
+.sicbo-section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:11px}
+.sicbo-section-head h4{display:flex;gap:9px;align-items:center;font-family:'Noto Serif JP',serif;font-size:15px;font-weight:600;letter-spacing:.035em;margin:0;color:#f0e1c1}
+.sicbo-section-head h4>span{display:grid;place-items:center;width:24px;height:24px;font-size:11px;border:1px solid #c7a36a66;border-radius:50%;color:#d7b877}
+.sicbo-section-head p{font-size:10px;line-height:1.6;margin:0;color:#a6b7b2}
+.sicbo-cell{position:relative;appearance:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-width:0;min-height:76px;padding:13px 8px 10px;border:1px solid #a7b8b02b;border-radius:13px;background:linear-gradient(145deg,#293b40,#1c2c33);color:#e5ece4;box-shadow:inset 0 1px 0 #d9e3dc0c,0 3px 7px #07131b33;transition:background .16s,border-color .16s,transform .16s;touch-action:manipulation}
+.sicbo-cell:hover:not(:disabled){background:linear-gradient(145deg,#35474b,#23373f);border-color:#d2b16d88;transform:translateY(-2px)}
+.sicbo-cell.has-chip{border-color:#e9c775;box-shadow:inset 0 0 0 1px #e9c77555,0 0 16px #d0ae6218;background:linear-gradient(145deg,#4b4936,#303a31)}
+.sicbo-cell.landed{border-color:#a3d5c6;box-shadow:inset 0 0 0 1px #a3d5c64a,0 0 15px #a3d5c620}
+.sicbo-cell:disabled{opacity:.65}
+.sicbo-cell:focus-visible{outline:3px solid #f2dba2;outline-offset:3px}
+.sicbo-cell .board-chip{top:-7px;right:-5px;min-width:27px;height:27px;font-size:10px;background:#f0d297;color:#302f20;border-color:#9c7840;box-shadow:0 3px 8px #0005}
+.sicbo-odds{display:inline-flex;align-items:baseline;justify-content:center;gap:3px;color:var(--dice-gold);font-size:10px;line-height:1;white-space:nowrap}
+.sicbo-odds b{font-size:18px;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.sicbo-cell-label{font-size:10px;color:#c8d0c6;line-height:1.3}
+.sicbo-sides{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.sicbo-side{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:15px;text-align:left;min-height:138px;padding:20px;overflow:visible;border-radius:18px;isolation:isolate}
+.sicbo-side::before{content:'';position:absolute;inset:0;border-radius:inherit;overflow:hidden;z-index:-1;background:radial-gradient(circle at 100% 100%,transparent 0 55px,#c4ddce0d 56px 57px,transparent 58px 78px,#c4ddce0d 79px 80px,transparent 81px)}
+.side-small{background:linear-gradient(130deg,#29444b,#1b313a);border-color:#a3d5c659}
+.side-big{background:linear-gradient(130deg,#4a3b32,#302e31);border-color:#e8b09059}
+.sicbo-side-seal{display:grid;place-items:center;width:62px;height:62px;border:1px solid currentColor;border-radius:50%;font-family:'Noto Serif JP',serif;font-size:35px;color:var(--dice-mint);box-shadow:inset 0 0 0 5px #a3d5c610}
+.side-big .sicbo-side-seal{color:var(--dice-coral);box-shadow:inset 0 0 0 5px #e8b09010}
+.sicbo-side-copy{display:flex;flex-direction:column;gap:7px;min-width:0}
+.sicbo-side-copy>strong{font-size:14px;color:#e6ecde;font-weight:500}
+.sicbo-range{font-size:27px;font-weight:700;letter-spacing:.01em;color:#f3e8ce;white-space:nowrap}
+.sicbo-range em{font-size:16px;font-style:normal;color:#bdc7bc}
+.sicbo-side-copy>small{font-size:9px;color:#aebdb7}
+.sicbo-side>.sicbo-odds{align-self:end;padding-bottom:5px}
+.sicbo-side>.sicbo-odds b{font-size:28px}
+.board-die{display:inline-grid;grid-template:repeat(3,1fr)/repeat(3,1fr);flex:none;width:25px;height:25px;gap:2px;padding:4px;border:1px solid #ead9b0;border-radius:6px;background:linear-gradient(145deg,#fff1d3,#dbc79d);box-shadow:1px 2px 0 #8c785f,2px 3px 5px #0003}
+.board-die i{display:block;border-radius:50%;min-width:0;min-height:0}
+.board-die .pip{background:#324647;box-shadow:inset 0 1px 0 #06172055}
+.board-die.die-mark-1 .pip{background:#a85041}
+.sicbo-die-group{display:flex;gap:5px;align-items:center;justify-content:center}
+.sicbo-triple-choice{display:grid;grid-template-columns:180px minmax(0,1fr);gap:12px}
+.sicbo-any{gap:10px;padding:14px;background:radial-gradient(ellipse at 50% 20%,#74603b50,transparent 80%),#302f2c;border-color:#d5b77660}
+.sicbo-any-seal{display:grid;place-items:center;width:44px;height:44px;border:3px double #d8b879;border-radius:50%;color:#e5c78d;font-family:'Noto Serif JP',serif;font-size:24px}
+.sicbo-any strong{font-size:13px;font-family:'Noto Serif JP',serif;letter-spacing:.04em;color:#f0dfba}
+.sicbo-any small{font-size:10px;color:#c7c5b3}
+.sicbo-any .sicbo-odds b{font-size:25px}
+.sicbo-triples{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.sicbo-triple-cell{min-height:98px}
+.sicbo-triple-cell .board-die{width:21px;height:21px;gap:2px;padding:3px;border-radius:4px}
+.sicbo-doubles,.sicbo-singles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px}
+.sicbo-sums{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:9px}
+.sicbo-sum-cell{gap:8px;min-height:77px;background:linear-gradient(145deg,#223c42,#172e37)}
+.sicbo-sum-number{font-size:28px;color:#e6efdc;line-height:1;font-weight:600;font-variant-numeric:tabular-nums}
+.sicbo-sum-cell .sicbo-odds b{font-size:14px}
+.sicbo-pairs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
+.sicbo-pair-cell{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 5px;min-height:76px;padding:12px 10px}
+.sicbo-pair-cell>.sicbo-die-group{grid-column:1/-1}
+.sicbo-pair-cell>.sicbo-cell-label{text-align:left}
+.sicbo-pair-cell .sicbo-odds b{font-size:14px}
+.sicbo-pair-plus{font-style:normal;font-size:11px;color:#8daba8}
+.sicbo-single-cell{min-height:96px}
+.sicbo-single-cell strong{font-size:12px;font-weight:500}
+.sicbo-single-cell small{font-size:9px;color:#e2c88d}
+.sicbo-payout-note{font-size:10px;text-align:center;color:#a6b8af;margin:20px 0 0;line-height:1.5}
 .sicbo-tools{max-width:none}
-.sicbo-scroll-hint{margin:2px 0 10px;color:#b9c9b4;font-size:11px;text-align:center}
-@media(max-width:1000px){.game-shell.sicbo-layout{grid-template-columns:minmax(0,1fr) 250px}}
-@media(max-width:760px){.game-shell.sicbo-layout{grid-template-columns:minmax(0,1fr)}.sicbo-layout .table-area{padding:14px}.sicbo-layout .sicbo-heading h2{font-size:26px}.sicbo-layout .sicbo-stage{padding:15px 10px 12px}.sicbo-board-intro{margin-top:18px;gap:6px}.sicbo-board-scroll{margin-inline:-4px;max-width:calc(100% + 8px)}.sicbo-layout .sicbo-tray{--die:40px}.sicbo-layout .sicbo-dice{gap:22px}.sicbo-tools button{min-height:44px;font-size:12px}}
+@media(max-width:1120px){.game-shell.sicbo-layout{grid-template-columns:minmax(0,1fr)}.sicbo-layout .bet-panel{position:static;border-left:0;border-top:1px solid #4a5141}.sicbo-layout .mobile-bet-tools{display:flex}}
+@media(max-width:760px){.sicbo-layout .table-area{padding:14px}.sicbo-layout .sicbo-heading h2{font-size:26px}.sicbo-layout .sicbo-stage{padding:18px 10px 12px}.sicbo-board{padding:16px 12px;border-radius:17px}.sicbo-board-heading{gap:10px;padding-bottom:16px}.sicbo-board-heading h3{font-size:24px}.sicbo-board-heading p{font-size:9px;letter-spacing:.04em}.sicbo-board-caption{font-size:9px}.sicbo-bet-section{margin-top:20px}.sicbo-section-head{gap:4px;margin-bottom:10px}.sicbo-section-head h4{font-size:14px}.sicbo-section-head p{width:100%;padding-left:33px;font-size:10px}.sicbo-board-intro{margin-top:18px;gap:6px}.sicbo-layout .sicbo-tray{--die:40px}.sicbo-layout .sicbo-dice{gap:22px}.sicbo-side{grid-template-columns:46px minmax(0,1fr);gap:10px;padding:15px 12px;min-height:137px}.sicbo-side-seal{width:46px;height:46px;font-size:28px}.sicbo-side>.sicbo-odds{grid-column:1/-1;align-self:center;padding:0}.sicbo-side>.sicbo-odds b{font-size:23px}.sicbo-side-copy>strong{font-size:12px}.sicbo-range{font-size:23px}.sicbo-triple-choice{grid-template-columns:130px minmax(0,1fr);gap:9px}.sicbo-doubles,.sicbo-singles{grid-template-columns:repeat(3,minmax(0,1fr))}.sicbo-pairs{grid-template-columns:repeat(3,minmax(0,1fr))}.sicbo-triples{gap:7px}.sicbo-tools button{min-height:44px;font-size:12px}}
+@media(max-width:520px){.sicbo-board-caption{display:none}.sicbo-sides{gap:9px}.sicbo-side{display:flex;flex-direction:column;gap:10px;text-align:center;min-height:173px;padding:15px 6px}.sicbo-side-copy{gap:5px}.sicbo-range{font-size:25px}.sicbo-side-copy>small{font-size:8px}.sicbo-side>.sicbo-odds{margin-top:2px}.sicbo-triple-choice{grid-template-columns:minmax(0,1fr)}.sicbo-any{display:grid;grid-template-columns:44px minmax(0,1fr) auto;text-align:left;min-height:80px;gap:4px 12px;padding:14px}.sicbo-any-seal{grid-row:1/3}.sicbo-any>strong,.sicbo-any>small{justify-self:start;white-space:nowrap}.sicbo-any>.sicbo-odds{grid-column:3;grid-row:1/3}.sicbo-sums{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.sicbo-sums .sicbo-cell:nth-last-child(-n+2){grid-column:span 2}.sicbo-pairs{gap:7px}.sicbo-pair-cell{padding:11px 7px}.sicbo-cell-label{font-size:9px}.sicbo-pair-cell .board-die{width:22px;height:22px;gap:2px;padding:3px}.sicbo-pair-cell .sicbo-die-group{gap:4px}.sicbo-triple-cell .board-die{width:19px;height:19px;padding:3px;gap:1px}.sicbo-triple-cell .sicbo-die-group{gap:3px}.sicbo-section-head h4{font-size:13px}.sicbo-board-intro b{font-size:11px}.sicbo-brand-dice{width:45px;height:45px}}
+@media(max-width:360px){.sicbo-triples,.sicbo-doubles,.sicbo-singles,.sicbo-pairs{grid-template-columns:repeat(2,minmax(0,1fr))}.sicbo-sums{grid-template-columns:repeat(3,minmax(0,1fr))}.sicbo-sums .sicbo-cell:nth-last-child(-n+2){grid-column:auto}}
+@media(prefers-reduced-motion:reduce){.sicbo-cell{transition:none}.sicbo-cell:hover:not(:disabled){transform:none}}

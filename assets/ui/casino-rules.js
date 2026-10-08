@@ -55,7 +55,15 @@
     return {grid:[...grid], wins, multiplier, bonusCount, bonusTriggered:!freeSpin&&bonusCount>=3,
       title:wins.length ? wins.length+'ライン的中！' : bonusCount>=3&&!freeSpin ? 'ボーナス発動！' : '今回はそろわず'};
   }
-  const rules = { wheel, symbols, strip, paylines, randomIndex, janken, color, bet, roulette, slots };
+  function sicbo(choice, dice) {
+    if (!['small','big'].includes(choice) || !Array.isArray(dice) || dice.length !== 3 || dice.some(n => !Number.isInteger(n) || n < 1 || n > 6)) throw Error('invalid-sicbo');
+    const sum = dice.reduce((a,b) => a+b,0), triple = dice.every(n => n === dice[0]);
+    const side = sum >= 4 && sum <= 10 ? 'small' : sum >= 11 && sum <= 17 ? 'big' : null;
+    const multiplier = !triple && side === choice ? 2 : 0;
+    return { choice, dice:[...dice], sum, triple, side, multiplier,
+      title:triple ? 'ゾロ目！大小はどちらも負け。' : multiplier ? '予想的中！'+(side==='small'?'小':'大')+'！' : '今回は'+(side==='small'?'小':'大')+'。予想は外れ。' };
+  }
+  const rules = { wheel, symbols, strip, paylines, randomIndex, janken, color, bet, roulette, slots, sicbo };
   root.HKCasinoRules = rules;
   if (typeof module !== 'undefined' && module.exports) module.exports = rules;
 })(typeof window !== 'undefined' ? window : globalThis);

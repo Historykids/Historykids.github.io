@@ -82,6 +82,7 @@ function terrainGeometry(field, angular = 240, radial = 112) {
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
   geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setIndex(indices); geometry.computeVertexNormals(); geometry.computeBoundingSphere();
+  geometry.userData.segments = { angular, radial };
   return geometry;
 }
 
@@ -144,22 +145,24 @@ function river(field, segments = 600) {
 export function createLandscape(scene, width, depth, { quality = "light" } = {}) {
   const lightweight = quality !== "detail";
   const field = createTerrainField(width, depth), group = new THREE.Group(); group.name = "surrounding-mountain-landscape";
-  const texture = forestTexture();
-  // Share one reduced mesh between WebGL and the software fallback in the default
-  // view. Keep the same terrain field, town clearance and photographic forest.
-  const geometry = lightweight ? terrainGeometry(field, 120, 64) : terrainGeometry(field);
+  // The default keeps a continuous 360-degree mountain silhouette, but needs
+  // neither thousands of trees nor texture downloads or per-pixel texture work.
+  const texture = lightweight ? null : forestTexture();
+  const geometry = lightweight ? terrainGeometry(field, 72, 10) : terrainGeometry(field);
   const terrain = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ vertexColors: true, map: texture }));
   terrain.name = "continuous-ridges-and-valleys";
   if (!lightweight) terrain.userData.softwareGeometry = terrainGeometry(field, 160, 80);
-  const trees = lightweight ? forest(field, 400, 2000, 0) : forest(field);
-  group.add(terrain, trees, river(field, lightweight ? 200 : 600));
+  const trees = lightweight ? null : forest(field);
+  group.add(terrain, river(field, lightweight ? 64 : 600));
+  if (trees) group.add(trees);
+  group.traverse(o => { if (o.isMesh) o.userData.staticScenery = true; });
   scene.add(group);
   scene.background = new THREE.Color(0xb9ced3);
   scene.fog = new THREE.Fog(0xb9ced3, field.diagonal * 1.7, field.diagonal * 6.5);
   let disposed = false, detailedTexture = null;
   // The scenery works immediately and offline. Its photographic canopy arrives
   // separately, so slow image loading never blocks placement or the town.
-  const ready = typeof document === "undefined" ? Promise.resolve(false) : Promise.resolve().then(() =>
+  const ready = lightweight || typeof document === "undefined" ? Promise.resolve(false) : Promise.resolve().then(() =>
     new THREE.TextureLoader().loadAsync(new URL("../textures/mountain-forest-20261003.webp", import.meta.url).href)
   ).then(detail => {
     if (disposed) { detail.dispose(); return false; }
@@ -178,6 +181,6 @@ export function createLandscape(scene, width, depth, { quality = "light" } = {})
   }).catch(() => false);
   return {
     group, field, ready, quality: lightweight ? "light" : "detail",
-    dispose() { disposed = true; const materials = new Set(); group.traverse(o => { if(o.isMesh) {o.geometry.dispose();o.userData.softwareGeometry?.dispose();materials.add(o.material);} });materials.forEach(m=>m.dispose());texture.dispose();detailedTexture?.dispose();scene.remove(group); }
+    dispose() { disposed = true; const materials = new Set(); group.traverse(o => { if(o.isMesh) {o.geometry.dispose();o.userData.softwareGeometry?.dispose();materials.add(o.material);} });materials.forEach(m=>m.dispose());texture?.dispose();detailedTexture?.dispose();scene.remove(group); }
   };
 }

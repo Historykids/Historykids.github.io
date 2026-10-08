@@ -1,9 +1,16 @@
 (function () {
   'use strict';
   const KEY = 'hk_wallet_v2', LIMIT = Number.MAX_SAFE_INTEGER - 1000000;
-  const games = ['janken', 'roulette', 'slots', 'bitcoin'];
+  const games = ['janken', 'roulette', 'slots', 'bitcoin', 'sicbo'];
   const integer = n => Number.isSafeInteger(n) && n >= 0 && n <= LIMIT;
   const uid = () => crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint32Array(4)),n=>n.toString(16).padStart(8,"0")).join("");
+  function validSicbo(round) {
+    const d=round.data;
+    if(!d || !['small','big'].includes(d.choice) || !Array.isArray(d.dice) || d.dice.length!==3 || d.dice.some(n=>!Number.isInteger(n)||n<1||n>6))return false;
+    const sum=d.dice.reduce((a,b)=>a+b,0),triple=d.dice.every(n=>n===d.dice[0]);
+    const wins=!triple&&(d.choice==='small'?sum>=4&&sum<=10:sum>=11&&sum<=17);
+    return d.sum===sum && d.triple===triple && d.multiplier===(wins?2:0) && round.payout===round.stake*(wins?2:0);
+  }
   function read() {
     const raw = localStorage.getItem(KEY);
     if (raw) {
@@ -14,6 +21,7 @@
         const r=value.pending, free=r.game==='slots'&&r.freeSpin===true, basis=free?r.slotStake:r.stake;
         if (!games.includes(r.game) || !integer(r.stake) || (free?r.stake!==0:r.stake<1) || !Number.isSafeInteger(basis) || basis<1 || basis>1000 || !integer(r.payout) || r.payout>basis*(r.game==='slots'?1600:250) || typeof r.id!=='string') throw Error('wallet-invalid');
         if (r.game === 'bitcoin' && (!window.HKBitcoinRules?.validRound(r.data) || r.payout !== 0)) throw Error('wallet-invalid');
+        if (r.game === 'sicbo' && !validSicbo(r)) throw Error('wallet-invalid');
       }
       return value;
     }
@@ -61,6 +69,7 @@
       const outcome = draw({freeSpin, stake:slotStake});
       if (!integer(outcome.payout) || outcome.payout > slotStake * (game==='slots'?1600:250)) throw Error('invalid-payout');
       const round = { id: uid(), game, stake:cost, payout: outcome.payout, data: outcome.data, at: Date.now(), ...(game==='slots'?{freeSpin,slotStake}:{}) };
+      if(game==='sicbo' && !validSicbo(round))throw Error('invalid-payout');
       if(freeSpin)w.slotBonus.remaining--;
       w.balance -= cost; w.pending = round;
       return round;

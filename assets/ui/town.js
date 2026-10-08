@@ -3,8 +3,8 @@ import { OrbitControls } from "../vendor/OrbitControls.js";
 import { GLTFLoader } from "../vendor/GLTFLoader.js";
 import { fitModel, alignLinearModel, createBuilding, createGround, groundGridOpacity, syncBuildings } from "./town-geometry.js?v=pagoda-torii-20261008";
 import { createFarmerView } from "./farmer-3d.js?v=missions-20261005";
-import { createLandscape } from "./town-landscape.js?v=mountains-light-20261007";
-import { SoftwareTownRenderer } from "./town-software-renderer.js?v=first-person-20261007";
+import { createLandscape } from "./town-landscape.js?v=mountains-fast-20261008";
+import { SoftwareTownRenderer } from "./town-software-renderer.js?v=scenery-cache-20261008";
 import { createTownEventView } from "./town-events.js?v=town-events-20261005";
 import { createResidentCamera } from "./resident-camera.js?v=first-person-20261007";
 const C = window.HKCore;
@@ -42,12 +42,12 @@ function loadModel(type) {
 function createScene(host, { mini = false } = {}) {
   let renderer;
   try {
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: mini, powerPreference: "low-power" });
+    renderer = new THREE.WebGLRenderer({ antialias: mini, alpha: mini, powerPreference: "low-power" });
   } catch (error) {
     if (mini) throw error;
     renderer = new SoftwareTownRenderer();
   }
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.7));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.autoUpdate = false;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -90,6 +90,9 @@ function createScene(host, { mini = false } = {}) {
   sun.shadow.bias = -0.0003;
   scene.add(sun);
   const base = createGround(scene, mini);
+  // At this point only mountains and the fixed town floor are in the scene.
+  // Residents, buildings and placement markers remain independently animated.
+  scene.traverse(o => { if (o.isMesh) o.userData.staticScenery = true; });
   const groundGrid = scene.getObjectByName("town-ground-grid");
   const buildings = new THREE.Group();
   scene.add(buildings);

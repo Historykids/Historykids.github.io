@@ -2,10 +2,10 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const root=path.resolve(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p),'utf8'),R=require(path.join(root,'assets/ui/casino-rules.js'));
 let checks=0;
 async function test(name,fn){await fn();checks++;console.log('PASS',name);}
-function page({balance=100,storage=null,ui=false,locks=null}={}){
- const map=storage||new Map([['money_v1',String(balance)]]),dom=new JSDOM(ui?read('casino.html'):'<body></body>',{url:'https://historykids.github.io/casino.html',runScripts:'outside-only',pretendToBeVisual:true}),w=dom.window;
+function page({balance=100,storage=null,ui=false,locks=null,game=null,reduced=false}={}){
+ const map=storage||new Map([['money_v1',String(balance)]]),dom=new JSDOM(ui?read('casino.html'):'<body></body>',{url:'https://historykids.github.io/casino.html'+(game?'?game='+game:''),runScripts:'outside-only',pretendToBeVisual:true}),w=dom.window;
  Object.defineProperty(w,'localStorage',{value:{getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,String(v)),removeItem:k=>map.delete(k)}});
- w.matchMedia=()=>({matches:false});w.HTMLElement.prototype.scrollIntoView=function(){};
+ w.matchMedia=()=>({matches:reduced});w.HTMLElement.prototype.scrollIntoView=function(){};
  if(locks)Object.defineProperty(w.navigator,'locks',{value:locks});
  let next=0,values=[],count=0;w.crypto.getRandomValues=a=>{a[0]=values.length?values.shift():next;return a;};w.crypto.randomUUID=()=>`test-round-${++count}`;
  let now=0,id=0;const timers=new Map();w.setTimeout=(fn,delay=0)=>{const i=++id;timers.set(i,{fn,due:now+delay});return i;};w.clearTimeout=i=>timers.delete(i);
@@ -15,6 +15,44 @@ function page({balance=100,storage=null,ui=false,locks=null}={}){
 }
 function walletCall(W,method,...args){return new Promise((resolve,reject)=>W[method](...args,resolve,reject));}
 async function main(){
+ await test('Sic Bo covers all 216 independent dice results: 105 small, 105 big and six triples that lose both',()=>{
+  let small=0,big=0,triples=0;
+  for(let a=1;a<=6;a++)for(let b=1;b<=6;b++)for(let c=1;c<=6;c++){
+   const dice=[a,b,c],s=R.sicbo('small',dice),d=R.sicbo('big',dice);assert.equal(s.sum,a+b+c);assert.equal(d.sum,s.sum);
+   if(a===b&&b===c){triples++;assert.equal(s.multiplier,0);assert.equal(d.multiplier,0);assert(s.triple&&d.triple);}
+   else{assert.equal(s.multiplier+d.multiplier,2);if(s.multiplier)small++;else big++;}
+   assert.deepEqual(s.dice,dice);
+  }
+  assert.deepEqual([small,big,triples],[105,105,6]);assert.equal(R.sicbo('small',[1,3,6]).multiplier,2);assert.equal(R.sicbo('big',[1,4,6]).multiplier,2);
+  for(const [choice,dice]of [['fake',[1,2,3]],['small',[0,2,3]],['big',[1,2,7]],['small',[1,2]],['small',[1,2,2.5]],['small',null]])assert.throws(()=>R.sicbo(choice,dice));
+ });
+ await test('Sic Bo starts from its game link, reveals actual pips in order, locks betting and pays exactly once',()=>{
+  const p=page({ui:true,game:'sicbo'});assert(!p.$('panel-sicbo').hidden);assert(p.$('playLabel').textContent.includes('サイコロ'));assert(p.$('gameRules').textContent.includes('ゾロ目'));
+  p.setSequence([0,2,5]);p.$('playRound').click();p.$('mobilePlayRound').click();assert.equal(p.W.snapshot().balance,90);assert.equal(p.W.snapshot().pending.game,'sicbo');assert(p.w.document.querySelector('[data-sicbo="big"]').disabled);
+  p.advance(1260);assert.equal(p.$('sicboDie0').getAttribute('aria-label'),'左のサイコロ：1');assert(p.$('sicboDie2').classList.contains('rolling'));assert.equal(p.$('sicboSum').textContent,'？');
+  p.advance(500);assert.equal(p.W.snapshot().balance,110);assert.equal(p.$('sicboSum').textContent,'10');assert.equal(p.$('sicboCall').textContent,'小');assert.equal(p.$('resultPayout').textContent,'20両');assert(p.$('resultHeadline').textContent.includes('予想的中'));assert.equal(p.w.document.querySelectorAll('.dice-cube.rolling').length,0);assert.equal(p.w.document.querySelectorAll('.dice-face').length,18);
+  for(let n=1;n<=6;n++)assert.equal(p.$('sicboDie0').querySelectorAll('.face-'+n+' .pip').length,n);
+  p.advance(10000);assert.equal(p.W.snapshot().balance,110);assert.equal(p.W.snapshot().history.length,1);p.w.close();
+ });
+ await test('Sic Bo loses on every triple and big/small misses, including shortened and reduced-motion animations',()=>{
+  for(let n=1;n<=6;n++)for(const choice of ['small','big']){
+   const p=page({ui:true,game:'sicbo',reduced:true});p.w.document.querySelector('[data-sicbo="'+choice+'"]').click();p.setRandom(n-1);p.$('playRound').click();p.advance(350);
+   assert.equal(p.W.snapshot().balance,90);assert.equal(p.$('sicboSum').textContent,String(n*3));assert.equal(p.$('resultPayout').textContent,'0両');assert(p.$('resultDetail').textContent.includes('ゾロ目'));assert(p.$('sicboStage').classList.contains('triple'));p.w.close();
+  }
+  const p=page({ui:true,game:'sicbo'});p.$('quickToggle').checked=true;p.setSequence([4,5,5]);p.$('playRound').click();p.advance(350);assert.equal(p.$('sicboCall').textContent,'大');assert.equal(p.W.snapshot().balance,90);assert(p.$('resultHeadline').textContent.includes('外れ'));p.w.close();
+ });
+ await test('Sic Bo restores its chosen side and dice after reload without redrawing, charging or paying twice',()=>{
+  const map=new Map([['money_v1','100']]),p=page({ui:true,storage:map,game:'sicbo'});p.w.document.querySelector('[data-sicbo="big"]').click();p.setSequence([0,3,5]);p.$('playRound').click();assert.equal(p.W.snapshot().balance,90);
+  const q=page({ui:true,storage:map});assert(!q.$('panel-sicbo').hidden);assert.equal(q.$('sicboSum').textContent,'11');assert.equal(q.w.document.querySelector('[data-sicbo="big"]').getAttribute('aria-pressed'),'true');assert.equal(q.W.snapshot().balance,110);assert.equal(q.$('resultKicker').textContent,'RESULT RESTORED');
+  p.advance(2000);assert.equal(p.W.snapshot().balance,110);assert.equal(p.W.snapshot().history.length,1);assert(q.$('roundHistory').textContent.includes('大小'));p.w.close();q.w.close();
+ });
+ await test('Sic Bo rejects inconsistent results before spending and rejects malformed saved dice',async()=>{
+  const p=page();await assert.rejects(walletCall(p.W,'begin','sicbo',10,()=>({payout:20,data:R.sicbo('small',[4,4,4])})),/invalid-payout/);assert.equal(p.W.snapshot().balance,100);
+  const data=R.sicbo('small',[1,3,6]);const r=await walletCall(p.W,'begin','sicbo',10,()=>({payout:20,data}));const saved=JSON.parse(p.map.get('hk_wallet_v2'));saved.pending.data.dice[0]=7;p.map.set('hk_wallet_v2',JSON.stringify(saved));assert(p.W.snapshot().unavailable);await assert.rejects(walletCall(p.W,'finish',r.id),/wallet-invalid/);p.w.close();
+ });
+ await test('casino keyboard tabs include Sic Bo and every game card reaches its panel',()=>{
+  const p=page({ui:true});p.w.document.querySelector('[data-game="janken"]').dispatchEvent(new p.w.KeyboardEvent('keydown',{key:'End',bubbles:true}));assert(!p.$('panel-sicbo').hidden);assert.equal(p.$('tab-sicbo').getAttribute('aria-selected'),'true');p.$('tab-sicbo').dispatchEvent(new p.w.KeyboardEvent('keydown',{key:'Home',bubbles:true}));assert(!p.$('panel-janken').hidden);assert(read('index.html').includes('./casino.html?game=sicbo'));assert(read('index.html').includes('<b>大小。</b>'));p.w.close();
+ });
  await test('janken obeys all nine outcomes and returns the stake on a tie',()=>{const matrix=[[1,2,0],[0,1,2],[2,0,1]];for(let a=0;a<3;a++)for(let b=0;b<3;b++)assert.equal(R.janken(a,b),matrix[a][b]);assert.throws(()=>R.janken(3,0));});
  await test('roulette uses the 37-pocket European sequence and zero loses every outside bet',()=>{assert.equal(R.wheel.length,37);assert.equal(new Set(R.wheel).size,37);assert.equal(R.wheel[0],0);for(const id of ['red','black','odd','even','low','high','d1','d2','d3','c1','c2','c3'])assert.equal(R.roulette([{id,stake:10}],0),0);assert.equal(R.roulette([{id:'n0',stake:10}],0),360);});
  await test('every supported roulette bet has correct coverage, payout and expected return',()=>{for(const id of ['red','black','odd','even','low','high','d1','d2','d3','c1','c2','c3',...Array.from({length:37},(_,i)=>'n'+i)]){const b=R.bet(id);assert.equal(b.numbers.length*b.multiplier,36,id);assert.equal(Array.from({length:37},(_,i)=>R.roulette([{id,stake:1}],i)).reduce((a,b)=>a+b,0),36,id);}assert.equal(R.roulette([{id:'n1',stake:5},{id:'red',stake:10},{id:'d1',stake:5}],1),215);assert.throws(()=>R.bet('n37'));assert.throws(()=>R.roulette([{id:'red',stake:-1}],1));});

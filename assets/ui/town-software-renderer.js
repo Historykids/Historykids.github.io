@@ -9,6 +9,7 @@ export class SoftwareTownRenderer {
     this.domElement=document.createElement("canvas");this.context=this.domElement.getContext("2d",{alpha:false});
     if(!this.context)throw new Error("Canvas is unavailable");
     this.shadowMap={};this.isSoftwareRenderer=true;this.previous="";this.last=0;this.retry=0;this.disposed=false;
+    this.scenery=null;this.sceneryBuilds=0;
     this.matrix=new THREE.Matrix4();this.instance=new THREE.Matrix4();this.world=new THREE.Matrix4();
     this.instanceColor=new THREE.Color();this.point=new THREE.Vector3();this.clip=new THREE.Vector4();this.textures=new WeakMap();
     this.srgb=new Uint8Array(4097);for(let i=0;i<=4096;i++)this.srgb[i]=srgb(i/4096);
@@ -17,9 +18,9 @@ export class SoftwareTownRenderer {
   setSize(width,height) {
     const ratio=Math.min(1,1000/width);this.width=Math.round(width*ratio);this.height=Math.round(height*ratio);
     this.domElement.width=this.width;this.domElement.height=this.height;
-    this.image=this.context.createImageData(this.width,this.height);this.depth=new Float32Array(this.width*this.height);this.previous="";
+    this.image=this.context.createImageData(this.width,this.height);this.depth=new Float32Array(this.width*this.height);this.previous="";this.scenery=null;
   }
-  dispose() {this.disposed=true;clearTimeout(this.retry);this.domElement.width=this.domElement.height=0;this.image=null;this.depth=null;}
+  dispose() {this.disposed=true;clearTimeout(this.retry);this.domElement.width=this.domElement.height=0;this.image=null;this.depth=null;this.scenery=null;}
   texture(map) {
     if(!map?.image)return null;
     if(this.textures.has(map))return this.textures.get(map);
@@ -31,18 +32,21 @@ export class SoftwareTownRenderer {
   render(scene,camera) {
     if(this.disposed || !this.image)return;
     scene.updateMatrixWorld();camera.updateMatrixWorld();
-    const meshes=[];let signature=camera.matrixWorld.elements.join(",")+camera.projectionMatrix.elements.join(",");
-    scene.traverseVisible(o=>{if(o.isMesh){meshes.push(o);signature+=o.uuid+o.geometry.uuid+o.matrixWorld.elements.join(",")+o.material.color?.getHex()+o.material.opacity+o.material.map?.uuid;}});
+    const meshes=[],fixed=[];
+    const viewKey=camera.matrixWorld.elements.join(",")+camera.projectionMatrix.elements.join(",")+scene.fog?.color.getHex()+scene.fog?.near+scene.fog?.far;
+    let signature=viewKey,sceneryKey=viewKey;
+    scene.traverseVisible(o=>{if(o.isMesh){
+      const g=o.userData.softwareGeometry||o.geometry;
+      const key=o.uuid+g.uuid+o.matrixWorld.elements.join(",")+o.material.color?.getHex()+o.material.opacity+o.material.map?.uuid+o.material.map?.version+o.material.transparent+o.material.side+g.attributes.position?.version+g.attributes.color?.version+o.instanceMatrix?.version+o.instanceColor?.version+o.count+!!o.userData.staticScenery;
+      signature+=key;
+      if(o.userData.staticScenery){fixed.push(o);sceneryKey+=key;}else meshes.push(o);
+    }});
     if(signature===this.previous)return;
     const now=performance.now();
     if(now-this.last<65 && this.previous){if(!this.retry)this.retry=setTimeout(()=>{this.retry=0;this.render(scene,camera)},65-(now-this.last));return;}
     clearTimeout(this.retry);this.retry=0;this.last=now;this.previous=signature;
     this.matrix.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);
     const w=this.width,h=this.height,bytes=this.image.data,zbuffer=this.depth,fog=scene.fog,canopies=[];
-    zbuffer.fill(Infinity);
-    for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-      const i=(y*w+x)*4,t=y/h;bytes[i]=159+26*t;bytes[i+1]=190+16*t;bytes[i+2]=203+8*t;bytes[i+3]=255;
-    }
     const project=(x,y,z,world)=>{
       this.point.set(x,y,z).applyMatrix4(world);const view=camera.matrixWorldInverse.elements;
       const distance=-(view[2]*this.point.x+view[6]*this.point.y+view[10]*this.point.z+view[14]);
@@ -73,6 +77,8 @@ export class SoftwareTownRenderer {
       const i=offset*4;const cr=this.srgb[Math.round(clamp(r)*4096)],cg=this.srgb[Math.round(clamp(g)*4096)],cb=this.srgb[Math.round(clamp(b)*4096)];
       bytes[i]=bytes[i]*(1-alpha)+cr*alpha;bytes[i+1]=bytes[i+1]*(1-alpha)+cg*alpha;bytes[i+2]=bytes[i+2]*(1-alpha)+cb*alpha;
     };
+    const draw=meshes=>{
+    canopies.length=0;
     meshes.sort((a,b)=>(a.material.transparent?1:0)-(b.material.transparent?1:0));
     for(const mesh of meshes){
       const geometry=mesh.userData.softwareGeometry||mesh.geometry,material=mesh.material;
@@ -130,6 +136,19 @@ export class SoftwareTownRenderer {
         pixel(offset,color.r*shade,color.g*shade,color.b*shade,.95);zbuffer[offset]=p.z;
       }
     }
+    };
+    // Reuse both colour and depth: moving residents still pass the same depth
+    // test against mountains and soil without rerasterizing the whole backdrop.
+    if(this.scenery?.key===sceneryKey){bytes.set(this.scenery.bytes);zbuffer.set(this.scenery.depth);}
+    else{
+      zbuffer.fill(Infinity);
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+        const i=(y*w+x)*4,t=y/h;bytes[i]=159+26*t;bytes[i+1]=190+16*t;bytes[i+2]=203+8*t;bytes[i+3]=255;
+      }
+      draw(fixed);
+      this.scenery={key:sceneryKey,bytes:bytes.slice(),depth:zbuffer.slice()};this.sceneryBuilds++;
+    }
+    draw(meshes);
     this.context.putImageData(this.image,0,0);
   }
 }

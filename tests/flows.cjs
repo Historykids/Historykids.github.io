@@ -216,6 +216,18 @@ test("a failed code reward leaves coins intact and allows retry", () => {
   const submit=()=>g("redeemCodeForm").dispatchEvent(new v.Event("submit",{bubbles:true,cancelable:true}));submit();assert.equal(v.HK.state.money,12);assert(!g("redeemCodeInput").disabled);assert(g("redeemCodeStatus").textContent.includes("保存できません"));
   v.HKWallet.adjust=adjust;submit();assert.equal(v.HK.state.money,32);v.close();
 });
+test("2026 grants exactly 50,000 ryo once and remains used after reopening and resetting progress",()=>{
+  const scripts=["data/dataset.js","assets/ui/core.js","assets/ui/app.js"],d=create("index.html",scripts,{money_v1:"35"}),v=d.window,g=id=>v.document.getElementById(id);
+  const claim=(code="2026")=>{click(v,'#redeemCodeBtn');g('redeemCodeInput').value=code;g('redeemCodeForm').dispatchEvent(new v.Event('submit',{bubbles:true,cancelable:true}));};
+  claim("２０２６");g('redeemCodeForm').dispatchEvent(new v.Event('submit',{bubbles:true,cancelable:true}));assert.equal(v.HK.state.money,50035);assert(g('redeemCodeStatus').textContent.includes('50,000両ゲット'));assert(g('redeemCodeStatus').textContent.includes('1回'));assert(g('redeemCodeForm').querySelector('button').disabled);
+  let exported;v.Blob=function(parts){exported=JSON.parse(parts[0]);};click(v,'#settingsBtn');click(v,'#exportBtn');assert.equal(exported.money,50035);assert.deepEqual(exported.redeemedCodes,['2026']);
+  const saved=Object.fromEntries(Object.keys(v.localStorage).map(k=>[k,v.localStorage.getItem(k)])),again=create('index.html',scripts,saved),a=again.window;click(a,'#redeemCodeBtn');a.document.getElementById('redeemCodeInput').value='2026';a.document.getElementById('redeemCodeForm').dispatchEvent(new a.Event('submit',{bubbles:true,cancelable:true}));assert.equal(a.HK.state.money,50035);assert(a.document.getElementById('redeemCodeStatus').textContent.includes('受け取り済み'));
+  v.HKWallet.replace(0,()=>{},error=>{throw error;});claim();assert.equal(v.HK.state.money,0);assert(g('redeemCodeStatus').textContent.includes('受け取り済み'));again.window.close();v.close();
+});
+test("failed 2026 rewards release the form and do not mark the code as used",()=>{
+  const d=create('index.html',['data/dataset.js','assets/ui/core.js','assets/ui/app.js'],{money_v1:'12'}),v=d.window,g=id=>v.document.getElementById(id),redeem=v.HKWallet.redeem;
+  click(v,'#redeemCodeBtn');g('redeemCodeInput').value='2026';v.HKWallet.redeem=(code,yes,no)=>no(Error('storage unavailable'));const submit=()=>g('redeemCodeForm').dispatchEvent(new v.Event('submit',{bubbles:true,cancelable:true}));submit();assert.equal(v.HK.state.money,12);assert(!g('redeemCodeInput').disabled);assert(g('redeemCodeStatus').textContent.includes('保存できません'));v.HKWallet.redeem=redeem;submit();assert.equal(v.HK.state.money,50012);v.close();
+});
 test("first quiz awards exactly one card and ten coins", () => {
   click(w, '[data-answer="えど"]');
   assert.equal(w.HK.state.money, 10);

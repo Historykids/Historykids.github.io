@@ -43,7 +43,7 @@
   }
   function roulette(bets, number) {
     if (!Number.isInteger(number) || number < 0 || number > 36 || !Array.isArray(bets) || !bets.length) throw Error('invalid-round');
-    return bets.reduce((sum, chip) => { if (!Number.isSafeInteger(chip.stake) || chip.stake <= 0) throw Error('invalid-bet'); const b=bet(chip.id); return sum + (b.numbers.includes(number) ? chip.stake*b.multiplier : 0); }, 0);
+    return bets.reduce((sum, chip) => { if (!Number.isSafeInteger(chip.stake) || chip.stake <= 0) throw Error('invalid-bet'); const b=bet(chip.id),payout=sum + (b.numbers.includes(number) ? chip.stake*b.multiplier : 0);if(!Number.isSafeInteger(payout))throw Error('invalid-payout');return payout; }, 0);
   }
   function slots(grid, freeSpin=false) {
     if (!Array.isArray(grid) || grid.length !== 9 || grid.some(id=>!symbols.some(s=>s.id===id))) throw Error('invalid-reels');
@@ -81,11 +81,12 @@
     return hit ? b.type==='single'?count+1:b.odds+1 : 0;
   }
   function sicboRound(bets,dice) {
-    if(!Array.isArray(bets)||!bets.length||bets.length>1000)throw Error('invalid-sicbo-bets');
+    if(!Array.isArray(bets)||!bets.length)throw Error('invalid-sicbo-bets');
     const base=sicbo('small',dice);
-    const settled=bets.map(b=>{if(!b||!Number.isSafeInteger(b.stake)||b.stake<1)throw Error('invalid-bet');const multiplier=sicboMultiplier(b.id,dice);return {id:b.id,stake:b.stake,multiplier,payout:b.stake*multiplier};});
-    if(settled.reduce((n,b)=>n+b.stake,0)>1000)throw Error('invalid-bet');
+    const settled=bets.map(b=>{if(!b||!Number.isSafeInteger(b.stake)||b.stake<1)throw Error('invalid-bet');const multiplier=sicboMultiplier(b.id,dice),payout=b.stake*multiplier;if(!Number.isSafeInteger(payout))throw Error('invalid-payout');return {id:b.id,stake:b.stake,multiplier,payout};});
+    if(!Number.isSafeInteger(settled.reduce((n,b)=>n+b.stake,0)))throw Error('invalid-bet');
     const wins=settled.filter(b=>b.payout>0),payout=settled.reduce((n,b)=>n+b.payout,0);
+    if(!Number.isSafeInteger(payout))throw Error('invalid-payout');
     return {tableVersion:1,dice:base.dice,sum:base.sum,triple:base.triple,side:base.side,bets:settled,payout,title:wins.length?wins.length+'か所的中！':'今回は的中なし。'};
   }
   const rules = { wheel, symbols, strip, paylines, randomIndex, janken, color, bet, roulette, slots, sicbo, sicboBet, sicboMultiplier, sicboRound, sicboTotals };

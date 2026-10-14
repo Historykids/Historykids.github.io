@@ -16,7 +16,7 @@
   const stake = () => Number($('stake').value);
   const bonus = () => W.snapshot().slotBonus?.remaining>0 ? W.snapshot().slotBonus : null;
   const total = () => game==='roulette' ? chips.reduce((n,b)=>n+b.stake,0) : game==='sicbo' ? sicboChips.reduce((n,b)=>n+b.stake,0) : game==='slots'&&bonus() ? bonus().stake : stake();
-  const validStake = n => Number.isSafeInteger(n) && n>=1 && n<=1000;
+  const validStake = n => Number.isSafeInteger(n) && n>=1;
   const status = (text,error=false) => { $('casinoStatus').textContent=text; $('casinoStatus').classList.toggle('error',error); };
   function tone(kind) {
     if (!sound) return;
@@ -27,10 +27,10 @@
     } catch { sound=false; $('soundToggle').textContent='音 OFF'; $('soundToggle').setAttribute('aria-pressed','false'); }
   }
   function rulesHTML() {
-    if(game==='sicbo')return '<p>盤面を押すたび、選んだ両を置きます。複数の場所に賭けられ、合計1,000両まで。各サイコロは1〜6から独立に同じ確率で抽選します。</p><table><tr><th>小・大（ゾロ目は負け）</th><td>2倍</td></tr><tr><th>指定のダブル（同じ目が2個以上）</th><td>12倍</td></tr><tr><th>指定のゾロ目</th><td>181倍</td></tr><tr><th>いずれかのゾロ目</th><td>31倍</td></tr><tr><th>異なる2つの目</th><td>7倍</td></tr><tr><th>指定の目が1・2・3個</th><td>2・3・4倍</td></tr><tr><th>合計4・17／5・16／6・15</th><td>61／21／19倍</td></tr><tr><th>合計7・14／8・13／9〜12</th><td>13／9／7倍</td></tr></table><p>表示は掛け金を含む払い戻し倍率です。ダブルの12倍に10両を賭けて的中すると、120両が戻ります。ゾロ目でも合計・ダブル・単独の目への賭けは通常どおり判定します。途中で閉じても同じ結果を復元し、二重に引いたり払ったりしません。</p>';
+    if(game==='sicbo')return '<p>盤面を押すたび、選んだ両を置きます。複数の場所に賭けられ、合計は所持金の範囲内です。各サイコロは1〜6から独立に同じ確率で抽選します。</p><table><tr><th>小・大（ゾロ目は負け）</th><td>2倍</td></tr><tr><th>指定のダブル（同じ目が2個以上）</th><td>12倍</td></tr><tr><th>指定のゾロ目</th><td>181倍</td></tr><tr><th>いずれかのゾロ目</th><td>31倍</td></tr><tr><th>異なる2つの目</th><td>7倍</td></tr><tr><th>指定の目が1・2・3個</th><td>2・3・4倍</td></tr><tr><th>合計4・17／5・16／6・15</th><td>61／21／19倍</td></tr><tr><th>合計7・14／8・13／9〜12</th><td>13／9／7倍</td></tr></table><p>表示は掛け金を含む払い戻し倍率です。ダブルの12倍に10両を賭けて的中すると、120両が戻ります。ゾロ目でも合計・ダブル・単独の目への賭けは通常どおり判定します。途中で閉じても同じ結果を復元し、二重に引いたり払ったりしません。</p>';
     if(game==='bitcoin')return '<p>Coinbase ExchangeのBTC/USDの実際の価格を使います。「上がる」「下がる」と掛ける両を選ぶと、開始価格を記録して10秒後に判定します。</p><table><tr><th>予想的中</th><td>2倍</td></tr><tr><th>予想が外れる</th><td>0両</td></tr><tr><th>同じ価格</th><td>掛け金を返す</td></tr></table><p>10秒後、最初に取得できた約定価格（5秒以内）で判定します。判定価格を取得できなかった場合は全額返金。途中でページを閉じても掛け金は二重に引かれず、戻ると勝負を復元します。判定時刻を過ぎて5秒以上経った場合は返金します。チャートは直近1分を拡大表示します。15秒・5分・30分にも切り替えられます。最近の約定価格を使い、長い期間の古い部分は1分足の終値を使います。縦軸は表示期間の値動きに合わせて自動調整します。</p><p>ゲーム内の両を使った価格予想です。ビットコインの購入・売却・換金はできません。</p>';
     if(game==='janken')return '<p>NPCの手は毎回、グー・チョキ・パーから同じ確率で決まります。</p><table><tr><th>勝ち</th><td>掛け金の2倍</td></tr><tr><th>負け</th><td>0両</td></tr><tr><th>あいこ</th><td>掛け金を返す（1倍）</td></tr></table><p>例：10両を賭けて勝つと20両が戻り、差し引きは＋10両です。</p>';
-    if(game==='roulette')return '<p>0〜36の37ポケットを使う欧州式。各数字は毎回1/37の確率です。複数の場所に置けます。1回の合計は1,000両まで。</p><table><tr><th>数字1点（0も可）</th><td>36倍</td></tr><tr><th>赤・黒・奇数・偶数</th><td>2倍</td></tr><tr><th>1〜18・19〜36</th><td>2倍</td></tr><tr><th>12個の組・列</th><td>3倍</td></tr></table><p>0は赤黒・奇偶・大小・12個の組・列のいずれにも入りません。外れた場所の両は戻りません。倍率は掛け金を含む払い戻しです。</p><p>過去の数字で次の確率は変わりません。<a href="https://help.danskespil.dk/en/casino-help/roulette/playtechclassicroulette" target="_blank" rel="noopener">欧州式のルールを確認 ↗</a></p>';
+    if(game==='roulette')return '<p>0〜36の37ポケットを使う欧州式。各数字は毎回1/37の確率です。複数の場所に置けます。合計は所持金の範囲内です。</p><table><tr><th>数字1点（0も可）</th><td>36倍</td></tr><tr><th>赤・黒・奇数・偶数</th><td>2倍</td></tr><tr><th>1〜18・19〜36</th><td>2倍</td></tr><tr><th>12個の組・列</th><td>3倍</td></tr></table><p>0は赤黒・奇偶・大小・12個の組・列のいずれにも入りません。外れた場所の両は戻りません。倍率は掛け金を含む払い戻しです。</p><p>過去の数字で次の確率は変わりません。<a href="https://help.danskespil.dk/en/casino-help/roulette/playtechclassicroulette" target="_blank" rel="noopener">欧州式のルールを確認 ↗</a></p>';
     return '<p>3×3の絵柄を、横3本・縦3本・斜め2本の計8ラインで判定。どのラインも同じ絵柄が3つそろうと的中し、複数の当たりはすべて合算します。</p><table>'+R.symbols.filter(s=>s.multiplier).map(s=>'<tr><th>'+s.name+'が3つ（1ライン）</th><td>'+s.multiplier+'倍</td></tr>').join('')+'<tr><th>「両」ボーナス絵柄が画面内に3つ以上</th><td>無料スピン5回</td></tr></table><p>掛け金は8ライン全部を含む1回分の両です。「両」は並び方に関係なく数えます。ボーナス中は発動時の掛け金を基準に配当が2倍になり、両を引かずに5回回せます。無料スピン中はボーナスの追加抽選をしません。</p><p>9つの絵柄はそれぞれ独立して抽選します。各マスの内訳：チェリー7、レモン5、ベル4、BAR3、7が1、ボーナス1（計21）。2つだけでは配当はありません。</p>';
 
   }
@@ -93,7 +93,7 @@
     for(let n=1;n<=36;n++)html+='<button class="number '+R.color(n)+'" style="--row:'+(n%3===0?2:n%3===2?3:4)+';--col:'+Math.ceil(n/3)+'" data-position="n'+n+'" aria-label="数字'+n+'に両を置く">'+n+'</button>';
     for(const id of ['d1','d2','d3','c1','c2','c3','low','even','red','black','odd','high']){const b=R.bet(id);html+='<button class="outside '+(b.multiplier===2?'even-money ':'')+(id==='red'||id==='black'?id:'')+'" data-position="'+id+'" aria-label="'+b.label+'に両を置く">'+b.label+' <small>'+b.multiplier+'倍</small></button>';}
     $('rouletteBoard').innerHTML=html;
-    $('rouletteBoard').onclick=e=>{const b=e.target.closest('[data-position]');if(!b||b.disabled)return;const amount=stake(),sum=chips.reduce((n,c)=>n+c.stake,0)+amount;if(!validStake(amount)||sum>1000){status('置く両は整数で1両以上。1回の合計は1,000両までです。',true);return;}if(sum>W.snapshot().balance){status('置く両の合計が残高を超えています。',true);return;}chips.push({id:b.dataset.position,stake:amount});renderBets();tone('tick');};
+    $('rouletteBoard').onclick=e=>{const b=e.target.closest('[data-position]');if(!b||b.disabled)return;const amount=stake(),sum=chips.reduce((n,c)=>n+c.stake,0)+amount;if(!validStake(amount)||!validStake(sum)){status('置く両は1両以上の整数にしてください。',true);return;}if(sum>W.snapshot().balance){status('置く両の合計が残高を超えています。',true);return;}chips.push({id:b.dataset.position,stake:amount});renderBets();tone('tick');};
   }
   function renderBets() {
     document.querySelectorAll('[data-position]').forEach(b=>{b.querySelector('.board-chip')?.remove();const amount=chips.filter(c=>c.id===b.dataset.position).reduce((n,c)=>n+c.stake,0);b.classList.toggle('has-chip',amount>0);if(amount){const marker=document.createElement('span');marker.className='board-chip';marker.textContent=amount;marker.setAttribute('aria-hidden','true');b.append(marker);}const rule=R.bet(b.dataset.position);b.setAttribute('aria-label',rule.label+'に両を置く'+(amount?' · '+money(amount)+'を置いています':''));});
@@ -144,7 +144,7 @@
     html+=section('六','ひとつの目にかける','1個で2倍、2個で3倍、3個で4倍。',faces.map(n=>button('single-'+n,boardDice(n)+'<strong>'+n+'の目</strong><small>2・3・4倍</small>','sicbo-single-cell')).join(''),'sicbo-singles');
     html+='<p class="sicbo-payout-note">表示は掛け金を含む払い戻し倍率です。</p>';
     $('sicboBoard').innerHTML=html;
-    $('sicboBoard').onclick=e=>{const b=e.target.closest('[data-sicbo]');if(!b||b.disabled)return;const amount=stake(),sum=sicboChips.reduce((n,c)=>n+c.stake,0)+amount;if(!validStake(amount)||sum>1000){status('1回の合計は1〜1,000両です。',true);return;}if(sum>W.snapshot().balance){status('置く両の合計が残高を超えています。',true);return;}sicboChips.push({id:b.dataset.sicbo,stake:amount});renderSicboBets();tone('tick');status(R.sicboBet(b.dataset.sicbo).label+'に'+money(amount)+'を置きました。');};
+    $('sicboBoard').onclick=e=>{const b=e.target.closest('[data-sicbo]');if(!b||b.disabled)return;const amount=stake(),sum=sicboChips.reduce((n,c)=>n+c.stake,0)+amount;if(!validStake(amount)||!validStake(sum)){status('置く両は1両以上の整数にしてください。',true);return;}if(sum>W.snapshot().balance){status('置く両の合計が残高を超えています。',true);return;}sicboChips.push({id:b.dataset.sicbo,stake:amount});renderSicboBets();tone('tick');status(R.sicboBet(b.dataset.sicbo).label+'に'+money(amount)+'を置きました。');};
   }
   function renderSicboBets(){
     document.querySelectorAll('[data-sicbo]').forEach(b=>{b.querySelector('.board-chip')?.remove();const amount=sicboChips.filter(c=>c.id===b.dataset.sicbo).reduce((n,c)=>n+c.stake,0);b.classList.toggle('has-chip',amount>0);b.setAttribute('aria-pressed',String(amount>0));b.setAttribute('aria-label',R.sicboBet(b.dataset.sicbo).label+'に両を置く'+(amount?' · '+money(amount)+'を置いています':''));if(amount){const marker=document.createElement('span');marker.className='board-chip';marker.textContent=amount;marker.setAttribute('aria-hidden','true');b.append(marker);}});
@@ -228,14 +228,14 @@
     if(win||round.data.bonusTriggered){tone(big?'big':'win');confetti(big);}else if(net<0)tone('lose');
     status(!recovered&&round.data.bonusTriggered?'ボーナス発動！無料スピン5回、配当は2倍です。':!recovered&&round.freeSpin?'無料スピンの配当を反映しました。'+(bonus()?'残り'+bonus().remaining+'回。':'ボーナス終了！'):recovered?'途中だった勝負を復元し、払い戻しを確認しました。':win?'払い戻しを両へ反映しました。次の勝負も好きなタイミングで。':net===0?'掛け金が戻りました。次の一手を選ぼう。':'勝負が終了しました。両の残高を確認して次へ。');
   }
-  function errorText(error){return {'insufficient':'両が足りません。掛け金を小さくするか、クイズで集めよう。','pending-round':'ほかの画面で勝負が進んでいます。終了を待ってね。','invalid-bet':'掛け金は整数で1〜1,000両にしてください。','price-unavailable':'新しい価格を取得できません。接続が戻るまで待ってね。','round-gone':'記録が読み込まれたか、リセットされました。この勝負は終了しました。'}[error.message]||'両の更新に失敗しました。保存設定を確認し、ページを読み直すと途中の勝負を復元できます。';}
+  function errorText(error){return {'insufficient':'両が足りません。掛け金を小さくするか、クイズで集めよう。','pending-round':'ほかの画面で勝負が進んでいます。終了を待ってね。','invalid-bet':'掛け金は1両以上の整数にしてください。','wallet-limit':'払い戻しを正確に保存できる範囲を超えています。掛け金を小さくしてね。','price-unavailable':'新しい価格を取得できません。接続が戻るまで待ってね。','round-gone':'記録が読み込まれたか、リセットされました。この勝負は終了しました。'}[error.message]||'両の更新に失敗しました。保存設定を確認し、ページを読み直すと途中の勝負を復元できます。';}
   function settle(round,recovered=false) {
     if(settling)return;settling=true;
     W.finish(round.id,result=>{settling=false;active=null;starting=false;if(round.game==='roulette'){chips=[];renderBets();}if(round.game==='sicbo'){sicboChips=[];renderSicboBets();}refresh();showResult(result,recovered);},error=>{settling=false;active=null;starting=false;refresh();status(errorText(error),true);});
   }
   function play() {
     if(active||starting)return;
-    const amount=total();if(!validStake(amount)){status('掛け金は整数で1〜1,000両。ルーレット・大小は先に盤面へ両を置こう。',true);return;}
+    const amount=total();if(!validStake(amount)){status('掛け金は1両以上の整数。ルーレット・大小は先に盤面へ両を置こう。',true);return;}
     if(game==='bitcoin'){playBitcoin(amount);return;}
     starting=true;$('tableArea').classList.remove('big-win');$('celebration').replaceChildren();$('resultNumbers').hidden=true;$('resultKicker').textContent='GOOD LUCK';$('resultHeadline').textContent='勝負の準備…';$('resultDetail').textContent='';refresh();
     W.begin(game,amount,context=>outcome(amount,context),round=>{starting=false;active=round;refresh();status(round.freeSpin?'無料スピン！配当2倍で抽選中。':'掛け金 '+money(amount)+'。結果が決まるまで待ってね。');$('resultHeadline').textContent=game==='janken'?'じゃん、けん…':game==='roulette'?'玉の行方は、どこへ。':game==='sicbo'?'三つのサイコロ、いざ勝負。':'リールが止まる、その瞬間まで。';({janken:animateJanken,roulette:animateRoulette,slots:animateSlots,sicbo:animateSicbo}[game])(round);},error=>{starting=false;refresh();$('resultHeadline').textContent='勝負を始められませんでした。';status(errorText(error),true);});
@@ -281,7 +281,7 @@
   document.querySelectorAll('[data-game]').forEach(b=>{b.onclick=()=>{if(!active&&!starting&&!W.snapshot().pending)selectGame(b.dataset.game);};b.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key)||active||starting||W.snapshot().pending)return;e.preventDefault();const list=Object.keys(names),index=list.indexOf(game),next=e.key==='Home'?0:e.key==='End'?list.length-1:(index+(e.key==='ArrowRight'?1:list.length-1))%list.length;selectGame(list[next]);document.querySelector('[data-game="'+list[next]+'"]').focus();};});
   document.querySelectorAll('[data-hand]').forEach(b=>b.onclick=()=>{if(b.disabled)return;hand=Number(b.dataset.hand);document.querySelectorAll('[data-hand]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));$('playerHand').textContent=hands[hand];$('opponentHand').textContent='？';$('duelCall').textContent='VS';$('jankenStage').classList.remove('revealed');tone('tick');});
   document.querySelectorAll('[data-stake]').forEach(b=>b.onclick=()=>{if(b.disabled)return;$('stake').value=b.dataset.stake;status(game==='roulette'?'盤面を押して両を置こう。':'掛け金を選びました。');refresh();});
-  $('stake').oninput=()=>{status(validStake(stake())?'掛け金を変更しました。':'掛け金は整数で1〜1,000両にしてください。',!validStake(stake()));refresh();};
+  $('stake').oninput=()=>{status(validStake(stake())?'掛け金を変更しました。':'掛け金は1両以上の整数にしてください。',!validStake(stake()));refresh();};
   $('mobileStake').oninput=()=>{$('stake').value=$('mobileStake').value;$('stake').oninput();};
   $('undoBet').onclick=()=>{chips.pop();renderBets();};$('clearBets').onclick=()=>{chips=[];renderBets();};
   $('betSlip').onclick=e=>{const b=e.target.closest('[data-remove-bet]');if(!b||b.disabled)return;chips=chips.filter(c=>c.id!==b.dataset.removeBet);renderBets();};

@@ -669,7 +669,7 @@
     if (!$("dialog").open) $("dialog").showModal();
   }
   $("redeemCodeBtn").onclick = () => {
-    openDialog("コードを入力", '<form id="redeemCodeForm"><label for="redeemCodeInput">コードを入力してね</label><div class="input-row"><input id="redeemCodeInput" type="text" inputmode="numeric" autocomplete="off" maxlength="16" aria-describedby="redeemCodeStatus" required><button class="primary" type="submit">受け取る</button></div><p id="redeemCodeStatus" role="status" aria-live="polite"></p></form>');
+    openDialog("コードを入力", '<form id="redeemCodeForm"><label for="redeemCodeInput">コードを入力してね</label><div class="input-row"><input id="redeemCodeInput" type="text" inputmode="numeric" autocomplete="off" maxlength="16" aria-describedby="redeemCodeStatus" required><button class="primary" type="submit">受け取る</button></div><p id="redeemCodeStatus" role="status" aria-live="polite"></p><p class="small muted">一度限りの特典の受け取り記録も、このブラウザに保存されます。</p></form>');
     $("redeemCodeInput").focus();
   };
   $("dialogBody").addEventListener("submit", (e) => {
@@ -677,26 +677,34 @@
     e.preventDefault();
     const form = e.target, input = form.querySelector("input"), button = form.querySelector("button"), status = form.querySelector('[role="status"]');
     if (button.disabled) return;
-    if (input.value.trim() !== "1940") {
+    const code = input.value.normalize("NFKC").trim(), amount = code === "2026" ? 50000 : code === "1940" ? 20 : 0;
+    if (!amount) {
       status.textContent = "コードが違うよ。もう一度入力してね。";
       input.focus();
       return;
     }
     input.disabled = button.disabled = true;
     status.textContent = "受け取り中…";
-    W.adjust(20, () => {
+    const success = () => {
       save(); renderStats();
       if (form.isConnected) {
-        status.textContent = "20両ゲット！町づくりに使ってね。";
+        status.textContent = amount.toLocaleString("ja-JP")+"両ゲット！"+(code === "2026" ? "この特典は1プレイヤーにつき1回です。" : "町づくりに使ってね。");
         button.textContent = "受け取りました";
       }
-      notify("＋20両ゲット！");
-    }, () => {
+      notify("＋"+amount.toLocaleString("ja-JP")+"両ゲット！");
+    }, failure = error => {
       if (form.isConnected) {
+        if (error.message === "code-used") {
+          status.textContent = "このコードは受け取り済みです。1プレイヤーにつき1回だけ受け取れます。";
+          button.textContent = "受け取り済み";
+          return;
+        }
         input.disabled = button.disabled = false;
         status.textContent = "両を保存できませんでした。もう一度お試しください。";
       }
-    });
+    };
+    if (code === "2026") W.redeem(code, success, failure);
+    else W.adjust(amount, success, failure);
   });
   function detail(r, fromCard = true) {
     if (!r) return;
@@ -957,7 +965,7 @@
     const blob = new Blob(
         [
           JSON.stringify(
-            { version: 3, townLayout: { width: C.town.width, height: C.town.height }, exportedAt: new Date().toISOString(), ...state, activities: W.snapshot().activities },
+            { version: 3, townLayout: { width: C.town.width, height: C.town.height }, exportedAt: new Date().toISOString(), ...state, activities: W.snapshot().activities, redeemedCodes: W.snapshot().redeemedCodes || [] },
             null,
             2,
           ),
@@ -1037,7 +1045,7 @@
     cancelPlacement();
     setEra(ds[v.era] ? v.era : "edo");
     notify("記録を読み込んだよ。");
-    }, walletError, A ? A.normalize(v.activities) : null);
+    }, walletError, A ? A.normalize(v.activities) : null, v.redeemedCodes || []);
   }
   document.addEventListener("click", (e) => {
     const guideLink = e.target.closest("a[data-guide-target]");

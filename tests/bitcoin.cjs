@@ -36,6 +36,9 @@ const call=(p,method,...a)=>new Promise((yes,no)=>p.W[method](...a,yes,no));
   await assert.rejects(call(p,'beginBitcoin',10,'up',()=>({price:100,time:980000})),/price-unavailable/);
   p.w.localStorage.setItem=()=>{throw Error('quota');};await assert.rejects(call(p,'beginBitcoin',10,'up',()=>({price:100,time:1000000})),/quota/);assert.equal(p.W.snapshot().balance,100);assert.equal(p.W.snapshot().pending,null);p.close();
  });
+ await test('a 50,000 ryo Bitcoin prediction survives reloading and credits its complete payout once',async()=>{
+  const p=page({map:new Map([['money_v1','50000']]),ui:true});p.$('mobileStake').value='50000';p.$('mobileStake').dispatchEvent(new p.w.Event('input'));p.feed({price:100,time:1000000});assert(!p.$('playRound').disabled);p.$('playRound').click();assert.equal(p.W.snapshot().balance,0);const id=p.W.snapshot().pending.id,q=page({map:p.map});assert.equal(q.W.snapshot().pending.stake,50000);q.setTime(1010000);await call(q,'finishBitcoin',id,{price:101,time:1010000});await call(q,'finishBitcoin',id,{price:102,time:1010000});assert.equal(q.W.snapshot().balance,100000);assert.equal(q.W.snapshot().history.length,1);p.close();q.close();
+ });
  await test('concurrent tabs serialize starting and settlement against the same wallet',async()=>{
   let tail=Promise.resolve();const locks={request(_,f){const r=tail.then(f);tail=r.catch(()=>{});return r;}},p=page({locks}),q=page({map:p.map,locks});
   const results=await Promise.allSettled([call(p,'beginBitcoin',10,'up',()=>({price:100,time:1000000})),call(q,'beginBitcoin',10,'down',()=>({price:100,time:1000000}))]);assert.equal(results.filter(r=>r.status==='fulfilled').length,1);

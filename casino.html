@@ -20,10 +20,10 @@
   <meta name="description" content="クイズで集めた両で、じゃんけん・欧州式ルーレット・スロット・大小・ビットコイン価格予想。町と同じ両だけで遊べる歴史キッズのゲームコーナー。">
   <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/casino.css?v=saikoroza-20261009">
   <script defer src="./assets/ui/bitcoin-rules.js?v=ten-seconds-20261006"></script>
-  <script defer src="./assets/ui/wallet.js?v=sicbo-table-20261009"></script>
-  <script defer src="./assets/ui/casino-rules.js?v=saikoroza-20261009"></script>
+  <script defer src="./assets/ui/wallet.js?v=unlimited-20261015"></script>
+  <script defer src="./assets/ui/casino-rules.js?v=unlimited-20261015"></script>
   <script defer src="./assets/ui/bitcoin.js?v=ten-seconds-20261006"></script>
-  <script defer src="./assets/ui/casino.js?v=saikoroza-20261009"></script>
+  <script defer src="./assets/ui/casino.js?v=unlimited-20261015"></script>
 <link rel="canonical" href="https://historykids.github.io/casino.html" />
 </head>
 <body>
@@ -45,7 +45,7 @@
     <div class="game-shell">
       <div class="table-area" id="tableArea">
         <div class="stage-top"><span id="stageLabel">JANKEN / 一対一の勝負</span><div class="stage-settings"><button id="soundToggle" aria-pressed="false">音 OFF</button><label><input type="checkbox" id="quickToggle">演出を短く</label></div></div>
-        <div class="mobile-bet-tools"><label for="mobileStake">賭ける両 <input id="mobileStake" type="number" min="1" max="1000" step="1" inputmode="numeric" value="10"> 両</label><button data-stake="1">1両</button><button data-stake="10">10両</button><button data-stake="25">25両</button></div>
+        <div class="mobile-bet-tools"><label for="mobileStake">賭ける両 <input id="mobileStake" type="number" min="1" step="1" inputmode="numeric" value="10"> 両</label><button data-stake="1">1両</button><button data-stake="10">10両</button><button data-stake="25">25両</button></div>
         <section id="panel-janken" class="casino-panel" role="tabpanel" aria-labelledby="tab-janken">
           <div class="janken-stage" id="jankenStage"><div class="stage-halo" aria-hidden="true"></div><div class="duel-player"><span class="player-label">あなた</span><div class="duel-hand" id="playerHand" aria-label="あなたの手">✊</div></div><div class="duel-center"><span class="duel-vs" id="duelCall">VS</span><small>運の一手を。</small></div><div class="duel-player opponent"><span class="player-label">NPC</span><div class="duel-hand" id="opponentHand" aria-label="NPCの手">？</div></div></div>
           <div class="hand-picker" role="group" aria-label="じゃんけんの手"><button data-hand="0" aria-pressed="true"><span aria-hidden="true">✊</span>グー</button><button data-hand="1" aria-pressed="false"><span aria-hidden="true">✌️</span>チョキ</button><button data-hand="2" aria-pressed="false"><span aria-hidden="true">🖐️</span>パー</button></div>
@@ -81,18 +81,18 @@
             <div class="sicbo-tray"><div class="sicbo-cover" aria-hidden="true"><span>両</span></div><div class="sicbo-dice" role="group" aria-label="3つのサイコロ"><div class="dice-space"><div class="dice-cube" id="sicboDie0" role="img" aria-label="左のサイコロ：未確定"></div></div><div class="dice-space"><div class="dice-cube" id="sicboDie1" role="img" aria-label="中央のサイコロ：未確定"></div></div><div class="dice-space"><div class="dice-cube" id="sicboDie2" role="img" aria-label="右のサイコロ：未確定"></div></div></div></div>
             <div class="sicbo-total"><span>合計</span><strong id="sicboSum">？</strong><b id="sicboCall">盤面に両を置こう</b></div>
           </div>
-          <div class="sicbo-board-intro"><b>掛け金を選んで、マスを押そう。</b><span>複数の場所に置けます · 合計1,000両まで</span></div>
+          <div class="sicbo-board-intro"><b>掛け金を選んで、マスを押そう。</b><span>複数の場所に置けます · 所持金の範囲で上限なし</span></div>
           <div class="sicbo-board-wrap"><div id="sicboBoard" class="sicbo-board" role="group" aria-label="さいころ座の賭け場所"></div></div>
           <div class="bet-tools sicbo-tools"><button id="sicboUndo">ひとつ戻す</button><button id="sicboClear">すべて外す</button><span>置いた両は、振るまで引かれません。</span></div>
           <p class="sicbo-triple-note"><b>ゾロ目は、小・大どちらも負け。</b><span>ゾロ目・ダブル・合計・単独の目への賭けは、それぞれの条件で判定します。</span></p>
           <p class="stage-caption">気になる場所に両を置いて、サイコロを振ろう。的中した場所の払い戻しを合算します。</p>
         </section>
         <div id="celebration" class="celebration" aria-hidden="true"></div>
-        <div id="roundResult" class="round-result" role="status" aria-live="polite"><small id="resultKicker">PLACE YOUR BET</small><h2 id="resultHeadline">両を決めて、準備しよう。</h2><p id="resultDetail">1〜1,000両。払い戻しの倍率には、掛け金も含みます。</p><div id="resultNumbers" class="result-numbers" hidden><div><small>掛け金</small><b id="resultBet">0両</b></div><div><small>払い戻し</small><b id="resultPayout">0両</b></div><div><small>差し引き</small><b id="resultNet">0両</b></div></div></div>
+        <div id="roundResult" class="round-result" role="status" aria-live="polite"><small id="resultKicker">PLACE YOUR BET</small><h2 id="resultHeadline">両を決めて、準備しよう。</h2><p id="resultDetail">所持金の範囲で、掛け金の上限はありません。払い戻しの倍率には、掛け金も含みます。</p><div id="resultNumbers" class="result-numbers" hidden><div><small>掛け金</small><b id="resultBet">0両</b></div><div><small>払い戻し</small><b id="resultPayout">0両</b></div><div><small>差し引き</small><b id="resultNet">0両</b></div></div></div>
       </div>
       <aside class="bet-panel" aria-label="掛け金と遊び方">
         <div class="bet-panel-head"><span class="eyebrow">YOUR BET</span><b id="betGameName">じゃんけん</b></div>
-        <label class="bet-label" for="stake" id="stakeLabel">1回に賭ける両</label><div class="bet-input"><input id="stake" type="number" min="1" max="1000" step="1" inputmode="numeric" value="10" aria-describedby="betLimit"><span>両</span></div><p id="betLimit">1〜1,000両 · 残高の範囲で選べます</p>
+        <label class="bet-label" for="stake" id="stakeLabel">1回に賭ける両</label><div class="bet-input"><input id="stake" type="number" min="1" step="1" inputmode="numeric" value="10" aria-describedby="betLimit"><span>両</span></div><p id="betLimit">1両から · 所持金の範囲で上限なし</p>
         <div class="chip-picker" role="group" aria-label="掛け金を選ぶ"><button data-stake="1">1両</button><button data-stake="5">5両</button><button data-stake="10" aria-pressed="true">10両</button><button data-stake="25">25両</button><button data-stake="50">50両</button><button data-stake="100">100両</button></div>
         <div id="rouletteSlip" class="roulette-slip" hidden><b>盤面に置いた両</b><ul id="betSlip"></ul><p>合計 <strong id="rouletteTotal">0両</strong></p></div>
         <div id="sicboSlip" class="roulette-slip" hidden><b>大小の盤面に置いた両</b><ul id="sicboBetSlip"></ul><p>合計 <strong id="sicboTotal">0両</strong></p></div>

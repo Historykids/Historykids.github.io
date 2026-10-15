@@ -132,3 +132,12 @@
 @media(max-width:520px){.sicbo-board-caption{display:none}.sicbo-sides{gap:9px}.sicbo-side{display:flex;flex-direction:column;gap:10px;text-align:center;min-height:173px;padding:15px 6px}.sicbo-side-copy{gap:5px}.sicbo-range{font-size:25px}.sicbo-side-copy>small{font-size:8px}.sicbo-side>.sicbo-odds{margin-top:2px}.sicbo-triple-choice{grid-template-columns:minmax(0,1fr)}.sicbo-any{display:grid;grid-template-columns:44px minmax(0,1fr) auto;text-align:left;min-height:80px;gap:4px 12px;padding:14px}.sicbo-any-seal{grid-row:1/3}.sicbo-any>strong,.sicbo-any>small{justify-self:start;white-space:nowrap}.sicbo-any>.sicbo-odds{grid-column:3;grid-row:1/3}.sicbo-sums{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.sicbo-sums .sicbo-cell:nth-last-child(-n+2){grid-column:span 2}.sicbo-pairs{gap:7px}.sicbo-pair-cell{padding:11px 7px}.sicbo-cell-label{font-size:9px}.sicbo-pair-cell .board-die{width:22px;height:22px;gap:2px;padding:3px}.sicbo-pair-cell .sicbo-die-group{gap:4px}.sicbo-triple-cell .board-die{width:19px;height:19px;padding:3px;gap:1px}.sicbo-triple-cell .sicbo-die-group{gap:3px}.sicbo-section-head h4{font-size:13px}.sicbo-board-intro b{font-size:11px}.sicbo-brand-dice{width:45px;height:45px}}
 @media(max-width:360px){.sicbo-triples,.sicbo-doubles,.sicbo-singles,.sicbo-pairs{grid-template-columns:repeat(2,minmax(0,1fr))}.sicbo-sums{grid-template-columns:repeat(3,minmax(0,1fr))}.sicbo-sums .sicbo-cell:nth-last-child(-n+2){grid-column:auto}}
 @media(prefers-reduced-motion:reduce){.sicbo-cell{transition:none}.sicbo-cell:hover:not(:disabled){transform:none}}
+
+/* Long exact values retain a compact, wrapping display on narrow screens. */
+.wallet-badge{min-width:0;max-width:min(100%,28rem)}
+#casinoBalance,.bet-summary b,#mobileBetTotal,.roulette-slip strong{min-width:0;overflow-wrap:anywhere;line-height:1.4}
+.bet-summary b{text-align:right}.chip-picker [data-all-in]{grid-column:1/-1}
+.play-round>span:first-child{min-width:0;overflow-wrap:anywhere;text-align:left}
+.result-numbers{flex-wrap:wrap;gap:16px}.result-numbers>div{flex:1 1 130px;min-width:0;max-width:100%;overflow-wrap:anywhere}
+.roundHistory strong,#roundHistory strong{overflow-wrap:anywhere}
+.board-chip,.sicbo-cell .board-chip{max-width:calc(100% - 2px);height:auto;min-height:27px;padding:4px;border-radius:8px;white-space:normal;overflow-wrap:anywhere;line-height:1.2}

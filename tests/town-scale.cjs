@@ -17,7 +17,7 @@ function page(seed = {}) {
   w.HTMLDialogElement.prototype.close = function() { this.open = false; };
   w.requestAnimationFrame = () => 1; w.setTimeout = () => 0;
   for (const [k, v] of Object.entries(seed)) w.localStorage.setItem(k, v);
-  for (const p of ["data/dataset.js", "data/ancient.js", "data/meiji.js", "data/modern.js", "assets/ui/core.js", "assets/ui/residents.js", "assets/ui/wallet.js", "assets/ui/app.js"]) w.eval(fs.readFileSync(path.join(root, p), "utf8"));
+  for (const p of ["data/dataset.js", "data/ancient.js", "data/meiji.js", "data/modern.js", "assets/ui/amounts.js","assets/ui/core.js", "assets/ui/residents.js", "assets/ui/wallet.js", "assets/ui/app.js"]) w.eval(fs.readFileSync(path.join(root, p), "utf8"));
   const click = (selector) => { const e = w.document.querySelector(selector); assert(e, selector); e.click(); };
   return { w, dom, click };
 }
@@ -79,21 +79,9 @@ function page(seed = {}) {
   q.click("#placeCancel"); assert.equal(q.w.HK.state.city[0].x, 57);
   console.log("PASS purchase, move, rotation and 2D display use complete plots and charge only once");
 
-  async function importBackup(data) {
-    q.click("#settingsBtn");
-    const input=q.w.document.getElementById("importFile");
-    Object.defineProperty(input,"files",{ configurable:true, value:[{ size:1000, text:async()=>JSON.stringify(data) }] });
-    input.dispatchEvent(new q.w.Event("change",{bubbles:true})); await new Promise(setImmediate);
-  }
-  const backup = { version:3, money:180, got:{}, city:JSON.parse(JSON.stringify(q.w.HK.state.city)), townLayout:{width:60,height:50}, residents:[{id:"south",x:50,y:49}] };
-  await importBackup(backup);
-  assert.equal(q.w.HKCore.town.height, 50);
-  assert.equal(JSON.stringify(q.w.HK.state.city), JSON.stringify(backup.city));
-  const before=JSON.stringify(q.w.HK.state);
-  await importBackup({...backup, money:999, city:[...backup.city,{id:"overlap", type:"house",x:50,y:5,rot:0}]});
-  assert.equal(JSON.stringify(q.w.HK.state), before);
-  assert.equal(q.w.HKCore.town.height, 50);
-  console.log("PASS new backups keep expanded land and invalid overlapping imports preserve progress");
+  const expanded=page({money_v1:'180',city_v1:JSON.stringify(q.w.HK.state.city),hk_town_layout_v2:JSON.stringify({version:2,width:60,height:50}),hk_residents_v1:JSON.stringify([{id:'south',x:50,y:49}])});
+  assert.equal(expanded.w.HKCore.town.height,50);assert.equal(JSON.stringify(expanded.w.HK.state.city),JSON.stringify(q.w.HK.state.city));checkCity(expanded.w.HK.state.city,expanded.w.HKCore.town);expanded.w.close();
+  console.log('PASS automatic saves retain expanded land and complete building plots');
   const all=page({money_v1:"1000",hk_town_layout_v2:JSON.stringify({version:2,width:60,height:40})});
   all.click("#town2d");
   const items=all.w.HKCore.items.filter(i=>i.cat!=="resident");

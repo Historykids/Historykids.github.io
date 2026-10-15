@@ -1797,3 +1797,6 @@ dialog::backdrop {
 @media(max-width:600px){.operator-intro h2{font-size:1.2rem}.operator-card{padding:21px 18px}.operator-details>div{grid-template-columns:1fr;padding:12px 0}.operator-details dt{padding:0 0 6px}.operator-details dd{padding:0}.operator-page p{font-size:.86rem}}
 
 .resident-view-controls{position:absolute;z-index:5;left:14px;right:14px;top:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 12px;border-radius:12px;background:#172c24ed;color:#fff5df;box-shadow:0 4px 18px #0003;font-size:12px}.resident-view-controls button{min-height:40px;padding:8px 12px;background:#f2d499;color:#2c3025;border:0;border-radius:8px;cursor:pointer;font:inherit;font-weight:700}.resident-view-controls[hidden]{display:none}
+
+/* Compact large ryo balances can wrap without pushing the header off screen. */
+.wallet b{min-width:0;max-width:min(45vw,22rem);overflow-wrap:anywhere;line-height:1.35}

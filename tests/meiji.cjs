@@ -5,7 +5,7 @@ function page(seed={}){
  const dom=new JSDOM(read('index.html'),{url:'https://historykids.github.io/',runScripts:'outside-only',pretendToBeVisual:true}),w=dom.window;
  w.HTMLElement.prototype.scrollIntoView=function(){};w.HTMLDialogElement.prototype.showModal=function(){this.open=true};w.HTMLDialogElement.prototype.close=function(){this.open=false};
  for(const [key,value] of Object.entries(seed))w.localStorage.setItem(key,value);
- for(const file of ['data/dataset.js','data/ancient.js','data/meiji.js','data/modern.js','assets/ui/core.js','assets/ui/residents.js','assets/ui/wallet.js','assets/ui/app.js'])w.eval(read(file));
+ for(const file of ['data/dataset.js','data/ancient.js','data/meiji.js','data/modern.js','assets/ui/amounts.js','assets/ui/core.js','assets/ui/residents.js','assets/ui/wallet.js','assets/ui/app.js'])w.eval(read(file));
  return{dom,w,$:id=>w.document.getElementById(id),click:s=>{const el=w.document.querySelector(s);assert(el,s);el.click();}};
 }
 test('Meiji has 24 unique dated cards and four equally long choices with the shared online answers',()=>{

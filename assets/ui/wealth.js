@@ -2,7 +2,7 @@
   'use strict';
   const W = window.HKWealthRules, $ = id => document.getElementById(id);
   const keys = {identity: 'hk_wealth_identity_v1', name: 'hk_wealth_name_v1', cache: 'hk_wealth_cache_v1'};
-  const number = value => Number.isSafeInteger(value) ? value.toLocaleString('ja-JP') : '—';
+  const number = window.HKAmounts.format;
   let board = null, local = null, reading = false, writing = false, lastRead = 0, epoch = 0;
   const errors = {'rate-limited': 'アクセスが集中しています。少し待って、もう一度押してね。', 'nickname': 'ランキングに使う名前を入力してね。', 'record-changed': '別の画面で記録が更新されました。最新の順位を確認してから、もう一度更新してね。', 'invalid-town': '町のデータを集計できませんでした。わたしの町で保存状態を確認してね。', 'identity-unavailable': 'このブラウザに登録情報を保存できません。ブラウザの保存設定を確認してね。'};
   function stored(key) { try { return localStorage.getItem(key); } catch { return null; } }

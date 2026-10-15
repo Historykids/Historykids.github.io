@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  const C = window.HKCore, W = window.HKWallet, A = window.HKActivities,
+  const C = window.HKCore, W = window.HKWallet, A = window.HKActivities, M = window.HKAmounts,
     $ = (id) => document.getElementById(id),
     E = C.esc,
     ds = window.dataSets;
@@ -152,7 +152,7 @@
     era: safeGet("hk_era_v2", "edo"),
   };
   if (!ds[state.era]) state.era = "edo";
-  if (!Number.isFinite(state.money) || state.money < 0) state.money = 0;
+  if (!M.valid(state.money)) state.money = 0;
   if (!Array.isArray(state.city)) state.city = [];
   const storedLayout = safeGet("hk_town_layout_v2", null);
   const legacyTown = !C.validTownLayout(storedLayout);
@@ -260,7 +260,8 @@
     const a = eraRecords(),
       n = a.filter(got).length;
     state.money = W.snapshot().balance;
-    $("moneyValue").textContent = state.money;
+    $("moneyValue").textContent = M.format(state.money);
+    $("moneyValue").title = M.full(state.money);
     $("eraGot").textContent = n;
     $("eraTotal").textContent = a.length;
     $("eraPercent").textContent = Math.round((n / a.length) * 100) + "%";
@@ -688,10 +689,10 @@
     const success = () => {
       save(); renderStats();
       if (form.isConnected) {
-        status.textContent = amount.toLocaleString("ja-JP")+"両ゲット！"+(code === "2026" ? "この特典は1プレイヤーにつき1回です。" : "町づくりに使ってね。");
+        status.textContent = M.format(amount)+"両ゲット！"+(code === "2026" ? "この特典は1プレイヤーにつき1回です。" : "町づくりに使ってね。");
         button.textContent = "受け取りました";
       }
-      notify("＋"+amount.toLocaleString("ja-JP")+"両ゲット！");
+      notify("＋"+M.format(amount)+"両ゲット！");
     }, failure = error => {
       if (form.isConnected) {
         if (error.message === "code-used") {
@@ -722,8 +723,8 @@
     for(const item of C.items){
       const button=$("dialogBody").querySelector(`[data-buy="${item.id}"]`), total=$("dialogBody").querySelector(`[data-shop-total="${item.id}"]`);
       if(!button)continue;
-      const cost=item.price*quantity, limit=item.cat==="resident"&&state.residents.length+quantity>100, short=cost>W.snapshot().balance;
-      total.textContent=validQuantity(quantity)?"合計 "+cost.toLocaleString("ja-JP")+"両":"合計 —";
+      const cost=item.price*quantity, limit=item.cat==="resident"&&state.residents.length+quantity>100, short=M.cmp(cost,W.snapshot().balance)>0;
+      total.textContent=validQuantity(quantity)?"合計 "+M.format(cost)+"両":"合計 —";
       button.disabled=walletPurchase||!validQuantity(quantity)||short||limit;
       button.textContent=!validQuantity(quantity)?"数量を選んでね":limit?"住民は100人まで":short?"両が足りない":item.cat==="resident"?quantity+"人を迎える":quantity+"個を配置";
     }
@@ -732,7 +733,7 @@
     shopCategory=cat;
     openDialog(
       "町づくりショップ",
-      `<p>所持金 <b>${state.money}両</b> · はじめての正解は、選択で10両・入力で2倍の20両！</p><div class="shop-bulk"><label for="shopQuantity">まとめ買いの数量 <input id="shopQuantity" type="number" min="1" max="100" step="1" inputmode="numeric" value="${validQuantity(shopQuantity)?shopQuantity:1}"></label><div><button data-shop-quantity="1">1個</button><button data-shop-quantity="5">5個</button><button data-shop-quantity="10">10個</button></div><p id="shopQuantityHint">建物は1個ずつ好きな場所に配置。置いた分だけ支払い、住民はまとめて迎えます。</p></div><div class="town-tools"><button data-shopcat="all" class="${cat === "all" ? "active" : ""}">すべて</button><button data-shopcat="building" class="${cat === "building" ? "active" : ""}">建物</button><button data-shopcat="nature" class="${cat === "nature" ? "active" : ""}">自然</button><button data-shopcat="infrastructure" class="${cat === "infrastructure" ? "active" : ""}">道・橋</button><button data-shopcat="resident" class="${cat === "resident" ? "active" : ""}">住民</button></div><div class="shop-grid">${C.items
+      `<p>所持金 <b>${M.format(state.money)}両</b> · はじめての正解は、選択で10両・入力で2倍の20両！</p><div class="shop-bulk"><label for="shopQuantity">まとめ買いの数量 <input id="shopQuantity" type="number" min="1" max="100" step="1" inputmode="numeric" value="${validQuantity(shopQuantity)?shopQuantity:1}"></label><div><button data-shop-quantity="1">1個</button><button data-shop-quantity="5">5個</button><button data-shop-quantity="10">10個</button></div><p id="shopQuantityHint">建物は1個ずつ好きな場所に配置。置いた分だけ支払い、住民はまとめて迎えます。</p></div><div class="town-tools"><button data-shopcat="all" class="${cat === "all" ? "active" : ""}">すべて</button><button data-shopcat="building" class="${cat === "building" ? "active" : ""}">建物</button><button data-shopcat="nature" class="${cat === "nature" ? "active" : ""}">自然</button><button data-shopcat="infrastructure" class="${cat === "infrastructure" ? "active" : ""}">道・橋</button><button data-shopcat="resident" class="${cat === "resident" ? "active" : ""}">住民</button></div><div class="shop-grid">${C.items
         .filter((i) => cat === "all" || cat === i.cat)
         .map(
           (i) =>
@@ -792,7 +793,7 @@
     if (walletPurchase || !validQuantity(quantity)) return;
     state.money = W.snapshot().balance;
     const cost=residentType.price*quantity;
-    if (!residentEngine || state.money < cost) { notify(residentType.name+"を"+quantity+"人迎えるには"+cost+"両が必要だよ。"); return; }
+    if (!residentEngine || M.cmp(state.money,cost)<0) { notify(residentType.name+"を"+quantity+"人迎えるには"+cost+"両が必要だよ。"); return; }
     if (state.residents.length+quantity > 100) { notify("この町の住民は100人までです。"); return; }
     residentEngine.sync(state.residents, state.city);
     const findSpawns=()=>{
@@ -885,7 +886,7 @@
     const item = C.items.find(i => i.id === type), building = id && state.city.find(b => b.id === id);
     state.money = W.snapshot().balance;
     if (!item || !validQuantity(quantity)) return;
-    if (!id && state.money < item.price * quantity) { notify("残りの配置に必要な両が足りないよ。数量を選び直してね。"); return; }
+    if (!id && M.cmp(state.money,item.price * quantity)<0) { notify("残りの配置に必要な両が足りないよ。数量を選び直してね。"); return; }
     const rot = building?.rot ?? batch?.rot ?? 0;
     const cell = building || C.findPlot(state.city, type, rot, batch?.preferred);
     if (!cell) { notify("この建物が入る空き地がないよ。残りの分の両は引かれていません。"); return; }
@@ -957,95 +958,8 @@
   function settings() {
     openDialog(
       "記録・設定",
-      `<div class="settings-row"><h3>記録の保存</h3><p>カード、両、町はこのブラウザに保存されます。別の端末には自動で移りません。</p><button id="exportBtn">記録をダウンロード</button> <label class="import-label">記録を読み込む <input id="importFile" type="file" accept="application/json,.json"></label></div><div class="settings-row"><h3>最初から遊ぶ</h3><p>すべての時代のカード・復習記録・両・町が初期化されます。先に記録を保存しておくと戻せます。</p><button id="resetRequest">記録をリセット</button></div>`,
+      `<div class="settings-row"><h3>記録の保存</h3><p>カード、両、町はこのブラウザに保存されます。別の端末には自動で移りません。</p><p>両と成金スコアの上限は9999無量大数。表示は上位3単位までですが、値は1両単位で保存されます。</p></div><div class="settings-row"><h3>最初から遊ぶ</h3><p>すべての時代のカード・復習記録・両・町が初期化されます。一度限りの特典の受け取り記録は残ります。</p><button id="resetRequest">記録をリセット</button></div>`,
     );
-  }
-  function exportState() {
-    state.money = W.snapshot().balance;
-    const blob = new Blob(
-        [
-          JSON.stringify(
-            { version: 3, townLayout: { width: C.town.width, height: C.town.height }, exportedAt: new Date().toISOString(), ...state, activities: W.snapshot().activities, redeemedCodes: W.snapshot().redeemedCodes || [] },
-            null,
-            2,
-          ),
-        ],
-        { type: "application/json" },
-      ),
-      url = URL.createObjectURL(blob),
-      a = document.createElement("a");
-    a.href = url;
-    a.download = "historykids-record-" + C.dayKey() + ".json";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-  function importState(text) {
-    const v = JSON.parse(text);
-    if (
-      ![2, 3].includes(v.version) ||
-      !v.got ||
-      !Number.isSafeInteger(v.money) ||
-      v.money < 0 ||
-      !Array.isArray(v.city) ||
-      v.city.length > C.town.width * C.town.maxHeight
-    )
-      throw Error("format");
-    const legacy = v.version === 2;
-    if (!legacy && !C.validTownLayout(v.townLayout)) throw Error("town-layout");
-    const layout = legacy ? { width: 30, height: 18 } : v.townLayout;
-    if (v.city.length > layout.width * layout.height) throw Error("city-size");
-    const city = [], anchors = new Set();
-    for (const b of v.city) {
-      if (
-        !b ||
-        !C.items.some((i) => i.id === b.type && i.cat !== "resident") ||
-        !Number.isInteger(b.x) || !Number.isInteger(b.y) || b.x < 0 || b.x >= layout.width || b.y < 0 || b.y >= layout.height ||
-        ![0, 90, 180, 270].includes(Number(b.rot) || 0) ||
-        (legacy ? anchors.has(b.x + "," + b.y) : !C.canPlace(city, b.x, b.y, null, b.type, Number(b.rot) || 0, layout)) ||
-        typeof b.id !== "string" ||
-        city.some((a) => a.id === b.id)
-      )
-        throw Error("city");
-      anchors.add(b.x + "," + b.y);
-      city.push({
-        id: b.id,
-        type: b.type,
-        x: b.x,
-        y: b.y,
-        rot: Number(b.rot) || 0,
-      });
-    }
-    const residents = v.residents === undefined ? [] : v.residents;
-    if (!Array.isArray(residents) || residents.length > 100) throw Error("residents");
-    const ids = new Set();
-    for (const r of residents) {
-      if(r.type!==undefined && !C.items.some(i=>i.cat==="resident" && i.id===r.type)) throw Error("resident-type");
-      if (!r || typeof r.id !== "string" || ids.has(r.id) || !Number.isInteger(r.x) || !Number.isInteger(r.y) || r.x < 0 || r.x >= layout.width || r.y < 0 || r.y >= layout.height) throw Error("residents");
-      ids.add(r.id);
-    }
-    const got = {};
-    for (const era of Object.keys(ds)) {
-      got[era] = {};
-      for (const r of records.filter((r) => r.era === era))
-        if (v.got[era]?.[r.name] === true) got[era][r.name] = true;
-    }
-    const importedTown = legacy ? C.arrangeCity(city, { legacy: true, layout: { ...C.town, height: C.town.minHeight } }) : { city, layout };
-    W.replace(v.money, () => {
-    Object.assign(C.town, importedTown.layout);
-    Object.assign(state, {
-      money: v.money,
-      city: importedTown.city,
-      residents: residents.map((r) => ({ id: r.id, type:r.type || "farmer", x: r.x + (legacy ? 15 : 0), y: r.y + (legacy ? 11 : 0) })),
-      got,
-      wrong: {},
-      ruby: v.ruby !== false,
-    });
-    for (const r of records) if (v.wrong?.[r.id]) state.wrong[r.id] = true;
-    save();
-    cancelPlacement();
-    setEra(ds[v.era] ? v.era : "edo");
-    notify("記録を読み込んだよ。");
-    }, walletError, A ? A.normalize(v.activities) : null, v.redeemedCodes || []);
   }
   document.addEventListener("click", (e) => {
     const guideLink = e.target.closest("a[data-guide-target]");
@@ -1266,11 +1180,10 @@
     );
   $("dialogBody").addEventListener("click", (e) => {
     const id = e.target.id;
-    if (id === "exportBtn") exportState();
     if (id === "resetRequest")
       openDialog(
         "記録をリセットしますか？",
-        '<p>カード、復習記録、両、町がすべて消えます。保存した記録ファイルがあれば読み込んで戻せます。</p><div class="dialog-actions"><button id="resetConfirm" class="primary">すべてリセットする</button><button id="resetCancel">やめる</button></div>',
+        '<p>カード、復習記録、両、町がすべて消えます。この操作は元に戻せません。一度限りの特典の受け取り記録は残ります。</p><div class="dialog-actions"><button id="resetConfirm" class="primary">すべてリセットする</button><button id="resetCancel">やめる</button></div>',
       );
     if (id === "resetCancel") settings();
     if (id === "resetConfirm") {
@@ -1291,23 +1204,6 @@
       }, walletError);
     }
     if (e.target.dataset.delete) $("dialog").close();
-  });
-  $("dialogBody").addEventListener("change", async (e) => {
-    if (e.target.id !== "importFile") return;
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      notify("記録ファイルが大きすぎます。");
-      return;
-    }
-    try {
-      importState(await file.text());
-      $("dialog").close();
-    } catch {
-      notify(
-        "このファイルは読み込めません。歴史キッズの記録ファイルを選んでください。",
-      );
-    }
   });
   window.addEventListener("hashchange", () =>
     setView(location.hash.slice(1), false),

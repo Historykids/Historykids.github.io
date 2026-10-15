@@ -28,7 +28,7 @@ function create(page, scripts, seed = {}) {
   w.URL.createObjectURL = () => "blob:test";
   w.URL.revokeObjectURL = () => {};
   for (const [k, v] of Object.entries(seed)) w.localStorage.setItem(k, v);
-  const loaded = scripts.slice();
+  const loaded = ["assets/ui/amounts.js",...scripts];
   if (loaded.includes("assets/ui/app.js") && !loaded.includes("assets/ui/wallet.js")) loaded.splice(loaded.indexOf("assets/ui/app.js"), 0, "assets/ui/wallet.js");
   if (loaded.includes("assets/ui/app.js") && !loaded.includes("assets/ui/residents.js")) loaded.splice(loaded.indexOf("assets/ui/app.js"), 0, "assets/ui/residents.js");
   if (loaded.includes("assets/ui/challenge.js")) loaded.splice(loaded.indexOf("assets/ui/challenge.js"), 0, "assets/ui/leaderboard.js");
@@ -219,14 +219,18 @@ test("a failed code reward leaves coins intact and allows retry", () => {
 test("2026 grants exactly 50,000 ryo once and remains used after reopening and resetting progress",()=>{
   const scripts=["data/dataset.js","assets/ui/core.js","assets/ui/app.js"],d=create("index.html",scripts,{money_v1:"35"}),v=d.window,g=id=>v.document.getElementById(id);
   const claim=(code="2026")=>{click(v,'#redeemCodeBtn');g('redeemCodeInput').value=code;g('redeemCodeForm').dispatchEvent(new v.Event('submit',{bubbles:true,cancelable:true}));};
-  claim("２０２６");g('redeemCodeForm').dispatchEvent(new v.Event('submit',{bubbles:true,cancelable:true}));assert.equal(v.HK.state.money,50035);assert(g('redeemCodeStatus').textContent.includes('50,000両ゲット'));assert(g('redeemCodeStatus').textContent.includes('1回'));assert(g('redeemCodeForm').querySelector('button').disabled);
-  let exported;v.Blob=function(parts){exported=JSON.parse(parts[0]);};click(v,'#settingsBtn');click(v,'#exportBtn');assert.equal(exported.money,50035);assert.deepEqual(exported.redeemedCodes,['2026']);
+  claim("２０２６");g('redeemCodeForm').dispatchEvent(new v.Event('submit',{bubbles:true,cancelable:true}));assert.equal(v.HK.state.money,50035);assert(g('redeemCodeStatus').textContent.includes('5万両ゲット'));assert(g('redeemCodeStatus').textContent.includes('1回'));assert(g('redeemCodeForm').querySelector('button').disabled);
   const saved=Object.fromEntries(Object.keys(v.localStorage).map(k=>[k,v.localStorage.getItem(k)])),again=create('index.html',scripts,saved),a=again.window;click(a,'#redeemCodeBtn');a.document.getElementById('redeemCodeInput').value='2026';a.document.getElementById('redeemCodeForm').dispatchEvent(new a.Event('submit',{bubbles:true,cancelable:true}));assert.equal(a.HK.state.money,50035);assert(a.document.getElementById('redeemCodeStatus').textContent.includes('受け取り済み'));
   v.HKWallet.replace(0,()=>{},error=>{throw error;});claim();assert.equal(v.HK.state.money,0);assert(g('redeemCodeStatus').textContent.includes('受け取り済み'));again.window.close();v.close();
 });
 test("failed 2026 rewards release the form and do not mark the code as used",()=>{
   const d=create('index.html',['data/dataset.js','assets/ui/core.js','assets/ui/app.js'],{money_v1:'12'}),v=d.window,g=id=>v.document.getElementById(id),redeem=v.HKWallet.redeem;
   click(v,'#redeemCodeBtn');g('redeemCodeInput').value='2026';v.HKWallet.redeem=(code,yes,no)=>no(Error('storage unavailable'));const submit=()=>g('redeemCodeForm').dispatchEvent(new v.Event('submit',{bubbles:true,cancelable:true}));submit();assert.equal(v.HK.state.money,12);assert(!g('redeemCodeInput').disabled);assert(g('redeemCodeStatus').textContent.includes('保存できません'));v.HKWallet.redeem=redeem;submit();assert.equal(v.HK.state.money,50012);v.close();
+});
+test("quiz rewards and town purchases retain the low digits of a huge saved balance",()=>{
+ const scripts=['data/dataset.js','assets/ui/core.js','assets/ui/app.js'],d=create('index.html',scripts,{money_v1:'9007199254740993123456789'}),v=d.window;
+ click(v,'[data-answer="えど"]');assert.equal(v.HK.state.money,'9007199254740993123456799');click(v,'#shopBtn');click(v,'[data-buy="house"]');v.HK.setCell(10,10);click(v,'#placeConfirm');assert.equal(v.HK.state.money,'9007199254740993123456769');assert.equal(v.document.getElementById('moneyValue').title,'9007199254740993123456769');
+ const saved=Object.fromEntries(Object.keys(v.localStorage).map(k=>[k,v.localStorage.getItem(k)])),again=create('index.html',scripts,saved);assert.equal(again.window.HK.state.money,'9007199254740993123456769');assert.equal(again.window.HK.state.city.length,1);again.window.close();v.close();
 });
 test("first quiz awards exactly one card and ten coins", () => {
   click(w, '[data-answer="えど"]');
@@ -372,6 +376,7 @@ test("missing storage displays warning without preventing learning", () => {
   };
   for (const file of [
     "data/dataset.js",
+    "assets/ui/amounts.js",
     "assets/ui/core.js",
     "assets/ui/wallet.js",
     "assets/ui/app.js",
@@ -383,6 +388,7 @@ test("missing storage displays warning without preventing learning", () => {
 });
 const challenge = create("buzzer.html", [
     "data/dataset.js",
+    "assets/ui/amounts.js",
     "assets/ui/core.js",
     "assets/ui/challenge.js",
   ]),
@@ -416,54 +422,10 @@ challenge.window.close();
 console.log(checks + " checks passed.");
 
 (async function extraChecks() {
-  const backup = create("index.html", [
-    "data/dataset.js",
-    "assets/ui/core.js",
-    "assets/ui/app.js",
-  ]);
-  const bw = backup.window;
-  click(bw, "#settingsBtn");
-  const input = bw.document.getElementById("importFile");
-  const record = {
-    version: 2,
-    money: 50,
-    city: [{ id: "restored", type: "tree", x: 4, y: 4, rot: 90 }],
-    got: { edo: { "1603 〇〇幕府がはじまる": true } },
-    wrong: {},
-    ruby: false,
-    era: "edo",
-  };
-  Object.defineProperty(input, "files", {
-    configurable: true,
-    value: [{ size: 100, text: async () => JSON.stringify(record) }],
+  test("settings keep automatic saving and reset but expose no file import or download",()=>{
+    const d=create('index.html',['data/dataset.js','assets/ui/core.js','assets/ui/app.js'],{money_v1:'9007199254740993123456789'}),v=d.window;
+    click(v,'#settingsBtn');assert(!v.document.getElementById('exportBtn'));assert(!v.document.getElementById('importFile'));assert(v.document.getElementById('dialogBody').textContent.includes('9999無量大数'));assert.equal(v.HK.state.money,'9007199254740993123456789');assert(!read('assets/ui/app.js').includes('exportState'));assert(!read('assets/ui/app.js').includes('importState'));v.close();
   });
-  input.dispatchEvent(new bw.Event("change", { bubbles: true }));
-  await new Promise((resolve) => setImmediate(resolve));
-  test("backup import restores cards, money, town and reading settings", () => {
-    assert.equal(bw.HK.state.money, 50);
-    assert.equal(bw.HK.state.city.length, 1);
-    assert.equal(bw.HK.state.city[0].rot, 90);
-    assert.equal(bw.HK.state.ruby, false);
-    assert(bw.HK.state.got.edo["1603 〇〇幕府がはじまる"]);
-  });
-  click(bw, "#settingsBtn");
-  const bad = bw.document.getElementById("importFile");
-  record.city.push({ id: "conflict", type: "house", x: 4, y: 4 });
-  Object.defineProperty(bad, "files", {
-    value: [{ size: 100, text: async () => JSON.stringify(record) }],
-  });
-  bad.dispatchEvent(new bw.Event("change", { bubbles: true }));
-  await new Promise((resolve) => setImmediate(resolve));
-  test("invalid backup is rejected without losing existing state", () => {
-    assert.equal(bw.HK.state.money, 50);
-    assert.equal(bw.HK.state.city.length, 1);
-    assert(
-      bw.document
-        .getElementById("toastText")
-        .textContent.includes("読み込めません"),
-    );
-  });
-  backup.window.close();
   test("ranking has one clear rule and a saved-best registration form", () => {
     const rank = new JSDOM(read("ranking.html"));
     assert.equal(rank.window.document.querySelectorAll("select").length, 0);

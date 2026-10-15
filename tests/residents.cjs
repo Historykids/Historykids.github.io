@@ -78,7 +78,7 @@ function page(seed = {}) {
   w.requestAnimationFrame = (fn) => { frames.push(fn); return frames.length; };
   w.setTimeout = () => 0;
   for (const [key, value] of Object.entries(seed)) w.localStorage.setItem(key, value);
-  for (const p of ["data/dataset.js", "data/ancient.js", "data/meiji.js", "data/modern.js", "assets/ui/core.js", "assets/ui/residents.js", "assets/ui/wallet.js", "assets/ui/app.js"]) w.eval(fs.readFileSync(path.join(root, p), "utf8"));
+  for (const p of ["data/dataset.js", "data/ancient.js", "data/meiji.js", "data/modern.js", "assets/ui/amounts.js","assets/ui/core.js", "assets/ui/residents.js", "assets/ui/wallet.js", "assets/ui/app.js"]) w.eval(fs.readFileSync(path.join(root, p), "utf8"));
   const click = (selector) => { const el = w.document.querySelector(selector); assert(el, selector); el.click(); };
   const advance = (start, count) => { for (let i = 0; i < count; i++) frames.shift()?.(start + i * 40); };
   return { dom, w, click, advance };
@@ -109,19 +109,8 @@ test("pause freezes people, resume restarts, grid animates, and dismissal can be
   p.dom.window.close();
 });
 (async () => {
-  const p = page(); p.click("#settingsBtn");
-  const input = p.w.document.getElementById("importFile");
-  const data = { version: 2, got: {}, money: 8, city: [], residents: [{ id: "restored", x: 4, y: 5 }] };
-  Object.defineProperty(input, "files", { configurable: true, value: [{ size: 100, text: async () => JSON.stringify(data) }] });
-  input.dispatchEvent(new p.w.Event("change", { bubbles: true })); await new Promise(setImmediate);
-  test("backups restore farmers and reject invalid positions without losing progress", () => {
-    assert.equal(p.w.HK.state.residents[0].id, "restored");
-    assert.equal(p.w.HK.state.residents[0].x, 19);
-  });
-  p.click("#settingsBtn"); const badInput = p.w.document.getElementById("importFile"); data.residents[0].x = 30;
-  Object.defineProperty(badInput, "files", { value: [{ size: 100, text: async () => JSON.stringify(data) }] });
-  badInput.dispatchEvent(new p.w.Event("change", { bubbles: true })); await new Promise(setImmediate);
-  assert.equal(p.w.HK.state.residents[0].x, 19); p.dom.window.close();
+  const p=page({money_v1:'8',hk_residents_v1:JSON.stringify([{id:'restored',x:4,y:5}])});
+  test('automatically saved legacy farmers retain their identity after migration',()=>{assert.equal(p.w.HK.state.residents[0].id,'restored');assert(p.w.HK.state.residents[0].x>=0);assert(p.w.HK.state.residents[0].x<60);});p.dom.window.close();
   const url = pathToFileURL(path.join(root, "assets/vendor/three.module.js")).href;
   const THREE = await import(url);
   const source = fs.readFileSync(path.join(root, "assets/ui/farmer-3d.js"), "utf8").replace('from "three"', 'from "' + url + '"');

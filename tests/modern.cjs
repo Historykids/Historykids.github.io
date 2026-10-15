@@ -6,7 +6,7 @@ function page(file='index.html',seed={}){
  w.HTMLElement.prototype.scrollIntoView=function(){};w.HTMLDialogElement.prototype.showModal=function(){this.open=true};w.HTMLDialogElement.prototype.close=function(){this.open=false};
  let now=0;if(file==='buzzer.html'){Object.defineProperty(w.performance,'now',{value:()=>now});w.setInterval=()=>1;w.clearInterval=()=>{};}
  for(const [k,v] of Object.entries(seed))w.localStorage.setItem(k,v);
- for(const p of ['data/dataset.js','data/ancient.js','data/meiji.js','data/modern.js','assets/ui/core.js',...(file==='index.html'?['assets/ui/residents.js','assets/ui/wallet.js','assets/ui/app.js']:['assets/ui/leaderboard.js','assets/ui/challenge.js'])])w.eval(read(p));
+ for(const p of ['data/dataset.js','data/ancient.js','data/meiji.js','data/modern.js','assets/ui/amounts.js','assets/ui/core.js',...(file==='index.html'?['assets/ui/residents.js','assets/ui/wallet.js','assets/ui/app.js']:['assets/ui/leaderboard.js','assets/ui/challenge.js'])])w.eval(read(p));
  return{w,$:id=>w.document.getElementById(id),click:s=>{const el=w.document.querySelector(s);assert(el,s);el.click();},time:t=>{now=t;w.HKChallenge.tick();}};
 }
 test('modern periods contain 72 dated cards with complete explanations, ruby and four unpadded equally long choices',()=>{

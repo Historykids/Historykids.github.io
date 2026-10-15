@@ -65,7 +65,8 @@
       if(d.claimed[m.id]) already=true;
       else { d.claimed[m.id]=true; reward=m.reward; }
     }
-    wallet.balance+=reward;
+    const M=root.HKAmounts || (typeof require==='function'?require('./amounts.js'):null);
+    wallet.balance=M.clamp(M.add(wallet.balance,reward));
     return {reward,already,event:a.event};
   }
   const api={weekdays,weekly,events,eventPeriod,weekday,normalize,summary,apply};root.HKActivities=api;

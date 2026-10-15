@@ -40,8 +40,8 @@ const assert = require('node:assert/strict'), {DatabaseSync} = require('node:sql
     assert.equal(r.body.total, 2); assert.equal(r.body.own.score, 0); assert.notEqual(r.body.own.id, (await req()).body.own.id);
     assert.equal((await req('/wealth', undefined, '')).body.own, null);
   });
-  await test('unknown items, role mixing, fractions, capacity and overflow are rejected', async () => {
-    for (const snapshot of [null, {...empty, balance: -1}, {...empty, balance: 1.5}, {...empty, buildings: {fake: 1}}, {...empty, buildings: {farmer: 1}}, {...empty, residents: {house: 1}}, {...empty, buildings: {house: 0.5}}, {...empty, buildings: {road: 21601}}, {...empty, residents: {monk: 101}}, {...town, balance: Number.MAX_SAFE_INTEGER}]) {
+  await test('unknown items, role mixing, fractions, capacity and invalid large values are rejected', async () => {
+    for (const snapshot of [null, {...empty, balance: -1}, {...empty, balance: 1.5}, {...empty, buildings: {fake: 1}}, {...empty, buildings: {farmer: 1}}, {...empty, residents: {house: 1}}, {...empty, buildings: {house: 0.5}}, {...empty, buildings: {road: 21601}}, {...empty, residents: {monk: 101}}, {...town, balance: '1'+'0'.repeat(72)}]) {
       assert.equal((await req('/wealth/register', {name: '町', snapshot, expectedRevision: 3})).status, 400);
     }
     assert.equal((await req()).body.own.revision, 3);
@@ -55,7 +55,7 @@ const assert = require('node:assert/strict'), {DatabaseSync} = require('node:sql
   await test('tied points share competition rank and exact own rank survives the top-100 limit', async () => {
     await req('/wealth/register', {name: '同点', snapshot: empty, expectedRevision: 0}, 'd'.repeat(64));
     const zeros = (await req()).body.entries.filter(e => e.score === 0); assert.equal(zeros[0].rank, zeros[1].rank);
-    for (let i = 0; i < 105; i++) db.prepare('INSERT INTO wealth_scores VALUES(?,?,?,?,?,?,?,?,?,?,?)').run('test-'+i, '富豪'+i, 1000, 0, 0, 0, 0, 1000, 1000, 1, 1);
+    for (let i = 0; i < 105; i++) db.prepare('INSERT INTO wealth_scores_v2 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').run('test-'+i, '富豪'+i, '1000', 0, 0, 0, 0, '1000', '1000', 1, 1, '1000'.padStart(72,'0'), '1000'.padStart(72,'0'));
     const r = (await req('/wealth', undefined, 'b'.repeat(64))).body;
     assert.equal(r.entries.length, 100); assert.equal(r.total, 109); assert.equal(r.ownRank, 108); assert(r.entries.every(e => e.rank === 1));
   });
@@ -73,6 +73,22 @@ const assert = require('node:assert/strict'), {DatabaseSync} = require('node:sql
     assert.equal((await req('/wealth', undefined, '', {headers: {Origin: 'https://evil.example'}})).status, 403);
     assert.equal((await req('/wealth/register', [], 'e'.repeat(64))).status, 400);
     limited = true; assert.equal((await req()).status, 429);
+  });
+  limited=false;
+  await test('full decimal scores rank exact one-ryo differences hidden by the abbreviated display',async()=>{
+    const M=globalThis.HKAmounts,n='10000000000000000001',larger='10000000000000000002';
+    const first=await req('/wealth/register',{name:'精密な町1',snapshot:{...empty,balance:n},expectedRevision:0},'1'.repeat(64));
+    const second=await req('/wealth/register',{name:'精密な町2',snapshot:{...empty,balance:larger},expectedRevision:0},'2'.repeat(64));
+    assert.equal(first.body.own.score,n);assert.equal(second.body.own.score,larger);assert.equal(M.format(n),M.format(larger));assert.equal(second.body.ownRank,1);assert.equal((await req('/wealth',undefined,'1'.repeat(64))).body.ownRank,2);
+    const row=db.prepare('SELECT score,typeof(score) AS kind FROM wealth_scores_v2 WHERE name=?').get('精密な町2');assert.equal(row.score,larger);assert.equal(row.kind,'text');board=new HistoryLeaderboard(ctx);assert.equal((await req('/wealth',undefined,'2'.repeat(64))).body.own.score,larger);
+    const max=await req('/wealth/register',{name:'上限の町',snapshot:{...town,balance:M.MAX},expectedRevision:0},'3'.repeat(64));assert.equal(max.body.own.score,M.MAX);assert.equal(max.body.own.assets,M.add(M.MAX,210));
+  });
+  await test('legacy economy rows migrate without deleting quiz data or overwriting newer economy rows',async()=>{
+    const legacyDb=new DatabaseSync(':memory:'),legacyCtx={storage:{sql:{exec(query,...args){if(!args.length&&query.includes(';')){legacyDb.exec(query);return {toArray:()=>[]};}const stmt=legacyDb.prepare(query);if(/^(SELECT|PRAGMA)/i.test(query))return {toArray:()=>stmt.all(...args)};stmt.run(...args);return {toArray:()=>[]};}}}};
+    legacyDb.exec('CREATE TABLE wealth_scores(id TEXT PRIMARY KEY,name TEXT,balance INTEGER,buildings INTEGER,residents INTEGER,buildingValue INTEGER,residentValue INTEGER,assets INTEGER,score INTEGER,timestamp INTEGER,revision INTEGER)');
+    legacyDb.prepare('INSERT INTO wealth_scores VALUES(?,?,?,?,?,?,?,?,?,?,?)').run('legacy-town','以前の町',100,0,0,0,0,100,1234,17,4);new HistoryLeaderboard(legacyCtx);const row=legacyDb.prepare('SELECT * FROM wealth_scores_v2 WHERE id=?').get('legacy-town');assert.equal(row.score,'1234');assert.equal(row.revision,4);assert.equal(row.timestamp,17);assert.equal((await req('/ranking')).body.entries[0].name,'早押しの記録');
+    legacyDb.prepare('UPDATE wealth_scores_v2 SET name=? WHERE id=?').run('更新した町','legacy-town');new HistoryLeaderboard(legacyCtx);assert.equal(legacyDb.prepare('SELECT name FROM wealth_scores_v2 WHERE id=?').get('legacy-town').name,'更新した町');
+    legacyDb.prepare('DELETE FROM wealth_scores_v2 WHERE id=?').run('legacy-town');new HistoryLeaderboard(legacyCtx);assert.equal(legacyDb.prepare('SELECT COUNT(*) AS total FROM wealth_scores_v2').get().total,0);legacyDb.close();
   });
   db.close(); console.log(count+' wealth API checks passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -23,7 +23,7 @@ function page({balance = 100, city = [], residents = [], store = null, failRead 
     return {ok: true, json: async () => ({...state, entries: state.entries.slice()})};
   };
   w.HKRankingConfig = {endpoint: 'https://api.example/ranking'};
-  for (const script of ['core.js', 'bitcoin-rules.js', 'wallet.js', 'wealth-rules.js', 'wealth.js']) w.eval(read('assets/ui/'+script));
+  for (const script of ['amounts.js', 'core.js', 'bitcoin-rules.js', 'wallet.js', 'wealth-rules.js', 'wealth.js']) w.eval(read('assets/ui/'+script));
   const $ = id => w.document.getElementById(id), submit = () => $('wealthRegister').dispatchEvent(new w.Event('submit', {bubbles: true, cancelable: true}));
   return {dom, w, map, state, posts, $, submit, blockWrites: promise => { block = promise; }, conflictNext: () => { conflict = true; }};
 }

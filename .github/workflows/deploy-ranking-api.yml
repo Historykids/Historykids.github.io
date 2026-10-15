@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js']
+    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js', 'assets/ui/amounts.js', 'assets/ui/wealth-rules.js']
 permissions:
   contents: write
   pages: write

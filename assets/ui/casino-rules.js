@@ -1,5 +1,6 @@
 (function (root) {
   'use strict';
+  const M=root.HKAmounts || (typeof require==='function'?require('./amounts.js'):null);
   const wheel = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
   const red = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
   const symbols = [
@@ -43,7 +44,7 @@
   }
   function roulette(bets, number) {
     if (!Number.isInteger(number) || number < 0 || number > 36 || !Array.isArray(bets) || !bets.length) throw Error('invalid-round');
-    return bets.reduce((sum, chip) => { if (!Number.isSafeInteger(chip.stake) || chip.stake <= 0) throw Error('invalid-bet'); const b=bet(chip.id),payout=sum + (b.numbers.includes(number) ? chip.stake*b.multiplier : 0);if(!Number.isSafeInteger(payout))throw Error('invalid-payout');return payout; }, 0);
+    return bets.reduce((sum,chip)=>{if(!M.valid(chip.stake)||M.cmp(chip.stake,0)<=0)throw Error('invalid-bet');const b=bet(chip.id);return M.add(sum,b.numbers.includes(number)?M.mul(chip.stake,b.multiplier):0);},0);
   }
   function slots(grid, freeSpin=false) {
     if (!Array.isArray(grid) || grid.length !== 9 || grid.some(id=>!symbols.some(s=>s.id===id))) throw Error('invalid-reels');
@@ -83,10 +84,9 @@
   function sicboRound(bets,dice) {
     if(!Array.isArray(bets)||!bets.length)throw Error('invalid-sicbo-bets');
     const base=sicbo('small',dice);
-    const settled=bets.map(b=>{if(!b||!Number.isSafeInteger(b.stake)||b.stake<1)throw Error('invalid-bet');const multiplier=sicboMultiplier(b.id,dice),payout=b.stake*multiplier;if(!Number.isSafeInteger(payout))throw Error('invalid-payout');return {id:b.id,stake:b.stake,multiplier,payout};});
-    if(!Number.isSafeInteger(settled.reduce((n,b)=>n+b.stake,0)))throw Error('invalid-bet');
-    const wins=settled.filter(b=>b.payout>0),payout=settled.reduce((n,b)=>n+b.payout,0);
-    if(!Number.isSafeInteger(payout))throw Error('invalid-payout');
+    const settled=bets.map(b=>{if(!b||!M.valid(b.stake)||M.cmp(b.stake,1)<0)throw Error('invalid-bet');const multiplier=sicboMultiplier(b.id,dice),payout=M.mul(b.stake,multiplier);return {id:b.id,stake:b.stake,multiplier,payout};});
+    if(!M.valid(M.sum(settled.map(b=>b.stake))))throw Error('invalid-bet');
+    const wins=settled.filter(b=>b.payout>0),payout=M.sum(settled.map(b=>b.payout));
     return {tableVersion:1,dice:base.dice,sum:base.sum,triple:base.triple,side:base.side,bets:settled,payout,title:wins.length?wins.length+'か所的中！':'今回は的中なし。'};
   }
   const rules = { wheel, symbols, strip, paylines, randomIndex, janken, color, bet, roulette, slots, sicbo, sicboBet, sicboMultiplier, sicboRound, sicboTotals };

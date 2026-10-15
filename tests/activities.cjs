@@ -8,7 +8,7 @@ function page(seed={},time=monday){
  const timers=[];w.setInterval=fn=>{timers.push(fn);return timers.length;};w.setTimeout=()=>0;w.requestAnimationFrame=()=>0;w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=function(){};
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
  for(const [k,v] of Object.entries(seed))w.localStorage.setItem(k,v);
- for(const file of ['data/dataset.js','data/ancient.js','data/meiji.js','data/modern.js','assets/ui/core.js','assets/ui/activities.js','assets/ui/town-event-layout.js','assets/ui/residents.js','assets/ui/wallet.js','assets/ui/app.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));
+ for(const file of ['data/dataset.js','data/ancient.js','data/meiji.js','data/modern.js','assets/ui/amounts.js','assets/ui/core.js','assets/ui/activities.js','assets/ui/town-event-layout.js','assets/ui/residents.js','assets/ui/wallet.js','assets/ui/app.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));
  return{w,dom,$:id=>w.document.getElementById(id),click:s=>{const el=w.document.querySelector(s);assert(el,s);el.click();},time:t=>{time=t;timers.forEach(fn=>fn());},stored:()=>Object.fromEntries(Object.keys(w.localStorage).map(k=>[k,w.localStorage.getItem(k)]))};
 }
 test('seven weekdays each have five learning goals and repeat after seven days at Tokyo midnight',()=>{
@@ -105,9 +105,8 @@ test('each new occupation performs its own routines beside buildings and stays o
   const scene=new THREE.Scene(),view=models.createFarmerView(scene);const actor={id:'same-id',type:'farmer',x:0,y:0,heading:0,elapsed:0,phase:'walk',action:'walk'};view.update([actor]);view.update([{...actor,type:'monk'}]);assert.equal(view.people.get(actor.id).userData.type,'monk');view.update([]);assert.equal(view.people.size,0);
  });
  const backup=page({money_v1:'60'});backup.click('#shopBtn');backup.click('[data-buy="monk"]');openMissions(backup);backup.click('[data-claim-mission="0-4"]');
- const payload={version:3,got:backup.w.HK.state.got,money:backup.w.HK.state.money,city:backup.w.HK.state.city,residents:backup.w.HK.state.residents,townLayout:{width:60,height:40},activities:backup.w.HKWallet.snapshot().activities};
- const restored=page();restored.click('#settingsBtn');const input=restored.$('importFile');Object.defineProperty(input,'files',{value:[{size:100,text:async()=>JSON.stringify(payload)}]});input.dispatchEvent(new restored.w.Event('change',{bubbles:true}));await new Promise(setImmediate);
- test('backups preserve occupation and claimed mission rewards together',()=>{assert.equal(restored.w.HK.state.residents[0].type,'monk');assert.equal(restored.w.HK.state.money,payload.money);openMissions(restored);assert(restored.$('missionList').querySelector('[data-claim-mission="0-4"]').disabled);});restored.w.close();backup.w.close();
+ const restored=page(backup.stored());
+ test('automatic saves preserve occupation and claimed mission rewards together',()=>{assert.equal(restored.w.HK.state.residents[0].type,'monk');assert.equal(restored.w.HK.state.money,backup.w.HK.state.money);openMissions(restored);assert(restored.$('missionList').querySelector('[data-claim-mission="0-4"]').disabled);});restored.w.close();backup.w.close();
  const p=page();let queue=Promise.resolve();Object.defineProperty(p.w.navigator,'locks',{value:{request:(name,fn)=>{assert.equal(name,'historykids-wallet');const result=queue.then(fn);queue=result.catch(()=>{});return result;}}});
  await new Promise((resolve,reject)=>p.w.HKWallet.activity('town',{},resolve,reject));
  const event=p.w.HKWallet.snapshot().activities.event,target=p.w.HKActivities.events[event.type].target;

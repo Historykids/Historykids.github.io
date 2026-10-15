@@ -9,7 +9,7 @@ function page({balance=100,storage=null,ui=false,locks=null,game=null,reduced=fa
  if(locks)Object.defineProperty(w.navigator,'locks',{value:locks});
  let next=0,values=[],count=0;w.crypto.getRandomValues=a=>{a[0]=values.length?values.shift():next;return a;};w.crypto.randomUUID=()=>`test-round-${++count}`;
  let now=0,id=0;const timers=new Map();w.setTimeout=(fn,delay=0)=>{const i=++id;timers.set(i,{fn,due:now+delay});return i;};w.clearTimeout=i=>timers.delete(i);
- w.eval(read('assets/ui/wallet.js'));if(ui){w.eval(read('assets/ui/casino-rules.js'));w.eval(read('assets/ui/casino.js'));}
+ w.eval(read('assets/ui/amounts.js'));w.eval(read('assets/ui/wallet.js'));if(ui){w.eval(read('assets/ui/casino-rules.js'));w.eval(read('assets/ui/casino.js'));}
  const advance=ms=>{const end=now+ms;let safety=0;while(true){const t=[...timers].sort((a,b)=>a[1].due-b[1].due)[0];if(!t||t[1].due>end)break;assert(safety++<1000);now=t[1].due;timers.delete(t[0]);t[1].fn();}now=end;};
  return {dom,w,W:w.HKWallet,map,$:id=>w.document.getElementById(id),advance,setRandom:n=>{next=n;},setSequence:v=>{values=v.slice();}};
 }
@@ -109,23 +109,23 @@ async function main(){
  await test('50,000 ryo stakes work on desktop and mobile, and still stop at the available balance',()=>{
   const p=page({balance:50000,ui:true,reduced:true});assert.equal(p.$('stake').getAttribute('max'),null);assert.equal(p.$('mobileStake').getAttribute('max'),null);
   p.$('mobileStake').value='50001';p.$('mobileStake').dispatchEvent(new p.w.Event('input'));assert(p.$('playRound').disabled);assert.equal(p.W.snapshot().balance,50000);
-  p.$('mobileStake').value='50000';p.$('mobileStake').dispatchEvent(new p.w.Event('input'));assert(!p.$('playRound').disabled);assert.equal(p.$('betTotal').textContent,'50,000両');p.setRandom(1);p.$('mobilePlayRound').click();p.$('playRound').click();assert.equal(p.W.snapshot().balance,0);p.advance(350);assert.equal(p.W.snapshot().balance,100000);assert.equal(p.W.snapshot().history.length,1);p.w.close();
+  p.$('mobileStake').value='50000';p.$('mobileStake').dispatchEvent(new p.w.Event('input'));assert(!p.$('playRound').disabled);assert.equal(p.$('betTotal').textContent,'5万両');p.setRandom(1);p.$('mobilePlayRound').click();p.$('playRound').click();assert.equal(p.W.snapshot().balance,0);p.advance(350);assert.equal(p.W.snapshot().balance,100000);assert.equal(p.W.snapshot().history.length,1);p.w.close();
  });
  await test('roulette adds multiple large chips and pays the full 36x return exactly once',()=>{
-  const p=page({balance:50000,ui:true,game:'roulette',reduced:true});p.$('stake').value='25000';p.$('stake').dispatchEvent(new p.w.Event('input'));const chip=p.w.document.querySelector('[data-position="n0"]');chip.click();chip.click();assert.equal(p.$('rouletteTotal').textContent,'50,000両');chip.click();assert.equal(p.$('rouletteTotal').textContent,'50,000両');assert(p.$('casinoStatus').textContent.includes('残高'));p.setRandom(0);p.$('playRound').click();assert.equal(p.W.snapshot().balance,0);p.advance(350);assert.equal(p.W.snapshot().balance,1800000);assert.equal(p.$('resultPayout').textContent,'1,800,000両');p.w.close();
+  const p=page({balance:50000,ui:true,game:'roulette',reduced:true});p.$('stake').value='25000';p.$('stake').dispatchEvent(new p.w.Event('input'));const chip=p.w.document.querySelector('[data-position="n0"]');chip.click();chip.click();assert.equal(p.$('rouletteTotal').textContent,'5万両');chip.click();assert.equal(p.$('rouletteTotal').textContent,'5万両');assert(p.$('casinoStatus').textContent.includes('残高'));p.setRandom(0);p.$('playRound').click();assert.equal(p.W.snapshot().balance,0);p.advance(350);assert.equal(p.W.snapshot().balance,1800000);assert.equal(p.$('resultPayout').textContent,'180万両');p.w.close();
  });
  await test('large Sic Bo multi-bets survive reloading and settle all matching positions once',()=>{
-  const p=page({balance:50000,ui:true,game:'sicbo',reduced:true});p.$('stake').value='25000';p.$('stake').dispatchEvent(new p.w.Event('input'));for(const id of ['triple-1','single-1'])p.w.document.querySelector('[data-sicbo="'+id+'"]').click();assert.equal(p.$('sicboTotal').textContent,'50,000両');p.setRandom(0);p.$('playRound').click();assert.equal(p.W.snapshot().balance,0);
-  const q=page({storage:p.map,ui:true});assert.equal(q.W.snapshot().balance,4625000);assert.equal(q.$('resultPayout').textContent,'4,625,000両');p.advance(350);assert.equal(p.W.snapshot().balance,4625000);assert.equal(q.W.snapshot().history.length,1);p.w.close();q.w.close();
+  const p=page({balance:50000,ui:true,game:'sicbo',reduced:true});p.$('stake').value='25000';p.$('stake').dispatchEvent(new p.w.Event('input'));for(const id of ['triple-1','single-1'])p.w.document.querySelector('[data-sicbo="'+id+'"]').click();assert.equal(p.$('sicboTotal').textContent,'5万両');p.setRandom(0);p.$('playRound').click();assert.equal(p.W.snapshot().balance,0);
+  const q=page({storage:p.map,ui:true});assert.equal(q.W.snapshot().balance,4625000);assert.equal(q.$('resultPayout').textContent,'462万5000両');p.advance(350);assert.equal(p.W.snapshot().balance,4625000);assert.equal(q.W.snapshot().history.length,1);p.w.close();q.w.close();
  });
  await test('large slot stakes retain their bonus stake and restore a 160,000,000 ryo free-spin payout',async()=>{
   const p=page({balance:50000});const paid=await walletCall(p.W,'begin','slots',50000,()=>({payout:0,data:{bonusTriggered:true}}));await walletCall(p.W,'finish',paid.id);assert.equal(p.W.snapshot().balance,0);assert.equal(p.W.snapshot().slotBonus.stake,50000);
   const reloaded=page({storage:p.map}),round=await walletCall(reloaded.W,'begin','slots',50000,ctx=>{assert.equal(ctx.freeSpin,true);assert.equal(ctx.stake,50000);const data=R.slots(Array(9).fill('seven'),true);return {payout:ctx.stake*data.multiplier,data};});assert.equal(round.stake,0);assert.equal(round.payout,160000000);
   const again=page({storage:p.map});assert.equal(again.W.snapshot().pending.slotStake,50000);await walletCall(again.W,'finish',round.id);await walletCall(p.W,'finish',round.id);assert.equal(p.W.snapshot().balance,160000000);assert.equal(p.W.snapshot().slotBonus.remaining,4);p.w.close();reloaded.w.close();again.w.close();
  });
- await test('unsafe arithmetic is rejected before charging or consuming a one-time reward',async()=>{
-  const max=Number.MAX_SAFE_INTEGER,p=page({balance:max});await assert.rejects(walletCall(p.W,'begin','janken',1,()=>({payout:2,data:{}})),/wallet-limit/);await assert.rejects(walletCall(p.W,'begin','slots',max+1,()=>({payout:0,data:{}})),/invalid-bet/);await assert.rejects(walletCall(p.W,'redeem','2026'),/wallet-limit/);assert.equal(p.W.snapshot().balance,max);assert.equal(p.W.snapshot().pending,null);assert(!p.W.snapshot().redeemedCodes?.includes('2026'));
-  assert.throws(()=>R.sicboRound([{id:'triple-1',stake:max}],[1,1,1]),/invalid-payout/);assert.throws(()=>R.roulette([{id:'n0',stake:max}],0),/invalid-payout/);p.w.close();
+ await test('invalid numeric inputs and stakes above the cap never debit or consume a reward',async()=>{
+  const M=require('../assets/ui/amounts.js'),max=M.MAX,p=page({balance:max});await assert.rejects(walletCall(p.W,'begin','slots',M.add(max,1),()=>({payout:0,data:{}})),/invalid-bet/);await assert.rejects(walletCall(p.W,'begin','slots',Number.MAX_SAFE_INTEGER+1,()=>({payout:0,data:{}})),/invalid-bet/);await assert.rejects(walletCall(p.W,'redeem','2026'),/wallet-limit/);assert.equal(p.W.snapshot().balance,max);assert.equal(p.W.snapshot().pending,null);assert(!p.W.snapshot().redeemedCodes?.includes('2026'));
+  assert.equal(R.sicboRound([{id:'triple-1',stake:max}],[1,1,1]).payout,M.mul(max,181));assert.equal(R.roulette([{id:'n0',stake:max}],0),M.mul(max,36));p.w.close();
  });
  await test('2026 is credited once across simultaneous tabs, reopening and a progress reset',async()=>{
   let queue=Promise.resolve();const locks={request:(_,fn)=>{const r=queue.then(fn);queue=r.catch(()=>{});return r;}},map=new Map([['money_v1','35']]),p=page({storage:map,locks}),q=page({storage:map,locks});const results=await Promise.allSettled([walletCall(p.W,'redeem','2026'),walletCall(q.W,'redeem','2026')]);assert.equal(results.filter(r=>r.status==='fulfilled').length,1);assert.match(results.find(r=>r.status==='rejected').reason.message,/code-used/);assert.equal(p.W.snapshot().balance,50035);assert.equal(p.W.snapshot().redeemedCodes.length,1);
@@ -150,13 +150,13 @@ async function main(){
  });
  await test('all eight 777 lines add up instead of hitting the old single-line payout cap',()=>{
   const p=page({ui:true});p.w.document.querySelector('[data-game="slots"]').click();p.setRandom(19);p.$('playRound').click();p.advance(3100);
-  assert.equal(p.W.snapshot().balance,16090);assert.equal(p.$('resultPayout').textContent,'16,000両');assert.equal(p.$('slotWinLines'),null);assert(p.$('tableArea').classList.contains('big-win'));p.w.close();
+  assert.equal(p.W.snapshot().balance,16090);assert.equal(p.$('resultPayout').textContent,'1万6000両');assert.equal(p.$('slotWinLines'),null);assert(p.$('tableArea').classList.contains('big-win'));p.w.close();
  });
  await test('bonus grants five free spins, locks the original stake, doubles payouts and survives reloading',()=>{
   const map=new Map([['money_v1','10']]),p=page({ui:true,storage:map});p.w.document.querySelector('[data-game="slots"]').click();p.setSequence([20,7,12,0,20,16,7,16,20]);p.$('playRound').click();p.advance(3100);
   assert.equal(p.W.snapshot().balance,0);assert.equal(p.W.snapshot().slotBonus.remaining,5);assert(!p.$('playRound').disabled);assert(p.$('stake').disabled);assert(p.$('emptyWallet').hidden);assert(p.$('resultHeadline').textContent.includes('ボーナス発動'));
   const q=page({ui:true,storage:map});q.w.document.querySelector('[data-game="slots"]').click();assert(q.$('playLabel').textContent.includes('無料スピン'));q.setRandom(19);q.$('playRound').click();q.$('playRound').click();assert.equal(q.W.snapshot().balance,0);assert.equal(q.W.snapshot().pending.stake,0);assert.equal(q.W.snapshot().pending.slotStake,10);assert.equal(q.W.snapshot().slotBonus.remaining,4);
-  const recovered=page({ui:true,storage:map});assert.equal(recovered.W.snapshot().balance,32000);assert.equal(recovered.W.snapshot().slotBonus.remaining,4);assert.equal(recovered.$('resultPayout').textContent,'32,000両');q.advance(3100);assert.equal(q.W.snapshot().balance,32000);
+  const recovered=page({ui:true,storage:map});assert.equal(recovered.W.snapshot().balance,32000);assert.equal(recovered.W.snapshot().slotBonus.remaining,4);assert.equal(recovered.$('resultPayout').textContent,'3万2000両');q.advance(3100);assert.equal(q.W.snapshot().balance,32000);
   recovered.setRandom(20);for(let i=0;i<4;i++){recovered.$('playRound').click();recovered.advance(3100);}assert.equal(recovered.W.snapshot().slotBonus.remaining,0);assert.equal(recovered.W.snapshot().balance,32000);assert(!recovered.$('stake').disabled);assert.equal(recovered.W.snapshot().history.filter(r=>r.freeSpin).length,5);
   p.w.close();q.w.close();recovered.w.close();
  });

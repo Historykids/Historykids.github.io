@@ -6,7 +6,7 @@ function page({map=new Map([['money_v1','100']]),locks=null,ui=false}={}){
  Object.defineProperty(w,'localStorage',{value:{getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,String(v))}});
  if(locks)Object.defineProperty(w.navigator,'locks',{value:locks});let now=1000000,seq=0;
  w.Date.now=()=>now;w.crypto.randomUUID=()=>`btc-${++seq}`;w.matchMedia=()=>({matches:true});w.setInterval=()=>1;w.clearInterval=()=>{};
- for(const file of ['bitcoin-rules.js','wallet.js'])w.eval(read('assets/ui/'+file));
+ for(const file of ['amounts.js','bitcoin-rules.js','wallet.js'])w.eval(read('assets/ui/'+file));
  let publish;
  if(ui){w.HKBitcoin={draw(){},createFeed(callback){publish=callback;return {start(){},stop(){}}}};w.eval(read('assets/ui/casino-rules.js'));w.eval(read('assets/ui/casino.js'));}
  return {w,W:w.HKWallet,map,$:id=>w.document.getElementById(id),setTime:t=>{now=t;},feed:q=>publish({quote:q,points:[q],live:true}),close:()=>w.close()};

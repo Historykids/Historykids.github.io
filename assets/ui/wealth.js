@@ -43,15 +43,15 @@
     for (const entry of entries) {
       const row = document.createElement('tr'), own = entry.id === board?.own?.id;
       if (own) row.className = 'your-row';
-      const values = [number(entry.rank), entry.name, number(entry.rebirths??0)+'回', number(entry.score)+'点', number(entry.assets)+'両', number(entry.buildings)+'個', number(entry.residents)+'人', date(entry.timestamp)];
-      values.forEach((value, index) => { const cell = document.createElement('td'); cell.textContent = value; if (index === 1 && own) { const badge = document.createElement('span'); badge.className = 'your-badge'; badge.textContent = 'あなた'; cell.append(badge); } row.append(cell); });
+      const values = [number(entry.rank), entry.name, number(entry.score)+'点', number(entry.assets)+'両', number(entry.buildings)+'個', number(entry.residents)+'人', date(entry.timestamp), number(entry.rebirths??0)+'回'];
+      values.forEach((value, index) => { const cell = document.createElement('td'); if(index===2){const strong=document.createElement('strong');strong.className='wealth-score';strong.textContent=value;cell.append(strong);}else cell.textContent = value; if (index === 1 && own) { const badge = document.createElement('span'); badge.className = 'your-badge'; badge.textContent = 'あなた'; cell.append(badge); } row.append(cell); });
       fragment.append(row);
     }
     $('wealthRows').replaceChildren(fragment);
     $('wealthTable').hidden = !entries.length; $('wealthEmpty').hidden = !!entries.length;
     $('emptyTitle').textContent = query ? 'この名前は見つかりませんでした' : board ? '最初の町を登録しよう' : 'ランキングを読み込めませんでした';
     $('emptyDescription').textContent = query ? '検索は上位100人が対象です。自分の順位は上のカードで確認できます。' : board ? '0両・建造物0個でも、名前だけで参加できます。' : '通信を確認して「順位を更新」を押してね。';
-    $('participantCount').textContent = board ? '参加者 '+number(board.total)+'人 · リボーン回数を優先 · 同回数・同点は同順位' : '上位100人を表示';
+    $('participantCount').textContent = board ? '参加者 '+number(board.total)+'人 · 上位100人を表示' : '上位100人を表示';
   }
   function accept(data, cached = false) {
     if (!data || !Array.isArray(data.entries) || !Number.isSafeInteger(data.total) || !Number.isSafeInteger(data.at)) throw Error('invalid-response');

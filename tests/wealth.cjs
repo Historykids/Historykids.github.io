@@ -86,6 +86,10 @@ function page({balance = 100, city = [], residents = [], store = null, failRead 
     p.state.entries = [{...p.state.own, id: 'leader', name: '大きな町', rank: 1, score: 1000}, {...p.state.own, id: 'leader2', name: '同点の町', rank: 1, score: 1000}];
     p.$('refreshWealth').click(); await tick(); assert.equal(p.$('ownRank').textContent, '120位'); p.$('wealthSearch').value = '同点'; p.$('wealthSearch').dispatchEvent(new p.w.Event('input')); assert.equal(p.$('wealthRows').children.length, 1); assert.equal(p.$('wealthRows').children[0].children[0].textContent, '1'); p.$('clearWealthSearch').click(); assert.equal(p.$('wealthRows').children.length, 2); p.w.close();
   });
+  await test('points stay bold in the third column while rebirths stay at the far right without changing server order',async()=>{
+    const p=page();await tick();p.state.entries=[{id:'rich',name:'高得点',score:1234,assets:1200,buildings:1,residents:1,timestamp:Date.now(),rank:2,rebirths:1},{id:'reborn',name:'転生',score:1,assets:1,buildings:0,residents:0,timestamp:Date.now(),rank:1,rebirths:2}];p.$('refreshWealth').click();await tick();
+    const row=p.$('wealthRows').children[0];assert.equal(row.children[2].textContent,'1,234点');assert.equal(row.children[7].textContent,'1回');assert(row.children[2].querySelector('strong.wealth-score'));assert.equal(p.w.document.querySelector('thead th:last-child').textContent,'リボーン');assert.equal(row.children[0].textContent,'2');p.w.close();
+  });
   await test('game entry, canonical, required tags, local references and unique IDs are valid', () => {
     assert(read('index.html').includes('href="./wealth-ranking.html"')); const html = read('wealth-ranking.html'), dom = new JSDOM(html), doc = dom.window.document;
     assert(html.includes('G-EZP12GC8W1')); assert(html.includes('ca-pub-4922140858632050')); assert.equal(doc.querySelector('link[rel=canonical]').href, 'https://historykids.github.io/wealth-ranking.html');

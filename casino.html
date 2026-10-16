@@ -18,13 +18,15 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>両カジノ｜歴史キッズ</title>
   <meta name="description" content="クイズで集めた両で、じゃんけん・欧州式ルーレット・スロット・大小・ビットコイン価格予想。町と同じ両だけで遊べる歴史キッズのゲームコーナー。">
-  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/casino.css?v=rebirth-20261016">
-  <script defer src="./assets/ui/amounts.js?v=rebirth-20261016"></script>
-    <script defer src="./assets/ui/bitcoin-rules.js?v=rebirth-20261016"></script>
-  <script defer src="./assets/ui/wallet.js?v=rebirth-20261016"></script>
-  <script defer src="./assets/ui/casino-rules.js?v=rebirth-20261016"></script>
+  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/casino.css?v=royal-20261016">
+  <script defer src="./assets/ui/amounts.js?v=royal-20261016"></script>
+    <script defer src="./assets/ui/bitcoin-rules.js?v=royal-20261016"></script>
+  <script defer src="./assets/ui/wallet.js?v=royal-20261016"></script>
+  <script defer src="./assets/ui/casino-rules.js?v=royal-20261016"></script>
   <script defer src="./assets/ui/bitcoin.js?v=ten-seconds-20261006"></script>
-  <script defer src="./assets/ui/casino.js?v=rebirth-rooms-20261016"></script>
+  <script defer src="./assets/ui/table-rules.js?v=royal-20261016"></script>
+  <script defer src="./assets/ui/royal-poker.js?v=royal-20261016"></script>
+  <script defer src="./assets/ui/casino.js?v=royal-20261016"></script>
 <link rel="canonical" href="https://historykids.github.io/casino.html" />
 </head>
 <body>
@@ -42,13 +44,17 @@
       <button id="tab-slots" role="tab" aria-selected="false" aria-controls="panel-slots" data-game="slots" tabindex="-1"><span>03</span><b>スロット</b><small>縦・横・斜め8ライン</small></button>
       <button id="tab-bitcoin" role="tab" aria-selected="false" aria-controls="panel-bitcoin" data-game="bitcoin" tabindex="-1"><span>04</span><b>ビットコイン</b><small>10秒で価格を予想</small></button>
       <button id="tab-sicbo" role="tab" aria-selected="false" aria-controls="panel-sicbo" data-game="sicbo" tabindex="-1"><span>05</span><b>大小</b><small>3つのサイコロで勝負</small></button>
+      <button id="tab-silver" role="tab" aria-selected="false" aria-controls="panel-roulette" data-casino-variant="silver" tabindex="-1"><span>06 ◈</span><b>銀のルーレット</b><small id="silverRoomStatus">🔒 2回で解放</small></button>
+      <button id="tab-gold" role="tab" aria-selected="false" aria-controls="panel-slots" data-casino-variant="gold" tabindex="-1"><span>07 ♛</span><b>金のスロット</b><small id="goldRoomStatus">🔒 5回で解放</small></button>
+      <button id="tab-king" role="tab" aria-selected="false" aria-controls="panel-poker" data-casino-variant="king" tabindex="-1"><span>08 ♔</span><b>王者のポーカー</b><small id="kingRoomStatus">🔒 10回で解放</small></button>
     </div>
-    <section class="casino-prestige" aria-label="リボーン特典"><div class="prestige-summary"><span class="eyebrow">REBIRTH PRIVILEGES</span><b id="casinoRebirths">リボーン 0回</b><span id="casinoBoost">本来の配当 ×1</span><a href="./#rebirth">リボーンする →</a></div><div class="prestige-rooms"><button type="button" data-casino-variant="silver" aria-pressed="false"><span class="room-emblem" aria-hidden="true">◈</span><span><small>SILVER / REBIRTH 02</small><b>銀のルーレット</b><em id="silverRoomStatus">🔒 2回で解放</em></span><span aria-hidden="true">→</span></button><button type="button" data-casino-variant="gold" aria-pressed="false"><span class="room-emblem" aria-hidden="true">♛</span><span><small>GOLD / REBIRTH 05</small><b>金のスロット</b><em id="goldRoomStatus">🔒 5回で解放</em></span><span aria-hidden="true">→</span></button></div></section>
+    <p class="casino-tab-hint">選択バーを横にスワイプすると、限定台も選べます。</p>
+    <section class="casino-prestige" aria-label="リボーン特典"><div class="prestige-summary"><span class="eyebrow">REBIRTH PRIVILEGES</span><b id="casinoRebirths">リボーン 0回</b><span id="casinoBoost">本来の配当 ×1</span><a href="./#rebirth">リボーンする →</a></div></section>
     <div class="game-shell">
       <div class="table-area" id="tableArea">
         <div class="stage-top"><span id="stageLabel">JANKEN / 一対一の勝負</span><div class="stage-settings"><button id="soundToggle" aria-pressed="false">音 OFF</button><label><input type="checkbox" id="quickToggle">演出を短く</label></div></div>
         <div class="mobile-bet-tools"><label for="mobileStake">賭ける両 <input id="mobileStake" type="text" pattern="[0-9]+" maxlength="72" inputmode="numeric" value="10"> 両</label><button data-stake="1">1両</button><button data-stake="10">10両</button><button data-stake="25">25両</button><button data-all-in>全額</button></div>
-        <section id="casinoLock" class="casino-lock" hidden aria-label="このカジノはロックされています"><span class="lock-seal" aria-hidden="true">🔒</span><p class="eyebrow">EXCLUSIVE CASINO</p><h2 id="casinoLockTitle">銀のルーレット</h2><p id="casinoLockMessage">リボーン2回で解放</p><a href="./#rebirth">リボーンで解放する →</a><small>通常のカジノは、上のゲームタブから遊べます。</small></section>
+        <section id="casinoLock" class="casino-lock" hidden aria-label="このカジノはロックされています"><span class="lock-seal" aria-hidden="true">🔒</span><p class="eyebrow">EXCLUSIVE CASINO</p><h2 id="casinoLockTitle">銀のルーレット</h2><p id="casinoLockMessage">リボーン2回で解放</p><a href="./#rebirth">リボーンで解放する →</a><small>上の選択バーから、ほかのカジノを選べます。</small></section>
         <section id="panel-janken" class="casino-panel" role="tabpanel" aria-labelledby="tab-janken">
           <div class="janken-stage" id="jankenStage"><div class="stage-halo" aria-hidden="true"></div><div class="duel-player"><span class="player-label">あなた</span><div class="duel-hand" id="playerHand" aria-label="あなたの手">✊</div></div><div class="duel-center"><span class="duel-vs" id="duelCall">VS</span><small>運の一手を。</small></div><div class="duel-player opponent"><span class="player-label">NPC</span><div class="duel-hand" id="opponentHand" aria-label="NPCの手">？</div></div></div>
           <div class="hand-picker" role="group" aria-label="じゃんけんの手"><button data-hand="0" aria-pressed="true"><span aria-hidden="true">✊</span>グー</button><button data-hand="1" aria-pressed="false"><span aria-hidden="true">✌️</span>チョキ</button><button data-hand="2" aria-pressed="false"><span aria-hidden="true">🖐️</span>パー</button></div>
@@ -89,6 +95,12 @@
           <div class="bet-tools sicbo-tools"><button id="sicboUndo">ひとつ戻す</button><button id="sicboClear">すべて外す</button><span>置いた両は、振るまで引かれません。</span></div>
           <p class="sicbo-triple-note"><b>ゾロ目は、小・大どちらも負け。</b><span>ゾロ目・ダブル・合計・単独の目への賭けは、それぞれの条件で判定します。</span></p>
           <p class="stage-caption">気になる場所に両を置いて、サイコロを振ろう。的中した場所の払い戻しを合算します。</p>
+        </section>
+        <section id="panel-poker" class="casino-panel royal-poker" role="tabpanel" aria-labelledby="tab-king" hidden>
+          <div class="royal-heading"><span aria-hidden="true">♔</span><p class="eyebrow">THE SOVEREIGN’S TABLE</p><h2>王者の<em>ポーカー</em></h2><p>残すべき一枚を、見極めよ。</p></div>
+          <div class="royal-felt"><div class="royal-table-seal" aria-hidden="true">ROYAL DRAW · 52 CARDS</div><div id="royalCards" class="royal-cards" role="group" aria-label="残すカードを選ぶ"></div><p id="royalHandName" class="royal-hand-name">5枚のカードで、王者の役を。</p><p id="royalHoldHint">掛け金を決めて、カードを配ろう。</p><div id="royalHoldTools" class="royal-hold-tools" hidden><button id="royalHoldAll" type="button">すべて残す</button><button id="royalHoldNone" type="button">すべて交換</button></div></div>
+          <p class="stage-caption">カードを押して残すものを選び、1回だけ交換。J以上のワンペアから配当！</p>
+          <div id="royalPaytable" class="royal-paytable" aria-label="王者のポーカーの配当"></div>
         </section>
         <div id="celebration" class="celebration" aria-hidden="true"></div>
         <div id="roundResult" class="round-result" role="status" aria-live="polite"><small id="resultKicker">PLACE YOUR BET</small><h2 id="resultHeadline">両を決めて、準備しよう。</h2><p id="resultDetail">所持金の範囲で、掛け金の上限はありません。払い戻しの倍率には、掛け金も含みます。</p><div id="resultNumbers" class="result-numbers" hidden><div><small>掛け金</small><b id="resultBet">0両</b></div><div><small>払い戻し</small><b id="resultPayout">0両</b></div><div><small>差し引き</small><b id="resultNet">0両</b></div></div></div>

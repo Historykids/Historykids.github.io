@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const KEY = 'hk_wallet_v2', M = window.HKAmounts, P=M.rebirth;
-  const games = ['janken', 'roulette', 'slots', 'bitcoin', 'sicbo'];
+  const games = ['janken', 'roulette', 'slots', 'bitcoin', 'sicbo', 'poker'];
   const integer = M.integer, within = M.valid;
   const amountKeys = new Set(['balance','stake','slotStake','payout','creditedPayout','basePayout']);
   const validCodes = codes => Array.isArray(codes) && codes.length <= 100 && new Set(codes).size === codes.length && codes.every(code => typeof code === 'string' && /^\d{1,16}$/.test(code));
@@ -35,6 +35,10 @@
     const wins=!triple&&(d.choice==='small'?sum>=4&&sum<=10:sum>=11&&sum<=17);
     return d.sum===sum && d.triple===triple && d.multiplier===(wins?2:0) && M.cmp(basePayout,M.mul(round.stake,wins?2:0))===0;
   }
+  function validPokerDeal(data){
+    if(!data||data.version!==1||data.phase!=='draw'||!Array.isArray(data.hand)||data.hand.length!==5||!Array.isArray(data.deck)||data.deck.length!==47)return false;
+    const cards=[...data.hand,...data.deck];return new Set(cards).size===52&&cards.every(card=>typeof card==='string'&&/^[2-9TJQKA][SHDC]$/.test(card));
+  }
   function read() {
     const raw = localStorage.getItem(KEY);
     if (raw) {
@@ -49,6 +53,7 @@
         if (!P.valid(times) || times>value.rebirths || !P.unlocked(r.game,r.variant||'standard',times) || !games.includes(r.game) || !within(r.stake) || (free?r.stake!==0:r.stake<1) || !within(basis) || basis<1 || !integer(r.payout) || !integer(r.basePayout??r.payout) || M.cmp(r.basePayout??r.payout,M.mul(basis,r.game==='slots'?4800:250))>0 || typeof r.id!=='string') throw Error('wallet-invalid');
         if(r.game!=='bitcoin' && M.cmp(r.payout,refund(r.game,r.data)?r.basePayout??r.payout:P.boost(r.basePayout??r.payout,times))!==0)throw Error('wallet-invalid');
         if (r.game === 'bitcoin' && (!window.HKBitcoinRules?.validRound(r.data) || r.payout !== 0)) throw Error('wallet-invalid');
+        if(r.game==='poker'&&(!validPokerDeal(r.data)||r.variant!=='king'||r.payout!==0))throw Error('wallet-invalid');
         if (r.game === 'sicbo' && !validSicbo(r)) throw Error('wallet-invalid');
       }
       return value;
@@ -113,7 +118,7 @@
   }
   function begin(game, stake, draw, success, failure, options={}) {
     transact(w => {
-      if (!games.includes(game) || game === 'bitcoin' || !within(stake) || stake < 1) throw Error('invalid-bet');
+      if (!games.includes(game) || ['bitcoin','poker'].includes(game) || !within(stake) || stake < 1) throw Error('invalid-bet');
       if (w.pending) throw Error('pending-round');
       const variant=options.variant||'standard';
       if(!P.unlocked(game,variant,w.rebirths))throw Error('casino-locked');
@@ -136,6 +141,7 @@
         throw Error('round-gone');
       }
       if (w.pending.game === 'bitcoin') throw Error('bitcoin-open');
+      if (w.pending.game === 'poker') throw Error('poker-open');
       const result = { ...w.pending, settledAt: Date.now() };
       result.creditedPayout=M.sub(M.clamp(M.add(w.balance,result.payout)),w.balance);
       w.balance=M.add(w.balance,result.creditedPayout); w.pending = null;
@@ -143,6 +149,30 @@
       w.history = [result, ...w.history].slice(0, 8);
       return result;
     }, success, failure);
+  }
+  function beginPoker(stake,deal,success,failure){
+    transact(w=>{
+      if(!P.unlocked('poker','king',w.rebirths))throw Error('casino-locked');
+      if(!within(stake)||M.cmp(stake,1)<0)throw Error('invalid-bet');
+      if(w.pending)throw Error('pending-round');
+      if(M.cmp(w.balance,stake)<0)throw Error('insufficient');
+      const data=deal();if(!validPokerDeal(data))throw Error('invalid-poker');
+      const round={id:uid(),game:'poker',variant:'king',rebirths:w.rebirths,stake,payout:0,basePayout:0,data,at:Date.now()};
+      w.balance=M.sub(w.balance,stake);w.pending=round;return round;
+    },success,failure);
+  }
+  function finishPoker(id,holds,success,failure){
+    transact(w=>{
+      const old=w.history.find(r=>r.id===id);if(old)return {...old,already:true};
+      if(!w.pending||w.pending.id!==id||w.pending.game!=='poker')throw Error('round-gone');
+      if(!Array.isArray(holds)||holds.length>5||new Set(holds).size!==holds.length||holds.some(i=>!Number.isInteger(i)||i<0||i>4))throw Error('invalid-holds');
+      const data=window.HKRoyalPoker.draw(w.pending.data,holds);
+      if(!Number.isInteger(data.multiplier)||data.multiplier<0||data.multiplier>250)throw Error('invalid-payout');
+      const basePayout=M.mul(w.pending.stake,data.multiplier),payout=P.boost(basePayout,w.pending.rebirths);
+      const result={...w.pending,data,basePayout,payout,settledAt:Date.now()};
+      result.creditedPayout=M.sub(M.clamp(M.add(w.balance,payout)),w.balance);
+      w.balance=M.add(w.balance,result.creditedPayout);w.pending=null;w.history=[result,...w.history].slice(0,8);return result;
+    },success,failure);
   }
   function beginBitcoin(stake, direction, getQuote, success, failure) {
     transact(w => {
@@ -169,5 +199,5 @@
   }
   window.addEventListener('storage', e => { if (e.key === KEY || e.key === null) announce(); });
   window.addEventListener('focus', announce);
-  window.HKWallet = { snapshot, adjust, replace, redeem, rebirth, buy, begin, finish, beginBitcoin, finishBitcoin, activity };
+  window.HKWallet = { snapshot, adjust, replace, redeem, rebirth, buy, begin, finish, beginBitcoin, finishBitcoin, beginPoker, finishPoker, activity };
 })();

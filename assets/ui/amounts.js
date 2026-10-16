@@ -32,8 +32,8 @@
  function cost(times){rebirths(times);return times>=14?cap.toString():pack(10n**BigInt(16+times*4));}
  function boost(value,times){rebirths(times);return pack(raw(value)*(4n+BigInt(times))/4n);}
  function factor(times,base=1){rebirths(times);const n=raw(base)*(4n+BigInt(times)),tail=['','.25','.5','.75'][Number(n%4n)];return (n/4n).toString()+tail;}
- function unlocked(game,variant,times){return count(times)&&(variant==='standard'||variant==='silver'&&game==='roulette'&&times>=2||variant==='gold'&&game==='slots'&&times>=5);}
- const rebirth=Object.freeze({valid:count,cost,boost,factor,unlocked,starter:100});
+ function unlocked(game,variant,times){return count(times)&&(variant==='standard'&&game!=='poker'||variant==='king'&&game==='poker'&&times>=10||variant==='silver'&&game==='roulette'&&times>=2||variant==='gold'&&game==='slots'&&times>=5);}
+ const rebirth=Object.freeze({valid:count,cost,boost,factor,unlocked,starter:10000});
  const api=Object.freeze({rebirth,units,MAX:cap.toString(),integer,valid,pack,cmp,add,sub,mul,sum,clamp,input,full,format,key});
  root.HKAmounts=api;
  if(typeof module!=='undefined'&&module.exports)module.exports=api;

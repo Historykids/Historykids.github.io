@@ -19,9 +19,9 @@
   if(confirming!==null&&(confirming!==times||blocked||!enough))confirming=null;
   $('rebirthConfirm').hidden=confirming===null;
   $('rebirthStart').hidden=confirming!==null;
-  $('rebirthConfirmText').textContent=money(w.balance)+' → 100両。町・住民・学習記録を残して、配当は本来の'+P.factor(times+1)+'倍になります。この操作は取り消せません。';
-  for(const [id,required,name] of [['silverUnlock',2,'銀のルーレット'],['goldUnlock',5,'金のスロット']]){
-   const el=$(id),open=times>=required;el.textContent=open?'解放済み · 遊ぶ →':'🔒 リボーン'+required+'回で解放';el.closest('a').classList.toggle('unlocked',open);el.closest('a').setAttribute('aria-label',name+' · '+(open?'解放済み':'リボーン'+required+'回で解放'));
+  $('rebirthConfirmText').textContent=money(w.balance)+' → 1万両。町・住民・学習記録を残して、配当は本来の'+P.factor(times+1)+'倍になります。この操作は取り消せません。';
+  for(const [id,required,name] of [['silverUnlock',2,'銀のルーレット'],['goldUnlock',5,'金のスロット'],['kingUnlock',10,'王者のポーカー']]){
+   const el=$(id),open=times>=required;el.textContent=open?'解放済み · カジノの選択バーから':'🔒 リボーン'+required+'回で解放';el.closest('.rebirth-unlock').classList.toggle('unlocked',open);el.closest('.rebirth-unlock').setAttribute('aria-label',name+' · '+(open?'解放済み':'リボーン'+required+'回で解放'));
   }
   $('rebirthRoadmap').innerHTML=Array.from({length:5},(_,i)=>{const n=times+i;return '<li><span>'+(n+1).toLocaleString('ja-JP')+'回目</span><b>'+money(P.cost(n))+'</b><small>配当 ×'+P.factor(n+1)+'</small></li>';}).join('');
  }
@@ -44,7 +44,7 @@
   if(busy||confirming===null)return;
   const expected=confirming,request=++epoch;busy=true;render();
   W.rebirth(expected,async result=>{
-   confirming=null;render();message('リボーン完了！ '+result.rebirths+'回目の力で、配当は本来の'+P.factor(result.rebirths)+'倍。100両から再出発！');
+   confirming=null;render();message('リボーン完了！ '+result.rebirths+'回目の力で、配当は本来の'+P.factor(result.rebirths)+'倍。1万両から再出発！');
    $('view-rebirth').classList.remove('reborn');void $('view-rebirth').offsetWidth;$('view-rebirth').classList.add('reborn');
    try{if(await syncRanking()&&request===epoch)message('リボーン完了！ 配当は本来の'+P.factor(result.rebirths)+'倍。成金ランキングにも反映しました。');}
    catch{if(request===epoch)message('リボーンは保存済みです。成金ランキングの「最新の経済力に更新」で順位を反映してね。');}

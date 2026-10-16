@@ -1236,7 +1236,7 @@
     notify,
   };
   const unresolved = W.snapshot().pending;
-  if (unresolved && unresolved.game !== "bitcoin") W.finish(unresolved.id, () => { renderStats(); }, walletError);
+  if (unresolved && !["bitcoin","poker"].includes(unresolved.game)) W.finish(unresolved.id, () => { renderStats(); }, walletError);
   const reviewParams = new URLSearchParams(location.search);
   if ((legacyTown && (state.city.length || state.residents.length)) || arrangedTown.moved) save();
   const reviewing = reviewParams.get("review") === "1";

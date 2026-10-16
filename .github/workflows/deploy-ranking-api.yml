@@ -22,7 +22,9 @@ jobs:
         with:
           node-version: '24'
       - name: Check answers, ownership, retry and durable storage
-        run: node tests/ranking-api.cjs
+        run: |
+          node tests/ranking-api.cjs
+          node tests/wealth-api.cjs
       - name: Deploy ranking storage
         id: deploy
         uses: cloudflare/wrangler-action@v4
@@ -42,7 +44,7 @@ jobs:
           if (base.protocol !== 'https:' || !base.hostname.endsWith('.workers.dev')) throw Error('Unexpected deployment URL');
           let ready=false;
           for(let attempt=1;attempt<=12;attempt++) {
-            try {const response=await fetch(new URL('/ranking',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});const data=await response.json();ready=response.ok&&Array.isArray(data.entries);}catch{}
+            try {const response=await fetch(new URL('/ranking',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});const data=await response.json();ready=response.ok&&Array.isArray(data.entries);if(ready){const wealth=await fetch(new URL('/wealth',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});const board=await wealth.json();ready=wealth.ok&&Array.isArray(board.entries)&&board.entries.every(entry=>Number.isSafeInteger(entry.rebirths));}}catch{}
             if(ready)break;
             console.log('Waiting for ranking HTTPS endpoint: attempt '+attempt);
             if(attempt<12)await new Promise(resolve=>setTimeout(resolve,10000));

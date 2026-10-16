@@ -6,7 +6,7 @@
   const validObject = value => value && typeof value === 'object' && !Array.isArray(value);
   const integer = value => Number.isSafeInteger(value) && value >= 0;
   function metrics(snapshot) {
-    if (!validObject(snapshot) || !M.valid(snapshot.balance)) throw Error('invalid-town');
+    if (!validObject(snapshot) || !M.valid(snapshot.balance) || !M.rebirth.valid(snapshot.rebirths===undefined?0:snapshot.rebirths)) throw Error('invalid-town');
     let buildings = 0, residents = 0, buildingValue = 0, residentValue = 0, cells = 0;
     for (const group of ['buildings', 'residents']) {
       if (!validObject(snapshot[group])) throw Error('invalid-town');
@@ -19,11 +19,11 @@
     }
     const assets = M.add(snapshot.balance,buildingValue+residentValue), score = M.clamp(M.add(assets,buildings*20+residents*10));
     if (cells > C.town.width * C.town.maxHeight || residents > 100 || ![buildings, residents, buildingValue, residentValue].every(integer)) throw Error('invalid-town');
-    return { balance: M.pack(snapshot.balance), buildings, residents, buildingValue, residentValue, assets, score };
+    return { rebirths:snapshot.rebirths??0, balance: M.pack(snapshot.balance), buildings, residents, buildingValue, residentValue, assets, score };
   }
   function readLocal(storage, wallet) {
     if (!wallet || wallet.unavailable || !M.valid(wallet.balance)) throw Error('local-unavailable');
-    const snapshot = { balance: wallet.balance, buildings: {}, residents: {} };
+    const snapshot = { rebirths:wallet.rebirths??0, balance: wallet.balance, buildings: {}, residents: {} };
     for (const [group, key] of [['buildings', 'city_v1'], ['residents', 'hk_residents_v1']]) {
       const raw = storage.getItem(key), list = raw === null ? [] : JSON.parse(raw);
       if (!Array.isArray(list)) throw Error('local-unavailable');
@@ -41,7 +41,7 @@
     if (typeof value !== 'string') return '';
     return Array.from(value.normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g, '').trim()).slice(0, 24).join('');
   }
-  function sameMetrics(a, b) { return !!a && !!b && ['balance', 'buildings', 'residents', 'buildingValue', 'residentValue', 'assets', 'score'].every(key => M.cmp(a[key],b[key])===0); }
+  function sameMetrics(a, b) { return !!a && !!b && ['rebirths','balance', 'buildings', 'residents', 'buildingValue', 'residentValue', 'assets', 'score'].every(key => M.cmp(a[key]??0,b[key]??0)===0); }
   const rules = Object.freeze({ metrics, readLocal, cleanName, sameMetrics });
   root.HKWealthRules = rules;
   if (typeof module !== 'undefined' && module.exports) module.exports = rules;

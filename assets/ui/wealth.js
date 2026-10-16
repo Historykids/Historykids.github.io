@@ -29,7 +29,7 @@
   function renderLocal() {
     try { local = W.readLocal(localStorage, window.HKWallet.snapshot()); }
     catch { local = null; }
-    for (const [id, key] of [['localScore', 'score'], ['localAssets', 'assets'], ['localBuildings', 'buildings'], ['localResidents', 'residents'], ['localBalance', 'balance']]) $(id).textContent = local ? number(local[key]) : '—';
+    for (const [id, key] of [['localRebirths','rebirths'],['localScore', 'score'], ['localAssets', 'assets'], ['localBuildings', 'buildings'], ['localResidents', 'residents'], ['localBalance', 'balance']]) $(id).textContent = local ? number(local[key]) : '—';
     $('ownRank').textContent = board?.own ? number(board.ownRank)+'位' : '未登録';
     $('townState').textContent = !local ? '町の保存データを読み込めませんでした。わたしの町で確認してね。' : !board?.own ? '名前を入力すれば、今の町で参加できます。' : W.sameMetrics(local, board.own) ? '今の経済力が登録されています。' : '町の状態が変わりました。最新の経済力に更新できます。';
     controls();
@@ -43,7 +43,7 @@
     for (const entry of entries) {
       const row = document.createElement('tr'), own = entry.id === board?.own?.id;
       if (own) row.className = 'your-row';
-      const values = [number(entry.rank), entry.name, number(entry.score)+'点', number(entry.assets)+'両', number(entry.buildings)+'個', number(entry.residents)+'人', date(entry.timestamp)];
+      const values = [number(entry.rank), entry.name, number(entry.rebirths??0)+'回', number(entry.score)+'点', number(entry.assets)+'両', number(entry.buildings)+'個', number(entry.residents)+'人', date(entry.timestamp)];
       values.forEach((value, index) => { const cell = document.createElement('td'); cell.textContent = value; if (index === 1 && own) { const badge = document.createElement('span'); badge.className = 'your-badge'; badge.textContent = 'あなた'; cell.append(badge); } row.append(cell); });
       fragment.append(row);
     }
@@ -51,7 +51,7 @@
     $('wealthTable').hidden = !entries.length; $('wealthEmpty').hidden = !!entries.length;
     $('emptyTitle').textContent = query ? 'この名前は見つかりませんでした' : board ? '最初の町を登録しよう' : 'ランキングを読み込めませんでした';
     $('emptyDescription').textContent = query ? '検索は上位100人が対象です。自分の順位は上のカードで確認できます。' : board ? '0両・建造物0個でも、名前だけで参加できます。' : '通信を確認して「順位を更新」を押してね。';
-    $('participantCount').textContent = board ? '参加者 '+number(board.total)+'人 · 上位100人を表示 · 同点は同順位' : '上位100人を表示';
+    $('participantCount').textContent = board ? '参加者 '+number(board.total)+'人 · リボーン回数を優先 · 同回数・同点は同順位' : '上位100人を表示';
   }
   function accept(data, cached = false) {
     if (!data || !Array.isArray(data.entries) || !Number.isSafeInteger(data.total) || !Number.isSafeInteger(data.at)) throw Error('invalid-response');

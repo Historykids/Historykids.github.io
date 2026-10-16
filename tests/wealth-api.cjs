@@ -55,7 +55,7 @@ const assert = require('node:assert/strict'), {DatabaseSync} = require('node:sql
   await test('tied points share competition rank and exact own rank survives the top-100 limit', async () => {
     await req('/wealth/register', {name: '同点', snapshot: empty, expectedRevision: 0}, 'd'.repeat(64));
     const zeros = (await req()).body.entries.filter(e => e.score === 0); assert.equal(zeros[0].rank, zeros[1].rank);
-    for (let i = 0; i < 105; i++) db.prepare('INSERT INTO wealth_scores_v2 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').run('test-'+i, '富豪'+i, '1000', 0, 0, 0, 0, '1000', '1000', 1, 1, '1000'.padStart(72,'0'), '1000'.padStart(72,'0'));
+    for (let i = 0; i < 105; i++) db.prepare('INSERT INTO wealth_scores_v2(id,name,balance,buildings,residents,buildingValue,residentValue,assets,score,timestamp,revision,scoreKey,assetsKey) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').run('test-'+i, '富豪'+i, '1000', 0, 0, 0, 0, '1000', '1000', 1, 1, '1000'.padStart(72,'0'), '1000'.padStart(72,'0'));
     const r = (await req('/wealth', undefined, 'b'.repeat(64))).body;
     assert.equal(r.entries.length, 100); assert.equal(r.total, 109); assert.equal(r.ownRank, 108); assert(r.entries.every(e => e.rank === 1));
   });
@@ -89,6 +89,16 @@ const assert = require('node:assert/strict'), {DatabaseSync} = require('node:sql
     legacyDb.prepare('INSERT INTO wealth_scores VALUES(?,?,?,?,?,?,?,?,?,?,?)').run('legacy-town','以前の町',100,0,0,0,0,100,1234,17,4);new HistoryLeaderboard(legacyCtx);const row=legacyDb.prepare('SELECT * FROM wealth_scores_v2 WHERE id=?').get('legacy-town');assert.equal(row.score,'1234');assert.equal(row.revision,4);assert.equal(row.timestamp,17);assert.equal((await req('/ranking')).body.entries[0].name,'早押しの記録');
     legacyDb.prepare('UPDATE wealth_scores_v2 SET name=? WHERE id=?').run('更新した町','legacy-town');new HistoryLeaderboard(legacyCtx);assert.equal(legacyDb.prepare('SELECT name FROM wealth_scores_v2 WHERE id=?').get('legacy-town').name,'更新した町');
     legacyDb.prepare('DELETE FROM wealth_scores_v2 WHERE id=?').run('legacy-town');new HistoryLeaderboard(legacyCtx);assert.equal(legacyDb.prepare('SELECT COUNT(*) AS total FROM wealth_scores_v2').get().total,0);legacyDb.close();
+  });
+  await test('rebirth count outranks any wealth, ties use exact economy and persist across restarts',async()=>{
+    const M=globalThis.HKAmounts;
+    const first=await req('/wealth/register',{name:'輪廻1',snapshot:{...empty,rebirths:1,balance:M.MAX},expectedRevision:0},'4'.repeat(64));assert.equal(first.body.ownRank,1);
+    const second=await req('/wealth/register',{name:'輪廻2',snapshot:{...empty,rebirths:2,balance:0},expectedRevision:0},'5'.repeat(64));assert.equal(second.body.ownRank,1);assert.equal((await req('/wealth',undefined,'4'.repeat(64))).body.ownRank,2);
+    const tied=await req('/wealth/register',{name:'同輪廻',snapshot:{...empty,rebirths:2,balance:0},expectedRevision:0},'6'.repeat(64));assert.equal(tied.body.ownRank,1);
+    const higher=await req('/wealth/register',{name:'同輪廻で富裕',snapshot:{...empty,rebirths:2,balance:1},expectedRevision:0},'7'.repeat(64));assert.equal(higher.body.ownRank,1);assert.equal((await req('/wealth',undefined,'5'.repeat(64))).body.ownRank,2);assert.equal((await req('/wealth',undefined,'4'.repeat(64))).body.ownRank,4);
+    board=new HistoryLeaderboard(ctx);assert.equal((await req('/wealth',undefined,'7'.repeat(64))).body.own.rebirths,2);
+    for(const rebirths of [-1,1.5,'2',Number.MAX_SAFE_INTEGER,NaN])assert.equal((await req('/wealth/register',{name:'不正',snapshot:{...empty,rebirths},expectedRevision:0},'8'.repeat(64))).status,400);
+    assert.equal((await req('/ranking')).body.entries[0].name,'早押しの記録');
   });
   db.close(); console.log(count+' wealth API checks passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

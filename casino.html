@@ -18,20 +18,20 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>両カジノ｜歴史キッズ</title>
   <meta name="description" content="クイズで集めた両で、じゃんけん・欧州式ルーレット・スロット・大小・ビットコイン価格予想。町と同じ両だけで遊べる歴史キッズのゲームコーナー。">
-  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/casino.css?v=exact-20261016">
-  <script defer src="./assets/ui/amounts.js?v=exact-20261016"></script>
-    <script defer src="./assets/ui/bitcoin-rules.js?v=exact-20261016"></script>
-  <script defer src="./assets/ui/wallet.js?v=exact-20261016"></script>
-  <script defer src="./assets/ui/casino-rules.js?v=exact-20261016"></script>
+  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/casino.css?v=rebirth-20261016">
+  <script defer src="./assets/ui/amounts.js?v=rebirth-20261016"></script>
+    <script defer src="./assets/ui/bitcoin-rules.js?v=rebirth-20261016"></script>
+  <script defer src="./assets/ui/wallet.js?v=rebirth-20261016"></script>
+  <script defer src="./assets/ui/casino-rules.js?v=rebirth-20261016"></script>
   <script defer src="./assets/ui/bitcoin.js?v=ten-seconds-20261006"></script>
-  <script defer src="./assets/ui/casino.js?v=exact-20261016"></script>
+  <script defer src="./assets/ui/casino.js?v=rebirth-20261016"></script>
 <link rel="canonical" href="https://historykids.github.io/casino.html" />
 </head>
 <body>
   <a class="skip-link" href="#casinoMain">ゲームへ</a>
   <header class="casino-header">
     <a class="casino-brand" href="./#games"><span class="brand-seal" aria-hidden="true">両</span><span>両カジノ<small>HISTORY KIDS</small></span></a>
-    <nav aria-label="カジノメニュー"><a href="./#games">ゲームで遊ぶ</a><a href="./#town">わたしの町</a><a href="./#learn">両を集める</a></nav>
+    <nav aria-label="カジノメニュー"><a href="./#games">ゲームで遊ぶ</a><a href="./#town">わたしの町</a><a href="./#learn">両を集める</a><a href="./#rebirth">リボーンする</a></nav>
     <div class="wallet-badge"><span aria-hidden="true">◉</span><div><small>あなたの所持金</small><b id="casinoBalance">0</b><span> 両</span></div></div>
   </header>
   <main id="casinoMain" class="casino-main">
@@ -43,10 +43,12 @@
       <button id="tab-bitcoin" role="tab" aria-selected="false" aria-controls="panel-bitcoin" data-game="bitcoin" tabindex="-1"><span>04</span><b>ビットコイン</b><small>10秒で価格を予想</small></button>
       <button id="tab-sicbo" role="tab" aria-selected="false" aria-controls="panel-sicbo" data-game="sicbo" tabindex="-1"><span>05</span><b>大小</b><small>3つのサイコロで勝負</small></button>
     </div>
+    <section class="casino-prestige" aria-label="リボーン特典"><div class="prestige-summary"><span class="eyebrow">REBIRTH PRIVILEGES</span><b id="casinoRebirths">リボーン 0回</b><span id="casinoBoost">本来の配当 ×1</span><a href="./#rebirth">リボーンする →</a></div><div class="prestige-rooms"><button type="button" data-casino-variant="silver" aria-pressed="false"><span class="room-emblem" aria-hidden="true">◈</span><span><small>SILVER / REBIRTH 02</small><b>銀のルーレット</b><em id="silverRoomStatus">🔒 2回で解放</em></span><span aria-hidden="true">→</span></button><button type="button" data-casino-variant="gold" aria-pressed="false"><span class="room-emblem" aria-hidden="true">♛</span><span><small>GOLD / REBIRTH 05</small><b>金のスロット</b><em id="goldRoomStatus">🔒 5回で解放</em></span><span aria-hidden="true">→</span></button></div></section>
     <div class="game-shell">
       <div class="table-area" id="tableArea">
         <div class="stage-top"><span id="stageLabel">JANKEN / 一対一の勝負</span><div class="stage-settings"><button id="soundToggle" aria-pressed="false">音 OFF</button><label><input type="checkbox" id="quickToggle">演出を短く</label></div></div>
         <div class="mobile-bet-tools"><label for="mobileStake">賭ける両 <input id="mobileStake" type="text" pattern="[0-9]+" maxlength="72" inputmode="numeric" value="10"> 両</label><button data-stake="1">1両</button><button data-stake="10">10両</button><button data-stake="25">25両</button><button data-all-in>全額</button></div>
+        <section id="casinoLock" class="casino-lock" hidden aria-label="このカジノはロックされています"><span class="lock-seal" aria-hidden="true">🔒</span><p class="eyebrow">EXCLUSIVE CASINO</p><h2 id="casinoLockTitle">銀のルーレット</h2><p id="casinoLockMessage">リボーン2回で解放</p><a href="./#rebirth">リボーンで解放する →</a><small>通常のカジノは、上のゲームタブから遊べます。</small></section>
         <section id="panel-janken" class="casino-panel" role="tabpanel" aria-labelledby="tab-janken">
           <div class="janken-stage" id="jankenStage"><div class="stage-halo" aria-hidden="true"></div><div class="duel-player"><span class="player-label">あなた</span><div class="duel-hand" id="playerHand" aria-label="あなたの手">✊</div></div><div class="duel-center"><span class="duel-vs" id="duelCall">VS</span><small>運の一手を。</small></div><div class="duel-player opponent"><span class="player-label">NPC</span><div class="duel-hand" id="opponentHand" aria-label="NPCの手">？</div></div></div>
           <div class="hand-picker" role="group" aria-label="じゃんけんの手"><button data-hand="0" aria-pressed="true"><span aria-hidden="true">✊</span>グー</button><button data-hand="1" aria-pressed="false"><span aria-hidden="true">✌️</span>チョキ</button><button data-hand="2" aria-pressed="false"><span aria-hidden="true">🖐️</span>パー</button></div>
@@ -59,7 +61,7 @@
           <div class="bet-tools"><button id="undoBet">ひとつ戻す</button><button id="clearBets">すべて外す</button><span>置いた両は、回すまで引かれません。</span></div>
         </section>
         <section id="panel-slots" class="casino-panel" role="tabpanel" aria-labelledby="tab-slots" hidden>
-          <div class="slot-machine" id="slotMachine"><div class="slot-marquee"><span class="marquee-lights" aria-hidden="true"></span><small>NINE SYMBOLS · EIGHT LINES</small><h2>黄金の<em>スロット</em></h2><div class="jackpot-label">7 · 7 · 7 <b>200倍</b></div></div><div class="reel-frame"><div class="reels"><div class="reel-window" aria-label="左リール"><div class="reel-track" id="reel0"></div></div><div class="reel-window" aria-label="中央リール"><div class="reel-track" id="reel1"></div></div><div class="reel-window" aria-label="右リール"><div class="reel-track" id="reel2"></div></div></div></div><div class="slot-bottom"><span>縦・横・斜めの8ライン判定</span><div class="slot-handle" aria-hidden="true"><i></i></div><span>1ライン777 = 200倍</span></div></div>
+          <div class="slot-machine" id="slotMachine"><div class="slot-marquee"><span class="marquee-lights" aria-hidden="true"></span><small>NINE SYMBOLS · EIGHT LINES</small><h2 id="slotTitle">江戸の<em>スロット</em></h2><div class="jackpot-label">7 · 7 · 7 <b id="slotJackpotRate">200倍</b></div></div><div class="reel-frame"><div class="reels"><div class="reel-window" aria-label="左リール"><div class="reel-track" id="reel0"></div></div><div class="reel-window" aria-label="中央リール"><div class="reel-track" id="reel1"></div></div><div class="reel-window" aria-label="右リール"><div class="reel-track" id="reel2"></div></div></div></div><div class="slot-bottom"><span>縦・横・斜めの8ライン判定</span><div class="slot-handle" aria-hidden="true"><i></i></div><span id="slotJackpotNote">1ライン777 = 200倍</span></div></div>
           <div id="slotBonus" class="slot-bonus" role="status"><span class="bonus-medallion" aria-hidden="true">両</span><div><b id="slotBonusTitle">ボーナスチャンス</b><p id="slotBonusDetail">「両」が画面内に3つ以上で、無料スピン5回＋配当2倍</p></div></div>
           <div id="slotLineWins" class="slot-line-wins" aria-label="的中したラインと配当"></div>
           <p class="stage-caption">横3本・縦3本・斜め2本。3つそろったラインの配当をすべて合算！</p>

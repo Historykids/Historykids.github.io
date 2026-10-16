@@ -10,4 +10,6 @@
 
 /* Three Japanese units may include long names such as 無量大数. */
 #localScore,#localAssets,#localBalance{overflow-wrap:anywhere;line-height:1.4}
-#wealthTable td:nth-child(3),#wealthTable td:nth-child(4){white-space:normal;overflow-wrap:anywhere;min-width:120px;max-width:24rem}
+#wealthTable td:nth-child(4),#wealthTable td:nth-child(5){white-space:normal;overflow-wrap:anywhere;min-width:120px;max-width:24rem}
+/* Rebirths take priority over economy, including the personal summary. */
+.rebirth-stat{grid-column:1/-1;background:#fff3d7;border-radius:10px;padding:15px!important}.rebirth-stat a{font-size:.8rem;color:#875322}.wealth-header nav{flex-wrap:wrap}.table-wrap table{min-width:850px}

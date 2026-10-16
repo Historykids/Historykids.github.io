@@ -6,7 +6,7 @@
  function raw(value){
   if(typeof value==='bigint')return value;
   if(typeof value==='number'){if(!Number.isSafeInteger(value))throw Error('invalid-amount');return BigInt(value);}
-  if(typeof value!=='string'||! /^-?\d{1,80}$/.test(value))throw Error('invalid-amount');
+  if(typeof value!=='string'||! /^-?\d{1,100}$/.test(value))throw Error('invalid-amount');
   return BigInt(value);
  }
  function pack(value){const n=raw(value);return n>=-safe&&n<=safe?Number(n):n.toString();}
@@ -27,7 +27,14 @@
   return sign+text;
  }
  function key(value){if(!integer(value))throw Error('invalid-amount');const text=full(value);if(text.length>72)throw Error('invalid-amount');return text.padStart(72,'0');}
- const api=Object.freeze({units,MAX:cap.toString(),integer,valid,pack,cmp,add,sub,mul,sum,clamp,input,full,format,key});
+ const count=value=>Number.isSafeInteger(value)&&value>=0&&value<=Number.MAX_SAFE_INTEGER-4;
+ const rebirths=value=>{if(!count(value))throw Error('invalid-rebirth');return value;};
+ function cost(times){rebirths(times);return times>=14?cap.toString():pack(10n**BigInt(16+times*4));}
+ function boost(value,times){rebirths(times);return pack(raw(value)*(4n+BigInt(times))/4n);}
+ function factor(times,base=1){rebirths(times);const n=raw(base)*(4n+BigInt(times)),tail=['','.25','.5','.75'][Number(n%4n)];return (n/4n).toString()+tail;}
+ function unlocked(game,variant,times){return count(times)&&(variant==='standard'||variant==='silver'&&game==='roulette'&&times>=2||variant==='gold'&&game==='slots'&&times>=5);}
+ const rebirth=Object.freeze({valid:count,cost,boost,factor,unlocked,starter:100});
+ const api=Object.freeze({rebirth,units,MAX:cap.toString(),integer,valid,pack,cmp,add,sub,mul,sum,clamp,input,full,format,key});
  root.HKAmounts=api;
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

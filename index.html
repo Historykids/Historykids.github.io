@@ -43,22 +43,25 @@
       property="og:image"
       content="https://historykids.github.io/favicon-512x512.png"
     />
-    <link rel="stylesheet" href="./assets/ui/app.css?v=exact-20261016" />
+    <link rel="stylesheet" href="./assets/ui/app.css?v=rebirth-20261016" />
     <link rel="stylesheet" href="./assets/ui/howto.css?v=code-reward-20261005" />
     <script type="importmap">
       { "imports": { "three": "./assets/vendor/three.module.js" } }
     </script>
-    <script defer src="./assets/ui/amounts.js?v=exact-20261016"></script>
+    <script defer src="./assets/ui/amounts.js?v=rebirth-20261016"></script>
     <script defer src="./data/dataset.js"></script><script defer src="./data/ancient.js?v=ancient-20261002"></script><script defer src="./data/meiji.js?v=meiji-20261007"></script>
     <script defer src="./data/modern.js?v=modern-20261008"></script><script defer src="./assets/ui/core.js?v=pagoda-torii-20261008"></script>
-    <script defer src="./assets/ui/activities.js?v=exact-20261016"></script>
+    <script defer src="./assets/ui/activities.js?v=rebirth-20261016"></script>
     <script defer src="./assets/ui/town-event-layout.js?v=town-events-20261005"></script>
     <script defer src="./assets/ui/residents.js?v=pagoda-torii-20261008"></script>
-  <script defer src="./assets/ui/bitcoin-rules.js?v=exact-20261016"></script>
-    <script defer src="./assets/ui/wallet.js?v=exact-20261016"></script>
-    <script defer src="./assets/ui/app.js?v=exact-20261016"></script>
+  <script defer src="./assets/ui/bitcoin-rules.js?v=rebirth-20261016"></script>
+    <script defer src="./assets/ui/wallet.js?v=rebirth-20261016"></script>
+    <script defer src="./assets/ui/app.js?v=rebirth-20261016"></script>
     <script type="module" src="./assets/ui/town.js?v=mountains-fast-20261008"></script>
-  </head>
+    <script defer src="./assets/ui/wealth-rules.js?v=rebirth-20261016"></script>
+  <script defer src="./assets/ui/ranking-config.js?v=wealth-20261008"></script>
+  <script defer src="./assets/ui/rebirth.js?v=rebirth-20261016"></script>
+</head>
   <body>
     <a class="skip" href="#main">学習画面へ</a>
     <aside class="sidebar">
@@ -80,6 +83,7 @@
         <button data-view="games" data-short="ゲーム">
           <span aria-hidden="true">⚡</span>ゲームで遊ぶ
         </button>
+        <button data-view="rebirth" data-short="リボーン"><span aria-hidden="true">↻</span>リボーンする</button>
         <a href="./figures.html" data-short="偉人AI" title="偉人と話す"><span aria-hidden="true">💬</span>偉人と話す</a>
         <a href="#howto" data-view="howto" data-short="遊び方"><span aria-hidden="true">?</span>遊び方</a>
       </nav>
@@ -336,7 +340,15 @@
             削除した建物は直後に「元に戻す」で戻せます。まとめ買いした建物は、1個ずつ好きな場所に置けます。未配置分の両は引かれません。配置を確定してから両が引かれます。
           </p>
         </section>
-        <section id="view-games" class="view" hidden>
+        <section id="view-rebirth" class="view rebirth-page" hidden>
+  <div class="rebirth-hero"><div><span class="section-label">もう一度、もっと大きく。</span><h2>積み重ねた両を、<br><em>新しい力に。</em></h2><p>富を手放し、カジノの配当を永続アップ。<br>次のリボーンで、もっと遠くへ。</p></div><div class="rebirth-orbit" aria-hidden="true"><span>輪</span><i>REBIRTH</i></div></div>
+  <div class="rebirth-stats"><div><span>リボーン回数</span><b id="rebirthCount">0回</b></div><div><span>今のカジノ配当</span><b id="rebirthFactor">×1</b></div><div><span>次のカジノ配当</span><b id="rebirthNextFactor">×1.25</b></div></div>
+  <article class="rebirth-action"><div class="rebirth-action-heading"><div><span class="section-label">NEXT REBIRTH</span><h3 id="rebirthNextTitle">1回目のリボーン</h3></div><span class="rebirth-number" aria-hidden="true">↻</span></div><div class="rebirth-cost"><span>必要な所持両</span><strong id="rebirthCost">1京両</strong></div><div class="rebirth-balance"><span>今の所持両</span><b id="rebirthBalance">0両</b></div><progress id="rebirthProgress" max="10000" value="0" aria-label="リボーンに必要な所持両の達成率"></progress><p id="rebirthRemaining" class="muted"></p><p class="rebirth-reset-note">リボーンすると、所持両は<strong>100両から再出発</strong>。町・住民・集めたカード・学習記録はそのまま残ります。カジノの勝負や無料スピンは、すべて終えてから進もう。</p><button id="rebirthStart" class="primary" type="button" disabled>リボーンする</button><div id="rebirthConfirm" class="rebirth-confirm" hidden><b>今の所持両を手放して、リボーンします。</b><p id="rebirthConfirmText"></p><button id="rebirthCommit" class="primary" type="button">100両から新しく始める</button><button id="rebirthCancel" type="button">戻る</button></div><p id="rebirthMessage" role="status" aria-live="polite"></p></article>
+  <div class="rebirth-benefits"><article><span>01 / 配当を育てる</span><h3>1回ごとに、＋0.25倍。</h3><p>1回で本来の1.25倍、2回で1.5倍、3回で1.75倍。じゃんけん・ルーレット・スロット・大小・ビットコイン予想すべてに適用。あいこ・返金は元の掛け金が戻ります。1両未満は切り捨てます。</p></article><article><span>02 / 順位を超える</span><h3>回数が、富より上に。</h3><p>成金ランキングはリボーン回数を最優先。同じ回数の人とは、経済力で競おう。登録済みならリボーン後の順位も自動更新します。</p><a href="./wealth-ranking.html">成金ランキングへ →</a></article></div>
+  <section class="rebirth-rewards"><div><span class="section-label">EXCLUSIVE CASINO</span><h3>到達した人だけの、特別な一台。</h3></div><div class="rebirth-unlocks"><a class="rebirth-unlock silver" href="./casino.html?game=roulette&amp;variant=silver"><span class="unlock-medal" aria-hidden="true">◈</span><small>REBIRTH 02</small><h4>銀のルーレット</h4><p>銀に輝く盤面と、きらめく光の演出。</p><b id="silverUnlock">🔒 リボーン2回で解放</b></a><a class="rebirth-unlock gold" href="./casino.html?game=slots&amp;variant=gold"><span class="unlock-medal" aria-hidden="true">♛</span><small>REBIRTH 05</small><h4>金のスロット</h4><p>宝石と王冠が舞う、黄金の特別なリール。</p><b id="goldUnlock">🔒 リボーン5回で解放</b></a></div></section>
+  <details class="rebirth-roadmap"><summary>次のリボーンに必要な両</summary><p>初回1京両 → 2回目1垓両 → 3回目1秭両 → 4回目1穣両…と、1万倍ずつ上がります。必要額が所持金上限を超える段階では、9999無量大数が必要です。</p><ol id="rebirthRoadmap"></ol></details>
+</section>
+        <section id="view-games" class="view" hidden><p class="muted small">カジノはリボーンで配当アップ。<a href="#rebirth" data-view="rebirth">リボーンする →</a></p>
           <div class="section-heading">
             <h2>ちょっとひと息、ゲームの時間。</h2>
           </div>
@@ -391,7 +403,7 @@
 
 <section id="guide-poker" class="guide-section"><span class="section-label">05 / TEXAS HOLD’EM</span><h2>ポーカー。自分の2枚と、場の5枚。</h2><ol><li>「カードを配る」でCPU3人との勝負を始める。全員1000チップからスタートします。</li><li>手札2枚と場の5枚から、一番強い5枚の役を作ろう。場のカードは3枚、1枚、1枚の順に開きます。</li><li>自分の番になったら、チェック・コール・レイズ・フォールドを選ぶ。相手の行動は「直近のアクション」で確認できます。</li></ol><p>レイズで入力するのは、このラウンドの合計ベット額です。オールインは残りチップを全部出します。ハンドが終わったら「次のハンドへ」。時間制限はありません。</p><div class="guide-tip">ポーカーは無料のゲーム内チップで遊びます。町の両とは別です。途中の卓もこのブラウザに保存されます。</div><a class="link-pill" href="./edogames_poker6.html">ポーカーで遊ぶ →</a></section><section id="guide-blackjack" class="guide-section"><span class="section-label">06 / BLACKJACK</span><h2>ブラックジャック。21を超えずに勝負。</h2><ol><li>10〜500チップのベットを選んで「カードを配る」。無料のゲーム内チップで、ディーラーと対戦します。</li><li>「ヒット」で1枚追加、「スタンド」で止める。J・Q・Kは10、Aは1または11。合計が21を超えると負けです。</li><li>最初の2枚では「ダブル」でベットを倍にして1枚だけ追加。同じランクの2枚なら「スプリット」で2つの手札に分けられます。</li></ol><p>通常の勝利はベットの2倍、最初の2枚でブラックジャックなら2.5倍が戻ります。引き分けはベット返却、負けは0。ディーラーは17以上で止まります。</p><a class="link-pill" href="./blackjack.html">ブラックジャックで遊ぶ →</a></section>
 
-<section id="guide-save" class="guide-section"><span class="section-label">07 / KEEP YOUR PROGRESS</span><h2>集めた記録を、大切に。</h2><p>カード、両、町、ゲームの自己ベストは、同じ端末・同じブラウザに保存されます。ブラウザのデータを消すと記録も消えるので注意してね。</p><p>記録は自動保存されます。両や成金スコアは9999無量大数まで。画面は上位3単位までの表示ですが、下の桁も正確に保存されます。</p><div class="guide-tip">街づくりの両は、学習クイズの初めての正解で集めます。早押しやポーカーの得点・チップは両にはなりません。両カジノだけは、町と同じ両を掛け金・払い戻しに使います。街を大きくしたいときは「クイズで学ぶ」に戻ろう。</div><a class="link-pill" href="./">学習画面に戻る →</a></section><section id="guide-casino" class="guide-section"><span class="section-label">08 / RYO CASINO</span><h2>両だけで、運だめし。</h2><p>「ゲームで遊ぶ」の両じゃんけん・両ルーレット・両スロット・大小・ビットコイン予想から遊べます。掛け金は1両以上の整数で、所持金の範囲なら上限はありません。町のショップと同じ所持金から引かれます。現金や別のチップは使いません。</p><ol><li><b>両じゃんけん。</b>手と掛け金を選んで勝負。勝つと掛け金の2倍、負けは0、あいこは掛け金を返します。</li><li><b>両ルーレット。</b>両を決めて盤面の数字や赤黒などへ置き、「回す」を押そう。数字1点は36倍、赤黒・奇偶・大小は2倍、12個の組は3倍。0は赤黒や奇偶には入りません。</li><li><b>大小。</b>小（合計4〜10）・大（合計11〜17）と掛け金を選んでサイコロを振ろう。的中は掛け金を含む2倍の払い戻し。3個すべて同じ目のゾロ目は、大小どちらも負けです。</li><li><b>ビットコイン予想。</b>実際のBTC/USDチャートを見て「上がる」「下がる」を選び、両を賭けよう。10秒後の最初の価格で判定し、的中は2倍、外れは0、同値は掛け金を返します。判定価格を取得できないときも返金します。</li><li><b>両スロット。</b>掛け金を決めてスピン。縦・横・斜めの8ラインで同じ絵柄が3つそろうと配当を合算。「両」が画面内に3つ以上で、無料スピン5回・配当2倍のボーナス発動！台の配当表で倍率を確認しよう。</li></ol><div class="guide-tip">倍率は掛け金を含む払い戻しです。例：10両を賭けて2倍なら20両が戻り、差し引きは＋10両。「音 ON/OFF」「演出を短く」も選べます。</div><a class="link-pill" href="./casino.html">両カジノへ →</a></section><footer class="guide-footer">クイズで両をゲット。自分の街を、少しずつ。歴史キッズ。</footer><div class="guide-code-entry"><button id="redeemCodeBtn" type="button" aria-haspopup="dialog">コードを入力</button></div>
+<section id="guide-save" class="guide-section"><span class="section-label">07 / KEEP YOUR PROGRESS</span><h2>集めた記録を、大切に。</h2><p>カード、両、町、ゲームの自己ベストは、同じ端末・同じブラウザに保存されます。ブラウザのデータを消すと記録も消えるので注意してね。</p><p>記録は自動保存されます。両や成金スコアは9999無量大数まで。画面は上位3単位までの表示ですが、下の桁も正確に保存されます。</p><div class="guide-tip">街づくりの両は、学習クイズの初めての正解で集めます。早押しやポーカーの得点・チップは両にはなりません。両カジノだけは、町と同じ両を掛け金・払い戻しに使います。街を大きくしたいときは「クイズで学ぶ」に戻ろう。</div><a class="link-pill" href="./">学習画面に戻る →</a></section><section id="guide-casino" class="guide-section"><span class="section-label">08 / RYO CASINO</span><h2>両だけで、運だめし。</h2><p>「ゲームで遊ぶ」の両じゃんけん・両ルーレット・両スロット・大小・ビットコイン予想から遊べます。掛け金は1両以上の整数で、所持金の範囲なら上限はありません。町のショップと同じ所持金から引かれます。現金や別のチップは使いません。</p><ol><li><b>両じゃんけん。</b>手と掛け金を選んで勝負。勝つと掛け金の2倍、負けは0、あいこは掛け金を返します。</li><li><b>両ルーレット。</b>両を決めて盤面の数字や赤黒などへ置き、「回す」を押そう。数字1点は36倍、赤黒・奇偶・大小は2倍、12個の組は3倍。0は赤黒や奇偶には入りません。</li><li><b>大小。</b>小（合計4〜10）・大（合計11〜17）と掛け金を選んでサイコロを振ろう。的中は掛け金を含む2倍の払い戻し。3個すべて同じ目のゾロ目は、大小どちらも負けです。</li><li><b>ビットコイン予想。</b>実際のBTC/USDチャートを見て「上がる」「下がる」を選び、両を賭けよう。10秒後の最初の価格で判定し、的中は2倍、外れは0、同値は掛け金を返します。判定価格を取得できないときも返金します。</li><li><b>両スロット。</b>掛け金を決めてスピン。縦・横・斜めの8ラインで同じ絵柄が3つそろうと配当を合算。「両」が画面内に3つ以上で、無料スピン5回・配当2倍のボーナス発動！台の配当表で倍率を確認しよう。</li></ol><div class="guide-tip">倍率は掛け金を含む払い戻しです。例：10両を賭けて2倍なら20両が戻り、差し引きは＋10両。リボーン1回につき本来の配当が＋0.25倍されます（あいこ・返金を除く）。2回で銀のルーレット、5回で金のスロットが解放されます。「音 ON/OFF」「演出を短く」も選べます。</div><a class="link-pill" href="./casino.html">両カジノへ →</a></section><footer class="guide-footer">クイズで両をゲット。自分の街を、少しずつ。歴史キッズ。</footer><div class="guide-code-entry"><button id="redeemCodeBtn" type="button" aria-haspopup="dialog">コードを入力</button></div>
         </section>
 
         <section id="view-operator" class="view operator-page" hidden aria-label="運営者情報">
@@ -406,9 +418,9 @@
 
         <section id="view-privacy" class="view privacy-page" hidden aria-label="プライバシーポリシー">
           <div class="privacy-intro"><span class="section-label">YOUR DATA &amp; YOUR CHOICES</span><h2>どこに、何が保存されるの？</h2><p>歴史キッズでは、学習や町づくりの記録をこのブラウザに保存します。ランキングの登録、偉人AI、オンライン対戦、お問い合わせでは、必要な情報を外部サービスへ送ります。</p><p class="privacy-date">運営：歴史キッズ · 制定・更新日：2026年10月8日</p></div>
-          <section class="privacy-card"><h2>1. 学習・町・ゲームの記録</h2><p>正解した問題、カード、両、建物、住民、ミッション、町イベント、ゲームの自己ベスト、スロットのボーナスなどをブラウザの保存領域（localStorage）に記録します。続きから遊ぶための保存で、これらの学習・町の記録を自動でサーバーへ同期する仕組みはありません。</p><p>記録はこのブラウザに自動保存されます。記録のリセットやブラウザのサイトデータ削除で端末内の記録を消せます。端末内の削除だけでは、登録済みの公開ランキングやお問い合わせ内容は消えません。</p></section>
+          <section class="privacy-card"><h2>1. 学習・町・ゲームの記録</h2><p>正解した問題、カード、両、建物、住民、ミッション、町イベント、ゲームの自己ベスト、リボーン回数、スロットのボーナスなどをブラウザの保存領域（localStorage）に記録します。続きから遊ぶための保存で、これらの学習・町の記録を自動でサーバーへ同期する仕組みはありません。</p><p>記録はこのブラウザに自動保存されます。記録のリセットやブラウザのサイトデータ削除で端末内の記録を消せます。端末内の削除だけでは、登録済みの公開ランキングやお問い合わせ内容は消えません。</p></section>
           <section class="privacy-card"><h2>2. ランキング</h2><p>オンラインの10問決戦では、問題の出題、正誤・回答時間の確認、不正な登録の防止のため、回答内容やプレイ記録をランキング用サーバーへ送ります。同じブラウザの記録を識別するランダムな識別情報も使用します。</p><p>ランキングへ登録すると、<strong>ニックネーム、スコア、正答率、回答時間、登録日時</strong>が公開されます。本名・住所・電話番号・メールアドレスなどはニックネームに入力しないでください。公開済みの記録の確認・訂正・削除を希望する場合は、お問い合わせから連絡してください。</p></section>
-          <section class="privacy-card"><h2>成金ランキングで公開する情報</h2><p>成金ランキングは「登録する」「最新の経済力に更新」を押したときに、名前、所持両、建造物・住民の種類別の数をランキング用サーバーへ送ります。建物の座標や個別の住民名は送りません。登録すると、<strong>名前、経済力、総資産、所持両、建造物数・住民数と購入額、更新日時</strong>が公開されます。</p><p>同じブラウザから更新するためのランダムな所有証明を端末に保存し、通信時に利用します。所有証明そのものは公開しません。同じ名前の人がいても、別の記録として扱います。名前には本名や連絡先を入力しないでください。記録の確認・訂正・削除については、お問い合わせから連絡できます。</p></section>
+          <section class="privacy-card"><h2>成金ランキングで公開する情報</h2><p>成金ランキングは「登録する」「最新の経済力に更新」を押したときと登録後のリボーン時に、名前、リボーン回数、所持両、建造物・住民の種類別の数をランキング用サーバーへ送ります。建物の座標や個別の住民名は送りません。登録すると、<strong>名前、リボーン回数、経済力、総資産、所持両、建造物数・住民数と購入額、更新日時</strong>が公開されます。</p><p>同じブラウザから更新するためのランダムな所有証明を端末に保存し、通信時に利用します。所有証明そのものは公開しません。同じ名前の人がいても、別の記録として扱います。名前には本名や連絡先を入力しないでください。記録の確認・訂正・削除については、お問い合わせから連絡できます。</p></section>
           <section class="privacy-card"><h2>3. 偉人AIとの会話</h2><p>ページを開くとAIへの接続状態を確認します。質問を送信したときに、選んだ偉人、質問、直近の会話（最大8メッセージ）をCloudflare Workers AIへ送り、返答を作ります。AIの利用回数を制限するため、通信元のIPアドレスも使用します。</p><p>会話はこのページ内で保持し、ページを閉じるか「会話を新しくする」で消えます。本サイトの実装では会話本文をデータベースへ保存しません。サービス提供元での情報の扱いは、<a href="https://developers.cloudflare.com/workers-ai/platform/data-usage/" target="_blank" rel="noopener">Workers AIのデータ取り扱い</a>と<a href="https://www.cloudflare.com/ja-jp/privacypolicy/" target="_blank" rel="noopener">Cloudflareのプライバシーポリシー</a>をご確認ください。個人情報や秘密の情報は会話に入力しないでください。</p></section>
           <section class="privacy-card"><h2>4. オンライン対戦</h2><p>友だちとのオンライン対戦では、表示名、部屋情報、対戦の進行や操作に必要なデータをGoogle Firebaseへ保存し、同じ部屋の参加者と共有します。本名や連絡先を表示名に使わず、部屋番号を公開の場所に載せないでください。NPCとの対戦など、一人用のゲームは基本的に端末内で進行します。</p></section>
           <section class="privacy-card"><h2>5. お問い合わせ</h2><p>お問い合わせにはGoogleフォームを使います。フォームへ入力・送信した内容や連絡先は、ご意見の確認、回答、不具合への対応に使用します。必要のない個人情報は記入しないでください。</p><p>入力情報はGoogleのサービスを通じて運営に届きます。Googleによる情報の取り扱いは<a href="https://policies.google.com/privacy?hl=ja" target="_blank" rel="noopener">Googleのプライバシーポリシー</a>をご確認ください。内容の確認・訂正・削除についても、同じお問い合わせフォームからご連絡いただけます。</p></section>

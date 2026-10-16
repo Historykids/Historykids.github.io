@@ -51,7 +51,7 @@ function page({balance = 100, city = [], residents = [], store = null, failRead 
   await test('a nickname alone registers aggregate counts and immediately displays the owned row', async () => {
     const p = page({city: [{id: 'h', type: 'house', x: 2, y: 5}], residents: [{id: 'f', type: 'farmer'}]}); await tick();
     p.$('wealthName').value = ' 江戸の町 '; p.submit(); await tick();
-    assert.equal(p.posts.length, 1); assert.equal(p.posts[0].url, 'https://api.example/wealth/register'); assert.deepEqual(p.posts[0].body.snapshot, {balance: 100, buildings: {house: 1}, residents: {farmer: 1}});
+    assert.equal(p.posts.length, 1); assert.equal(p.posts[0].url, 'https://api.example/wealth/register'); assert.deepEqual(p.posts[0].body.snapshot, {rebirths:0,balance: 100, buildings: {house: 1}, residents: {farmer: 1}});
     assert.equal(p.posts[0].body.expectedRevision, 0); assert.equal(p.$('ownRank').textContent, '1位'); assert.equal(p.$('registerWealth').textContent, '最新の経済力に更新'); assert(p.$('wealthRows').textContent.includes('江戸の町')); assert(p.$('registrationMessage').textContent.includes('反映しました'));
     assert.equal(p.w.document.querySelectorAll('.your-row').length, 1); assert(/Bearer [a-f0-9]{64}/.test(p.posts[0].headers.Authorization)); assert(!JSON.stringify(p.posts[0].body).includes('id":"h')); p.w.close();
   });

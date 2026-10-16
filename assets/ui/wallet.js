@@ -1,12 +1,13 @@
 (function () {
   'use strict';
-  const KEY = 'hk_wallet_v2', M = window.HKAmounts;
+  const KEY = 'hk_wallet_v2', M = window.HKAmounts, P=M.rebirth;
   const games = ['janken', 'roulette', 'slots', 'bitcoin', 'sicbo'];
   const integer = M.integer, within = M.valid;
-  const amountKeys = new Set(['balance','stake','slotStake','payout','creditedPayout']);
+  const amountKeys = new Set(['balance','stake','slotStake','payout','creditedPayout','basePayout']);
   const validCodes = codes => Array.isArray(codes) && codes.length <= 100 && new Set(codes).size === codes.length && codes.every(code => typeof code === 'string' && /^\d{1,16}$/.test(code));
   const uid = () => crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint32Array(4)),n=>n.toString(16).padStart(8,"0")).join("");
   function validSicbo(round) {
+    const basePayout=round.basePayout??round.payout;
     const d=round.data;
     if(!d || !Array.isArray(d.dice) || d.dice.length!==3 || d.dice.some(n=>!Number.isInteger(n)||n<1||n>6))return false;
     const sum=d.dice.reduce((a,b)=>a+b,0),triple=d.dice.every(n=>n===d.dice[0]);
@@ -28,29 +29,32 @@
         stake=M.add(stake,b.stake);payout=M.add(payout,b.payout);
         if(!within(stake)||!integer(payout))return false;
       }
-      return M.cmp(stake,round.stake)===0 && M.cmp(payout,round.payout)===0 && M.cmp(d.payout,payout)===0;
+      return M.cmp(stake,round.stake)===0 && M.cmp(payout,basePayout)===0 && M.cmp(d.payout,payout)===0;
     }
     if(!['small','big'].includes(d.choice))return false;
     const wins=!triple&&(d.choice==='small'?sum>=4&&sum<=10:sum>=11&&sum<=17);
-    return d.sum===sum && d.triple===triple && d.multiplier===(wins?2:0) && M.cmp(round.payout,M.mul(round.stake,wins?2:0))===0;
+    return d.sum===sum && d.triple===triple && d.multiplier===(wins?2:0) && M.cmp(basePayout,M.mul(round.stake,wins?2:0))===0;
   }
   function read() {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const value = JSON.parse(raw,(key,value)=>amountKeys.has(key)?M.pack(value):value);
+      if(value.rebirths===undefined)value.rebirths=0;
+      if (!P.valid(value.rebirths)) throw Error('wallet-invalid');
       if (value.version !== 2 || !within(value.balance) || !Array.isArray(value.history)) throw Error('wallet-invalid');
       if (value.redeemedCodes !== undefined && !validCodes(value.redeemedCodes)) throw Error('wallet-invalid');
       if (value.slotBonus && (!Number.isInteger(value.slotBonus.remaining) || value.slotBonus.remaining < 0 || value.slotBonus.remaining > 5 || !within(value.slotBonus.stake) || value.slotBonus.stake < 1)) throw Error('wallet-invalid');
       if (value.pending) {
-        const r=value.pending, free=r.game==='slots'&&r.freeSpin===true, basis=free?r.slotStake:r.stake;
-        if (!games.includes(r.game) || !within(r.stake) || (free?r.stake!==0:r.stake<1) || !within(basis) || basis<1 || !integer(r.payout) || M.cmp(r.payout,M.mul(basis,r.game==='slots'?4800:250))>0 || typeof r.id!=='string') throw Error('wallet-invalid');
+        const r=value.pending, times=r.rebirths??0, free=r.game==='slots'&&r.freeSpin===true, basis=free?r.slotStake:r.stake;
+        if (!P.valid(times) || times>value.rebirths || !P.unlocked(r.game,r.variant||'standard',times) || !games.includes(r.game) || !within(r.stake) || (free?r.stake!==0:r.stake<1) || !within(basis) || basis<1 || !integer(r.payout) || !integer(r.basePayout??r.payout) || M.cmp(r.basePayout??r.payout,M.mul(basis,r.game==='slots'?4800:250))>0 || typeof r.id!=='string') throw Error('wallet-invalid');
+        if(r.game!=='bitcoin' && M.cmp(r.payout,refund(r.game,r.data)?r.basePayout??r.payout:P.boost(r.basePayout??r.payout,times))!==0)throw Error('wallet-invalid');
         if (r.game === 'bitcoin' && (!window.HKBitcoinRules?.validRound(r.data) || r.payout !== 0)) throw Error('wallet-invalid');
         if (r.game === 'sicbo' && !validSicbo(r)) throw Error('wallet-invalid');
       }
       return value;
     }
     const legacy = localStorage.getItem('money_v1') || '0';
-    return { version: 2, balance: within(legacy) ? M.pack(legacy) : 0, pending: null, history: [] };
+    return { version: 2, rebirths:0, balance: within(legacy) ? M.pack(legacy) : 0, pending: null, history: [] };
   }
   function snapshot() { try { return read(); } catch { return { version: 2, balance: 0, pending: null, history: [], unavailable: true }; } }
   function announce() { window.dispatchEvent(new CustomEvent('hk-wallet-change', { detail: snapshot() })); }
@@ -71,7 +75,7 @@
     transact(w => { w.balance=M.clamp(M.add(w.balance,delta)); return w.balance; }, success, failure);
   }
   function replace(balance, success, failure, activities = null, redeemedCodes = []) {
-    transact(w => { if (!within(balance) || !validCodes(redeemedCodes)) throw Error('wallet-invalid'); const receipts=[...new Set([...(w.redeemedCodes||[]),...redeemedCodes])]; if (!validCodes(receipts)) throw Error('wallet-invalid'); w.redeemedCodes = receipts; w.balance = M.pack(balance); w.pending = null; w.history = []; w.slotBonus = null; w.activities = activities; return balance; }, success, failure);
+    transact(w => { if (!within(balance) || !validCodes(redeemedCodes)) throw Error('wallet-invalid'); const receipts=[...new Set([...(w.redeemedCodes||[]),...redeemedCodes])]; if (!validCodes(receipts)) throw Error('wallet-invalid'); w.redeemedCodes = receipts; w.balance = M.pack(balance); w.pending = null; w.history = []; w.slotBonus = null; w.rebirths = 0; w.activities = activities; return balance; }, success, failure);
   }
   function redeem(code, success, failure) {
     transact(w => {
@@ -95,15 +99,29 @@
       w.balance=M.sub(w.balance,cost); return w.balance;
     }, success, failure);
   }
-  function begin(game, stake, draw, success, failure) {
+  function refund(game,data){return game==='janken'&&data?.multiplier===1 || game==='bitcoin'&&(data?.refunded || data?.endPrice===data?.startPrice);}
+  function rebirth(expected,success,failure){
+    transact(w=>{
+      if(w.pending)throw Error('pending-round');
+      if(w.slotBonus?.remaining>0)throw Error('bonus-active');
+      if(expected!==w.rebirths)throw Error('rebirth-changed');
+      if(!P.valid(w.rebirths+1))throw Error('rebirth-limit');
+      if(M.cmp(w.balance,P.cost(w.rebirths))<0)throw Error('insufficient');
+      w.rebirths++;w.balance=P.starter;w.slotBonus=null;
+      return {rebirths:w.rebirths,balance:w.balance};
+    },success,failure);
+  }
+  function begin(game, stake, draw, success, failure, options={}) {
     transact(w => {
       if (!games.includes(game) || game === 'bitcoin' || !within(stake) || stake < 1) throw Error('invalid-bet');
       if (w.pending) throw Error('pending-round');
+      const variant=options.variant||'standard';
+      if(!P.unlocked(game,variant,w.rebirths))throw Error('casino-locked');
       const freeSpin=game==='slots'&&w.slotBonus?.remaining>0, slotStake=freeSpin?w.slotBonus.stake:stake, cost=freeSpin?0:stake;
       if (M.cmp(w.balance,cost)<0) throw Error('insufficient');
       const outcome = draw({freeSpin, stake:slotStake});
       if (!integer(outcome.payout) || M.cmp(outcome.payout,M.mul(slotStake,game==='slots'?4800:250))>0) throw Error('invalid-payout');
-      const round = { id: uid(), game, stake:cost, payout: outcome.payout, data: outcome.data, at: Date.now(), ...(game==='slots'?{freeSpin,slotStake}:{}) };
+      const round = { id: uid(), game, variant, rebirths:w.rebirths, basePayout:outcome.payout, stake:cost, payout:refund(game,outcome.data)?outcome.payout:P.boost(outcome.payout,w.rebirths), data: outcome.data, at: Date.now(), ...(game==='slots'?{freeSpin,slotStake}:{}) };
       if(game==='sicbo' && !validSicbo(round))throw Error('invalid-payout');
       if(freeSpin)w.slotBonus.remaining--;
       w.balance=M.sub(w.balance,cost); w.pending = round;
@@ -133,7 +151,7 @@
       if (w.pending) throw Error('pending-round');
       if (!B?.quoteValid(quote, now)) throw Error('price-unavailable');
       if (M.cmp(w.balance,stake)<0) throw Error('insufficient');
-      const round = { id: uid(), game: 'bitcoin', stake, payout: 0, at: now, data: { direction, startPrice: quote.price, startedAt: now, deadline: now + B.duration } };
+      const round = { id: uid(), game: 'bitcoin', rebirths:w.rebirths, stake, payout: 0, at: now, data: { direction, startPrice: quote.price, startedAt: now, deadline: now + B.duration } };
       w.balance=M.sub(w.balance,stake); w.pending = round; return round;
     }, success, failure);
   }
@@ -143,11 +161,13 @@
       if (old) return { ...old, already: true };
       if (!w.pending || w.pending.id !== id || w.pending.game !== 'bitcoin') throw Error('round-gone');
       const result = { ...w.pending, ...window.HKBitcoinRules.decide(w.pending.data, w.pending.stake, quote), settledAt: Date.now() };
+      result.basePayout=result.payout;
+      if(!refund('bitcoin',result.data))result.payout=P.boost(result.basePayout,result.rebirths??0);
       result.creditedPayout=M.sub(M.clamp(M.add(w.balance,result.payout)),w.balance);
       w.balance=M.add(w.balance,result.creditedPayout); w.pending = null; w.history = [result, ...w.history].slice(0, 8); return result;
     }, success, failure);
   }
   window.addEventListener('storage', e => { if (e.key === KEY || e.key === null) announce(); });
   window.addEventListener('focus', announce);
-  window.HKWallet = { snapshot, adjust, replace, redeem, buy, begin, finish, beginBitcoin, finishBitcoin, activity };
+  window.HKWallet = { snapshot, adjust, replace, redeem, rebirth, buy, begin, finish, beginBitcoin, finishBitcoin, activity };
 })();

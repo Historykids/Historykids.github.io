@@ -609,6 +609,7 @@
     book: ["THE HISTORY COLLECTION", "知ったことが、宝ものになる。"],
     timeline: ["A JOURNEY THROUGH TIME", "歴史を、ひとつながりに。"],
     town: ["LEARN & BUILD", "わたしだけの町をつくろう。"],
+    rebirth: ["REBIRTH / A NEW CHAPTER", "両を超えて、次の境地へ。"],
     games: ["TIME TO PLAY", "遊びながら、もっと夢中に。"],
     howto: ["HOW TO PLAY", "両をゲットして、自分の町を作ろう。"],
     privacy: ["PRIVACY POLICY", "プライバシーポリシー"],
@@ -630,7 +631,7 @@
     });
     $("pageEyebrow").textContent = labels[v][0];
     $("pageTitle").textContent = labels[v][1];
-    $("eraSection").hidden = ["town", "games", "howto", "missions", "privacy", "operator"].includes(v);
+    $("eraSection").hidden = ["town", "games", "rebirth", "howto", "missions", "privacy", "operator"].includes(v);
     $("missionBar").hidden=v!=="learn";
     if(v==="missions") renderActivities();
     if (v === "book") renderBook();
@@ -958,7 +959,7 @@
   function settings() {
     openDialog(
       "記録・設定",
-      `<div class="settings-row"><h3>記録の保存</h3><p>カード、両、町はこのブラウザに保存されます。別の端末には自動で移りません。</p><p>両と成金スコアの上限は9999無量大数。表示は上位3単位までですが、値は1両単位で保存されます。</p></div><div class="settings-row"><h3>最初から遊ぶ</h3><p>すべての時代のカード・復習記録・両・町が初期化されます。一度限りの特典の受け取り記録は残ります。</p><button id="resetRequest">記録をリセット</button></div>`,
+      `<div class="settings-row"><h3>記録の保存</h3><p>カード、両、町、リボーン回数はこのブラウザに保存されます。別の端末には自動で移りません。</p><p>両と成金スコアの上限は9999無量大数。表示は上位3単位までですが、値は1両単位で保存されます。</p></div><div class="settings-row"><h3>最初から遊ぶ</h3><p>すべての時代のカード・復習記録・両・町・リボーン回数が初期化されます。一度限りの特典の受け取り記録は残ります。</p><button id="resetRequest">記録をリセット</button></div>`,
     );
   }
   document.addEventListener("click", (e) => {
@@ -1183,7 +1184,7 @@
     if (id === "resetRequest")
       openDialog(
         "記録をリセットしますか？",
-        '<p>カード、復習記録、両、町がすべて消えます。この操作は元に戻せません。一度限りの特典の受け取り記録は残ります。</p><div class="dialog-actions"><button id="resetConfirm" class="primary">すべてリセットする</button><button id="resetCancel">やめる</button></div>',
+        '<p>カード、復習記録、両、町、リボーン回数がすべて消えます。この操作は元に戻せません。一度限りの特典の受け取り記録は残ります。</p><div class="dialog-actions"><button id="resetConfirm" class="primary">すべてリセットする</button><button id="resetCancel">やめる</button></div>',
       );
     if (id === "resetCancel") settings();
     if (id === "resetConfirm") {

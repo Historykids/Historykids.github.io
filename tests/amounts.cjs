@@ -40,5 +40,25 @@ const call=(p,method,...args)=>new Promise((yes,no)=>p.W[method](...args,yes,no)
   const stake='123456789012345678901',now=Date.now(),p=page(new Map([['money_v1',M.full(M.mul(stake,2))]]));p.w.Date.now=()=>now;
   const round=await call(p,'beginBitcoin',stake,'up',()=>({price:100,time:now})),q=page(p.map);q.w.Date.now=()=>now+10000;assert.equal(q.W.snapshot().pending.stake,stake);await call(q,'finishBitcoin',round.id,{price:101,time:now+10000});await call(q,'finishBitcoin',round.id,{price:102,time:now+10000});assert.equal(q.W.snapshot().balance,'370370367037037036703');p.w.close();q.w.close();
  });
+ await test('9836478597 repeatedly grants exactly one muryotaisu, preserving low digits, reloads and rebirths',async()=>{
+  const reward='1'+'0'.repeat(68),p=page(new Map([['money_v1','35']]));
+  for(let n=1;n<=2;n++){const result=await call(p,'redeem','9836478597');assert.equal(result.credited,reward);assert.equal(result.balance,M.add(M.mul(reward,n),35));}
+  const q=page(p.map);assert.equal(q.W.snapshot().balance,M.add(M.mul(reward,2),35));assert.equal(JSON.parse(p.map.get('hk_wallet_v2')).balance,M.full(q.W.snapshot().balance));assert(!q.W.snapshot().redeemedCodes?.includes('9836478597'));
+  await call(q,'redeem','2026');await call(q,'rebirth',0);assert.equal(q.W.snapshot().balance,10000);const after=await call(q,'redeem','9836478597');assert.equal(after.balance,M.add(reward,10000));await assert.rejects(call(q,'redeem','2026'),/code-used/);p.w.close();q.w.close();
+ });
+ await test('repeat rewards report only the credited amount at the exact wallet cap',async()=>{
+  const p=page(new Map([['money_v1',M.full(M.sub(M.MAX,1))]])),first=await call(p,'redeem','9836478597');assert.equal(first.credited,1);assert.equal(first.balance,M.MAX);
+  const next=await call(p,'redeem','9836478597');assert.equal(next.credited,0);assert.equal(next.balance,M.MAX);assert.equal(p.map.get('money_v1'),M.MAX);assert(!p.W.snapshot().redeemedCodes?.includes('9836478597'));p.w.close();
+ });
+ await test('concurrent repeat claims serialize across tabs without losing rewards',async()=>{
+  const reward='1'+'0'.repeat(68),p=page(new Map([['money_v1','35']])),q=page(p.map);let chain=Promise.resolve();
+  const locks={request:(_name,work)=>{const next=chain.then(work);chain=next.catch(()=>{});return next;}};
+  for(const tab of [p,q])Object.defineProperty(tab.w.navigator,'locks',{value:locks});
+  const results=await Promise.all([call(p,'redeem','9836478597'),call(q,'redeem','9836478597'),call(p,'redeem','9836478597')]);assert(results.every(r=>r.credited===reward));assert.equal(q.W.snapshot().balance,M.add(M.mul(reward,3),35));p.w.close();q.w.close();
+ });
+ await test('a failed repeat reward write leaves the wallet intact and can be retried',async()=>{
+  const p=page(new Map([['money_v1','35']])),set=p.w.localStorage.setItem;p.w.localStorage.setItem=()=>{throw Error('storage unavailable');};await assert.rejects(call(p,'redeem','9836478597'),/storage unavailable/);assert.equal(p.W.snapshot().balance,35);
+  p.w.localStorage.setItem=set;await call(p,'redeem','9836478597');assert.equal(p.W.snapshot().balance,M.add('1'+'0'.repeat(68),35));p.w.close();
+ });
  console.log(checks+' exact-amount checks passed.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

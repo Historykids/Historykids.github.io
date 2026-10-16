@@ -227,6 +227,22 @@ test("failed 2026 rewards release the form and do not mark the code as used",()=
   const d=create('index.html',['data/dataset.js','assets/ui/core.js','assets/ui/app.js'],{money_v1:'12'}),v=d.window,g=id=>v.document.getElementById(id),redeem=v.HKWallet.redeem;
   click(v,'#redeemCodeBtn');g('redeemCodeInput').value='2026';v.HKWallet.redeem=(code,yes,no)=>no(Error('storage unavailable'));const submit=()=>g('redeemCodeForm').dispatchEvent(new v.Event('submit',{bubbles:true,cancelable:true}));submit();assert.equal(v.HK.state.money,12);assert(!g('redeemCodeInput').disabled);assert(g('redeemCodeStatus').textContent.includes('保存できません'));v.HKWallet.redeem=redeem;submit();assert.equal(v.HK.state.money,50012);v.close();
 });
+test("repeat code accepts full-width digits, stays enabled and saves every ryo across reloads",()=>{
+  const scripts=['data/dataset.js','assets/ui/core.js','assets/ui/app.js'],d=create('index.html',scripts,{money_v1:'35'}),v=d.window,g=id=>v.document.getElementById(id),M=v.HKAmounts,reward='1'+'0'.repeat(68);
+  click(v,'#redeemCodeBtn');g('redeemCodeInput').value='９８３６４７８５９７';const submit=()=>g('redeemCodeForm').dispatchEvent(new v.Event('submit',{bubbles:true,cancelable:true}));submit();
+  assert.equal(v.HK.state.money,M.add(reward,35));assert(g('redeemCodeStatus').textContent.includes('1無量大数両ゲット'));assert(g('redeemCodeStatus').textContent.includes('何度でも'));assert(!g('redeemCodeInput').disabled);assert(!g('redeemCodeForm').querySelector('button').disabled);assert.equal(g('redeemCodeForm').querySelector('button').textContent,'もう一度受け取る');
+  submit();assert.equal(v.HK.state.money,M.add(M.mul(reward,2),35));assert.equal(g('moneyValue').title,M.full(v.HK.state.money));
+  const saved=Object.fromEntries(Object.keys(v.localStorage).map(k=>[k,v.localStorage.getItem(k)])),again=create('index.html',scripts,saved),a=again.window;assert.equal(a.HK.state.money,M.add(M.mul(reward,2),35));click(a,'#redeemCodeBtn');a.document.getElementById('redeemCodeInput').value='9836478597';a.document.getElementById('redeemCodeForm').dispatchEvent(new a.Event('submit',{bubbles:true,cancelable:true}));assert.equal(a.HK.state.money,M.add(M.mul(reward,3),35));again.window.close();v.close();
+});
+test("repeat code blocks duplicate in-flight submits and permits the next completed claim",()=>{
+  const d=create('index.html',['data/dataset.js','assets/ui/core.js','assets/ui/app.js'],{money_v1:'35'}),v=d.window,g=id=>v.document.getElementById(id),redeem=v.HKWallet.redeem;let finish,calls=0;
+  v.HKWallet.redeem=(code,yes,no)=>{calls++;finish=()=>redeem(code,yes,no);};click(v,'#redeemCodeBtn');g('redeemCodeInput').value='9836478597';const submit=()=>g('redeemCodeForm').dispatchEvent(new v.Event('submit',{bubbles:true,cancelable:true}));submit();submit();assert.equal(calls,1);assert.equal(v.HK.state.money,35);assert(g('redeemCodeForm').querySelector('button').disabled);
+  finish();assert(!g('redeemCodeForm').querySelector('button').disabled);submit();assert.equal(calls,2);finish();assert.equal(v.HK.state.money,v.HKAmounts.add(v.HKAmounts.mul('1'+'0'.repeat(68),2),35));v.close();
+});
+test("repeat code shows actual partial credit and the cap without claiming another full reward",()=>{
+  const M=require('../assets/ui/amounts.js'),d=create('index.html',['data/dataset.js','assets/ui/core.js','assets/ui/app.js'],{money_v1:M.full(M.sub(M.MAX,1))}),v=d.window,g=id=>v.document.getElementById(id);
+  click(v,'#redeemCodeBtn');g('redeemCodeInput').value='9836478597';const submit=()=>g('redeemCodeForm').dispatchEvent(new v.Event('submit',{bubbles:true,cancelable:true}));submit();assert.equal(v.HK.state.money,M.MAX);assert(g('redeemCodeStatus').textContent.includes('1両ゲット'));assert(g('redeemCodeStatus').textContent.includes('上限'));submit();assert.equal(v.HK.state.money,M.MAX);assert.equal(g('redeemCodeStatus').textContent,'所持金は上限の9999無量大数です。');assert(!g('redeemCodeForm').querySelector('button').disabled);v.close();
+});
 test("quiz rewards and town purchases retain the low digits of a huge saved balance",()=>{
  const scripts=['data/dataset.js','assets/ui/core.js','assets/ui/app.js'],d=create('index.html',scripts,{money_v1:'9007199254740993123456789'}),v=d.window;
  click(v,'[data-answer="えど"]');assert.equal(v.HK.state.money,'9007199254740993123456799');click(v,'#shopBtn');click(v,'[data-buy="house"]');v.HK.setCell(10,10);click(v,'#placeConfirm');assert.equal(v.HK.state.money,'9007199254740993123456769');assert.equal(v.document.getElementById('moneyValue').title,'9007199254740993123456769');

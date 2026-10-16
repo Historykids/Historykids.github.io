@@ -671,7 +671,7 @@
     if (!$("dialog").open) $("dialog").showModal();
   }
   $("redeemCodeBtn").onclick = () => {
-    openDialog("コードを入力", '<form id="redeemCodeForm"><label for="redeemCodeInput">コードを入力してね</label><div class="input-row"><input id="redeemCodeInput" type="text" inputmode="numeric" autocomplete="off" maxlength="16" aria-describedby="redeemCodeStatus" required><button class="primary" type="submit">受け取る</button></div><p id="redeemCodeStatus" role="status" aria-live="polite"></p><p class="small muted">一度限りの特典の受け取り記録も、このブラウザに保存されます。</p></form>');
+    openDialog("コードを入力", '<form id="redeemCodeForm"><label for="redeemCodeInput">コードを入力してね</label><div class="input-row"><input id="redeemCodeInput" type="text" inputmode="numeric" autocomplete="off" maxlength="16" aria-describedby="redeemCodeStatus" required><button class="primary" type="submit">受け取る</button></div><p id="redeemCodeStatus" role="status" aria-live="polite"></p><p class="small muted">繰り返し受け取れる特典と、一度限りの特典があります。一度限りの受け取り記録はこのブラウザに保存されます。</p></form>');
     $("redeemCodeInput").focus();
   };
   $("dialogBody").addEventListener("submit", (e) => {
@@ -679,7 +679,7 @@
     e.preventDefault();
     const form = e.target, input = form.querySelector("input"), button = form.querySelector("button"), status = form.querySelector('[role="status"]');
     if (button.disabled) return;
-    const code = input.value.normalize("NFKC").trim(), amount = code === "2026" ? 50000 : code === "1940" ? 20 : 0;
+    const code = input.value.normalize("NFKC").trim(), repeat = code === "9836478597", amount = repeat ? "1"+"0".repeat(68) : code === "2026" ? 50000 : code === "1940" ? 20 : 0;
     if (!amount) {
       status.textContent = "コードが違うよ。もう一度入力してね。";
       input.focus();
@@ -687,13 +687,16 @@
     }
     input.disabled = button.disabled = true;
     status.textContent = "受け取り中…";
-    const success = () => {
+    const success = result => {
       save(); renderStats();
+      const credited = repeat ? result.credited : amount, capped = repeat && M.cmp(credited,amount)<0;
+      const message = M.cmp(credited,0)===0 ? "所持金は上限の9999無量大数です。" : M.format(credited)+"両ゲット！"+(repeat ? "このコードは何度でも使えます。"+(capped ? "所持金は上限の9999無量大数です。" : "") : code === "2026" ? "この特典は1プレイヤーにつき1回です。" : "町づくりに使ってね。");
       if (form.isConnected) {
-        status.textContent = M.format(amount)+"両ゲット！"+(code === "2026" ? "この特典は1プレイヤーにつき1回です。" : "町づくりに使ってね。");
-        button.textContent = "受け取りました";
+        status.textContent = message;
+        button.textContent = repeat ? "もう一度受け取る" : "受け取りました";
+        if(repeat) input.disabled = button.disabled = false;
       }
-      notify("＋"+M.format(amount)+"両ゲット！");
+      notify(M.cmp(credited,0)>0 ? "＋"+M.format(credited)+"両ゲット！" : message);
     }, failure = error => {
       if (form.isConnected) {
         if (error.message === "code-used") {
@@ -705,7 +708,7 @@
         status.textContent = "両を保存できませんでした。もう一度お試しください。";
       }
     };
-    if (code === "2026") W.redeem(code, success, failure);
+    if (repeat || code === "2026") W.redeem(code, success, failure);
     else W.adjust(amount, success, failure);
   });
   function detail(r, fromCard = true) {

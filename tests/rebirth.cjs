@@ -72,7 +72,7 @@ const begin=(p,game,stake,draw,variant='standard')=>new Promise((yes,no)=>p.W.be
    const p=page({times:required-1,ui:'casino',query:'?game='+game+'&variant='+variant});assert(!p.$('casinoLock').hidden);assert(p.$('panel-'+game).hidden);assert(p.$('playRound').disabled);assert(p.$('casinoLockMessage').textContent.includes(required+'回'));
    await assert.rejects(begin(p,game,10,()=>({payout:20,data:{}}),variant),/casino-locked/);assert.equal(p.W.snapshot().balance,100);
    p.w.document.querySelector('[data-game="janken"]').click();assert(p.$('casinoLock').hidden);assert(!p.$('panel-janken').hidden);p.w.close();
-   const q=page({times:required,ui:'casino',query:'?game='+game+'&variant='+variant});assert(q.$('casinoLock').hidden);assert(!q.$('panel-'+game).hidden);assert.equal(q.w.document.body.dataset.casinoVariant,variant);assert(q.$('betGameName').textContent.includes(variant==='silver'?'銀':'金'));
+   const q=page({times:required,ui:'casino',query:'?game='+game+'&variant='+variant});assert(q.$('casinoLock').hidden);assert(!q.$('panel-'+game).hidden);assert.equal(q.w.document.body.dataset.casinoVariant,variant);assert.equal(q.w.document.querySelector('button[data-casino-variant="'+variant+'"]').getAttribute('aria-pressed'),'true');assert.equal(q.w.document.body.getAttribute('aria-pressed'),null);assert(q.$('betGameName').textContent.includes(variant==='silver'?'銀':'金'));
    if(variant==='gold'){assert(q.$('slotTitle').textContent.includes('金'));assert(q.$('reel0').textContent.includes('💎'));assert(q.$('reel1').textContent.includes('👑'));assert.equal(q.$('slotJackpotRate').textContent,'450倍');}
    else assert(q.$('rouletteWheel').innerHTML.includes('#c0d7e5'));
    q.w.close();

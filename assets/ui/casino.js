@@ -63,7 +63,7 @@
   function refresh() {
     const wallet=W.snapshot(), isLocked=locked(), busy=!!(active||starting||wallet.pending), free=game==='slots'&&wallet.slotBonus?.remaining>0;
     $('casinoRebirths').textContent='リボーン '+count().toLocaleString('ja-JP')+'回';$('casinoBoost').textContent='本来の配当 ×'+P.factor(count());
-    for(const [v,n] of [['silver',2],['gold',5]]){const b=document.querySelector('[data-casino-variant="'+v+'"]');b.disabled=busy;b.classList.toggle('room-locked',count()<n);b.setAttribute('aria-pressed',String(variant===v));$(v+'RoomStatus').textContent=count()>=n?'解放済み · 遊ぶ →':'🔒 '+n+'回で解放';}
+    for(const [v,n] of [['silver',2],['gold',5]]){const b=document.querySelector('button[data-casino-variant="'+v+'"]');b.disabled=busy;b.classList.toggle('room-locked',count()<n);b.setAttribute('aria-pressed',String(variant===v));$(v+'RoomStatus').textContent=count()>=n?'解放済み · 遊ぶ →':'🔒 '+n+'回で解放';}
     $('casinoLock').hidden=!isLocked;$('roundResult').hidden=isLocked;for(const id of Object.keys(names))$('panel-'+id).hidden=id!==game||isLocked;
     $('casinoLockTitle').textContent=variant==='gold'?'金のスロット':'銀のルーレット';$('casinoLockMessage').textContent='リボーン'+(variant==='gold'?5:2)+'回で解放 · あなたは'+count()+'回';
     $('gameRules').innerHTML=rulesHTML();
@@ -314,7 +314,7 @@
   document.querySelectorAll('[data-direction]').forEach(b=>b.onclick=()=>{if(b.disabled)return;direction=b.dataset.direction;document.querySelectorAll('[data-direction]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));updateBitcoin();refresh();});
   document.querySelectorAll('[data-btc-range]').forEach(b=>b.onclick=()=>{btcRange=Number(b.dataset.btcRange);document.querySelectorAll('[data-btc-range]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));$('btcChart').setAttribute('aria-label','ビットコイン対米ドルの直近'+b.textContent+'の価格チャート');updateBitcoin();});
   window.addEventListener('resize',()=>{if(game==='bitcoin')updateBitcoin();});
-  document.querySelectorAll('[data-casino-variant]').forEach(b=>b.onclick=()=>{if(!active&&!starting&&!W.snapshot().pending)selectGame(b.dataset.casinoVariant==='silver'?'roulette':'slots',true,b.dataset.casinoVariant);});
+  document.querySelectorAll('button[data-casino-variant]').forEach(b=>b.onclick=()=>{if(!active&&!starting&&!W.snapshot().pending)selectGame(b.dataset.casinoVariant==='silver'?'roulette':'slots',true,b.dataset.casinoVariant);});
   document.querySelectorAll('[data-game]').forEach(b=>{b.onclick=()=>{if(!active&&!starting&&!W.snapshot().pending)selectGame(b.dataset.game);};b.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key)||active||starting||W.snapshot().pending)return;e.preventDefault();const list=Object.keys(names),index=list.indexOf(game),next=e.key==='Home'?0:e.key==='End'?list.length-1:(index+(e.key==='ArrowRight'?1:list.length-1))%list.length;selectGame(list[next]);document.querySelector('[data-game="'+list[next]+'"]').focus();};});
   document.querySelectorAll('[data-hand]').forEach(b=>b.onclick=()=>{if(b.disabled)return;hand=Number(b.dataset.hand);document.querySelectorAll('[data-hand]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));$('playerHand').textContent=hands[hand];$('opponentHand').textContent='？';$('duelCall').textContent='VS';$('jankenStage').classList.remove('revealed');tone('tick');});
   document.querySelectorAll('[data-stake]').forEach(b=>b.onclick=()=>{if(b.disabled)return;$('stake').value=b.dataset.stake;status(game==='roulette'?'盤面を押して両を置こう。':'掛け金を選びました。');refresh();});

@@ -27,13 +27,16 @@
   return sign+text;
  }
  function key(value){if(!integer(value))throw Error('invalid-amount');const text=full(value);if(text.length>72)throw Error('invalid-amount');return text.padStart(72,'0');}
- const count=value=>Number.isSafeInteger(value)&&value>=0&&value<=Number.MAX_SAFE_INTEGER-4;
+ const maxRebirths=10000;
+ const count=value=>Number.isSafeInteger(value)&&value>=0&&value<=maxRebirths;
  const rebirths=value=>{if(!count(value))throw Error('invalid-rebirth');return value;};
- function cost(times){rebirths(times);return times>=14?cap.toString():pack(10n**BigInt(16+times*4));}
- function boost(value,times){rebirths(times);return pack(raw(value)*(4n+BigInt(times))/4n);}
- function factor(times,base=1){rebirths(times);const n=raw(base)*(4n+BigInt(times)),tail=['','.25','.5','.75'][Number(n%4n)];return (n/4n).toString()+tail;}
+ function cost(times){rebirths(times);return pack(10n**BigInt(16+Math.min(times,13)*4));}
+ // Version 1 keeps the multiplier promised to rounds started before the rule change.
+ function boostDivisor(version){if(version===1)return 4n;if(version===2)return 10n;throw Error('invalid-boost-version');}
+ function boost(value,times,version=2){rebirths(times);const d=boostDivisor(version);return pack(raw(value)*(d+BigInt(times))/d);}
+ function factor(times,base=1,version=2){rebirths(times);const d=boostDivisor(version),n=raw(base)*(d+BigInt(times))*100n/d,tail=(n%100n).toString().padStart(2,'0').replace(/0+$/,'');return (n/100n).toString()+(tail?'.'+tail:'');}
  function unlocked(game,variant,times){return count(times)&&(variant==='standard'&&game!=='poker'||variant==='king'&&game==='poker'&&times>=10||variant==='silver'&&game==='roulette'&&times>=2||variant==='gold'&&game==='slots'&&times>=5);}
- const rebirth=Object.freeze({valid:count,cost,boost,factor,unlocked,starter:10000});
+ const rebirth=Object.freeze({valid:count,max:maxRebirths,boostVersion:2,cost,boost,factor,unlocked,starter:10000});
  const api=Object.freeze({rebirth,units,MAX:cap.toString(),integer,valid,pack,cmp,add,sub,mul,sum,clamp,input,full,format,key});
  root.HKAmounts=api;
  if(typeof module!=='undefined'&&module.exports)module.exports=api;

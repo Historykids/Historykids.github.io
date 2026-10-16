@@ -50,8 +50,8 @@
       if (value.slotBonus && (!Number.isInteger(value.slotBonus.remaining) || value.slotBonus.remaining < 0 || value.slotBonus.remaining > 5 || !within(value.slotBonus.stake) || value.slotBonus.stake < 1)) throw Error('wallet-invalid');
       if (value.pending) {
         const r=value.pending, times=r.rebirths??0, free=r.game==='slots'&&r.freeSpin===true, basis=free?r.slotStake:r.stake;
-        if (!P.valid(times) || times>value.rebirths || !P.unlocked(r.game,r.variant||'standard',times) || !games.includes(r.game) || !within(r.stake) || (free?r.stake!==0:r.stake<1) || !within(basis) || basis<1 || !integer(r.payout) || !integer(r.basePayout??r.payout) || M.cmp(r.basePayout??r.payout,M.mul(basis,r.game==='slots'?4800:250))>0 || typeof r.id!=='string') throw Error('wallet-invalid');
-        if(r.game!=='bitcoin' && M.cmp(r.payout,refund(r.game,r.data)?r.basePayout??r.payout:P.boost(r.basePayout??r.payout,times))!==0)throw Error('wallet-invalid');
+        if (!P.valid(times) || times>value.rebirths || ![1,2].includes(r.boostVersion??1) || !P.unlocked(r.game,r.variant||'standard',times) || !games.includes(r.game) || !within(r.stake) || (free?r.stake!==0:r.stake<1) || !within(basis) || basis<1 || !integer(r.payout) || !integer(r.basePayout??r.payout) || M.cmp(r.basePayout??r.payout,M.mul(basis,r.game==='slots'?4800:250))>0 || typeof r.id!=='string') throw Error('wallet-invalid');
+        if(r.game!=='bitcoin' && M.cmp(r.payout,refund(r.game,r.data)?r.basePayout??r.payout:P.boost(r.basePayout??r.payout,times,r.boostVersion??1))!==0)throw Error('wallet-invalid');
         if (r.game === 'bitcoin' && (!window.HKBitcoinRules?.validRound(r.data) || r.payout !== 0)) throw Error('wallet-invalid');
         if(r.game==='poker'&&(!validPokerDeal(r.data)||r.variant!=='king'||r.payout!==0))throw Error('wallet-invalid');
         if (r.game === 'sicbo' && !validSicbo(r)) throw Error('wallet-invalid');
@@ -131,7 +131,7 @@
       if (M.cmp(w.balance,cost)<0) throw Error('insufficient');
       const outcome = draw({freeSpin, stake:slotStake});
       if (!integer(outcome.payout) || M.cmp(outcome.payout,M.mul(slotStake,game==='slots'?4800:250))>0) throw Error('invalid-payout');
-      const round = { id: uid(), game, variant, rebirths:w.rebirths, basePayout:outcome.payout, stake:cost, payout:refund(game,outcome.data)?outcome.payout:P.boost(outcome.payout,w.rebirths), data: outcome.data, at: Date.now(), ...(game==='slots'?{freeSpin,slotStake}:{}) };
+      const round = { id: uid(), game, variant, rebirths:w.rebirths, boostVersion:P.boostVersion, basePayout:outcome.payout, stake:cost, payout:refund(game,outcome.data)?outcome.payout:P.boost(outcome.payout,w.rebirths), data: outcome.data, at: Date.now(), ...(game==='slots'?{freeSpin,slotStake}:{}) };
       if(game==='sicbo' && !validSicbo(round))throw Error('invalid-payout');
       if(freeSpin)w.slotBonus.remaining--;
       w.balance=M.sub(w.balance,cost); w.pending = round;
@@ -162,7 +162,7 @@
       if(w.pending)throw Error('pending-round');
       if(M.cmp(w.balance,stake)<0)throw Error('insufficient');
       const data=deal();if(!validPokerDeal(data))throw Error('invalid-poker');
-      const round={id:uid(),game:'poker',variant:'king',rebirths:w.rebirths,stake,payout:0,basePayout:0,data,at:Date.now()};
+      const round={id:uid(),game:'poker',variant:'king',rebirths:w.rebirths,boostVersion:P.boostVersion,stake,payout:0,basePayout:0,data,at:Date.now()};
       w.balance=M.sub(w.balance,stake);w.pending=round;return round;
     },success,failure);
   }
@@ -173,7 +173,7 @@
       if(!Array.isArray(holds)||holds.length>5||new Set(holds).size!==holds.length||holds.some(i=>!Number.isInteger(i)||i<0||i>4))throw Error('invalid-holds');
       const data=window.HKRoyalPoker.draw(w.pending.data,holds);
       if(!Number.isInteger(data.multiplier)||data.multiplier<0||data.multiplier>250)throw Error('invalid-payout');
-      const basePayout=M.mul(w.pending.stake,data.multiplier),payout=P.boost(basePayout,w.pending.rebirths);
+      const basePayout=M.mul(w.pending.stake,data.multiplier),payout=P.boost(basePayout,w.pending.rebirths,w.pending.boostVersion??1);
       const result={...w.pending,data,basePayout,payout,settledAt:Date.now()};
       result.creditedPayout=M.sub(M.clamp(M.add(w.balance,payout)),w.balance);
       w.balance=M.add(w.balance,result.creditedPayout);w.pending=null;w.history=[result,...w.history].slice(0,8);return result;
@@ -186,7 +186,7 @@
       if (w.pending) throw Error('pending-round');
       if (!B?.quoteValid(quote, now)) throw Error('price-unavailable');
       if (M.cmp(w.balance,stake)<0) throw Error('insufficient');
-      const round = { id: uid(), game: 'bitcoin', rebirths:w.rebirths, stake, payout: 0, at: now, data: { direction, startPrice: quote.price, startedAt: now, deadline: now + B.duration } };
+      const round = { id: uid(), game: 'bitcoin', rebirths:w.rebirths, boostVersion:P.boostVersion, stake, payout: 0, at: now, data: { direction, startPrice: quote.price, startedAt: now, deadline: now + B.duration } };
       w.balance=M.sub(w.balance,stake); w.pending = round; return round;
     }, success, failure);
   }
@@ -197,7 +197,7 @@
       if (!w.pending || w.pending.id !== id || w.pending.game !== 'bitcoin') throw Error('round-gone');
       const result = { ...w.pending, ...window.HKBitcoinRules.decide(w.pending.data, w.pending.stake, quote), settledAt: Date.now() };
       result.basePayout=result.payout;
-      if(!refund('bitcoin',result.data))result.payout=P.boost(result.basePayout,result.rebirths??0);
+      if(!refund('bitcoin',result.data))result.payout=P.boost(result.basePayout,result.rebirths??0,result.boostVersion??1);
       result.creditedPayout=M.sub(M.clamp(M.add(w.balance,result.payout)),w.balance);
       w.balance=M.add(w.balance,result.creditedPayout); w.pending = null; w.history = [result, ...w.history].slice(0, 8); return result;
     }, success, failure);

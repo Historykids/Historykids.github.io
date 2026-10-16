@@ -97,7 +97,8 @@ const assert = require('node:assert/strict'), {DatabaseSync} = require('node:sql
     const tied=await req('/wealth/register',{name:'同輪廻',snapshot:{...empty,rebirths:2,balance:0},expectedRevision:0},'6'.repeat(64));assert.equal(tied.body.ownRank,1);
     const higher=await req('/wealth/register',{name:'同輪廻で富裕',snapshot:{...empty,rebirths:2,balance:1},expectedRevision:0},'7'.repeat(64));assert.equal(higher.body.ownRank,1);assert.equal((await req('/wealth',undefined,'5'.repeat(64))).body.ownRank,2);assert.equal((await req('/wealth',undefined,'4'.repeat(64))).body.ownRank,4);
     board=new HistoryLeaderboard(ctx);assert.equal((await req('/wealth',undefined,'7'.repeat(64))).body.own.rebirths,2);
-    for(const rebirths of [-1,1.5,'2',Number.MAX_SAFE_INTEGER,NaN])assert.equal((await req('/wealth/register',{name:'不正',snapshot:{...empty,rebirths},expectedRevision:0},'8'.repeat(64))).status,400);
+    for(const rebirths of [-1,1.5,'2',10001,Number.MAX_SAFE_INTEGER,NaN])assert.equal((await req('/wealth/register',{name:'不正',snapshot:{...empty,rebirths},expectedRevision:0},'8'.repeat(64))).status,400);
+    const capped=await req('/wealth/register',{name:'輪廻上限',snapshot:{...empty,rebirths:10000,balance:0},expectedRevision:0},'8'.repeat(64));assert.equal(capped.status,200);assert.equal(capped.body.own.rebirths,10000);assert.equal(capped.body.ownRank,1);
     assert.equal((await req('/ranking')).body.entries[0].name,'早押しの記録');
   });
   db.close(); console.log(count+' wealth API checks passed.');

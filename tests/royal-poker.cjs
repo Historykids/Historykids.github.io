@@ -8,7 +8,7 @@ function page({times=10,balance=100,map=null,ui=false,locks=null,fail=false,deal
  Object.defineProperty(w,'localStorage',{value:{getItem:k=>store.get(k)??null,setItem:(k,v)=>{if(fail&&k==='hk_wallet_v2')throw Error('quota');store.set(k,String(v));},removeItem:k=>store.delete(k)}});
  if(locks)Object.defineProperty(w.navigator,'locks',{value:locks});
  w.matchMedia=()=>({matches:true});w.HTMLElement.prototype.scrollIntoView=function(){};
- for(const file of ['amounts.js','bitcoin-rules.js','wallet.js','casino-rules.js','table-rules.js','royal-poker.js'])w.eval(read('assets/ui/'+file));
+ for(const file of ['amounts.js','bitcoin-rules.js','wallet.js','casino-rules.js','table-rules.js','royal-poker.js','casino-vip.js'])w.eval(read('assets/ui/'+file));
  if(deal)w.HKRoyalPoker={...w.HKRoyalPoker,deal};
  if(ui)w.eval(read('assets/ui/casino.js'));
  return {w,W:w.HKWallet,map:store,$:id=>w.document.getElementById(id)};

@@ -18,7 +18,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>両カジノ｜歴史キッズ</title>
   <meta name="description" content="クイズで集めた両で、じゃんけん・欧州式ルーレット・スロット・大小・ビットコイン価格予想。町と同じ両だけで遊べる歴史キッズのゲームコーナー。">
-  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/casino.css?v=royal-tabs-20261016">
+  <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/casino.css?v=royal-tabs-20261016"><link rel="stylesheet" href="./assets/ui/casino-vip.css?v=palace-20261018">
   <script defer src="./assets/ui/amounts.js?v=rebirth-tenth-20261016"></script>
     <script defer src="./assets/ui/bitcoin-rules.js?v=royal-20261016"></script>
   <script defer src="./assets/ui/wallet.js?v=rebirth-tenth-20261016"></script>
@@ -26,7 +26,8 @@
   <script defer src="./assets/ui/bitcoin.js?v=ten-seconds-20261006"></script>
   <script defer src="./assets/ui/table-rules.js?v=royal-20261016"></script>
   <script defer src="./assets/ui/royal-poker.js?v=royal-20261016"></script>
-  <script defer src="./assets/ui/casino.js?v=rebirth-tenth-20261016"></script>
+  <script defer src="./assets/ui/casino-vip.js?v=palace-20261018"></script>
+  <script defer src="./assets/ui/casino.js?v=palace-20261018"></script>
 <link rel="canonical" href="https://historykids.github.io/casino.html" />
 </head>
 <body>
@@ -50,24 +51,25 @@
     </div>
     <p class="casino-tab-hint">選択バーを横にスワイプすると、限定台も選べます。</p>
     <section class="casino-prestige" aria-label="リボーン特典"><div class="prestige-summary"><span class="eyebrow">REBIRTH PRIVILEGES</span><b id="casinoRebirths">リボーン 0回</b><span id="casinoBoost">本来の配当 ×1</span><a href="./#rebirth">リボーンする →</a></div></section>
+    <section id="vipRoom" class="vip-room" aria-label="限定カジノの専用フロア" hidden><div class="vip-room-architecture" aria-hidden="true"><i></i><i></i><i></i></div><div class="vip-room-copy"><div class="vip-room-eyebrow"><span id="vipRoomStatus">EXCLUSIVE COLLECTION</span><span id="vipRoomNumber">II</span></div><p id="vipRoomEnglish" class="vip-room-english">THE LUNAR SALON</p><h2 id="vipRoomTitle">月光を纏う、銀の宮殿。</h2><p id="vipRoomCopy">白銀の回廊。星を映す盤面。その一球が、静寂を変える。</p><div class="vip-room-tags"><span id="vipRoomAccess"></span><b id="vipRoomRate"></b></div></div><div id="vipRoomArt" class="vip-room-art" aria-hidden="true"></div><div class="vip-room-footer"><span id="vipRoomFeature"></span><span>HISTORY KIDS · PRIVATE COLLECTION</span></div></section>
     <div class="game-shell">
       <div class="table-area" id="tableArea">
         <div class="stage-top"><span id="stageLabel">JANKEN / 一対一の勝負</span><div class="stage-settings"><button id="soundToggle" aria-pressed="false">音 OFF</button><label><input type="checkbox" id="quickToggle">演出を短く</label></div></div>
         <div class="mobile-bet-tools"><label for="mobileStake">賭ける両 <input id="mobileStake" type="text" pattern="[0-9]+" maxlength="72" inputmode="numeric" value="10"> 両</label><button data-stake="1">1両</button><button data-stake="10">10両</button><button data-stake="25">25両</button><button data-all-in>全額</button></div>
-        <section id="casinoLock" class="casino-lock" hidden aria-label="このカジノはロックされています"><span class="lock-seal" aria-hidden="true">🔒</span><p class="eyebrow">EXCLUSIVE CASINO</p><h2 id="casinoLockTitle">銀のルーレット</h2><p id="casinoLockMessage">リボーン2回で解放</p><a href="./#rebirth">リボーンで解放する →</a><small>上の選択バーから、ほかのカジノを選べます。</small></section>
+        <section id="casinoLock" class="casino-lock" hidden aria-label="このカジノはロックされています"><div class="vip-lock-vault" aria-hidden="true"><div class="vip-lock-rays"></div><div id="vipLockArt" class="vip-lock-art"></div><span id="vipLockSeal" class="vip-lock-seal">月</span><span class="lock-seal">🔒</span></div><p id="vipLockRoom" class="eyebrow">EXCLUSIVE CASINO</p><h2 id="casinoLockTitle">銀のルーレット</h2><p id="casinoLockMessage">リボーン2回で解放</p><div class="vip-lock-journey"><span id="vipLockCount">0 / 2 REBIRTHS</span><progress id="vipLockProgress" max="2" value="0" aria-label="限定カジノの解放までの進み具合"></progress><b id="vipLockRemaining">あと2回のリボーンで、この席へ。</b></div><a href="./#rebirth">リボーンで解放する <span aria-hidden="true">↗</span></a><small>上の選択バーから、ほかのカジノを選べます。</small></section>
         <section id="panel-janken" class="casino-panel" role="tabpanel" aria-labelledby="tab-janken">
           <div class="janken-stage" id="jankenStage"><div class="stage-halo" aria-hidden="true"></div><div class="duel-player"><span class="player-label">あなた</span><div class="duel-hand" id="playerHand" aria-label="あなたの手">✊</div></div><div class="duel-center"><span class="duel-vs" id="duelCall">VS</span><small>運の一手を。</small></div><div class="duel-player opponent"><span class="player-label">NPC</span><div class="duel-hand" id="opponentHand" aria-label="NPCの手">？</div></div></div>
           <div class="hand-picker" role="group" aria-label="じゃんけんの手"><button data-hand="0" aria-pressed="true"><span aria-hidden="true">✊</span>グー</button><button data-hand="1" aria-pressed="false"><span aria-hidden="true">✌️</span>チョキ</button><button data-hand="2" aria-pressed="false"><span aria-hidden="true">🖐️</span>パー</button></div>
           <p class="stage-caption">手を選んで「勝負する」。勝ちで2倍、負けは0。あいこは掛け金を返します。</p>
         </section>
         <section id="panel-roulette" class="casino-panel" role="tabpanel" aria-labelledby="tab-roulette" hidden>
-          <div class="roulette-stage"><div class="wheel-rim"><div id="rouletteWheel" class="roulette-wheel" aria-hidden="true"></div><div id="ballOrbit" class="ball-orbit" aria-hidden="true"><span class="roulette-ball"></span></div><div class="wheel-hub"><small>EUROPEAN</small><b id="wheelNumber">両</b><span>ROULETTE</span></div></div><div class="roulette-recent" id="rouletteRecent" aria-label="最近のルーレット結果"></div></div>
+          <div class="roulette-stage"><div class="vip-wheel-constellation" aria-hidden="true"><i></i><i></i><i></i><span>THE LUNAR SALON</span></div><div class="wheel-rim"><div class="vip-wheel-engraving" aria-hidden="true"></div><div id="rouletteWheel" class="roulette-wheel" aria-hidden="true"></div><div id="ballOrbit" class="ball-orbit" aria-hidden="true"><span class="roulette-ball"></span></div><div class="wheel-hub"><small>EUROPEAN</small><b id="wheelNumber">両</b><span>ROULETTE</span></div></div><div class="roulette-recent" id="rouletteRecent" aria-label="最近のルーレット結果"></div></div>
           <p class="stage-caption">下の盤面を押して両を置こう。数字は36倍、赤黒・奇偶・大小は2倍、12個の組は3倍。</p>
           <div class="roulette-board" id="rouletteBoard" role="group" aria-label="ルーレットの賭ける場所"></div>
           <div class="bet-tools"><button id="undoBet">ひとつ戻す</button><button id="clearBets">すべて外す</button><span>置いた両は、回すまで引かれません。</span></div>
         </section>
         <section id="panel-slots" class="casino-panel" role="tabpanel" aria-labelledby="tab-slots" hidden>
-          <div class="slot-machine" id="slotMachine"><div class="slot-marquee"><span class="marquee-lights" aria-hidden="true"></span><small>NINE SYMBOLS · EIGHT LINES</small><h2 id="slotTitle">江戸の<em>スロット</em></h2><div class="jackpot-label">7 · 7 · 7 <b id="slotJackpotRate">200倍</b></div></div><div class="reel-frame"><div class="reels"><div class="reel-window" aria-label="左リール"><div class="reel-track" id="reel0"></div></div><div class="reel-window" aria-label="中央リール"><div class="reel-track" id="reel1"></div></div><div class="reel-window" aria-label="右リール"><div class="reel-track" id="reel2"></div></div></div></div><div class="slot-bottom"><span>縦・横・斜めの8ライン判定</span><div class="slot-handle" aria-hidden="true"><i></i></div><span id="slotJackpotNote">1ライン777 = 200倍</span></div></div>
+          <div class="slot-machine" id="slotMachine"><div class="vip-slot-crown" aria-hidden="true"><span>鳳</span><i></i></div><div class="slot-marquee"><span class="marquee-lights" aria-hidden="true"></span><small>NINE SYMBOLS · EIGHT LINES</small><h2 id="slotTitle">江戸の<em>スロット</em></h2><div class="jackpot-label">7 · 7 · 7 <b id="slotJackpotRate">200倍</b></div></div><div class="reel-frame"><div class="reels"><div class="reel-window" aria-label="左リール"><div class="reel-track" id="reel0"></div></div><div class="reel-window" aria-label="中央リール"><div class="reel-track" id="reel1"></div></div><div class="reel-window" aria-label="右リール"><div class="reel-track" id="reel2"></div></div></div></div><div class="slot-bottom"><span>縦・横・斜めの8ライン判定</span><div class="slot-handle" aria-hidden="true"><i></i></div><span id="slotJackpotNote">1ライン777 = 200倍</span></div></div>
           <div id="slotBonus" class="slot-bonus" role="status"><span class="bonus-medallion" aria-hidden="true">両</span><div><b id="slotBonusTitle">ボーナスチャンス</b><p id="slotBonusDetail">「両」が画面内に3つ以上で、無料スピン5回＋配当2倍</p></div></div>
           <div id="slotLineWins" class="slot-line-wins" aria-label="的中したラインと配当"></div>
           <p class="stage-caption">横3本・縦3本・斜め2本。3つそろったラインの配当をすべて合算！</p>
@@ -98,11 +100,12 @@
         </section>
         <section id="panel-poker" class="casino-panel royal-poker" role="tabpanel" aria-labelledby="tab-king" hidden>
           <div class="royal-heading"><span aria-hidden="true">♔</span><p class="eyebrow">THE SOVEREIGN’S TABLE</p><h2>王者の<em>ポーカー</em></h2><p>残すべき一枚を、見極めよ。</p></div>
-          <div class="royal-felt"><div class="royal-table-seal" aria-hidden="true">ROYAL DRAW · 52 CARDS</div><div id="royalCards" class="royal-cards" role="group" aria-label="残すカードを選ぶ"></div><p id="royalHandName" class="royal-hand-name">5枚のカードで、王者の役を。</p><p id="royalHoldHint">掛け金を決めて、カードを配ろう。</p><div id="royalHoldTools" class="royal-hold-tools" hidden><button id="royalHoldAll" type="button">すべて残す</button><button id="royalHoldNone" type="button">すべて交換</button></div></div>
+          <div class="royal-felt"><div class="vip-felt-ornament" aria-hidden="true">♠<span>THE SOVEREIGN</span></div><div class="royal-table-seal" aria-hidden="true">ROYAL DRAW · 52 CARDS</div><div id="royalCards" class="royal-cards" role="group" aria-label="残すカードを選ぶ"></div><p id="royalHandName" class="royal-hand-name">5枚のカードで、王者の役を。</p><p id="royalHoldHint">掛け金を決めて、カードを配ろう。</p><div id="royalHoldTools" class="royal-hold-tools" hidden><button id="royalHoldAll" type="button">すべて残す</button><button id="royalHoldNone" type="button">すべて交換</button></div></div>
           <p class="stage-caption">カードを押して残すものを選び、1回だけ交換。J以上のワンペアから配当！</p>
           <div id="royalPaytable" class="royal-paytable" aria-label="王者のポーカーの配当"></div>
         </section>
         <div id="celebration" class="celebration" aria-hidden="true"></div>
+        <div id="vipFinale" class="vip-finale" aria-hidden="true" hidden><div class="vip-finale-orbit"></div><span id="vipFinaleCrest" class="vip-finale-crest"></span><span id="vipFinaleTitle" class="vip-finale-title"></span><small id="vipFinaleLabel"></small><strong id="vipFinaleAmount"></strong><span class="vip-finale-line">HISTORY KIDS · EXCLUSIVE COLLECTION</span></div>
         <div id="roundResult" class="round-result" role="status" aria-live="polite"><small id="resultKicker">PLACE YOUR BET</small><h2 id="resultHeadline">両を決めて、準備しよう。</h2><p id="resultDetail">所持金の範囲で、掛け金の上限はありません。払い戻しの倍率には、掛け金も含みます。</p><div id="resultNumbers" class="result-numbers" hidden><div><small>掛け金</small><b id="resultBet">0両</b></div><div><small>払い戻し</small><b id="resultPayout">0両</b></div><div><small>差し引き</small><b id="resultNet">0両</b></div></div></div>
       </div>
       <aside class="bet-panel" aria-label="掛け金と遊び方">

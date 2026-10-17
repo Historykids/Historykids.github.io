@@ -10,7 +10,7 @@ function page({times=0,balance=100,ui='',query='',map=null,locks=null,failWrite=
  w.matchMedia=()=>({matches:true});w.HTMLElement.prototype.scrollIntoView=function(){};w.scrollTo=()=>{};
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
  for(const f of ['amounts.js','bitcoin-rules.js','wallet.js'])w.eval(read('assets/ui/'+f));
- if(ui==='casino')for(const f of ['casino-rules.js','table-rules.js','royal-poker.js','casino.js'])w.eval(read('assets/ui/'+f));
+ if(ui==='casino')for(const f of ['casino-rules.js','table-rules.js','royal-poker.js','casino-vip.js','casino.js'])w.eval(read('assets/ui/'+f));
  if(ui==='rebirth'){
   if(full){for(const f of ['dataset','ancient','meiji','modern'])w.eval(read('data/'+f+'.js'));}
   w.eval(read('assets/ui/core.js'));w.eval(read('assets/ui/wealth-rules.js'));
@@ -99,10 +99,28 @@ const begin=(p,game,stake,draw,variant='standard')=>new Promise((yes,no)=>p.W.be
    await assert.rejects(begin(p,game,10,()=>({payout:20,data:{}}),variant),/casino-locked/);assert.equal(p.W.snapshot().balance,100);
    p.w.document.querySelector('[data-game="janken"]').click();assert(p.$('casinoLock').hidden);assert(!p.$('panel-janken').hidden);p.w.close();
    const q=page({times:required,ui:'casino',query:'?game='+game+'&variant='+variant});assert.equal(q.w.document.body.dataset.casinoVariant,'standard');q.$('tab-'+variant).click();assert(q.$('casinoLock').hidden);assert(!q.$('panel-'+game).hidden);assert.equal(q.w.document.body.dataset.casinoVariant,variant);assert.equal(q.w.document.querySelector('button[data-casino-variant="'+variant+'"]').getAttribute('aria-selected'),'true');assert.equal(q.w.document.body.getAttribute('aria-pressed'),null);assert(q.$('betGameName').textContent.includes(variant==='silver'?'銀':'金'));
-   if(variant==='gold'){assert(q.$('slotTitle').textContent.includes('金'));assert(q.$('reel0').textContent.includes('💎'));assert(q.$('reel1').textContent.includes('👑'));assert.equal(q.$('slotJackpotRate').textContent,'300倍');}
+   if(variant==='gold'){assert(q.$('slotTitle').textContent.includes('金'));assert(q.$('reel0').querySelector('[aria-label="金剛石（レモン）"] svg'));assert(q.$('reel1').querySelector('[aria-label="王冠（ベル）"] svg'));assert.equal(q.$('slotJackpotRate').textContent,'300倍');}
    else assert(q.$('rouletteWheel').innerHTML.includes('#c0d7e5'));
    q.w.close();
   }
+ });
+ await test('each locked VIP room has its own artwork and progress while the selection bar remains the only entrance',()=>{
+  const p=page({ui:'casino'});assert(p.$('vipRoom').hidden);
+  for(const [variant,title,required] of [['silver','THE LUNAR SALON',2],['gold','THE PHOENIX VAULT',5],['king','THE SOVEREIGN’S CHAMBER',10]]){
+   p.$('tab-'+variant).click();assert(!p.$('vipRoom').hidden);assert(p.w.document.body.classList.contains('vip-active'));assert.equal(p.w.document.body.dataset.vipLocked,'true');assert.equal(p.$('vipRoomEnglish').textContent,title);assert(p.$('vipRoomArt').querySelector('svg'));assert(p.$('vipLockArt').querySelector('svg'));assert.equal(p.$('vipLockProgress').max,required);assert.equal(p.$('vipLockProgress').value,0);assert(p.$('vipLockRemaining').textContent.includes('あと '+required+'回'));assert(p.$('playRound').disabled);assert(p.$('mobilePlayRound').disabled);
+   const ids=Array.from(p.w.document.querySelectorAll('[id]'),el=>el.id);assert.equal(new Set(ids).size,ids.length);assert.equal(p.w.document.querySelectorAll('[data-casino-variant]:not(body):not(.casino-tabs *)').length,0);
+  }
+  p.$('tab-janken').click();assert(p.$('vipRoom').hidden);assert(!p.w.document.body.classList.contains('vip-active'));assert.equal(p.W.snapshot().balance,100);assert.equal(p.W.snapshot().history.length,0);p.w.close();
+ });
+ await test('unlocked VIP rooms use illustrated symbols and engraved cards without changing the wallet',()=>{
+  const p=page({times:10,ui:'casino'});p.$('tab-silver').click();assert(p.$('casinoLock').hidden);assert(!p.$('panel-roulette').hidden);assert.equal(p.$('vipRoomRate').textContent,'配当 ×2');assert.equal(p.w.document.body.dataset.vipLocked,'false');
+  p.$('tab-gold').click();assert.equal(p.$('reel0').parentElement.querySelectorAll('.vip-slot-symbol svg').length,3);assert.equal(p.w.document.querySelectorAll('.slot-mini-paytable svg').length,5);assert.equal(p.$('slotJackpotRate').textContent,'400倍');
+  p.$('tab-king').click();assert.equal(p.$('royalCards').querySelectorAll('.card-suit svg').length,5);assert.equal(p.$('royalCards').querySelectorAll('.card-corner-bottom').length,5);assert.equal(p.W.snapshot().balance,100);p.w.close();
+ });
+ await test('a restored premium win shows its exclusive finale and credits the saved payout exactly once',async()=>{
+  const p=page({times:5}),data=R.slots(Array(9).fill('cherry')),round=await begin(p,'slots',10,()=>({payout:M.mul(10,data.multiplier),data}),'gold'),expected=P.boost(M.mul(10,data.multiplier),5),q=page({map:p.map,ui:'casino'});
+  assert.equal(q.W.snapshot().balance,M.add(90,expected));assert.equal(q.W.snapshot().history.length,1);assert(!q.$('vipFinale').hidden);assert.equal(q.$('vipFinaleTitle').textContent,'GOLDEN FORTUNE');assert.equal(q.$('vipFinaleAmount').textContent,M.format(expected)+'両');assert(!q.$('vipFinale').classList.contains('vip-finale-enter'));assert.equal(q.$('tableArea').dataset.vipPhase,'victory');
+  await call(q,'finish',round.id);assert.equal(q.W.snapshot().balance,M.add(90,expected));q.$('tab-janken').click();assert(q.$('vipFinale').hidden);assert(p.W.snapshot().history.length,1);p.w.close();q.w.close();
  });
  await test('rebirth page shows exact progress, requires confirmation and preserves town/learning from the main bar',async()=>{
   const p=page({balance:P.cost(0),ui:'rebirth',full:true});assert(!p.$('view-rebirth').hidden);assert(p.$('eraSection').hidden);assert(p.w.document.querySelector('.nav [data-view="rebirth"]').classList.contains('active'));assert.equal(p.$('rebirthCost').textContent,'1京両');assert.equal(p.$('rebirthProgress').value,10000);assert(!p.$('rebirthStart').disabled);

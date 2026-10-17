@@ -9,7 +9,7 @@ function page({balance=100,storage=null,ui=false,locks=null,game=null,reduced=fa
  if(locks)Object.defineProperty(w.navigator,'locks',{value:locks});
  let next=0,values=[],count=0;w.crypto.getRandomValues=a=>{a[0]=values.length?values.shift():next;return a;};w.crypto.randomUUID=()=>`test-round-${++count}`;
  let now=0,id=0;const timers=new Map();w.setTimeout=(fn,delay=0)=>{const i=++id;timers.set(i,{fn,due:now+delay});return i;};w.clearTimeout=i=>timers.delete(i);
- w.eval(read('assets/ui/amounts.js'));w.eval(read('assets/ui/wallet.js'));if(ui){w.eval(read('assets/ui/casino-rules.js'));w.eval(read('assets/ui/casino.js'));}
+ w.eval(read('assets/ui/amounts.js'));w.eval(read('assets/ui/wallet.js'));if(ui){w.eval(read('assets/ui/casino-rules.js'));w.eval(read('assets/ui/casino-vip.js'));w.eval(read('assets/ui/casino.js'));}
  const advance=ms=>{const end=now+ms;let safety=0;while(true){const t=[...timers].sort((a,b)=>a[1].due-b[1].due)[0];if(!t||t[1].due>end)break;assert(safety++<1000);now=t[1].due;timers.delete(t[0]);t[1].fn();}now=end;};
  return {dom,w,W:w.HKWallet,map,$:id=>w.document.getElementById(id),advance,setRandom:n=>{next=n;},setSequence:v=>{values=v.slice();}};
 }

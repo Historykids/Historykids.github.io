@@ -45,7 +45,7 @@
     if (typeof value !== 'string') return '';
     return value.normalize('NFKC').replace(/[\u30a1-\u30f6]/g, ch => String.fromCharCode(ch.charCodeAt(0)-0x60)).replace(/[\p{White_Space}\p{P}\p{S}\p{Cf}\p{Cc}]/gu, '');
   }
-  const blockedName = value => moderationName(value).includes('さとう');
+  const blockedName = (value,words=['さとう']) => {const name=moderationName(value);return words.some(word=>{const term=moderationName(word);return !!term&&name.includes(term);});};
   function sameMetrics(a, b) { return !!a && !!b && ['rebirths','balance', 'buildings', 'residents', 'buildingValue', 'residentValue', 'assets', 'score'].every(key => M.cmp(a[key]??0,b[key]??0)===0); }
   const rules = Object.freeze({ metrics, readLocal, cleanName, moderationName, blockedName, sameMetrics });
   root.HKWealthRules = rules;

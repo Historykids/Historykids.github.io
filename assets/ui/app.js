@@ -671,7 +671,7 @@
     if (!$("dialog").open) $("dialog").showModal();
   }
   $("redeemCodeBtn").onclick = () => {
-    openDialog("コードを入力", '<form id="redeemCodeForm"><label for="redeemCodeInput">コードを入力してね</label><div class="input-row"><input id="redeemCodeInput" type="text" inputmode="numeric" autocomplete="off" maxlength="16" aria-describedby="redeemCodeStatus" required><button class="primary" type="submit">受け取る</button></div><p id="redeemCodeStatus" role="status" aria-live="polite"></p><p class="small muted">繰り返し受け取れる特典と、一度限りの特典があります。一度限りの受け取り記録はこのブラウザに保存されます。</p></form>');
+    openDialog("コードを入力", '<form id="redeemCodeForm"><label for="redeemCodeInput">コードを入力してね</label><div class="input-row"><input id="redeemCodeInput" type="password" inputmode="numeric" autocomplete="off" maxlength="16" aria-describedby="redeemCodeStatus" required><button class="primary" type="submit">受け取る</button></div><p id="redeemCodeStatus" role="status" aria-live="polite"></p><p class="small muted">繰り返し受け取れる特典と、一度限りの特典があります。一度限りの受け取り記録はこのブラウザに保存されます。</p></form>');
     $("redeemCodeInput").focus();
   };
   $("dialogBody").addEventListener("submit", (e) => {
@@ -680,6 +680,13 @@
     const form = e.target, input = form.querySelector("input"), button = form.querySelector("button"), status = form.querySelector('[role="status"]');
     if (button.disabled) return;
     const code = input.value.normalize("NFKC").trim(), repeat = code === "9836478597", amount = repeat ? "1"+"0".repeat(68) : code === "2026" ? 50000 : code === "1940" ? 20 : 0;
+    if(!amount&&/^\d{8}$/.test(code)&&window.HKAdmin){
+      input.disabled=button.disabled=true;status.textContent='コードを確認しています…';
+      window.HKAdmin.claim(code).then(()=>{
+        input.value='';if(!form.isConnected)return;button.textContent='管理者になりました';status.textContent='管理者権限を付与しました。';const link=document.createElement('a');link.href='./wealth-ranking.html#admin';link.textContent='管理画面を開く →';link.className='primary';status.append(document.createElement('br'),link);notify('管理者権限を付与しました。');
+      }).catch(error=>{if(form.isConnected){input.disabled=button.disabled=false;status.textContent=window.HKAdmin.errorText(error);}});
+      return;
+    }
     if (!amount) {
       status.textContent = "コードが違うよ。もう一度入力してね。";
       input.focus();

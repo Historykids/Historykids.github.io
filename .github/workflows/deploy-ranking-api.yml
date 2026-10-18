@@ -23,6 +23,7 @@ jobs:
           node-version: '24'
       - name: Check answers, ownership, retry and durable storage
         run: |
+          node tests/admin.cjs
           node tests/ranking-api.cjs
           node tests/wealth-api.cjs
       - name: Deploy ranking storage
@@ -50,6 +51,12 @@ jobs:
             if(attempt<12)await new Promise(resolve=>setTimeout(resolve,10000));
           }
           if(!ready)throw Error('Ranking storage did not become available');
+          // A rejected claim verifies the deployed authentication runtime without assigning an owner.
+          const probeToken=Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0')).join('');
+          const probe=await fetch(new URL('/wealth/admin/claim',base),{method:'POST',headers:{Origin:'https://historykids.github.io','Content-Type':'application/json',Authorization:'Bearer '+probeToken},body:JSON.stringify({code:'00000000'}),signal:AbortSignal.timeout(15000)});
+          const denied=await probe.json();
+          if(probe.status!==403||!['admin-code-invalid','admin-claimed'].includes(denied.error))throw Error('Administrator authentication runtime check failed');
+          console.log('Administrator authentication check passed; no owner assigned by the check');
           fs.writeFileSync('assets/ui/ranking-config.js','// Public URL only. Never place credentials here.\nwindow.HKRankingConfig=Object.freeze('+JSON.stringify({endpoint:new URL('/ranking',base).href})+');\n');
           console.log('Ranking storage check passed');
           JS

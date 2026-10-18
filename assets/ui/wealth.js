@@ -57,8 +57,8 @@
   }
   function accept(data, cached = false) {
     if (!data || !Array.isArray(data.entries) || !Number.isSafeInteger(data.total) || !Number.isSafeInteger(data.at)) throw Error('invalid-response');
-    const ownBlocked=!!data.own&&W.blockedName(data.own.name);
-    board = {...data,entries:data.entries.filter(entry=>!W.blockedName(entry.name)),own:data.banned||ownBlocked?null:data.own,ownRank:data.banned||ownBlocked?null:data.ownRank,ownRevision:data.ownRevision??data.own?.revision??0,nameBlocked:!!data.nameBlocked||ownBlocked};
+    const policy=Array.isArray(data.blockedWords)?data.blockedWords:undefined,ownBlocked=!!data.own&&W.blockedName(data.own.name,policy);
+    board = {...data,entries:data.entries.filter(entry=>!W.blockedName(entry.name,policy)),own:data.banned||ownBlocked?null:data.own,ownRank:data.banned||ownBlocked?null:data.ownRank,ownRevision:data.ownRevision??data.own?.revision??0,nameBlocked:!!data.nameBlocked||ownBlocked};
     if (!cached) { try { localStorage.setItem(keys.cache, JSON.stringify(board)); } catch {} }
     if (board.own && !$('wealthName').value) $('wealthName').value = board.own.name;
     $('freshness').textContent = (cached ? '保存済み ' : '更新 ')+date(data.at, true);
@@ -90,7 +90,7 @@
     event.preventDefault(); if (writing || reading || board?.banned) return;
     renderLocal(); const name = W.cleanName($('wealthName').value);
     if (!name) { message(errors.nickname, true); $('wealthName').focus(); return; }
-    if(W.blockedName(name)){message(errors['nickname-blocked'],true);$('wealthName').focus();return;}
+    if(W.blockedName(name,board?.blockedWords)){message(errors['nickname-blocked'],true);$('wealthName').focus();return;}
     if (!local) { message(errors['invalid-town'], true); return; }
     const snapshot = local.snapshot, expectedRevision = board?.own?.revision || board?.ownRevision || 0;
     writing = true; ++epoch; controls(); message('今の町をランキングに反映しています…');
@@ -110,6 +110,7 @@
   window.addEventListener('hk-wallet-change', renderLocal);
   window.addEventListener('storage', event => { if (!event.key || ['city_v1', 'hk_residents_v1', 'money_v1', 'hk_wallet_v2'].includes(event.key)) renderLocal(); if (event.key === keys.identity) { board = null; renderLocal(); refresh(); } });
   window.addEventListener('focus', () => { renderLocal(); if (Date.now()-lastRead > 15000) refresh(); });
+  window.addEventListener('hk-wealth-moderated',refresh);
   $('wealthName').value = stored(keys.name) || '';
   renderLocal(); refresh();
 })();

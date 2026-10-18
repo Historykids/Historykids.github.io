@@ -1,6 +1,7 @@
 import {HistoryLeaderboard as QuizLeaderboard} from '../figure-api/ranking.mjs';
 import '../../assets/ui/amounts.js';
 import '../../assets/ui/wealth-rules.js';
+import {WealthAdmin,adminRoutes} from './admin.mjs';
 const W = globalThis.HKWealthRules, M=globalThis.HKAmounts;
 const decode=row=>{if(!row)return null;for(const key of ['balance','assets','score'])row[key]=M.pack(row[key]);return row;};
 const legacyColumns = 'id,name,balance,buildings,residents,buildingValue,residentValue,assets,score,timestamp,revision';
@@ -30,6 +31,7 @@ export class HistoryLeaderboard extends QuizLeaderboard {
       }
       this.sql.exec('INSERT OR IGNORE INTO wealth_schema_migrations(version) VALUES(3)');
     }
+    this.admin=new WealthAdmin(ctx.storage,W);
   }
   isBanned(owner) { return !!owner && !!this.sql.exec('SELECT banned FROM wealth_moderation WHERE id=?',owner).toArray()[0]?.banned; }
   board(owner) {
@@ -40,19 +42,20 @@ export class HistoryLeaderboard extends QuizLeaderboard {
     const ownRank = own ? this.sql.exec('SELECT COUNT(*)+1 AS rank FROM wealth_scores_v2 WHERE '+visible+' AND (rebirths>? OR (rebirths=? AND scoreKey>?))', own.rebirths,own.rebirths,M.key(own.score)).toArray()[0].rank : null;
     const moderation=owner?this.sql.exec('SELECT banned,nameBlocked FROM wealth_moderation WHERE id=?',owner).toArray()[0]:null;
     const ownRevision=own?.revision||(!moderation?.banned&&moderation?.nameBlocked?this.sql.exec('SELECT revision FROM wealth_scores_v2 WHERE id=?',owner).toArray()[0]?.revision:0)||0;
-    return {entries, own, ownRank, ownRevision, banned:!!moderation?.banned, nameBlocked:!!moderation?.nameBlocked, total: this.sql.exec('SELECT COUNT(*) AS total FROM wealth_scores_v2 WHERE '+visible).toArray()[0].total, at: Date.now()};
+    return {entries, own, ownRank, ownRevision, blockedWords:this.admin.words(), banned:!!moderation?.banned, nameBlocked:!!moderation?.nameBlocked, total: this.sql.exec('SELECT COUNT(*) AS total FROM wealth_scores_v2 WHERE '+visible).toArray()[0].total, at: Date.now()};
   }
   async fetch(request) {
     const path = new URL(request.url).pathname;
     if (!path.startsWith('/wealth')) return super.fetch(request);
     const data = await request.json(), owner = data.owner || '';
+    if(adminRoutes.has(path))return this.admin.fetch(path,data);
     if (path === '/wealth') return Response.json(this.board(owner));
     if (path !== '/wealth/register') return fail('not-found', 404);
     if (!/^[a-f0-9]{64}$/.test(owner)) return fail('identity-required', 401);
     if(this.isBanned(owner))return fail('banned',403);
     const name = W.cleanName(data.name);
     if (!name) return fail('nickname');
-    if(W.blockedName(name))return fail('nickname-blocked');
+    if(W.blockedName(name,this.admin.words()))return fail('nickname-blocked');
     let metrics;
     try { metrics = W.metrics(data.snapshot); } catch { return fail('invalid-town'); }
     const old = this.sql.exec('SELECT '+columns+' FROM wealth_scores_v2 WHERE id=?', owner).toArray().map(decode)[0];
@@ -67,15 +70,21 @@ export class HistoryLeaderboard extends QuizLeaderboard {
 }
 export async function wealthRequest(request, env, reply) {
   const path = new URL(request.url).pathname;
-  if (!['/wealth', '/wealth/register'].includes(path)) return reply({error: 'not-found'}, 404);
+  if (!['/wealth', '/wealth/register'].includes(path)&&!adminRoutes.has(path)) return reply({error: 'not-found'}, 404);
   if (request.method === 'OPTIONS') return reply({ok: true});
-  if (request.method !== (path === '/wealth' ? 'GET' : 'POST')) return reply({error: 'method-not-allowed'}, 405);
+  const read=path==='/wealth'||path==='/wealth/admin/session'||path==='/wealth/admin/board';
+  if (request.method !== (read ? 'GET' : 'POST')) return reply({error: 'method-not-allowed'}, 405);
   if (!env.LEADERBOARD || !env.RANK_READ_LIMITER || !env.RANK_WRITE_LIMITER || !env.RANK_GLOBAL_LIMITER) return reply({error: 'not-configured'}, 503);
-  const rate = await (path === '/wealth' ? env.RANK_READ_LIMITER : env.RANK_WRITE_LIMITER).limit({key: request.headers.get('CF-Connecting-IP') || 'anonymous'});
+  const ip=request.headers.get('CF-Connecting-IP')||'anonymous';
+  if(path==='/wealth/admin/claim'){
+    if(!env.ADMIN_CLAIM_LIMITER)return reply({error:'not-configured'},503);
+    if(!(await env.ADMIN_CLAIM_LIMITER.limit({key:ip})).success)return reply({error:'rate-limited'},429);
+  }
+  const rate = await (read ? env.RANK_READ_LIMITER : env.RANK_WRITE_LIMITER).limit({key:ip});
   const globalRate = await env.RANK_GLOBAL_LIMITER.limit({key: 'site'});
   if (!rate.success || !globalRate.success) return reply({error: 'rate-limited'}, 429);
   const token = request.headers.get('Authorization')?.replace(/^Bearer /, '') || '';
-  if ((token && !/^[a-f0-9]{64}$/.test(token)) || (request.method === 'POST' && !token)) return reply({error: 'identity-required'}, 401);
+  if ((token && !/^[a-f0-9]{64}$/.test(token)) || ((request.method === 'POST'||adminRoutes.has(path)) && !token)) return reply({error: 'identity-required'}, 401);
   const digest = token ? await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)) : null;
   const owner = digest ? Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('') : '';
   let data = {};

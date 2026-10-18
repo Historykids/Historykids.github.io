@@ -5,6 +5,7 @@ const W = globalThis.HKWealthRules, M=globalThis.HKAmounts;
 const decode=row=>{if(!row)return null;for(const key of ['balance','assets','score'])row[key]=M.pack(row[key]);return row;};
 const legacyColumns = 'id,name,balance,buildings,residents,buildingValue,residentValue,assets,score,timestamp,revision';
 const columns=legacyColumns+',rebirths';
+const visible='id NOT IN (SELECT id FROM wealth_moderation WHERE banned=1 OR nameBlocked=1)';
 const fail = (error, status = 400) => Response.json({error}, {status});
 export class HistoryLeaderboard extends QuizLeaderboard {
   constructor(ctx) {
@@ -20,14 +21,26 @@ export class HistoryLeaderboard extends QuizLeaderboard {
     if(!this.sql.exec('PRAGMA table_info(wealth_scores_v2)').toArray().some(column=>column.name==='rebirths'))this.sql.exec('ALTER TABLE wealth_scores_v2 ADD COLUMN rebirths INTEGER NOT NULL DEFAULT 0');
     this.sql.exec('CREATE INDEX IF NOT EXISTS wealth_rebirth_points ON wealth_scores_v2(rebirths DESC,scoreKey DESC,assetsKey DESC,buildings DESC,residents DESC,id)');
     this.sql.exec('CREATE INDEX IF NOT EXISTS wealth_points_v2 ON wealth_scores_v2(scoreKey DESC,assetsKey DESC,buildings DESC,residents DESC,id)');
+    // Preserve records for review; moderation changes visibility and registration access.
+    this.sql.exec('CREATE TABLE IF NOT EXISTS wealth_moderation(id TEXT PRIMARY KEY,banned INTEGER NOT NULL DEFAULT 0,nameBlocked INTEGER NOT NULL DEFAULT 0)');
+    if(!this.sql.exec('SELECT COUNT(*) AS total FROM wealth_schema_migrations WHERE version=3').toArray()[0].total){
+      for(const row of this.sql.exec('SELECT id,name FROM wealth_scores_v2').toArray()){
+        const banned=W.moderationName(row.name)==='さとうきよと',nameBlocked=W.blockedName(row.name);
+        if(banned||nameBlocked)this.sql.exec('INSERT INTO wealth_moderation(id,banned,nameBlocked) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET banned=MAX(wealth_moderation.banned,excluded.banned),nameBlocked=excluded.nameBlocked',row.id,Number(banned),Number(nameBlocked));
+      }
+      this.sql.exec('INSERT OR IGNORE INTO wealth_schema_migrations(version) VALUES(3)');
+    }
   }
+  isBanned(owner) { return !!owner && !!this.sql.exec('SELECT banned FROM wealth_moderation WHERE id=?',owner).toArray()[0]?.banned; }
   board(owner) {
-    const entries = this.sql.exec('SELECT '+columns+' FROM wealth_scores_v2 ORDER BY rebirths DESC,scoreKey DESC,assetsKey DESC,buildings DESC,residents DESC,id LIMIT 100').toArray().map(decode);
+    const entries = this.sql.exec('SELECT '+columns+' FROM wealth_scores_v2 WHERE '+visible+' ORDER BY rebirths DESC,scoreKey DESC,assetsKey DESC,buildings DESC,residents DESC,id LIMIT 100').toArray().map(decode);
     let previous = null, rank = 0;
     entries.forEach((entry, index) => { const key=entry.rebirths+':'+entry.score;if(key!==previous)rank=index+1;previous=key; entry.rank = rank; });
-    const own = owner ? this.sql.exec('SELECT '+columns+' FROM wealth_scores_v2 WHERE id=?', owner).toArray().map(decode)[0] || null : null;
-    const ownRank = own ? this.sql.exec('SELECT COUNT(*)+1 AS rank FROM wealth_scores_v2 WHERE rebirths>? OR (rebirths=? AND scoreKey>?)', own.rebirths,own.rebirths,M.key(own.score)).toArray()[0].rank : null;
-    return {entries, own, ownRank, total: this.sql.exec('SELECT COUNT(*) AS total FROM wealth_scores_v2').toArray()[0].total, at: Date.now()};
+    const own = owner ? this.sql.exec('SELECT '+columns+' FROM wealth_scores_v2 WHERE '+visible+' AND id=?', owner).toArray().map(decode)[0] || null : null;
+    const ownRank = own ? this.sql.exec('SELECT COUNT(*)+1 AS rank FROM wealth_scores_v2 WHERE '+visible+' AND (rebirths>? OR (rebirths=? AND scoreKey>?))', own.rebirths,own.rebirths,M.key(own.score)).toArray()[0].rank : null;
+    const moderation=owner?this.sql.exec('SELECT banned,nameBlocked FROM wealth_moderation WHERE id=?',owner).toArray()[0]:null;
+    const ownRevision=own?.revision||(!moderation?.banned&&moderation?.nameBlocked?this.sql.exec('SELECT revision FROM wealth_scores_v2 WHERE id=?',owner).toArray()[0]?.revision:0)||0;
+    return {entries, own, ownRank, ownRevision, banned:!!moderation?.banned, nameBlocked:!!moderation?.nameBlocked, total: this.sql.exec('SELECT COUNT(*) AS total FROM wealth_scores_v2 WHERE '+visible).toArray()[0].total, at: Date.now()};
   }
   async fetch(request) {
     const path = new URL(request.url).pathname;
@@ -36,8 +49,10 @@ export class HistoryLeaderboard extends QuizLeaderboard {
     if (path === '/wealth') return Response.json(this.board(owner));
     if (path !== '/wealth/register') return fail('not-found', 404);
     if (!/^[a-f0-9]{64}$/.test(owner)) return fail('identity-required', 401);
+    if(this.isBanned(owner))return fail('banned',403);
     const name = W.cleanName(data.name);
     if (!name) return fail('nickname');
+    if(W.blockedName(name))return fail('nickname-blocked');
     let metrics;
     try { metrics = W.metrics(data.snapshot); } catch { return fail('invalid-town'); }
     const old = this.sql.exec('SELECT '+columns+' FROM wealth_scores_v2 WHERE id=?', owner).toArray().map(decode)[0];
@@ -46,6 +61,7 @@ export class HistoryLeaderboard extends QuizLeaderboard {
     if (!Number.isSafeInteger(data.expectedRevision) || data.expectedRevision !== (old?.revision || 0)) return fail('record-changed', 409);
     this.sql.exec('INSERT INTO wealth_scores_v2('+columns+',scoreKey,assetsKey) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,rebirths=excluded.rebirths,balance=excluded.balance,buildings=excluded.buildings,residents=excluded.residents,buildingValue=excluded.buildingValue,residentValue=excluded.residentValue,assets=excluded.assets,score=excluded.score,timestamp=excluded.timestamp,revision=excluded.revision,scoreKey=excluded.scoreKey,assetsKey=excluded.assetsKey',
       owner, name, M.full(metrics.balance), metrics.buildings, metrics.residents, metrics.buildingValue, metrics.residentValue, M.full(metrics.assets), M.full(metrics.score), Date.now(), (old?.revision || 0) + 1, metrics.rebirths, M.key(metrics.score), M.key(metrics.assets));
+    this.sql.exec('UPDATE wealth_moderation SET nameBlocked=0 WHERE id=? AND banned=0',owner);
     return Response.json({...this.board(owner), updated: true});
   }
 }

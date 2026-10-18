@@ -28,6 +28,25 @@ function page({balance = 100, city = [], residents = [], store = null, failRead 
   return {dom, w, map, state, posts, $, submit, blockWrites: promise => { block = promise; }, conflictNext: () => { conflict = true; }};
 }
 (async () => {
+  await test('NG name normalization prevents obfuscated names before posting and allows a different name',async()=>{
+    for(const name of ['さとう','サトウ','ｻﾄｳ','さ と う','さ・と・う','さ\u200bとう','町のさとうさん'])assert(R.blockedName(name),name);
+    for(const name of ['さとし','まさと','しろながす'])assert(!R.blockedName(name),name);
+    const p=page();await tick();p.$('wealthName').value='さ・とう';p.submit();await tick();assert.equal(p.posts.length,0);assert(p.$('registrationMessage').textContent.includes('使えません'));assert(!p.$('registerWealth').disabled);p.$('wealthName').value='新しい城下町';p.submit();await tick();assert.equal(p.posts.length,1);p.w.close();
+  });
+  await test('a banned identity cannot use the form or force another registration submission',async()=>{
+    const p=page();p.state.banned=true;await tick();assert(p.$('registerWealth').disabled);assert(p.$('wealthName').disabled);assert.equal(p.$('ownRank').textContent,'利用停止中');assert(p.$('townState').textContent.includes('利用を停止'));p.$('wealthName').value='別名';p.submit();await tick();assert.equal(p.posts.length,0);assert.equal(p.w.HKWallet.snapshot().balance,100);p.w.close();
+  });
+  await test('a held nickname can be corrected using its actual saved revision',async()=>{
+    const p=page();p.state.nameBlocked=true;p.state.ownRevision=4;await tick();assert(!p.$('registerWealth').disabled);p.$('wealthName').value='新しい城下町';p.submit();await tick();assert.equal(p.posts[0].body.expectedRevision,4);assert(p.$('registrationMessage').textContent.includes('ランキングに反映'));p.w.close();
+  });
+  await test('a server ban disables a stale open form and remains disabled using the saved board offline',async()=>{
+    const p=page();await tick();const fetch=p.w.fetch;p.w.fetch=(url,options)=>options.method==='POST'?Promise.resolve({ok:false,json:async()=>({error:'banned'})}):fetch(url,options);p.$('wealthName').value='別名';p.submit();await tick();assert(p.$('registrationMessage').textContent.includes('利用を停止'));assert(p.$('registerWealth').disabled);
+    const q=page({store:p.map,failRead:true});await tick();assert(q.$('registerWealth').disabled);assert.equal(q.$('ownRank').textContent,'利用停止中');p.w.close();q.w.close();
+  });
+  await test('an offline board never displays old cached NG names',async()=>{
+    const entry={id:'hidden',name:'さとうきよと',...R.metrics({balance:100,buildings:{},residents:{}}),revision:1,timestamp:1,rank:1},safe={...entry,id:'safe',name:'城下町',rank:2},store=new Map([['money_v1','100'],['hk_wealth_identity_v1','a'.repeat(64)],['hk_wealth_cache_v1',JSON.stringify({entries:[entry,safe],own:entry,ownRank:1,total:2,at:1})]]),p=page({store,failRead:true});
+    await tick();assert(!p.$('wealthRows').textContent.includes('さとう'));assert(p.$('wealthRows').textContent.includes('城下町'));assert.equal(p.$('ownRank').textContent,'未登録');assert(p.$('townState').textContent.includes('別の名前'));p.w.close();
+  });
   await test('buying every kind of structure or resident conserves asset value and rewards growth', () => {
     for (const item of C.items) {
       const snapshot = {balance: 1000-item.price, buildings: {}, residents: {}};

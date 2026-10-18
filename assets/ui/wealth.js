@@ -5,6 +5,8 @@
   const number = window.HKAmounts.format;
   let board = null, local = null, reading = false, writing = false, lastRead = 0, epoch = 0;
   const errors = {'rate-limited': 'アクセスが集中しています。少し待って、もう一度押してね。', 'nickname': 'ランキングに使う名前を入力してね。', 'record-changed': '別の画面で記録が更新されました。最新の順位を確認してから、もう一度更新してね。', 'invalid-town': '町のデータを集計できませんでした。わたしの町で保存状態を確認してね。', 'identity-unavailable': 'このブラウザに登録情報を保存できません。ブラウザの保存設定を確認してね。'};
+  errors['nickname-blocked']='その名前はランキングに使えません。別の名前を入力してね。';
+  errors.banned='この登録情報は成金ランキングの利用を停止されています。';
   function stored(key) { try { return localStorage.getItem(key); } catch { return null; } }
   function identity(create = false) {
     const saved = stored(keys.identity);
@@ -20,9 +22,9 @@
   function date(value, detailed = false) { return new Intl.DateTimeFormat('ja-JP', {timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', ...(detailed ? {hour: '2-digit', minute: '2-digit'} : {})}).format(new Date(value)); }
   function message(text, error = false) { $('registrationMessage').textContent = text; $('registrationMessage').classList.toggle('error', error); }
   function controls() {
-    $('registerWealth').disabled = writing || reading || !local;
-    $('wealthName').disabled = writing;
-    $('registerWealth').textContent = writing ? '登録しています…' : board?.own ? '最新の経済力に更新' : 'この名前で登録する';
+    $('registerWealth').disabled = writing || reading || !local || !!board?.banned;
+    $('wealthName').disabled = writing || !!board?.banned;
+    $('registerWealth').textContent = board?.banned ? 'ランキング利用停止中' : writing ? '登録しています…' : board?.own ? '最新の経済力に更新' : 'この名前で登録する';
     $('refreshWealth').disabled = reading || writing;
     $('wealthBoard').setAttribute('aria-busy', String(reading || writing));
   }
@@ -30,8 +32,8 @@
     try { local = W.readLocal(localStorage, window.HKWallet.snapshot()); }
     catch { local = null; }
     for (const [id, key] of [['localRebirths','rebirths'],['localScore', 'score'], ['localAssets', 'assets'], ['localBuildings', 'buildings'], ['localResidents', 'residents'], ['localBalance', 'balance']]) $(id).textContent = local ? number(local[key]) : '—';
-    $('ownRank').textContent = board?.own ? number(board.ownRank)+'位' : '未登録';
-    $('townState').textContent = !local ? '町の保存データを読み込めませんでした。わたしの町で確認してね。' : !board?.own ? '名前を入力すれば、今の町で参加できます。' : W.sameMetrics(local, board.own) ? '今の経済力が登録されています。' : '町の状態が変わりました。最新の経済力に更新できます。';
+    $('ownRank').textContent = board?.banned ? '利用停止中' : board?.own ? number(board.ownRank)+'位' : '未登録';
+    $('townState').textContent = board?.banned ? errors.banned : board?.nameBlocked ? '登録していた名前は使用できません。別の名前で登録し直してね。' : !local ? '町の保存データを読み込めませんでした。わたしの町で確認してね。' : !board?.own ? '名前を入力すれば、今の町で参加できます。' : W.sameMetrics(local, board.own) ? '今の経済力が登録されています。' : '町の状態が変わりました。最新の経済力に更新できます。';
     controls();
   }
   function renderRows() {
@@ -55,8 +57,9 @@
   }
   function accept(data, cached = false) {
     if (!data || !Array.isArray(data.entries) || !Number.isSafeInteger(data.total) || !Number.isSafeInteger(data.at)) throw Error('invalid-response');
-    board = data;
-    if (!cached) { try { localStorage.setItem(keys.cache, JSON.stringify(data)); } catch {} }
+    const ownBlocked=!!data.own&&W.blockedName(data.own.name);
+    board = {...data,entries:data.entries.filter(entry=>!W.blockedName(entry.name)),own:data.banned||ownBlocked?null:data.own,ownRank:data.banned||ownBlocked?null:data.ownRank,ownRevision:data.ownRevision??data.own?.revision??0,nameBlocked:!!data.nameBlocked||ownBlocked};
+    if (!cached) { try { localStorage.setItem(keys.cache, JSON.stringify(board)); } catch {} }
     if (board.own && !$('wealthName').value) $('wealthName').value = board.own.name;
     $('freshness').textContent = (cached ? '保存済み ' : '更新 ')+date(data.at, true);
     $('boardStatus').textContent = cached ? '接続できないため、保存済みの順位を表示しています。' : '';
@@ -84,11 +87,12 @@
     } finally { reading = false; renderLocal(); }
   }
   $('wealthRegister').addEventListener('submit', async event => {
-    event.preventDefault(); if (writing || reading) return;
+    event.preventDefault(); if (writing || reading || board?.banned) return;
     renderLocal(); const name = W.cleanName($('wealthName').value);
     if (!name) { message(errors.nickname, true); $('wealthName').focus(); return; }
+    if(W.blockedName(name)){message(errors['nickname-blocked'],true);$('wealthName').focus();return;}
     if (!local) { message(errors['invalid-town'], true); return; }
-    const snapshot = local.snapshot, expectedRevision = board?.own?.revision || 0;
+    const snapshot = local.snapshot, expectedRevision = board?.own?.revision || board?.ownRevision || 0;
     writing = true; ++epoch; controls(); message('今の町をランキングに反映しています…');
     let conflict = false;
     try {
@@ -96,7 +100,7 @@
       accept(data); $('wealthName').value = data.own.name;
       try { localStorage.setItem(keys.name, data.own.name); } catch {}
       message(data.updated ? 'ランキングに反映しました！ あなたは '+number(data.ownRank)+'位です。' : '今の名前と経済力は、すでに登録されています。');
-    } catch (error) { conflict = error.message === 'record-changed'; message(errors[error.message] || '登録できませんでした。通信を確認して、もう一度押してね。', true); }
+    } catch (error) { conflict = error.message === 'record-changed'; if(error.message==='banned'&&board){board={...board,banned:true,own:null,ownRank:null};try{localStorage.setItem(keys.cache,JSON.stringify(board));}catch{}} message(errors[error.message] || '登録できませんでした。通信を確認して、もう一度押してね。', true); }
     finally { writing = false; renderLocal(); }
     if (conflict) await refresh();
   });

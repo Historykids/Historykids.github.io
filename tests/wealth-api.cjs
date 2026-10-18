@@ -101,5 +101,24 @@ const assert = require('node:assert/strict'), {DatabaseSync} = require('node:sql
     const capped=await req('/wealth/register',{name:'輪廻上限',snapshot:{...empty,rebirths:10000,balance:0},expectedRevision:0},'8'.repeat(64));assert.equal(capped.status,200);assert.equal(capped.body.own.rebirths,10000);assert.equal(capped.body.ownRank,1);
     assert.equal((await req('/ranking')).body.entries[0].name,'早押しの記録');
   });
+  await test('NG names are rejected by the server including kana, spaces and invisible separators',async()=>{
+    const before=db.prepare('SELECT COUNT(*) AS total FROM wealth_scores_v2').get().total;
+    for(const name of ['さとう','さとうの町','サトウ','ｻﾄｳ','さ と う','さ・と・う','さ\u200bとう','さとうきよと']){
+      const r=await req('/wealth/register',{name,snapshot:empty,expectedRevision:0},'9'.repeat(64));assert.equal(r.status,400,name);assert.equal(r.body.error,'nickname-blocked');
+    }
+    assert.equal(db.prepare('SELECT COUNT(*) AS total FROM wealth_scores_v2').get().total,before);
+  });
+  await test('existing target identities stay banned across renames and restarts while other NG names can be corrected',async()=>{
+    const M=globalThis.HKAmounts,hash=async token=>Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token))).toString('hex'),bannedToken='9'.repeat(64),heldToken='f'.repeat(64),bannedId=await hash(bannedToken),heldId=await hash(heldToken),before=(await req('/wealth',undefined,'8'.repeat(64))).body;
+    const insert=db.prepare('INSERT INTO wealth_scores_v2(id,name,balance,buildings,residents,buildingValue,residentValue,assets,score,timestamp,revision,scoreKey,assetsKey,rebirths) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+    for(const [id,name,rebirths] of [[bannedId,'さとうきよと',10000],[heldId,'さとうの町',0]])insert.run(id,name,'20',0,0,0,0,'20','20',1,1,M.key(20),M.key(20),rebirths);
+    assert.equal((await req('/wealth',undefined,'8'.repeat(64))).body.ownRank,2);
+    db.prepare('DELETE FROM wealth_schema_migrations WHERE version=3').run();board=new HistoryLeaderboard(ctx);
+    const removed=(await req('/wealth',undefined,bannedToken)).body;assert(removed.banned);assert.equal(removed.own,null);assert.equal(removed.ownRank,null);assert.equal(removed.total,before.total);assert(!removed.entries.some(e=>e.id===bannedId||e.id===heldId));assert.equal((await req('/wealth',undefined,'8'.repeat(64))).body.ownRank,1);
+    const rename=await req('/wealth/register',{name:'別の名前',snapshot:empty,expectedRevision:1},bannedToken);assert.equal(rename.status,403);assert.equal(rename.body.error,'banned');assert.equal(db.prepare('SELECT name FROM wealth_scores_v2 WHERE id=?').get(bannedId).name,'さとうきよと');
+    db.prepare('UPDATE wealth_scores_v2 SET name=? WHERE id=?').run('名前を変えた記録',bannedId);board=new HistoryLeaderboard(ctx);assert((await req('/wealth',undefined,bannedToken)).body.banned);assert.equal((await req('/wealth/register',{name:'さらに別名',snapshot:empty,expectedRevision:1},bannedToken)).status,403);
+    const held=(await req('/wealth',undefined,heldToken)).body;assert(held.nameBlocked);assert(!held.banned);assert.equal(held.ownRevision,1);const fixed=await req('/wealth/register',{name:'新しい城下町',snapshot:empty,expectedRevision:held.ownRevision},heldToken);assert.equal(fixed.status,200);assert.equal(fixed.body.own.name,'新しい城下町');assert(!fixed.body.nameBlocked);assert.equal(fixed.body.total,before.total+1);
+    assert.equal((await req('/ranking')).body.entries[0].name,'早押しの記録');
+  });
   db.close(); console.log(count+' wealth API checks passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -1,3 +1,13 @@
+// Regression fixtures for in-flight draw hands created before Hold'em deployment.
+function legacyPoker(board){
+ board.poker.empty=()=>({...board.poker.legacyEmpty(),rules:'draw-v1'});
+ const current=JSON.parse(board.poker.sql.exec('SELECT state FROM poker_room WHERE singleton=1').toArray()[0].state);
+ if(current.phase==='lobby'&&!current.players.length&&current.rules==='holdem-v1'){
+  const json=JSON.stringify(board.poker.empty());
+  board.poker.sql.exec('UPDATE poker_room SET state=? WHERE singleton=1',json);
+  board.poker.sql.exec('UPDATE poker_rooms SET state=? WHERE id=1',json);
+ }
+}
 const assert=require('node:assert/strict'),{DatabaseSync}=require('node:sqlite'),{createHash}=require('node:crypto');
 let checks=0;async function test(name,fn){await fn();checks++;console.log('PASS',name);}
 (async()=>{
@@ -6,14 +16,14 @@ let checks=0;async function test(name,fn){await fn();checks++;console.log('PASS'
   const db=new DatabaseSync(':memory:');
   if(legacy){db.exec('CREATE TABLE operation_notices(id INTEGER PRIMARY KEY AUTOINCREMENT,requestId TEXT NOT NULL UNIQUE,title TEXT NOT NULL,body TEXT NOT NULL,createdAt INTEGER NOT NULL)');db.prepare('INSERT INTO operation_notices(requestId,title,body,createdAt) VALUES(?,?,?,?)').run('old_broadcast_00001','従来のお知らせ','全員向けの本文',1);}
   const storage={sql:{exec(q,...args){if(!args.length&&q.includes(';')){db.exec(q);return{toArray:()=>[]};}const s=db.prepare(q);if(/^(SELECT|PRAGMA)/i.test(q))return{toArray:()=>s.all(...args)};s.run(...args);return{toArray:()=>[]};}},transactionSync(fn){db.exec('BEGIN');try{const result=fn();db.exec('COMMIT');return result;}catch(e){db.exec('ROLLBACK');throw e;}}};
-  let now=100000,board=new HistoryLeaderboard({storage});board.poker.now=()=>now;
+  let now=100000,board=new HistoryLeaderboard({storage});board.poker.now=()=>now;legacyPoker(board);
   const tokens=Array.from({length:16},(_,i)=>(i+1).toString(16).padStart(64,'0')),hash=i=>createHash('sha256').update(tokens[i]).digest('hex'),limiter={limit:async()=>({success:true})};
   const env={LEADERBOARD:{idFromName:n=>n,get:()=>({fetch:r=>board.fetch(r)})},RANK_READ_LIMITER:limiter,RANK_WRITE_LIMITER:limiter,RANK_GLOBAL_LIMITER:limiter,ADMIN_CLAIM_LIMITER:limiter,POKER_ROOM_LIMITER:limiter};
   async function req(route,body,index=0,tokenOverride=null){const r=await worker.fetch(new Request('https://api.example'+route,{method:body===undefined?'GET':'POST',headers:{Origin:'https://historykids.github.io',...(index===null?{}:{Authorization:'Bearer '+(tokenOverride||tokens[index])}),...(body===undefined?{}:{'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})}),env);return{status:r.status,body:await r.json()};}
   async function register(i,name='参加者'+i){const own=(await req('/wealth',undefined,i)).body;const r=await req('/wealth/register',{name,expectedRevision:own.ownRevision||0,snapshot:{balance:1000,rebirths:10,buildings:{},residents:{}}},i);assert.equal(r.status,200);}
   const id=i=>'expansion_ticket_'+String(i).padStart(10,'0');
   async function join(i,room='royal-one',stake=10){assert.equal((await req('/wealth/poker/reserve',{id:id(i),stake,room},i)).status,200);assert.equal((await req('/wealth/poker/commit',{id:id(i),room},i)).status,200);}
-  return{db,storage,tokens,hash,req,register,join,id,get board(){return board;},advance(ms){now+=ms;},restart(){board=new HistoryLeaderboard({storage});board.poker.now=()=>now;}};
+  return{db,storage,tokens,hash,req,register,join,id,get board(){return board;},advance(ms){now+=ms;},restart(){board=new HistoryLeaderboard({storage});board.poker.now=()=>now;legacyPoker(board);}};
  }
  const h=harness(true),{req,register,hash}=h;
  await test('existing broadcast notices migrate as public without changing titles, bodies or identifiers',async()=>{

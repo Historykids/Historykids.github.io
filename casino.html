@@ -27,15 +27,15 @@
   <script defer src="./assets/ui/bitcoin.js?v=ten-seconds-20261006"></script>
   <script defer src="./assets/ui/table-rules.js?v=royal-20261016"></script>
   <script defer src="./assets/ui/royal-poker.js?v=royal-20261016"></script>
-  <script defer src="./assets/ui/casino-vip.js?v=sovereign-classic-20261020"></script>
+  <script defer src="./assets/ui/casino-vip.js?v=holdem-20261021"></script>
   <script defer src="./assets/ui/core.js?v=pagoda-torii-20261008"></script>
   <script defer src="./assets/ui/wealth-rules.js?v=owner-20261018"></script>
   <script defer src="./assets/ui/ranking-config.js?v=wealth-20261008"></script>
-  <script defer src="./assets/ui/community.js?v=expansion-20261020"></script>
-  <script defer src="./assets/ui/online-poker.js?v=expansion-20261020"></script>
+  <script defer src="./assets/ui/community.js?v=holdem-20261021"></script>
+  <script defer src="./assets/ui/online-poker.js?v=holdem-20261021"></script>
   <script defer src="./assets/ui/pachinko.js?v=expansion-20261020"></script>
-  <script defer src="./assets/ui/casino.js?v=wallet-recovery-20261021"></script>
-<link rel="stylesheet" href="./assets/ui/online-poker.css?v=expansion-20261020">
+  <script defer src="./assets/ui/casino.js?v=holdem-20261021"></script>
+<link rel="stylesheet" href="./assets/ui/online-poker.css?v=holdem-20261021">
 <link rel="stylesheet" href="./assets/ui/pachinko.css?v=expansion-20261020">
 <link rel="canonical" href="https://historykids.github.io/casino.html" />
 </head>
@@ -115,17 +115,17 @@
           <p class="stage-caption">カードを押して残すものを選び、1回だけ交換。J以上のワンペアから配当！</p>
           <div id="royalPaytable" class="royal-paytable" aria-label="王者のポーカーの配当"></div></div>
           <div id="onlinePoker" class="online-poker">
-            <div class="room-heading"><div><span class="eyebrow">THE SOVEREIGN’S LOUNGE</span><h2>王者のポーカー</h2><p>王者同士、同じ卓で。満室なら、次の部屋へ。</p></div><span id="roomPhase" class="room-phase">接続を確認中</span></div>
+            <div class="room-heading"><div><span class="eyebrow">THE SOVEREIGN’S LOUNGE</span><h2>王者のポーカー</h2><p>テキサスホールデム。手札2枚と共通カード5枚で、王者を決める。</p></div><span id="roomPhase" class="room-phase">接続を確認中</span></div>
             <div class="room-picker"><label for="roomSelect">対戦部屋<select id="roomSelect"><option value="royal-one">第1室</option></select></label><span id="roomTotal">1部屋 · 満室になると次の部屋が開きます</span></div>
             <div class="room-dashboard"><div><small>あなたの席</small><b id="roomRole">観戦席</b></div><div><small>ポット</small><b id="roomPot">0両</b></div><div><small>参加者</small><b id="roomCount">0 / 6人</b></div><div><small>残り時間</small><b id="roomClock">—</b></div></div>
-            <div class="room-table"><div class="room-table-mark" aria-hidden="true">♔<span>THE SOVEREIGN’S TABLE</span></div><div id="roomSeats" class="room-seats" aria-label="対戦部屋の6席"></div></div>
+            <div class="room-table"><div class="room-table-mark" aria-hidden="true">♔<span>THE SOVEREIGN’S TABLE</span></div><section id="roomBoard" class="room-board" aria-label="共通カード" hidden><div class="room-board-top"><b id="roomStreet">TEXAS HOLD’EM</b><span id="roomBlinds"></span></div><div id="roomBoardCards" class="room-board-cards"></div><p id="roomTurn" role="status"></p></section><div id="roomSeats" class="room-seats" aria-label="対戦部屋の6席"></div></div>
             <p id="roomWatchHint" class="room-watch-hint">対戦中に入室すると観戦になり、次のハンドから参加できます。</p>
             <section id="roomHand" class="room-hand" hidden><h3>あなたの手札</h3><div id="roomHandCards" class="room-hand-cards" role="group" aria-label="残すカードを選ぶ"></div><p id="roomHoldHint">残すカードを押して選ぼう。</p><button id="roomDraw" type="button" disabled>交換して確定</button></section>
-            <form id="roomJoinForm" class="room-join" hidden><div><h3>次のハンドに参加</h3><p>共通の掛け金：<b id="roomCommonStake">最初の参加者が設定</b></p></div><label>ランキングで使う名前<input id="roomName" maxlength="24" autocomplete="off" placeholder="登録済みなら同じ名前を入力"></label><label>この部屋の掛け金（両）<input id="roomStake" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="72" value="100"></label><p>最初の人が掛け金を決め、全員が同額で参加します。名前と最新の町の集計値を成金ランキングにも登録します。</p><button id="roomJoin" type="submit">この掛け金で参加する</button></form>
+            <section id="roomBetting" class="room-betting" aria-label="ベッティング" hidden><div class="room-actions"><button id="roomFold" type="button" disabled>フォールド</button><button id="roomCall" type="button" disabled>チェック</button><button id="roomAllin" type="button" disabled>オールイン</button></div><div class="room-raise"><label for="roomRaise">このラウンドの合計ベット額（両）</label><input id="roomRaise" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="72" aria-describedby="roomBetHint"><button id="roomRaiseCommit" type="button" disabled>ベット／レイズ</button></div><p id="roomBetHint"></p></section><form id="roomJoinForm" class="room-join" hidden><div><h3>次のハンドに参加</h3><p>共通の持ち込み両：<b id="roomCommonStake">最初の参加者が設定</b></p></div><label>ランキングで使う名前<input id="roomName" maxlength="24" autocomplete="off" placeholder="登録済みなら同じ名前を入力"></label><label>この部屋の持ち込み両（20両以上）<input id="roomStake" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="72" value="100"></label><p>最初の人が持ち込み額を決め、全員が同額で参加します。使わなかった両はハンド終了時に返ります。名前と最新の町の集計値を成金ランキングにも登録します。</p><button id="roomJoin" type="submit">この持ち込み額で参加する</button></form>
             <div id="roomOutcome" class="room-outcome" role="status" hidden><h3 id="roomOutcomeTitle"></h3><b id="roomOutcomeAmount"></b></div>
             <div class="room-tools"><button id="roomRefresh" type="button">部屋を更新</button><button id="roomLeave" type="button" hidden>参加を取り消す</button></div><div id="roomLeaveConfirm" class="room-leave-confirm" hidden><p id="roomLeaveConfirmText"></p><button id="roomLeaveCommit" type="button">退席する</button><button id="roomLeaveCancel" type="button">戻る</button></div>
             <p id="roomMessage" class="room-message" role="status" aria-live="polite">リボーン10回以上で参加できます。部屋を選んでね。</p>
-            <details class="room-rules"><summary>対人ポーカーの遊び方</summary><p>2〜6人で5枚の役を比べるドローポーカーです。2人の参加が確定すると10秒後に配布。残すカードを選んで1回だけ交換し、45秒以内に確定してください。時間切れはフォールドになります。</p><p>勝者が全員の掛け金を集めたポットを獲得。同じ役の強さなら分配します。勝者の払い戻しには自分のリボーン倍率がかかります。待機中の退席は全額返金、配布後はフォールドです。</p><p>対戦中の途中参加は観戦です。結果は10秒表示してから次の参加を受付。他の人の手札は結果まで非公開で、フォールドした手札も見せません。通信が切れても、再読み込みで参加情報と払い戻しを復元できます。待機中に90秒以上切断した場合や、2分間相手が集まらない場合は、参加を取り消して返金します。</p></details>
+            <details class="room-rules"><summary>対人ポーカーの遊び方</summary><p>2〜6人で対戦するノーリミット・テキサスホールデムです。各自の手札2枚と、全員共通のカード5枚から最強の5枚を作ります。交換はありません。2人以上の参加が確定すると10秒後に配布します。</p><p>プリフロップ、フロップ（3枚）、ターン（1枚）、リバー（1枚）の順にベッティングします。チェック・コール・レイズ・フォールド・オールインを自分の番に選んでください。レイズ欄はそのラウンドの合計額です。持ち込みは20両以上で、所持金の範囲に上限はありません。SBは持ち込み額の1%（切り捨て・最低1両）、BBはその2倍です。</p><p>操作は1人45秒。時間切れは、追加の両が不要ならチェック、必要ならフォールドです。未使用分と誰もコールしなかった分はそのまま返金し、獲得ポットに自分のリボーン倍率を適用します。複数のオールインはサイドポットを作り、同点は各ポットを分配します。端数の1両はボタンの左から順に配ります。</p><p>対戦中の途中参加は観戦です。各部屋は最大6人、満室なら新しい部屋を追加します。結果は10秒表示。他の人の手札はショーダウンまで非公開で、フォールドした手札は公開しません。通信が切れても同じ参加情報・操作・払い戻しを復元できます。待機中の取り消し、90秒以上の切断、2分間相手が集まらない場合は全額返金します。進行中の旧ルールのハンドはそのまま精算します。</p></details>
           </div>
         </section>
         <section id="panel-pachinko" class="casino-panel pachinko-panel" role="tabpanel" aria-labelledby="tab-emperor" hidden>

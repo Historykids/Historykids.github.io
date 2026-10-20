@@ -25,6 +25,8 @@ jobs:
         run: npm ci
       - name: Check answers, ownership, retry and durable storage
         run: |
+          node tests/holdem.cjs
+          node tests/holdem-ui.cjs
           node tests/admin.cjs
           node tests/community-api.cjs
           node tests/expansion-api.cjs
@@ -57,7 +59,7 @@ jobs:
                 const published=await notices.json();
                 const room=await fetch(new URL('/wealth/poker',base),{headers:{Origin:'https://historykids.github.io',Authorization:'Bearer '+probeToken},signal:AbortSignal.timeout(15000)});
                 const table=await room.json();
-                ready=notices.ok&&Array.isArray(published.notices)&&published.notices.every(n=>n.audience==='all'&&!('recipient' in n))&&room.ok&&table.room==='royal-one'&&Array.isArray(table.rooms)&&table.rooms.every(r=>!('hand' in r)&&!('owner' in r))&&Array.isArray(table.players)&&!('deck' in table)&&table.players.every(player=>!('owner' in player));
+                ready=notices.ok&&Array.isArray(published.notices)&&published.notices.every(n=>n.audience==='all'&&!('recipient' in n))&&room.ok&&table.protocols?.includes('holdem-v1')&&table.room==='royal-one'&&Array.isArray(table.rooms)&&table.rooms.every(r=>!('hand' in r)&&!('owner' in r))&&Array.isArray(table.players)&&!('deck' in table)&&table.players.every(player=>!('owner' in player));
               }catch{ready=false;}
             }
             if(ready)break;

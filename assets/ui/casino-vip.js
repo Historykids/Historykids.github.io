@@ -4,7 +4,7 @@
  const rooms={
   silver:{number:'II',en:'THE LUNAR SALON',title:'月光を纏う、銀の宮殿。',name:'銀のルーレット',copy:'白銀の回廊。星を映す盤面。その一球が、静寂を変える。',required:2,feature:'37 POCKETS / SILVER EDITION',win:'MOONLIT VICTORY',seal:'月'},
   gold:{number:'V',en:'THE PHOENIX VAULT',title:'黄金が、目を覚ます。',name:'金のスロット',copy:'鳳凰の紋章、磨かれた金塊、きらめく宝石。八つのラインに、栄光を。',required:5,feature:'8 LINES / GOLDEN EDITION',win:'GOLDEN FORTUNE',seal:'鳳'},
-  king:{number:'X',en:'THE SOVEREIGN’S CHAMBER',title:'王者の卓で、腕を競え。',name:'王者のポーカー',copy:'リボーン10回を越えた者たちが、王者の部屋に集う。五枚の手札で、王者を決める。',required:10,feature:'ROYAL ROOMS / 2–6 PLAYERS',win:'ROYAL TRIUMPH',seal:'王'},
+  king:{number:'X',en:'THE SOVEREIGN’S CHAMBER',title:'王者の卓で、腕を競え。',name:'王者のポーカー',copy:'リボーン10回を越えた者たちが、王者の部屋に集う。二枚の手札と五枚の共通カードで、王者を決める。',required:10,feature:'TEXAS HOLD’EM / 2–6 PLAYERS',win:'ROYAL TRIUMPH',seal:'王'},
   sovereign:{number:'XV',en:'THE IMPERIAL TREASURY',title:'その王冠に、さらなる黄金を。',name:'王者のスロット',copy:'深紅の宝石、王家の金塊、三つの7。通常台の1.2倍の配当を、王者の特等席で。',required:15,feature:'8 LINES / PAYOUT ×1.2',win:'IMPERIAL JACKPOT',seal:'帝'},
   emperor:{number:'XX',en:'THE GOLDEN PAVILION',title:'銀の玉が、黄金を呼ぶ。',name:'パチンコ',copy:'幾重もの釘をくぐり、玉は運命の入賞口へ。十球の軌跡と、三つの数字。二十の転生を越えた、黄金の一台。',required:20,feature:'10 BALLS / GOLDEN PACHINKO',win:'GOLDEN FEVER',seal:'極'}
  };

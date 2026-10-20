@@ -1,10 +1,20 @@
+// Regression fixtures for in-flight draw hands created before Hold'em deployment.
+function legacyPoker(board){
+ board.poker.empty=()=>({...board.poker.legacyEmpty(),rules:'draw-v1'});
+ const current=JSON.parse(board.poker.sql.exec('SELECT state FROM poker_room WHERE singleton=1').toArray()[0].state);
+ if(current.phase==='lobby'&&!current.players.length&&current.rules==='holdem-v1'){
+  const json=JSON.stringify(board.poker.empty());
+  board.poker.sql.exec('UPDATE poker_room SET state=? WHERE singleton=1',json);
+  board.poker.sql.exec('UPDATE poker_rooms SET state=? WHERE id=1',json);
+ }
+}
 const assert=require('node:assert/strict'),{DatabaseSync}=require('node:sqlite'),{createHash}=require('node:crypto'),C=require('../assets/ui/table-rules.js'),M=require('../assets/ui/amounts.js');
 let checks=0;async function test(name,fn){await fn();checks++;console.log('PASS',name);}
 (async()=>{
  const {default:worker,HistoryLeaderboard}=await import('../server/ranking-api/worker.mjs');
  const db=new DatabaseSync(':memory:');let failSql='',now=100000;
  const storage={sql:{exec(q,...args){if(failSql&&q.startsWith(failSql))throw Error('write failed');if(!args.length&&q.includes(';')){db.exec(q);return{toArray:()=>[]};}const stmt=db.prepare(q);if(/^(SELECT|PRAGMA)/i.test(q))return{toArray:()=>stmt.all(...args)};stmt.run(...args);return{toArray:()=>[]};}},transactionSync(fn){db.exec('BEGIN');try{const value=fn();db.exec('COMMIT');return value;}catch(e){db.exec('ROLLBACK');throw e;}}};
- let board=new HistoryLeaderboard({storage});board.poker.now=()=>now;
+ let board=new HistoryLeaderboard({storage});board.poker.now=()=>now;legacyPoker(board);
  const limiter={limit:async()=>({success:true})},env={LEADERBOARD:{idFromName:n=>n,get:()=>({fetch:r=>board.fetch(r)})},RANK_READ_LIMITER:limiter,RANK_WRITE_LIMITER:limiter,RANK_GLOBAL_LIMITER:limiter,ADMIN_CLAIM_LIMITER:limiter,POKER_ROOM_LIMITER:limiter};
  const tokens=Array.from({length:8},(_,i)=>(i+1).toString(16).repeat(64)),id=i=>'poker_ticket_'+String(i).padStart(20,'0'),owner=i=>createHash('sha256').update(tokens[i]).digest('hex');
  async function req(path,body,index=0){const response=await worker.fetch(new Request('https://api.example'+path,{method:body===undefined?'GET':'POST',headers:{Origin:'https://historykids.github.io',...(index===null?{}:{Authorization:'Bearer '+tokens[index]}),...(body===undefined?{}:{'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})}),env);return{status:response.status,body:await response.json()};}
@@ -24,7 +34,7 @@ let checks=0;async function test(name,fn){await fn();checks++;console.log('PASS'
  await test('dealing persists privately across restarts and late arrivals remain spectators',async()=>{
   const fixed=['AS','KS','QS','JS','TS','2S','2H','3D','5C','8S'];board.poker.shuffle=()=>[...fixed,...C.deck().filter(c=>!fixed.includes(c))];now+=10000;
   const a=(await req('/wealth/poker')).body;assert.equal(a.phase,'playing');assert.deepEqual(a.players[0].hand,fixed.slice(0,5));assert.equal(a.players[1].hand,null);assert(!JSON.stringify(a).includes('owner'));assert(!('deck' in a));assert(!('discards' in a));
-  board=new HistoryLeaderboard({storage});board.poker.now=()=>now;
+  board=new HistoryLeaderboard({storage});board.poker.now=()=>now;legacyPoker(board);
   const again=(await req('/wealth/poker')).body;assert.deepEqual(again.players[0].hand,a.players[0].hand);assert.equal(again.handId,a.handId);
   await register(2);const watch=(await req('/wealth/poker',undefined,2)).body;assert.equal(watch.ownId,null);assert(watch.players.every(p=>p.hand===null));assert.equal((await req('/wealth/poker/reserve',{id:id(2),stake:10},2)).body.error,'poker-spectating');
  });
@@ -85,7 +95,7 @@ let checks=0;async function test(name,fn){await fn();checks++;console.log('PASS'
   const body={requestId:id(80),title:'新しい遊びのお知らせ',body:'一行目\n<img src=x onerror=alert(1)>'};const sent=await req('/wealth/admin/notices',body);assert.equal(sent.status,200);assert.equal(sent.body.notices.length,1);
   assert.equal((await req('/wealth/admin/notices',body)).body.notices.length,1);assert.equal((await req('/wealth/admin/notices',{...body,body:'変更'})).status,409);
   const received=(await req('/wealth/notices',undefined,null)).body;assert.equal(received.notices[0].body,body.body);assert(!JSON.stringify(received).includes('requestId'));
-  board=new HistoryLeaderboard({storage});board.poker.now=()=>now;assert.equal((await req('/wealth/notices',undefined,2)).body.notices[0].title,body.title);
+  board=new HistoryLeaderboard({storage});board.poker.now=()=>now;legacyPoker(board);assert.equal((await req('/wealth/notices',undefined,2)).body.notices[0].title,body.title);
   assert.equal((await req('/wealth/admin/notices',{requestId:id(81),title:'a'.repeat(81),body:'本文'})).status,400);assert.equal((await req('/wealth/admin/notices',{requestId:id(82),title:'件名',body:'a'.repeat(2001)})).status,400);
  });
  console.log(checks+' community server checks passed.');

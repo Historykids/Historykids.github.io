@@ -1,3 +1,13 @@
+// Regression fixtures for in-flight draw hands created before Hold'em deployment.
+function legacyPoker(board){
+ board.poker.empty=()=>({...board.poker.legacyEmpty(),rules:'draw-v1'});
+ const current=JSON.parse(board.poker.sql.exec('SELECT state FROM poker_room WHERE singleton=1').toArray()[0].state);
+ if(current.phase==='lobby'&&!current.players.length&&current.rules==='holdem-v1'){
+  const json=JSON.stringify(board.poker.empty());
+  board.poker.sql.exec('UPDATE poker_room SET state=? WHERE singleton=1',json);
+  board.poker.sql.exec('UPDATE poker_rooms SET state=? WHERE id=1',json);
+ }
+}
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{JSDOM}=require('jsdom'),{DatabaseSync}=require('node:sqlite'),{createHash}=require('node:crypto'),M=require('../assets/ui/amounts.js'),C=require('../assets/ui/table-rules.js'),R=require('../assets/ui/casino-rules.js');
 const root=path.resolve(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p),'utf8'),tick=()=>new Promise(r=>setImmediate(r)),flush=async()=>{for(let i=0;i<25;i++)await new Promise(r=>setTimeout(r,5));};
 const opened=[];let checks=0;async function test(name,fn){await fn();checks++;console.log('PASS',name);}
@@ -6,7 +16,7 @@ const call=(W,fn,...args)=>new Promise((yes,no)=>W[fn](...args,yes,no));
  const {default:worker,HistoryLeaderboard}=await import('../server/ranking-api/worker.mjs');
  function harness(){
   const db=new DatabaseSync(':memory:'),storage={sql:{exec(q,...args){if(!args.length&&q.includes(';')){db.exec(q);return{toArray:()=>[]};}const st=db.prepare(q);if(/^(SELECT|PRAGMA)/i.test(q))return{toArray:()=>st.all(...args)};st.run(...args);return{toArray:()=>[]};}},transactionSync(fn){db.exec('BEGIN');try{const r=fn();db.exec('COMMIT');return r;}catch(e){db.exec('ROLLBACK');throw e;}}};
-  let now=200000,failAfter='';const board=new HistoryLeaderboard({storage});board.poker.now=()=>now;const calls=[],limiter={limit:async()=>({success:true})},env={LEADERBOARD:{idFromName:n=>n,get:()=>({fetch:r=>board.fetch(r)})},RANK_READ_LIMITER:limiter,RANK_WRITE_LIMITER:limiter,RANK_GLOBAL_LIMITER:limiter,ADMIN_CLAIM_LIMITER:limiter,POKER_ROOM_LIMITER:limiter};
+  let now=200000,failAfter='';const board=new HistoryLeaderboard({storage});board.poker.now=()=>now;legacyPoker(board);const calls=[],limiter={limit:async()=>({success:true})},env={LEADERBOARD:{idFromName:n=>n,get:()=>({fetch:r=>board.fetch(r)})},RANK_READ_LIMITER:limiter,RANK_WRITE_LIMITER:limiter,RANK_GLOBAL_LIMITER:limiter,ADMIN_CLAIM_LIMITER:limiter,POKER_ROOM_LIMITER:limiter};
   async function fetch(url,options={}){const pathname=new URL(url).pathname,headers=new Headers(options.headers);headers.set('Origin','https://historykids.github.io');calls.push({path:pathname,body:options.body?JSON.parse(options.body):null});const response=await worker.fetch(new Request(url,{method:options.method||'GET',headers,...(options.body?{body:options.body}:{})}),env);if(failAfter===pathname){failAfter='';throw Error('response lost');}return response;}
   return{db,board,calls,fetch,advance(ms){now+=ms;},loseNext(path){failAfter=path;}};
  }

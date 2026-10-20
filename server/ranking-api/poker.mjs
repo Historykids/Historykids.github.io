@@ -1,6 +1,7 @@
 import C from '../../assets/ui/table-rules.js';
+import * as H from './holdem.mjs';
 const M=globalThis.HKAmounts;
-export const pokerRoutes=new Set(['/wealth/poker','/wealth/poker/reserve','/wealth/poker/commit','/wealth/poker/draw','/wealth/poker/leave','/wealth/poker/ack']);
+export const pokerRoutes=new Set(['/wealth/poker','/wealth/poker/reserve','/wealth/poker/commit','/wealth/poker/draw','/wealth/poker/action','/wealth/poker/leave','/wealth/poker/ack']);
 const fail=(code,status=400)=>{throw Object.assign(Error(code),{status});};
 const roomName=n=>n===1?'royal-one':'royal-'+n;
 const roomNumber=value=>{if(value===undefined||value==='royal-one')return 1;if(typeof value!=='string'||!/^royal-[1-9]\d{0,5}$/.test(value))fail('poker-room',404);return Number(value.slice(6));};
@@ -15,13 +16,14 @@ export class WealthPoker{
   this.sql.exec('CREATE TABLE IF NOT EXISTS poker_rooms(id INTEGER PRIMARY KEY,state TEXT NOT NULL)');
   this.sql.exec('INSERT OR IGNORE INTO poker_rooms(id,state) SELECT 1,state FROM poker_room WHERE singleton=1');
  }
- empty(){return{phase:'lobby',handId:null,stake:null,players:[],startAt:null,deadline:null,nextAt:null,deck:[],discards:[],result:null};}
+ empty(){return H.empty();}
+ legacyEmpty(){return{phase:'lobby',handId:null,stake:null,players:[],startAt:null,deadline:null,nextAt:null,deck:[],discards:[],result:null};}
  ticket(id){const row=this.sql.exec('SELECT * FROM poker_tickets WHERE id=?',id).toArray()[0];return row?{...JSON.parse(row.receipt),status:row.status,owner:row.owner}:null;}
  latest(owner){const row=this.sql.exec("SELECT * FROM poker_tickets WHERE owner=? AND status!='acked' ORDER BY rowid DESC LIMIT 1",owner).toArray()[0];return row?{...JSON.parse(row.receipt),status:row.status,owner:row.owner}:null;}
  saveTicket(t){const {owner,status,...receipt}=t;this.sql.exec('INSERT INTO poker_tickets(id,owner,status,receipt) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,receipt=excluded.receipt',t.id,owner,status,JSON.stringify(receipt));}
- finishTicket(p,payout,kind,handName=''){
+ finishTicket(p,payout,kind,handName='',details={}){
   const t=this.ticket(p.id);if(!t||['done','acked'].includes(t.status))return;
-  this.saveTicket({...t,status:'done',payout:M.full(payout),kind,handName,settledAt:this.now()});
+  this.saveTicket({...t,status:'done',payout:M.full(payout),kind,handName,...details,settledAt:this.now()});
  }
  settle(s){
   if(s.phase!=='playing')return;
@@ -33,10 +35,13 @@ export class WealthPoker{
   s.result={pot:M.full(pot),winners:winners.map(r=>r.p.id),message:winners.length?'勝者にポットを払い戻しました。':'全員フォールドのため掛け金を返しました。'};
   s.phase='showdown';s.nextAt=this.now()+10000;s.deadline=null;s.deck=[];s.discards=[];
  }
+ receipts(s){for(const result of s.settlements){const p=s.players.find(p=>p.id===result.id);if(p)this.finishTicket(p,result.payout,'showdown',result.handName,{rules:H.RULES,returned:result.returned,prize:result.prize,won:result.won});}}
  advance(s){
   const now=this.now();
-  if(s.phase==='showdown'&&now>=s.nextAt){Object.assign(s,this.empty());return;}
+  if(!s.rules&&s.phase==='lobby'&&!s.players.length)Object.assign(s,this.empty());
+  if(s.phase==='showdown'&&now>=s.nextAt){const buttonCounter=s.buttonCounter||0;Object.assign(s,this.empty(),{buttonCounter});return;}
   if(s.phase==='playing'){
+   if(s.rules===H.RULES){H.tick(s,now);if(s.phase==='showdown')this.receipts(s);return;}
    if(now>=s.deadline){for(const p of s.players)if(!p.drawn)p.folded=true;this.settle(s);}
    return;
   }
@@ -49,13 +54,14 @@ export class WealthPoker{
   s.startAt??=now+10000;
   if(now<s.startAt)return;
   for(const p of s.players.filter(p=>!p.paid))this.finishTicket(p,s.stake,'refund');
-  s.players=paid;s.phase='playing';s.handId=crypto.randomUUID();s.deck=this.shuffle();s.discards=[];s.deadline=now+45000;s.startAt=null;
+  s.players=paid;if(s.rules===H.RULES){H.start(s,this.shuffle(),now,crypto.randomUUID());return;}s.phase='playing';s.handId=crypto.randomUUID();s.deck=this.shuffle();s.discards=[];s.deadline=now+45000;s.startAt=null;
   for(const p of s.players){p.hand=s.deck.splice(0,5);p.drawn=false;p.folded=false;p.holds=[];}
  }
  view(s,owner,room,rooms){
-  const mine=this.latest(owner),own=s.players.find(p=>p.owner===owner),reveal=s.phase==='showdown';
-  return{room:roomName(room),rooms:rooms.map(r=>({id:roomName(r.id),name:'第'+r.id+'室',phase:r.state.phase,seats:r.state.players.length,players:r.state.players.filter(p=>p.paid).length,capacity:6,stake:r.state.stake,joinable:r.state.phase==='lobby'&&r.state.players.length<6})),phase:s.phase,handId:s.handId,stake:s.stake,startAt:s.startAt,deadline:s.deadline,nextAt:s.nextAt,now:this.now(),capacity:6,result:s.result,
-   players:s.players.map(p=>({id:p.id,name:p.name,rebirths:p.rebirths,paid:p.paid,drawn:!!p.drawn,folded:!!p.folded,hand:p.hand&&(p.owner===owner||reveal&&!p.folded)?p.hand:null,handName:reveal&&!p.folded?C.evaluate(p.hand).name:null})),
+  const mine=this.latest(owner),own=s.players.find(p=>p.owner===owner),holdem=s.rules===H.RULES,reveal=s.phase==='showdown'&&(!holdem||s.result?.reveal);
+  return{protocols:[H.RULES,'draw-v1'],rules:s.rules||'draw-v1',room:roomName(room),rooms:rooms.map(r=>({id:roomName(r.id),name:'第'+r.id+'室',rules:r.state.rules||'draw-v1',phase:r.state.phase,seats:r.state.players.length,players:r.state.players.filter(p=>p.paid).length,capacity:6,stake:r.state.stake,joinable:r.state.phase==='lobby'&&r.state.players.length<6})),phase:s.phase,handId:s.handId,stake:s.stake,startAt:s.startAt,deadline:s.deadline,nextAt:s.nextAt,now:this.now(),capacity:6,result:s.result,
+   ...(holdem?{board:s.board,street:s.street,turn:s.players[s.turn]?.id||null,turnName:s.players[s.turn]?.name||null,actionVersion:s.actionVersion,currentBet:s.currentBet,smallBlind:s.smallBlind,bigBlind:s.bigBlind,options:own?H.options(s,s.players.indexOf(own)):null,log:s.log}:{}),
+   players:s.players.map((p,i)=>({id:p.id,name:p.name,rebirths:p.rebirths,paid:p.paid,drawn:!!p.drawn,folded:!!p.folded,hand:p.hand&&(p.owner===owner||reveal&&!p.folded)?p.hand:null,handName:reveal&&!p.folded?C.evaluate(holdem?[...p.hand,...s.board]:p.hand).name:null,...(holdem?{stack:p.stack,bet:p.bet,invested:p.invested,allin:!!p.allin,dealer:s.phase!=='lobby'&&i===s.dealer,sb:s.phase!=='lobby'&&i===s.sb,bb:s.phase!=='lobby'&&i===s.bb,lastAction:p.lastAction}:{} )})),
    ownId:own?.id||null,ticket:mine?{...Object.fromEntries(Object.entries(mine).filter(([key])=>key!=='owner')),room:mine.room||'royal-one'}:null};
  }
  fetch(path,data){
@@ -75,11 +81,12 @@ export class WealthPoker{
      if(previous){if(previous.owner!==owner)fail('poker-ticket',403);}
      else{
      if(latest)fail(latest.status==='done'?'poker-settlement-pending':'poker-already-joined',409);
+     if(s.rules===H.RULES&&data.rules!==H.RULES)fail('poker-client-update',409);
      if(s.phase!=='lobby')fail('poker-spectating',409);if(s.players.length>=6)fail('poker-full',409);
      const player=this.sql.exec('SELECT name,rebirths,balance FROM wealth_scores_v2 WHERE id=?',owner).toArray()[0];
      const moderation=this.sql.exec('SELECT banned,nameBlocked FROM wealth_moderation WHERE id=?',owner).toArray()[0];
      if(!player||player.rebirths<10)fail('poker-locked',403);if(moderation?.banned||moderation?.nameBlocked||this.admin.rules.blockedName(player.name,this.admin.words()))fail('poker-name',403);
-     if(!M.valid(data.stake)||M.cmp(data.stake,1)<0)fail('poker-stake');if(s.stake!==null&&M.cmp(data.stake,s.stake))fail('poker-stake-changed',409);
+     if(!M.valid(data.stake)||M.cmp(data.stake,s.rules===H.RULES?20:1)<0)fail(s.rules===H.RULES?'poker-buyin':'poker-stake');if(s.stake!==null&&M.cmp(data.stake,s.stake))fail('poker-stake-changed',409);
      if(M.cmp(data.stake,player.balance)>0)fail('insufficient');s.stake=M.full(data.stake);
      const p={id:data.id,owner,name:player.name,rebirths:player.rebirths,paid:false,seenAt:this.now(),joinedAt:this.now()};s.players.push(p);
      this.saveTicket({id:p.id,owner,room:roomName(room),status:'reserved',stake:s.stake,rebirths:p.rebirths,at:this.now(),payout:'0'});
@@ -89,14 +96,29 @@ export class WealthPoker{
      const p=s.players.find(p=>p.id===ticket.id);
      if(path==='/wealth/poker/ack'){
       if(ticket.status==='done')this.saveTicket({...ticket,status:'acked'});else if(ticket.status!=='acked')fail('poker-open',409);
+     }else if(path==='/wealth/poker/action'){
+      if(s.rules!==H.RULES)fail('poker-client-update',409);
+      if(!validId(data.requestId)||!['fold','check','call','raise','allin'].includes(data.action))fail('poker-action');
+      if(data.action==='raise'&&!M.valid(data.total))fail('poker-raise');
+      const payload=JSON.stringify([ticket.id,data.handId,data.action,data.action==='raise'?M.full(data.total):null]);
+      const previous=s.actions.find(a=>a.id===data.requestId);
+      if(previous){if(previous.payload!==payload)fail('poker-action-reused',409);}
+      else{
+       if(['done','acked'].includes(ticket.status)||!p||s.phase!=='playing'||data.handId!==s.handId)fail('poker-open',409);
+       if(data.version!==s.actionVersion)fail('poker-state-changed',409);
+       H.action(s,p.id,data.action,data.total,this.now());s.actions.push({id:data.requestId,payload});s.actions=s.actions.slice(-256);
+       if(s.phase==='showdown')this.receipts(s);
+      }
      }else if(!['done','acked'].includes(ticket.status)){
       if(!p)fail('poker-ticket',409);
       if(path==='/wealth/poker/commit'){
        if(s.phase!=='lobby'&&!p.paid)fail('poker-spectating',409);p.paid=true;p.seenAt=this.now();this.saveTicket({...ticket,status:'paid'});
       }else if(path==='/wealth/poker/leave'){
        if(s.phase==='lobby'){this.finishTicket(p,s.stake,'refund');s.players=s.players.filter(x=>x!==p);}
+       else if(s.phase==='playing'&&s.rules===H.RULES){H.leave(s,p.id,this.now());if(s.phase==='showdown')this.receipts(s);}
        else if(s.phase==='playing'){p.folded=true;p.drawn=true;if(s.players.filter(x=>!x.folded).length<=1||s.players.every(x=>x.drawn||x.folded))this.settle(s);}
       }else if(path==='/wealth/poker/draw'){
+       if(s.rules===H.RULES)fail('poker-client-update',409);
        if(s.phase!=='playing'||!p.paid||p.folded||data.handId!==s.handId)fail('poker-open',409);
        const holds=data.holds;if(!Array.isArray(holds)||holds.length>5||new Set(holds).size!==holds.length||holds.some(i=>!Number.isInteger(i)||i<0||i>4))fail('poker-holds');
        const sorted=[...holds].sort((a,b)=>a-b);if(p.drawn){if(JSON.stringify(sorted)!==JSON.stringify(p.holds))fail('poker-already-drawn',409);}
@@ -108,7 +130,8 @@ export class WealthPoker{
      }
     }
     this.advance(s);
-    if(rooms.some(r=>r.state.players.length>=6)&&!rooms.some(r=>r.state.phase==='lobby'&&r.state.players.length<6))rooms.push({id:Math.max(...rooms.map(r=>r.id))+1,state:this.empty(),original:null});
+    const freshRules=this.empty().rules;
+    if((rooms.some(r=>r.state.players.length>=6)||rooms.every(r=>r.state.rules!==freshRules))&&!rooms.some(r=>r.state.phase==='lobby'&&r.state.players.length<6&&r.state.rules===freshRules))rooms.push({id:Math.max(...rooms.map(r=>r.id))+1,state:this.empty(),original:null});
     for(const r of rooms){const json=JSON.stringify(r.state);if(json!==r.original){this.sql.exec('INSERT INTO poker_rooms(id,state) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state',r.id,json);if(r.id===1)this.sql.exec('UPDATE poker_room SET state=? WHERE singleton=1',json);}}
     output=this.view(s,owner,room,rooms);
    };

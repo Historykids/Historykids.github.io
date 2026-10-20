@@ -110,7 +110,54 @@ body[data-casino-variant=gold] .slot-machine{margin-top:58px;padding:12px 12px 8
 @media(max-width:420px){.vip-active .casino-main{padding-left:10px;padding-right:10px}.vip-room{padding:25px 17px 48px;min-height:302px}.vip-room-copy{max-width:86%}.vip-room h2{font-size:25px}.vip-room-art{right:-85px;top:25px;opacity:.32}.vip-room-copy>p:last-of-type{max-width:260px}.vip-room-tags{max-width:260px}.vip-active .table-area{padding:16px 11px}.vip-active .stage-top{letter-spacing:.04em}.vip-active .stage-settings{margin-left:0}.vip-active .mobile-bet-tools input{width:55px}.vip-active .mobile-bet-tools button{padding:5px 7px}.vip-active .casino-lock h2{font-size:25px}body[data-casino-variant=silver] .roulette-stage{min-height:377px}body[data-casino-variant=silver] .wheel-rim{width:284px;padding:17px}body[data-casino-variant=silver] .wheel-hub{width:90px;height:90px}.vip-wheel-constellation i{width:320px;height:320px}.vip-wheel-constellation i:nth-child(2){width:350px;height:350px}.vip-active .roulette-board{padding:8px}.vip-active .slot-marquee h2{font-size:24px}.vip-slot-symbol{width:59px;height:67px}body[data-casino-variant=gold] .slot-machine{padding-left:10px;padding-right:10px}.vip-active .jackpot-label{font-size:13px;padding:7px 12px;gap:15px}.vip-active .royal-cards{gap:5px}.vip-active .card-corner{font-size:15px;left:4px;top:5px}.vip-active .card-corner i{font-size:9px}.vip-active .card-corner-bottom{left:auto;top:auto;right:4px;bottom:5px}.vip-active .card-hold{font-size:7px;padding:4px 6px}.vip-active .royal-card:before{inset:3px}.vip-active .royal-table-seal{font-size:6px;margin-bottom:30px}.vip-active .royal-hand-name{font-size:17px}.vip-active .card-back:before{inset:4px}.vip-finale{top:125px}.vip-active .royal-hold-tools button{font-size:10px;padding:8px 11px}}
 @media(prefers-reduced-motion:reduce){.vip-room-art:before,.vip-finale-orbit,.vip-finale-enter{animation:none}.vip-active .slot-machine.spinning,.vip-active .is-winning{animation:none}.vip-active .royal-card{transition:none}}
 
-/* Sovereign slots share the standard cabinet; only their reel symbols differ. */
+/* Sovereign slots retain the standard cabinet layout and royal reel symbols. */
 body[data-casino-variant=sovereign] .reel-symbol{height:90px;margin:0;border:0;background:none;font-size:0!important;text-shadow:none;filter:none}
 body[data-casino-variant=sovereign] .vip-slot-symbol{width:min(78%,72px);height:72px}
 body[data-casino-variant=sovereign] .vip-mini-symbol{width:22px;height:22px;vertical-align:middle}
+
+/* Royal palette: crimson lacquer, ivory reels and restrained gold trim. */
+body[data-casino-variant=sovereign]{--bg:#160c13;--panel:#26131e;--gold:#f1ce7c;--gold-dark:#a58147;--ink:#f4e8d5;--muted:#c3aaa5;--line:#74513e;background:radial-gradient(ellipse at 65% 0%,#7a2b4255,transparent 55%),linear-gradient(155deg,#26101d,#100c12 75%);color:var(--ink)}
+body[data-casino-variant=sovereign] .casino-header{background:#190d17eb;border-color:#a5814759}
+body[data-casino-variant=sovereign] .casino-header nav{color:#d3bdb3}
+body[data-casino-variant=sovereign] .wallet-badge{background:#6d2c382e;border-color:#c59e5959}
+body[data-casino-variant=sovereign] .casino-tabs{background:#22131c;scrollbar-color:#ba9557 #22131c}
+body[data-casino-variant=sovereign] .casino-tabs button[aria-selected=true]{background:linear-gradient(130deg,#692d3d,#361725);border-color:#e1bd70;box-shadow:inset 0 -3px #eac77c,0 0 14px #d49c3b14;color:#ffe7af}
+body[data-casino-variant=sovereign] .casino-prestige{background:linear-gradient(120deg,#361b27,#21121d);border-color:#a681485c}
+body[data-casino-variant=sovereign] .game-shell{border-color:#b08a4c;box-shadow:0 20px 65px #0005,0 0 30px #ba6c3020}
+body[data-casino-variant=sovereign] .table-area{background:radial-gradient(ellipse at 50% 30%,#7a304344,transparent 70%),repeating-linear-gradient(45deg,#f1ce7c03 0 1px,transparent 1px 5px),#291420}
+body[data-casino-variant=sovereign] .table-area:before{content:'♛';position:absolute;right:18px;top:40px;font:150px Georgia,serif;color:#f1ce7c08;pointer-events:none}
+body[data-casino-variant=sovereign] .slot-machine{border-color:#d7ac60;background:linear-gradient(135deg,#81394b,#381724 30%,#24101d 65%,#713044);box-shadow:inset 0 0 0 4px #f3d79633,0 14px 25px #0007,0 0 22px #d7993d15}
+body[data-casino-variant=sovereign] .slot-machine:after{content:'';position:absolute;inset:6px;border:1px solid #ffe4a64a;border-radius:17px 17px 6px 6px;pointer-events:none}
+body[data-casino-variant=sovereign] .slot-marquee{border-color:#d3a95e;background:radial-gradient(ellipse at 50% 0%,#7c3448,#2e111e 75%)}
+body[data-casino-variant=sovereign] .slot-marquee>small{color:#e1bc7f;letter-spacing:.17em}
+body[data-casino-variant=sovereign] .marquee-lights:before,body[data-casino-variant=sovereign] .marquee-lights:after{content:'♛';position:absolute;top:0;font:16px Georgia,serif;line-height:1;color:#f6d68c}
+body[data-casino-variant=sovereign] .marquee-lights:before{left:6px}
+body[data-casino-variant=sovereign] .marquee-lights:after{right:6px}
+body[data-casino-variant=sovereign] .slot-marquee h2{color:#ffe8af;text-shadow:0 2px #2b0c18,0 0 18px #f5bc522b}
+body[data-casino-variant=sovereign] .marquee-lights{border-color:#ffdc9cb3}
+body[data-casino-variant=sovereign] .jackpot-label{color:#dcbf91}
+body[data-casino-variant=sovereign] .jackpot-label b{color:#ffe4a0}
+body[data-casino-variant=sovereign] .reel-frame{border-color:#e1bd70;background:linear-gradient(120deg,#74502a,#e8c67b 48%,#82532b);box-shadow:0 3px 0 #170b12,inset 0 0 0 1px #fff0b959}
+body[data-casino-variant=sovereign] .reel-window{border-color:#9a7445;background:linear-gradient(#bba993,#fff4dc 35%,#fff0d6 65%,#b8a18c)}
+body[data-casino-variant=sovereign] .reel-window:after{background:linear-gradient(#35101c59,transparent 28%,transparent 70%,#35101c59)}
+body[data-casino-variant=sovereign] .slot-handle{background:#421d2a;border-color:#e1bd70}
+body[data-casino-variant=sovereign] .slot-handle i:after{background:radial-gradient(circle at 35% 20%,#ffc5b5,#99253f);border-color:#e3ad70}
+body[data-casino-variant=sovereign] .slot-bonus{background:linear-gradient(120deg,#43202d,#29141f);border-color:#ad854b}
+body[data-casino-variant=sovereign] .slot-bonus.active{background:linear-gradient(120deg,#75432d,#4c2033);border-color:#f5d38a;box-shadow:0 0 22px #ebbc5030}
+body[data-casino-variant=sovereign] .bonus-medallion{background:radial-gradient(circle at 35% 25%,#ffe8aa,#c4984d);border-color:#f1ce7c;color:#5b292a}
+body[data-casino-variant=sovereign] .bet-panel{background:linear-gradient(155deg,#351b29,#1b1019);border-color:#ac834b70}
+body[data-casino-variant=sovereign] .bet-input{background:#1a0b14;border-color:#b59053}
+body[data-casino-variant=sovereign] :is(.chip-picker button,.stage-settings button,.mobile-bet-tools input,.mobile-bet-tools button){background:#381b29;border-color:#765140;color:#ead5b7}
+body[data-casino-variant=sovereign] .chip-picker button[aria-pressed=true]{background:#704432;border-color:#edc878;color:#ffebbb}
+body[data-casino-variant=sovereign] :is(.play-round:enabled,.mobile-round-bar button:enabled){background:linear-gradient(110deg,#ffe7aa,#c79a46);border-color:#f2d79e;color:#3b1c25}
+body[data-casino-variant=sovereign] :is(.play-round:disabled,.mobile-round-bar button:disabled){background:#49303b;border-color:#79544d;color:#b9a19b}
+body[data-casino-variant=sovereign] .mobile-round-bar{background:#21101b;border-color:#a17c47}
+body[data-casino-variant=sovereign] .mobile-bet-tools{background:#24101c;border-color:#8f6843}
+body[data-casino-variant=sovereign] :is(.stage-top,.stage-caption,.casino-status,.bet-label,.bet-summary,.rules-details p,.rules-details table,.slot-mini-paytable,.wallet-note,.slot-bottom,.round-result p,.slot-bonus p){color:#cfb9af}
+body[data-casino-variant=sovereign] .bet-panel-head>b{color:#efdbc3}
+body[data-casino-variant=sovereign] :is(.slot-mini-paytable b,.slot-bonus b,.round-result.win h2){color:#ffe3a0}
+body[data-casino-variant=sovereign] .slot-line-wins span{background:#472233;border-color:#bf955359;color:#ead2bf}
+body[data-casino-variant=sovereign] .celebration i:nth-child(3n){background:#a83954;border-color:#f4c986}
+body[data-casino-variant=sovereign] .session-history li{background:#27131f;border-color:#79513e}
+
+body[data-casino-variant=sovereign] .casino-status.error{color:#ffb7ae}

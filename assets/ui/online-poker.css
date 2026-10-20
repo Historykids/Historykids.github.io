@@ -6,3 +6,5 @@ body[data-casino-variant=sovereign]{--vip-ink:#ffefcc;--vip-metal:#ecc881;--vip-
 .online-poker button.room-card{padding:0;min-height:0;background:linear-gradient(130deg,#fff9e9,#e5d7b9);color:#21182b;border-color:#e6d4a9}.online-poker button.room-card.card-red{color:#a33342}
 
 .casino-tabs{grid-template-columns:repeat(9,minmax(126px,1fr))}.casino-tabs [data-casino-variant=sovereign]{background:linear-gradient(130deg,#694029,#3e1624);border-color:#cda45d88}@media(max-width:760px){.casino-tabs{grid-template-columns:repeat(9,133px)}}
+
+.room-picker{display:flex;gap:16px;align-items:end;justify-content:space-between;margin:12px 0 20px}.room-picker label{display:grid;gap:8px;font-size:12px;color:#dbc08d}.room-picker select{min-height:46px;max-width:100%;padding:10px 14px;border:1px solid #c6a66d77;border-radius:7px;background:#1b1025;color:#f3dfb4;font:inherit}.room-picker>span{font-size:11px;line-height:1.8;color:#c2aeca}@media(max-width:650px){.room-picker{display:block}.room-picker>span{display:block;margin-top:12px}}

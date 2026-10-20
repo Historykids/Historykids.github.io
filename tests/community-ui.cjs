@@ -53,13 +53,36 @@ const call=(W,fn,...args)=>new Promise((yes,no)=>W[fn](...args,yes,no));
  });
  await test('notifications open from the main bar, show unread marks and render operator messages as safe plain text',async()=>{
   const h=harness();h.db.prepare('INSERT INTO operation_notices(requestId,title,body,createdAt) VALUES(?,?,?,?)').run('fixture_notice_0001','新しいお知らせ','本文\n<img src=x onerror=alert(1)>',Date.now());
-  const p=page(h,{main:true});await flush();assert(!p.$('noticeUnread').hidden);assert.equal(p.$('noticeUnread').textContent,'1');p.$('noticeNav').click();await flush();assert(!p.$('view-notifications').hidden);assert(p.$('eraSection').hidden);assert(p.$('noticeCompose').hidden);assert(p.$('noticeUnread').hidden);assert(p.$('noticeList').textContent.includes('運営からのお知らせ'));assert(p.$('noticeList').textContent.includes('<img'));assert.equal(p.$('noticeList').querySelectorAll('img').length,0);assert.equal(p.map.get('hk_notice_read_v1'),'1');p.close();
+  const p=page(h,{main:true});await flush();assert(!p.$('noticeUnread').hidden);assert.equal(p.$('noticeUnread').textContent,'1');p.$('noticeNav').click();await flush();assert(!p.$('view-notifications').hidden);assert(p.$('eraSection').hidden);assert(p.$('noticeCompose').hidden);assert(p.$('noticeUnread').hidden);assert(p.$('noticeList').textContent.includes('運営からのお知らせ'));assert(p.$('noticeList').textContent.includes('<img'));assert.equal(p.$('noticeList').querySelectorAll('img').length,0);assert.equal(p.map.get('hk_notice_seen_v3_anonymous'),'["1"]');p.close();
  });
  await test('only the authenticated administrator can preview and send a notice; double clicks and lost responses publish once',async()=>{
   const h=harness(),token='e'.repeat(64),owner=createHash('sha256').update(token).digest('hex');h.db.prepare('INSERT INTO wealth_admin_owner(singleton,owner,createdAt) VALUES(1,?,?)').run(owner,Date.now());
   const p=page(h,{main:true,token,hash:'#notifications'});await flush();assert(!p.$('noticeCompose').hidden);p.$('noticeTitle').value='王者の部屋が登場';p.$('noticeBody').value='お知らせ本文';submit(p,'noticeForm');assert(!p.$('noticePreview').hidden);assert.equal(h.db.prepare('SELECT COUNT(*) n FROM operation_notices').get().n,0);
   h.loseNext('/wealth/admin/notices');p.$('noticeSend').click();p.$('noticeSend').click();await flush();assert.equal(h.db.prepare('SELECT COUNT(*) n FROM operation_notices').get().n,1);assert(!p.$('noticePreview').hidden);p.$('noticeSend').click();await flush();assert.equal(h.db.prepare('SELECT COUNT(*) n FROM operation_notices').get().n,1);assert(p.$('noticePreview').hidden);assert(p.$('noticeStatus').textContent.includes('配信しました'));assert.equal(p.map.get('hk_notice_draft_v1'),undefined);
   const visitor=page(h,{main:true,hash:'#notifications'});await flush();assert(visitor.$('noticeList').textContent.includes('王者の部屋が登場'));assert(visitor.$('noticeCompose').hidden);visitor.close();p.close();
+ });
+ await test('a seventh browser chooses the newly added room and reopens the same paid seat after reload',async()=>{
+  const h=harness();
+  for(let i=0;i<6;i++){
+   const token=(i+1).toString(16).repeat(64),headers={Authorization:'Bearer '+token,'Content-Type':'application/json'};
+   assert((await h.fetch('https://api.example/wealth/register',{method:'POST',headers,body:JSON.stringify({name:'先客'+i,expectedRevision:0,snapshot:{balance:1000,rebirths:10,buildings:{},residents:{}}})})).ok);
+   const id='full_room_ticket_'+i.toString().padStart(10,'0');for(const path of ['reserve','commit'])assert((await h.fetch('https://api.example/wealth/poker/'+path,{method:'POST',headers,body:JSON.stringify({id,stake:10})})).ok);
+  }
+  const p=page(h);p.$('tab-king').click();await flush();assert.equal(p.$('roomSelect').options.length,2);p.$('roomSelect').value='royal-2';p.$('roomSelect').dispatchEvent(new p.w.Event('change'));await flush();assert(!p.$('roomJoinForm').hidden);p.$('roomName').value='新しい部屋';p.$('roomStake').value='100';submit(p,'roomJoinForm');await flush();assert.equal(p.W.snapshot().balance,900);assert(p.$('roomSelect').disabled);assert.equal(p.$('roomSelect').value,'royal-2');
+  const q=page(h,{map:p.map});p.close();await flush();assert.equal(q.$('roomSelect').value,'royal-2');assert.equal(q.W.snapshot().balance,900);q.$('roomLeave').click();q.$('roomLeaveCommit').click();await flush();assert.equal(q.W.snapshot().balance,1000);q.close();
+ });
+ await test('personal notice selection names the exact recipient and only that browser receives the content',async()=>{
+  const h=harness(),staff='e'.repeat(64),one='1'.repeat(64),two='2'.repeat(64),hash=t=>createHash('sha256').update(t).digest('hex');
+  h.db.prepare('INSERT INTO wealth_admin_owner(singleton,owner,createdAt) VALUES(1,?,?)').run(hash(staff),Date.now());
+  for(const token of [one,two])assert((await h.fetch('https://api.example/wealth/register',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({name:'同じ名前',expectedRevision:0,snapshot:{balance:1000,rebirths:10,buildings:{},residents:{}}})})).ok);
+  const p=page(h,{main:true,token:staff,hash:'#notifications'});await flush();p.$('noticeAudience').value='personal';p.$('noticeAudience').dispatchEvent(new p.w.Event('change'));assert(!p.$('noticeRecipientField').hidden);assert.equal(p.$('noticeRecipient').options.length,3);p.$('noticeRecipient').value=hash(one);p.$('noticeRecipient').dispatchEvent(new p.w.Event('change'));p.$('noticeTitle').value='あなたへの連絡';p.$('noticeBody').value='個人配信の本文';submit(p,'noticeForm');assert(p.$('noticePreviewTarget').textContent.includes(hash(one).slice(0,8)));assert.equal(p.$('noticeSend').textContent,'この人に配信する');p.$('noticeSend').click();await flush();assert(p.$('noticeStatus').textContent.includes('さんのみに配信'));assert(!p.$('noticeList').textContent.includes('個人配信の本文'));
+  const a=page(h,{main:true,token:one,hash:'#notifications'}),b=page(h,{main:true,token:two,hash:'#notifications'});await flush();assert(a.$('noticeList').textContent.includes('個人配信の本文'));assert(a.$('noticeList').textContent.includes('あなた宛て'));assert(!b.$('noticeList').textContent.includes('個人配信の本文'));a.close();b.close();p.close();
+ });
+ await test('changing identity clears private notices and drops an older in-flight personal response',async()=>{
+  const h=harness(),one='1'.repeat(64),two='2'.repeat(64),owner=createHash('sha256').update(one).digest('hex');
+  h.db.prepare('INSERT INTO operation_personal_notices(requestId,title,body,createdAt,recipient,recipientName) VALUES(?,?,?,?,?,?)').run('private_inflight_001','本人限定','遅れて届く秘密の本文',Date.now(),owner,'本人');
+  let release;const gate=new Promise(r=>release=r),original=h.fetch;h.fetch=async(url,options)=>{const r=await original(url,options);if(new URL(url).pathname==='/wealth/notices'&&options?.headers?.Authorization==='Bearer '+one)await gate;return r;};
+  const p=page(h,{main:true,token:one,hash:'#notifications'});p.map.set('hk_wealth_identity_v1',two);p.w.dispatchEvent(new p.w.StorageEvent('storage',{key:'hk_wealth_identity_v1'}));release();await flush();assert(!p.$('noticeList').textContent.includes('秘密の本文'));assert(p.$('noticeCompose').hidden);assert(p.$('noticeUnread').hidden);p.close();
  });
  console.log(checks+' community UI checks passed.');
 })().catch(error=>{console.error(error);for(const w of opened)w.close();process.exitCode=1;});

@@ -3,7 +3,9 @@
  const $=id=>document.getElementById(id),W=window.HKWallet,M=window.HKAmounts,A=window.HKCommunity;
  if(!$('onlinePoker')||!A)return;
  const reservationKey='hk_poker_reservation_v1',money=n=>M.format(n)+'両',call=(fn,...args)=>new Promise((resolve,reject)=>W[fn](...args,resolve,reject));
- let state=null,selected=false,busy=false,polling=false,holds=new Set(),handId='',clockOffset=0,leaving=false,epoch=0;
+ let state=null,selected=false,busy=false,polling=false,holds=new Set(),handId='',clockOffset=0,leaving=false,epoch=0,selectedRoom='royal-one';
+ try{const saved=localStorage.getItem('hk_poker_room_v1');if(saved==='royal-one'||/^royal-[1-9]\d{0,5}$/.test(saved||''))selectedRoom=saved;}catch{}
+ const roomRequest=(path,body)=>A.request(body?path:path+'?room='+encodeURIComponent(selectedRoom),body?{...body,room:selectedRoom}:undefined);
  const pending=()=>{const r=W.snapshot().pending;return r?.game==='poker'&&r.data?.version===2?r:null;};
  function message(text,error=false){$('roomMessage').textContent=text;$('roomMessage').classList.toggle('error',error);}
  function reservation(){try{return JSON.parse(localStorage.getItem(reservationKey)||'null');}catch{return null;}}
@@ -19,6 +21,8 @@
   if(!state)return;const focused=document.activeElement?.dataset?.roomCard,playing=state.phase==='playing',mine=state.players.find(p=>p.id===state.ownId),eligible=(W.snapshot().rebirths??0)>=10;
   if(handId!==state.handId){handId=state.handId;holds.clear();}
   $('roomPhase').textContent=state.phase==='lobby'?'参加受付中':playing?'対戦中':'結果発表';
+  const rooms=state.rooms||[{id:state.room,name:'第1室',seats:state.players.length,phase:state.phase}],options=rooms.map(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.name+' · '+r.seats+'/6席 · '+(r.phase==='lobby'?(r.seats>=6?'満室':'参加受付'):r.phase==='playing'?'対戦中・観戦可':'結果発表');return o;});
+  $('roomSelect').replaceChildren(...options);$('roomSelect').value=state.room;$('roomSelect').disabled=busy||polling||!!pending();$('roomTotal').textContent=rooms.length+'部屋 · 満室になると次の部屋が開きます';
   $('roomRole').textContent=mine?playing?(mine.folded?'フォールド済み':mine.drawn?'交換済み · 結果待ち':'あなたは対戦中'):'あなたの席':playing?'観戦中 · 次のハンドから参加':'観戦席';
   $('roomPot').textContent=money(state.stake?M.mul(state.stake,state.players.filter(p=>p.paid).length):0);
   $('roomCount').textContent=state.players.filter(p=>p.paid).length+' / 6人';
@@ -47,25 +51,25 @@
   let t=data.ticket,r=pending(),saved=reservation();
   if(t?.status==='reserved'&&!r&&saved?.id===t.id){
    try{await call('beginOnlinePoker',t);r=pending();}
-   catch(error){data=await A.request('/wealth/poker/leave',{id:t.id});t=data.ticket;clearReservation();if(t?.status==='done')await A.request('/wealth/poker/ack',{id:t.id});throw error;}
+   catch(error){data=await roomRequest('/wealth/poker/leave',{id:t.id});t=data.ticket;clearReservation();if(t?.status==='done')await roomRequest('/wealth/poker/ack',{id:t.id});throw error;}
   }
-  if(t?.status==='reserved'&&r?.id===t.id){data=await A.request('/wealth/poker/commit',{id:t.id});t=data.ticket;}
-  if(t&&['reserved','paid'].includes(t.status)&&!pending()&&saved?.id!==t.id){data=await A.request('/wealth/poker/leave',{id:t.id});t=data.ticket;}
+  if(t?.status==='reserved'&&r?.id===t.id){data=await roomRequest('/wealth/poker/commit',{id:t.id});t=data.ticket;}
+  if(t&&['reserved','paid'].includes(t.status)&&!pending()&&saved?.id!==t.id){data=await roomRequest('/wealth/poker/leave',{id:t.id});t=data.ticket;}
   if(t?.status==='done'){
    if(pending()?.id===t.id){const result=await call('finishOnlinePoker',t);$('roomOutcome').hidden=false;$('roomOutcomeTitle').textContent=t.kind==='refund'?'掛け金を返しました。':M.cmp(result.payout,0)>0?'あなたの勝利！':'ハンド終了';$('roomOutcomeAmount').textContent='払い戻し '+money(result.creditedPayout);message('払い戻しを保存しました。次のハンドも、この部屋で参加できます。');}
-   data=await A.request('/wealth/poker/ack',{id:t.id});clearReservation();
+   data=await roomRequest('/wealth/poker/ack',{id:t.id});clearReservation();
   }
   return data;
  }
- async function accept(data,sequence){if(sequence!==epoch)return;data=await reconcile(data);if(sequence!==epoch)return;state=data;clockOffset=data.now-Date.now();render();}
+ async function accept(data,sequence){if(sequence!==epoch)return;selectedRoom=data.room;data=await reconcile(data);if(sequence!==epoch)return;selectedRoom=data.room;try{localStorage.setItem('hk_poker_room_v1',selectedRoom);}catch{}state=data;clockOffset=data.now-Date.now();render();}
  async function load(){
   if(busy||polling||!selected&&!pending())return;polling=true;const sequence=epoch;render();
-  try{await accept(await A.request('/wealth/poker'),sequence);if(!pending())message('接続中 · 部屋は1つだけです。');}
+  try{await accept(await roomRequest('/wealth/poker'),sequence);if(!pending())message('接続中 · 部屋を選んで参加・観戦できます。');}
   catch(error){message(A.errorText(error),true);}finally{polling=false;render();}
  }
  async function action(path,body){
   if(busy||polling)return;busy=true;const sequence=epoch;render();
-  try{await accept(await A.request(path,body),sequence);leaving=false;message('部屋の状態を更新しました。');}
+  try{await accept(await roomRequest(path,body),sequence);leaving=false;message('部屋の状態を更新しました。');}
   catch(error){message(A.errorText(error),true);}finally{busy=false;render();}
  }
  $('roomJoinForm').onsubmit=async e=>{
@@ -76,8 +80,8 @@
    const board=await A.request('/wealth'),name=$('roomName').value.trim()||board.own?.name;if(!name)throw Error('nickname');
    const snapshot=window.HKWealthRules.readLocal(localStorage,W.snapshot()).snapshot;
    await A.request('/wealth/register',{name,snapshot,expectedRevision:board.ownRevision||0});
-   const old=reservation(),id=old?.id||crypto.randomUUID();localStorage.setItem(reservationKey,JSON.stringify({id,stake:M.full(amount)}));
-   await accept(await A.request('/wealth/poker/reserve',{id,stake:M.full(amount)}),sequence);message('参加しました。同じ掛け金の相手を待っています。');
+   const old=reservation(),id=old?.id||crypto.randomUUID();localStorage.setItem(reservationKey,JSON.stringify({id,stake:M.full(amount),room:selectedRoom}));
+   await accept(await roomRequest('/wealth/poker/reserve',{id,stake:M.full(amount)}),sequence);message('参加しました。同じ掛け金の相手を待っています。');
   }catch(error){message(A.errorText(error),true);}finally{busy=false;render();}
  };
  $('roomHandCards').onclick=e=>{const b=e.target.closest('[data-room-card]');if(!b||b.disabled||busy)return;const i=Number(b.dataset.roomCard);if(holds.has(i))holds.delete(i);else holds.add(i);render();$('roomHandCards').querySelector('[data-room-card="'+i+'"]')?.focus();};
@@ -85,6 +89,7 @@
  $('roomLeave').onclick=()=>{leaving=true;render();};$('roomLeaveCancel').onclick=()=>{leaving=false;render();};
  $('roomLeaveCommit').onclick=()=>{const r=pending();if(r)action('/wealth/poker/leave',{id:r.id});};
  $('roomRefresh').onclick=load;
+ $('roomSelect').onchange=()=>{if(busy||polling||pending()){$('roomSelect').value=selectedRoom;return;}selectedRoom=$('roomSelect').value;holds.clear();leaving=false;$('roomOutcome').hidden=true;load();};
  window.addEventListener('storage',e=>{if(e.key==='hk_wealth_identity_v1'||e.key===null){epoch++;state=null;holds.clear();message('登録情報が変わりました。部屋の状態を読み直してください。',true);}});
  window.addEventListener('focus',load);
  setInterval(()=>{if(!document.hidden)load();},4000);setInterval(clock,1000);

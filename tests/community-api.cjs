@@ -16,7 +16,7 @@ let checks=0;async function test(name,fn){await fn();checks++;console.log('PASS'
   assert.equal((await req('/wealth/poker/another-room')).status,404);assert.equal((await req('/wealth/poker')).body.room,'royal-one');
  });
  await test('equal stakes, one ticket per identity and idempotent admission protect the single table',async()=>{
-  const first=await req('/wealth/poker/reserve',{id:id(0),stake:10,room:'invented'});assert.equal(first.status,200);assert.equal(first.body.room,'royal-one');assert.equal(first.body.ticket.status,'reserved');assert.equal(first.body.players.length,1);
+  const first=await req('/wealth/poker/reserve',{id:id(0),stake:10});assert.equal(first.status,200);assert.equal(first.body.room,'royal-one');assert.equal(first.body.ticket.status,'reserved');assert.equal(first.body.players.length,1);
   assert.equal((await req('/wealth/poker/reserve',{id:id(0),stake:999})).body.players.length,1);assert.equal((await req('/wealth/poker/reserve',{id:id(20),stake:10})).status,409);assert.equal((await req('/wealth/poker/reserve',{id:id(0),stake:10},1)).status,403);
   assert.equal((await req('/wealth/poker/reserve',{id:id(1),stake:11},1)).body.error,'poker-stake-changed');assert.equal((await req('/wealth/poker/commit',{id:id(0)})).body.players[0].paid,true);await join(1);
   assert.equal((await req('/wealth/poker')).body.startAt,now+10000);

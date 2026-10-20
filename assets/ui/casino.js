@@ -1,14 +1,14 @@
 (function () {
   'use strict';
   const W = window.HKWallet, R = window.HKCasinoRules, M = window.HKAmounts, P=M.rebirth, $ = id => document.getElementById(id);
-  const names = { janken:'じゃんけん', roulette:'ルーレット', slots:'スロット', bitcoin:'ビットコイン予想', sicbo:'大小',poker:'王者のポーカー' };
+  const names = { janken:'じゃんけん', roulette:'ルーレット', slots:'スロット', bitcoin:'ビットコイン予想', sicbo:'大小',poker:'王者のポーカー',pachinko:'パチンコ' };
   const hands = ['✊','✌️','🖐️'], handNames = ['グー','チョキ','パー'];
   const money = n => M.format(n)+'両';
   const esc = v => String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let game='janken', hand=0, chips=[], active=null, starting=false, settling=false, rotation=0, audio=null, sound=false;
   let sicboChips=[],variant='standard',royalHolds=new Set(),royalSeenId=null,royalResult=null;
-  const K=window.HKRoyalPoker,V=window.HKCasinoVIP;
-  const required=()=>({silver:2,gold:5,king:10,sovereign:15}[variant]||0);
+  const K=window.HKRoyalPoker,V=window.HKCasinoVIP,Q=window.HKPachinkoRules;
+  const required=()=>({silver:2,gold:5,king:10,sovereign:15,emperor:20}[variant]||0);
   const vipSlots=()=>['gold','sovereign'].includes(variant);
   const legacyPoker=()=>W.snapshot().pending?.game==='poker'&&W.snapshot().pending.data?.version===1;
   const count=()=>W.snapshot().rebirths??0;
@@ -36,7 +36,8 @@
     } catch { sound=false; $('soundToggle').textContent='音 OFF'; $('soundToggle').setAttribute('aria-pressed','false'); }
   }
   function baseRulesHTML() {
-    if(game==='poker'&&!legacyPoker())return '<p>対戦部屋は1つ。リボーン10回以上の2〜6人が同じ掛け金を出し、5枚の役を比べます。2人の参加が確定すると10秒後に配布。カード交換は1回、45秒以内に確定しない人はフォールドになります。</p><p>配布後の入室は観戦です。次のハンドの受付で参加してください。勝者がポットを受け取り、同じ役の強さなら分配します。勝者の払い戻しにリボーン倍率を適用します。カードはサーバーで管理され、他の人の手札は結果まで非公開。フォールドした手札は公開しません。</p><p>待機中の取り消しは全額返金、配布後の退席はフォールドです。待機中に接続が90秒以上途切れた場合や、2分間相手が集まらない場合も全額返金します。再読み込みすると同じ参加情報と払い戻しを復元できます。</p>';
+    if(game==='pachinko')return '<p>1プレイで銀の玉を10球発射。掛け金は10球まとめた1回分です。入賞 壱は掛け金÷10、入賞 弐は掛け金÷5。中央STARTでは0〜9の3桁を抽選し、ゾロ目なら大当たり！</p><table><tr><th>777の大当たり1回</th><td>200倍</td></tr><tr><th>777以外のゾロ目1回</th><td>50倍</td></tr><tr><th>STARTでゾロ目なし</th><td>掛け金÷5</td></tr><tr><th>入賞 壱／入賞 弐</th><td>掛け金÷10／÷5</td></tr></table><p>各玉の入賞先は独立した抽選です。OUT 50%、入賞 壱 24%、入賞 弐 20%、START 6%。STARTの3桁はそれぞれ0〜9が同じ確率で、ゾロ目は100回に1回、777は1,000回に1回です。</p><p>10球の基本配当を合算して1両未満を切り捨て、リボーン倍率を適用します。途中で閉じても同じ入賞結果を復元し、二重に引いたり払ったりしません。</p>';
+    if(game==='poker'&&!legacyPoker())return '<p>満室になると新しい部屋が追加されます。各部屋ではリボーン10回以上の2〜6人が同じ掛け金を出し、5枚の役を比べます。2人の参加が確定すると10秒後に配布。カード交換は1回、45秒以内に確定しない人はフォールドになります。</p><p>配布後の入室は観戦です。次のハンドの受付で参加してください。勝者がポットを受け取り、同じ役の強さなら分配します。勝者の払い戻しにリボーン倍率を適用します。カードはサーバーで管理され、他の人の手札は結果まで非公開。フォールドした手札は公開しません。</p><p>待機中の取り消しは全額返金、配布後の退席はフォールドです。待機中に接続が90秒以上途切れた場合や、2分間相手が集まらない場合も全額返金します。再読み込みすると同じ参加情報と払い戻しを復元できます。</p>';
     if(game==='poker')return '<p>52枚から5枚を配ります。残すカードを押して選び、残りを一度だけ交換します。5枚すべて残して確定することもできます。J・Q・K・Aのワンペア以上で配当。倍率は掛け金を含みます。</p><table>'+(K?.paytable||[]).map(([name,m])=>'<tr><th>'+name+'</th><td>'+m+'倍</td></tr>').join('')+'</table><p>リボーン10回以上で解放。掛け金は最初の配布時に一度だけ引かれます。途中で閉じても同じ5枚と交換用のカードを復元できます。配当は開始時のリボーン倍率で計算し、1両未満を切り捨てます。</p>';
     if(game==='sicbo')return '<p>盤面を押すたび、選んだ両を置きます。複数の場所に賭けられ、合計は所持金の範囲内です。各サイコロは1〜6から独立に同じ確率で抽選します。</p><table><tr><th>小・大（ゾロ目は負け）</th><td>2倍</td></tr><tr><th>指定のダブル（同じ目が2個以上）</th><td>12倍</td></tr><tr><th>指定のゾロ目</th><td>181倍</td></tr><tr><th>いずれかのゾロ目</th><td>31倍</td></tr><tr><th>異なる2つの目</th><td>7倍</td></tr><tr><th>指定の目が1・2・3個</th><td>2・3・4倍</td></tr><tr><th>合計4・17／5・16／6・15</th><td>61／21／19倍</td></tr><tr><th>合計7・14／8・13／9〜12</th><td>13／9／7倍</td></tr></table><p>表示は掛け金を含む払い戻し倍率です。ダブルの12倍に10両を賭けて的中すると、120両が戻ります。ゾロ目でも合計・ダブル・単独の目への賭けは通常どおり判定します。途中で閉じても同じ結果を復元し、二重に引いたり払ったりしません。</p>';
     if(game==='bitcoin')return '<p>Coinbase ExchangeのBTC/USDの実際の価格を使います。「上がる」「下がる」と掛ける両を選ぶと、開始価格を記録して10秒後に判定します。</p><table><tr><th>予想的中</th><td>2倍</td></tr><tr><th>予想が外れる</th><td>0両</td></tr><tr><th>同じ価格</th><td>掛け金を返す</td></tr></table><p>10秒後、最初に取得できた約定価格（5秒以内）で判定します。判定価格を取得できなかった場合は全額返金。途中でページを閉じても掛け金は二重に引かれず、戻ると勝負を復元します。判定時刻を過ぎて5秒以上経った場合は返金します。チャートは直近1分を拡大表示します。15秒・5分・30分にも切り替えられます。最近の約定価格を使い、長い期間の古い部分は1分足の終値を使います。縦軸は表示期間の値動きに合わせて自動調整します。</p><p>ゲーム内の両を使った価格予想です。ビットコインの購入・売却・換金はできません。</p>';
@@ -75,6 +76,7 @@
     for(const [id,text] of Object.entries(captions))$('panel-'+id).querySelector('.stage-caption').textContent=text;
     document.querySelector('[data-game="janken"] small').textContent='勝てば'+rate(2)+'倍';
     if(K)$('royalPaytable').innerHTML=K.paytable.map(([name,m])=>'<div><span>'+name+'</span><b>'+rate(m)+'倍</b></div>').join('');
+    $('pachinkoJackpotRate').textContent=rate(200)+'倍';$('pachinkoTripleRate').textContent=rate(50)+'倍';
     $('slotJackpotRate').textContent=rate(200)+'倍';$('slotJackpotNote').textContent='1ライン777 = '+rate(200)+'倍';
     document.querySelector('.slot-mini-paytable').innerHTML=R.symbols.filter(s=>s.multiplier).map(s=>'<span'+(vipSlots()?' role="img" aria-label="'+symbolName(s.id)+'が3つ · '+rate(s.multiplier)+'倍"':'')+'>'+(vipSlots()&&V?'<i class="vip-mini-symbol" aria-hidden="true">'+V.symbol(s.id)+'</i>':vipSlots()?{cherry:'🍒',lemon:'💎',bell:'👑',bar:'金塊',seven:'7'}[s.id]:s.icon)+'×3 <b>'+rate(s.multiplier)+'倍</b></span>').join('');
     document.querySelectorAll('[data-position] small').forEach(e=>e.textContent=rate(R.bet(e.parentElement.dataset.position).multiplier)+'倍');
@@ -85,7 +87,7 @@
     document.body.classList.toggle('royal-online',game==='poker'&&!legacyPoker());
     if(game==='poker'&&!legacyPoker()&&!isLocked)window.HKOnlinePoker?.open();
     $('casinoRebirths').textContent='リボーン '+count().toLocaleString('ja-JP')+'回';$('casinoBoost').textContent='本来の配当 ×'+P.casinoFactor(count(),1,variant)+(variant==='sovereign'?' · 通常台の1.2倍':'');
-    for(const [v,n] of [['silver',2],['gold',5],['king',10],['sovereign',15]]){const b=document.querySelector('button[data-casino-variant="'+v+'"]');b.disabled=busy;b.classList.toggle('room-locked',count()<n);b.setAttribute('aria-selected',String(variant===v));$(v+'RoomStatus').textContent=count()>=n?'解放済み · 遊ぶ →':'🔒 '+n+'回で解放';}
+    for(const [v,n] of [['silver',2],['gold',5],['king',10],['sovereign',15],['emperor',20]]){const b=document.querySelector('button[data-casino-variant="'+v+'"]');b.disabled=busy;b.classList.toggle('room-locked',count()<n);b.setAttribute('aria-selected',String(variant===v));$(v+'RoomStatus').textContent=count()>=n?'解放済み · 遊ぶ →':'🔒 '+n+'回で解放';}
     $('casinoLock').hidden=!isLocked;$('roundResult').hidden=isLocked||game==='poker'&&!legacyPoker();for(const id of Object.keys(names))$('panel-'+id).hidden=id!==game||isLocked;
     $('casinoLockTitle').textContent=displayName({game,variant});$('casinoLockMessage').textContent='リボーン'+required()+'回で解放 · あなたは'+count()+'回';
     $('gameRules').innerHTML=rulesHTML();
@@ -102,6 +104,7 @@
     $('mobilePlayRound').disabled=$('playRound').disabled;$('mobilePlayRound').textContent=$('playLabel').textContent+' →';$('mobileBetTotal').textContent=$('betTotal').textContent;$('mobileStake').value=$('stake').value;
     document.querySelectorAll('[data-game],[data-hand],[data-direction],[data-sicbo],[data-stake],[data-all-in],#stake,#mobileStake,#rouletteBoard button,#undoBet,#clearBets,[data-remove-bet],#sicboUndo,#sicboClear,[data-remove-sicbo]').forEach(e=>{e.disabled=busy||(!e.matches('[data-game]')&&isLocked)||(free&&(e.matches('[data-stake],[data-all-in],#stake,#mobileStake')));});
     if(isLocked)$('playLabel').textContent='🔒 リボーン'+required()+'回で解放';
+    if(game==='pachinko'&&!isLocked)$('playLabel').textContent=busy?'銀の玉を発射中…':money(validStake(amount)?amount:0)+'で10球を発射';
     if(game==='sicbo')$('playLabel').textContent=busy?'サイコロを振っています…':money(validStake(amount)?amount:0)+'でサイコロを振る';
     $('mobilePlayRound').textContent=$('playLabel').textContent+' →';
     $('undoBet').disabled=busy||!chips.length;$('clearBets').disabled=busy||!chips.length;
@@ -119,9 +122,9 @@
     else if(!busy&&!free&&validStake(amount)&&M.cmp(amount,wallet.balance)>0)status('両が足りません。掛け金を小さくするか、クイズで両を集めよう。',true);
   }
   function selectGame(next,updateURL=true,nextVariant='standard') {
-    if(!names[next]||next==='poker'&&nextVariant!=='king')next='janken';
-    game=next;variant=['silver','gold','king','sovereign'].includes(nextVariant)?nextVariant:'standard';if(variant==='silver'&&game!=='roulette'||vipSlots()&&game!=='slots'||variant==='king'&&game!=='poker'||variant==='sovereign'&&game!=='slots')variant='standard';
-    document.body.dataset.casinoVariant=variant;makeWheel();idleReels();
+    if(!names[next]||next==='poker'&&nextVariant!=='king'||next==='pachinko'&&nextVariant!=='emperor')next='janken';
+    game=next;variant=['silver','gold','king','sovereign','emperor'].includes(nextVariant)?nextVariant:'standard';if(variant==='silver'&&game!=='roulette'||vipSlots()&&game!=='slots'||variant==='king'&&game!=='poker'||variant==='sovereign'&&game!=='slots'||variant==='emperor'&&game!=='pachinko')variant='standard';
+    document.body.dataset.casinoVariant=variant;makeWheel();idleReels();if(game==='pachinko')window.HKPachinko?.idle();
     $('slotTitle').innerHTML=variant==='sovereign'?'王者の<em>スロット</em>':vipSlots()?'金の<em>スロット</em>':'江戸の<em>スロット</em>';
     document.body.classList.toggle('royal-online',game==='poker'&&!legacyPoker());
     if(game==='poker'&&!legacyPoker()&&!locked())window.HKOnlinePoker?.open();else window.HKOnlinePoker?.close();
@@ -132,14 +135,15 @@
     $('sicboSlip').hidden=game!=='sicbo';
     document.querySelector('.game-shell').classList.toggle('sicbo-layout',game==='sicbo');
     $('stakeLabel').textContent=game==='roulette'||game==='sicbo'?'1回押すごとに置く両':'1回に賭ける両';
-    $('stageLabel').textContent={janken:'JANKEN / 一対一の勝負',roulette:'EUROPEAN ROULETTE / 37 POCKETS',slots:'EDO SLOTS / 3 × 3 · 8 LINES',bitcoin:'BITCOIN / LIVE PRICE · 10 SECONDS',sicbo:'SIC BO / 三つのサイコロ',poker:'ONE ROOM / LIVE POKER · REBIRTH 10'}[game];
-    if(variant!=='standard')$('stageLabel').textContent=variant==='silver'?'SILVER ROULETTE / REBIRTH 02':variant==='sovereign'?'SOVEREIGN SLOTS / REBIRTH 15':vipSlots()?'GOLDEN SLOTS / REBIRTH 05':'ONE ROOM / LIVE POKER · REBIRTH 10';
+    $('stageLabel').textContent={janken:'JANKEN / 一対一の勝負',roulette:'EUROPEAN ROULETTE / 37 POCKETS',slots:'EDO SLOTS / 3 × 3 · 8 LINES',bitcoin:'BITCOIN / LIVE PRICE · 10 SECONDS',sicbo:'SIC BO / 三つのサイコロ',poker:'ROYAL ROOMS / LIVE POKER · REBIRTH 10',pachinko:'PACHINKO / TEN SILVER BALLS · REBIRTH 20'}[game];
+    if(variant!=='standard')$('stageLabel').textContent=variant==='emperor'?'PACHINKO / REBIRTH 20':variant==='silver'?'SILVER ROULETTE / REBIRTH 02':variant==='sovereign'?'SOVEREIGN SLOTS / REBIRTH 15':vipSlots()?'GOLDEN SLOTS / REBIRTH 05':'ROYAL ROOMS / LIVE POKER · REBIRTH 10';
     $('betGameName').textContent=displayName({game,variant});$('gameRules').innerHTML=rulesHTML();
     $('resultKicker').textContent='PLACE YOUR BET';$('resultHeadline').textContent=game==='bitcoin'?'10秒後、価格は上がる？下がる？':game==='roulette'?'盤面に両を置こう。':game==='slots'?'縦・横・斜め、8ラインに期待を。':'両を決めて、準備しよう。';$('resultDetail').textContent='倍率は、掛け金を含む払い戻しです。';$('resultNumbers').hidden=true;$('roundResult').className='round-result';
     status(game==='bitcoin'?'上がる・下がるを選び、両を決めて予想しよう。':game==='roulette'?'盤面を押すと、選んだ両を置けます。':game==='slots'?(bonus()?'無料スピンを押すと、両を使わずに回せます。':'スピンを押すと、8ラインすべてを抽選します。'):'グー・チョキ・パーを選んでね。');
     if(game==='poker'){$('resultHeadline').textContent='同じ部屋で、王者同士の勝負を。';status('参加と対戦の操作は、部屋の中から行えます。');}
+    if(game==='pachinko'){$('resultHeadline').textContent='10球に、運を託そう。';status('掛け金を選んで、10球の発射を始めよう。');}
     if(game==='sicbo'){$('resultHeadline').textContent='好きなマスに、両を置こう。';status('盤面を押して両を置こう。複数の場所に賭けられます。');}
-    if(updateURL){const url=new URL(location.href);url.searchParams.set('game',game==='poker'?'janken':game);url.searchParams.delete('variant');history.replaceState(null,'',url);}
+    if(updateURL){const url=new URL(location.href);url.searchParams.set('game',['poker','pachinko'].includes(game)?'janken':game);url.searchParams.delete('variant');history.replaceState(null,'',url);}
     if(game==='bitcoin')startBitcoinFeed();
     else if(!active && !W.snapshot().pending){btcFeed?.stop();clearInterval(btcTimer);btcTimer=null;}
     refresh();
@@ -173,6 +177,7 @@
     for(const cell of new Set(wins.flatMap(w=>w.cells)))$('reel'+(cell%3)).querySelector('[data-row="'+Math.floor(cell/3)+'"]')?.classList.add('is-winning');
   }
   function outcome(amount, context={}) {
+    if(game==='pachinko'){const data=Q.draw();return{payout:Q.payout(amount,data),data};}
     if(game==='janken'){const opponent=R.randomIndex(3),multiplier=R.janken(hand,opponent);return {payout:M.mul(amount,multiplier),data:{player:hand,opponent,multiplier}};}
     if(game==='roulette'){const number=R.randomIndex(37),bets=chips.map(c=>({...c}));return {payout:R.roulette(bets,number),data:{number,bets}};}
     if(game==='sicbo'){const data=R.sicboRound(sicboChips.map(c=>({...c})),Array.from({length:3},()=>R.randomIndex(6)+1));return {payout:data.payout,data};}
@@ -259,7 +264,12 @@
       later(round,()=>{track.parentElement.classList.add('stopped');track.parentElement.setAttribute('aria-label',['左','中央','右'][i]+'リール：'+final.map(id=>symbolName(id)).join('、'));tone('tick');if(i===2){$('slotMachine').classList.remove('spinning');showStatic(round);settle(round);}},duration);
     }
   }
+  function animatePachinko(round){
+    if(!window.HKPachinko){showStatic(round);settle(round);return;}
+    window.HKPachinko.animate(round,{fast:fast(),onPocket:ball=>{if(ball.pocket===3)tone('tick');},done:()=>{if(active?.id===round.id)settle(round);}});
+  }
   function showStatic(round) {
+    if(round.game==='pachinko')window.HKPachinko?.show(round.data);
     if(round.game==='poker'){royalResult=round;renderRoyal(W.snapshot());}
     if(round.game==='sicbo')showSicbo(round);
     if(round.game==='janken'){$('playerHand').textContent=hands[round.data.player];$('opponentHand').textContent=hands[round.data.opponent];$('duelCall').textContent=round.data.multiplier===2?'勝ち':round.data.multiplier===1?'あいこ':'負け';}
@@ -280,13 +290,13 @@
     setTimeout(()=>$('celebration').replaceChildren(),3000);
   }
   function showResult(round,recovered=false) {
-    const net=M.sub(round.creditedPayout??round.payout,round.stake),win=net>0,big=(round.game==='slots'&&(round.data.multiplier>=50||round.data.bonusTriggered))||(round.game==='poker'&&round.data.multiplier>=25);
+    const net=M.sub(round.creditedPayout??round.payout,round.stake),win=net>0,big=(round.game==='slots'&&(round.data.multiplier>=50||round.data.bonusTriggered))||(round.game==='poker'&&round.data.multiplier>=25)||(round.game==='pachinko'&&round.data.jackpots>0);
     $('roundResult').className='round-result '+(win||round.data.bonusTriggered?'win':net<0?'loss':'draw');$('resultKicker').textContent=recovered?'RESULT RESTORED':round.data.bonusTriggered?'BONUS START':round.freeSpin?'FREE SPIN':big?'GOLDEN WIN':win?'YOU WIN':net===0?'STAKE RETURNED':'ROUND COMPLETE';
     let title=round.game==='janken'?(round.data.multiplier===2?'あなたの勝ち！':round.data.multiplier===1?'あいこ。掛け金が戻りました。':'NPCの勝ち。'):round.game==='roulette'?'玉は '+round.data.number+'！':round.data.title;
     if(round.game==='poker')title=round.data.title;
     if(round.game==='bitcoin'&&!round.data.refunded&&round.payout>round.stake)title='予想的中！払い戻し'+P.factor(round.rebirths??0,2,round.boostVersion??1)+'倍。';
     $('resultHeadline').textContent=title+(round.data.bonusTriggered&&title!=='ボーナス発動！'?' ボーナスも発動！':'');
-    $('resultDetail').textContent=round.game==='sicbo'?'サイコロ '+round.data.dice.join('・')+' ／ 合計 '+round.data.sum+(round.data.triple?' ／ ゾロ目':'')+'。'+(round.data.bets?round.data.bets.filter(b=>b.payout>0).map(b=>R.sicboBet(b.id).label+' 基本配当 '+money(b.payout)).join(' ／ ')||'的中した場所はありません。':'予想：'+(round.data.choice==='small'?'小':'大')):round.game==='bitcoin'?(round.data.refunded?'判定に使える価格が取得できなかったため、掛け金を全額返しました。':usd(round.data.startPrice)+' → '+usd(round.data.endPrice)+' · '+(round.data.direction==='up'?'値上がり':'値下がり')+'を予想'):round.game==='janken'?'あなた：'+handNames[round.data.player]+' ／ NPC：'+handNames[round.data.opponent]:round.game==='roulette'?'払い戻し '+money(round.creditedPayout??round.payout)+'。的中した場所の両だけが倍率に応じて戻ります。':round.game==='poker'?round.data.handName:round.data.grid?(round.freeSpin?'ボーナス配当2倍 · ':'')+(round.data.wins.length?'的中 '+round.data.wins.length+'ライン · 合計 '+money(round.creditedPayout??round.payout):'ラインの的中なし')+(round.data.bonusTriggered?'。無料スピン5回を獲得！':''):'中央ライン：'+round.data.reels.map(id=>symbolName(id)).join(' · ');
+    $('resultDetail').textContent=round.game==='pachinko'?'発射10球 · START '+round.data.starts+'回 · 大当たり '+round.data.jackpots+'回。基本配当 '+money(round.basePayout)+'。':round.game==='sicbo'?'サイコロ '+round.data.dice.join('・')+' ／ 合計 '+round.data.sum+(round.data.triple?' ／ ゾロ目':'')+'。'+(round.data.bets?round.data.bets.filter(b=>b.payout>0).map(b=>R.sicboBet(b.id).label+' 基本配当 '+money(b.payout)).join(' ／ ')||'的中した場所はありません。':'予想：'+(round.data.choice==='small'?'小':'大')):round.game==='bitcoin'?(round.data.refunded?'判定に使える価格が取得できなかったため、掛け金を全額返しました。':usd(round.data.startPrice)+' → '+usd(round.data.endPrice)+' · '+(round.data.direction==='up'?'値上がり':'値下がり')+'を予想'):round.game==='janken'?'あなた：'+handNames[round.data.player]+' ／ NPC：'+handNames[round.data.opponent]:round.game==='roulette'?'払い戻し '+money(round.creditedPayout??round.payout)+'。的中した場所の両だけが倍率に応じて戻ります。':round.game==='poker'?round.data.handName:round.data.grid?(round.freeSpin?'ボーナス配当2倍 · ':'')+(round.data.wins.length?'的中 '+round.data.wins.length+'ライン · 合計 '+money(round.creditedPayout??round.payout):'ラインの的中なし')+(round.data.bonusTriggered?'。無料スピン5回を獲得！':''):'中央ライン：'+round.data.reels.map(id=>symbolName(id)).join(' · ');
     $('resultNumbers').hidden=false;$('resultBet').textContent=money(round.stake);$('resultPayout').textContent=money(round.creditedPayout??round.payout);$('resultNet').textContent=(net>0?'＋':'')+money(net);
     $('tableArea').classList.toggle('big-win',big);
     if(round.game==='poker')$('resultDetail').textContent=round.data.handName+' · '+round.data.holds.length+'枚を残して確定。基本配当 '+round.data.multiplier+'倍。';
@@ -322,7 +332,7 @@
     const amount=total();if(!validStake(amount)){status('掛け金は1両以上の整数。ルーレット・大小は先に盤面へ両を置こう。',true);return;}
     if(game==='bitcoin'){playBitcoin(amount);return;}
     V?.start(variant);starting=true;$('tableArea').classList.remove('big-win');$('celebration').replaceChildren();$('resultNumbers').hidden=true;$('resultKicker').textContent='GOOD LUCK';$('resultHeadline').textContent='勝負の準備…';$('resultDetail').textContent='';refresh();
-    W.begin(game,amount,context=>outcome(amount,context),round=>{starting=false;active=round;refresh();status(round.freeSpin?'無料スピン！配当2倍で抽選中。':'掛け金 '+money(amount)+'。結果が決まるまで待ってね。');$('resultHeadline').textContent=game==='janken'?'じゃん、けん…':game==='roulette'?'玉の行方は、どこへ。':game==='sicbo'?'三つのサイコロ、いざ勝負。':'リールが止まる、その瞬間まで。';({janken:animateJanken,roulette:animateRoulette,slots:animateSlots,sicbo:animateSicbo}[game])(round);},error=>{starting=false;refresh();$('resultHeadline').textContent='勝負を始められませんでした。';status(errorText(error),true);},{variant});
+    W.begin(game,amount,context=>outcome(amount,context),round=>{starting=false;active=round;refresh();status(round.freeSpin?'無料スピン！配当2倍で抽選中。':'掛け金 '+money(amount)+'。結果が決まるまで待ってね。');$('resultHeadline').textContent=game==='janken'?'じゃん、けん…':game==='roulette'?'玉の行方は、どこへ。':game==='sicbo'?'三つのサイコロ、いざ勝負。':'リールが止まる、その瞬間まで。';({janken:animateJanken,roulette:animateRoulette,slots:animateSlots,sicbo:animateSicbo,pachinko:animatePachinko}[game])(round);},error=>{starting=false;refresh();$('resultHeadline').textContent='勝負を始められませんでした。';status(errorText(error),true);},{variant});
   }
   function startBitcoinFeed() {
     if (!window.HKBitcoin) { status('価格データを読み込めません。ページを読み直してね。', true); return; }
@@ -362,7 +372,7 @@
   document.querySelectorAll('[data-direction]').forEach(b=>b.onclick=()=>{if(b.disabled)return;direction=b.dataset.direction;document.querySelectorAll('[data-direction]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));updateBitcoin();refresh();});
   document.querySelectorAll('[data-btc-range]').forEach(b=>b.onclick=()=>{btcRange=Number(b.dataset.btcRange);document.querySelectorAll('[data-btc-range]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));$('btcChart').setAttribute('aria-label','ビットコイン対米ドルの直近'+b.textContent+'の価格チャート');updateBitcoin();});
   window.addEventListener('resize',()=>{if(game==='bitcoin')updateBitcoin();});
-  const chooseTab=b=>{const next=b.dataset.game||({silver:'roulette',gold:'slots',king:'poker',sovereign:'slots'}[b.dataset.casinoVariant]),v=b.dataset.casinoVariant||'standard',free=bonus();if(next==='slots'&&free?.variant&&free.variant!==v){status('先に'+displayName({game:'slots',variant:free.variant})+'の無料スピンを終えてね。',true);return;}selectGame(next,true,v);};
+  const chooseTab=b=>{const next=b.dataset.game||({silver:'roulette',gold:'slots',king:'poker',sovereign:'slots',emperor:'pachinko'}[b.dataset.casinoVariant]),v=b.dataset.casinoVariant||'standard',free=bonus();if(next==='slots'&&free?.variant&&free.variant!==v){status('先に'+displayName({game:'slots',variant:free.variant})+'の無料スピンを終えてね。',true);return;}selectGame(next,true,v);};
   document.querySelectorAll('.casino-tabs [role=tab]').forEach(b=>{b.onclick=()=>{if(!active&&!starting&&!W.snapshot().pending)chooseTab(b);};b.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key)||active||starting||W.snapshot().pending)return;e.preventDefault();const tabs=[...document.querySelectorAll('.casino-tabs [role=tab]')],index=tabs.indexOf(b),next=e.key==='Home'?0:e.key==='End'?tabs.length-1:(index+(e.key==='ArrowRight'?1:tabs.length-1))%tabs.length;chooseTab(tabs[next]);tabs[next].focus();};});
   $('royalCards').onclick=e=>{const b=e.target.closest('[data-royal-card]');if(!b||b.disabled)return;const i=Number(b.dataset.royalCard);if(royalHolds.has(i))royalHolds.delete(i);else royalHolds.add(i);refresh();tone('tick');};
   $('royalHoldAll').onclick=()=>{royalHolds=new Set([0,1,2,3,4]);refresh();};$('royalHoldNone').onclick=()=>{royalHolds.clear();refresh();};
@@ -382,6 +392,6 @@
   makeWheel();makeBoard();idleReels();makeDice();makeSicboBoard();
   const wallet=W.snapshot();if(wallet.pending?.game==='bitcoin')direction=wallet.pending.data.direction;$('stake').value=wallet.pending?.game==='poker'?M.full(wallet.pending.stake):M.cmp(wallet.balance,0)>0?(M.cmp(wallet.balance,10)<0?M.full(wallet.balance):10):10;
   selectGame(wallet.pending?.game||new URLSearchParams(location.search).get('game'),false,wallet.pending?.variant||'standard');
-  if(new URLSearchParams(location.search).has('variant')){const url=new URL(location.href);url.searchParams.delete('variant');url.searchParams.set('game',game==='poker'?'janken':game);history.replaceState(null,'',url);}renderBets();renderSicboBets();
+  if(new URLSearchParams(location.search).has('variant')){const url=new URL(location.href);url.searchParams.delete('variant');url.searchParams.set('game',['poker','pachinko'].includes(game)?'janken':game);history.replaceState(null,'',url);}renderBets();renderSicboBets();
   if(wallet.pending){const round=wallet.pending;active=round;if(round.game==='poker'&&round.data?.version===2){active=null;window.HKOnlinePoker?.open();status('対戦部屋に再接続しています。');}else if(round.game==='poker'){renderRoyal(wallet);status('途中の手札を復元しました。残すカードを選んで交換しよう。');}else if(round.game==='bitcoin'){startBitcoinFeed();status('途中の予想を復元しました。判定時刻まで待ってね。');updateBitcoin();}else{showStatic(round);settle(round,true);}}
 })();

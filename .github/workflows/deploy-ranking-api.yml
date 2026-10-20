@@ -27,6 +27,7 @@ jobs:
         run: |
           node tests/admin.cjs
           node tests/community-api.cjs
+          node tests/expansion-api.cjs
           node tests/ranking-api.cjs
           node tests/wealth-api.cjs
       - name: Deploy ranking storage
@@ -56,7 +57,7 @@ jobs:
                 const published=await notices.json();
                 const room=await fetch(new URL('/wealth/poker',base),{headers:{Origin:'https://historykids.github.io',Authorization:'Bearer '+probeToken},signal:AbortSignal.timeout(15000)});
                 const table=await room.json();
-                ready=notices.ok&&Array.isArray(published.notices)&&room.ok&&table.room==='royal-one'&&Array.isArray(table.players)&&!('deck' in table)&&table.players.every(player=>!('owner' in player));
+                ready=notices.ok&&Array.isArray(published.notices)&&published.notices.every(n=>n.audience==='all'&&!('recipient' in n))&&room.ok&&table.room==='royal-one'&&Array.isArray(table.rooms)&&table.rooms.every(r=>!('hand' in r)&&!('owner' in r))&&Array.isArray(table.players)&&!('deck' in table)&&table.players.every(player=>!('owner' in player));
               }catch{ready=false;}
             }
             if(ready)break;
@@ -69,6 +70,12 @@ jobs:
           const denied=await probe.json();
           if(probe.status!==403||!['admin-code-invalid','admin-claimed'].includes(denied.error))throw Error('Administrator authentication runtime check failed: '+JSON.stringify({status:probe.status,error:denied.error}));
           console.log('Administrator authentication check passed; no owner assigned by the check');
+          const recipients=await fetch(new URL('/wealth/admin/recipients',base),{headers:{Origin:'https://historykids.github.io',Authorization:'Bearer '+probeToken},signal:AbortSignal.timeout(15000)});
+          if(recipients.status!==403||(await recipients.json()).error!=='admin-required')throw Error('Recipient directory must remain administrator-only');
+          console.log('Private recipient directory access check passed');
+          const privatePost=await fetch(new URL('/wealth/admin/personal-notices',base),{method:'POST',headers:{Origin:'https://historykids.github.io',Authorization:'Bearer '+probeToken,'Content-Type':'application/json'},body:JSON.stringify({requestId:crypto.randomUUID(),recipient:'0'.repeat(64),title:'',body:''}),signal:AbortSignal.timeout(15000)});
+          if(privatePost.status!==403||(await privatePost.json()).error!=='admin-required')throw Error('Personal delivery must remain administrator-only');
+          console.log('Personal delivery access check passed; no notice sent');
           fs.writeFileSync('assets/ui/ranking-config.js','// Public URL only. Never place credentials here.\nwindow.HKRankingConfig=Object.freeze('+JSON.stringify({endpoint:new URL('/ranking',base).href})+');\n');
           console.log('Ranking storage check passed');
           JS

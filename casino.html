@@ -19,21 +19,24 @@
   <title>両カジノ｜歴史キッズ</title>
   <meta name="description" content="クイズで集めた両で、じゃんけん・欧州式ルーレット・スロット・大小・ビットコイン価格予想。町と同じ両だけで遊べる歴史キッズのゲームコーナー。">
   <link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/casino.css?v=royal-tabs-20261016"><link rel="stylesheet" href="./assets/ui/casino-vip.css?v=room-20261020">
-  <script defer src="./assets/ui/amounts.js?v=room-20261020"></script>
+  <script defer src="./assets/ui/amounts.js?v=expansion-20261020"></script>
     <script defer src="./assets/ui/bitcoin-rules.js?v=royal-20261016"></script>
-  <script defer src="./assets/ui/wallet.js?v=room-20261020"></script>
+  <script defer src="./assets/ui/pachinko-rules.js?v=expansion-20261020"></script>
+  <script defer src="./assets/ui/wallet.js?v=expansion-20261020"></script>
   <script defer src="./assets/ui/casino-rules.js?v=royal-20261016"></script>
   <script defer src="./assets/ui/bitcoin.js?v=ten-seconds-20261006"></script>
   <script defer src="./assets/ui/table-rules.js?v=royal-20261016"></script>
   <script defer src="./assets/ui/royal-poker.js?v=royal-20261016"></script>
-  <script defer src="./assets/ui/casino-vip.js?v=room-20261020"></script>
+  <script defer src="./assets/ui/casino-vip.js?v=expansion-20261020"></script>
   <script defer src="./assets/ui/core.js?v=pagoda-torii-20261008"></script>
   <script defer src="./assets/ui/wealth-rules.js?v=owner-20261018"></script>
   <script defer src="./assets/ui/ranking-config.js?v=wealth-20261008"></script>
-  <script defer src="./assets/ui/community.js?v=room-20261020"></script>
-  <script defer src="./assets/ui/online-poker.js?v=room-20261020"></script>
-  <script defer src="./assets/ui/casino.js?v=room-20261020"></script>
-<link rel="stylesheet" href="./assets/ui/online-poker.css?v=room-20261020">
+  <script defer src="./assets/ui/community.js?v=expansion-20261020"></script>
+  <script defer src="./assets/ui/online-poker.js?v=expansion-20261020"></script>
+  <script defer src="./assets/ui/pachinko.js?v=expansion-20261020"></script>
+  <script defer src="./assets/ui/casino.js?v=expansion-20261020"></script>
+<link rel="stylesheet" href="./assets/ui/online-poker.css?v=expansion-20261020">
+<link rel="stylesheet" href="./assets/ui/pachinko.css?v=expansion-20261020">
 <link rel="canonical" href="https://historykids.github.io/casino.html" />
 </head>
 <body>
@@ -55,6 +58,7 @@
       <button id="tab-gold" role="tab" aria-selected="false" aria-controls="panel-slots" data-casino-variant="gold" tabindex="-1"><span>07 ♛</span><b>金のスロット</b><small id="goldRoomStatus">🔒 5回で解放</small></button>
       <button id="tab-king" role="tab" aria-selected="false" aria-controls="panel-poker" data-casino-variant="king" tabindex="-1"><span>08 ♔</span><b>王者のポーカー</b><small id="kingRoomStatus">🔒 10回で解放</small></button>
       <button id="tab-sovereign" role="tab" aria-selected="false" aria-controls="panel-slots" data-casino-variant="sovereign" tabindex="-1"><span>09 ♚</span><b>王者のスロット</b><small id="sovereignRoomStatus">🔒 15回で解放</small></button>
+      <button id="tab-emperor" role="tab" aria-selected="false" aria-controls="panel-pachinko" data-casino-variant="emperor" tabindex="-1"><span>10 ◉</span><b>パチンコ</b><small id="emperorRoomStatus">🔒 20回で解放</small></button>
     </div>
     <p class="casino-tab-hint">選択バーを横にスワイプすると、限定台も選べます。</p>
     <section class="casino-prestige" aria-label="リボーン特典"><div class="prestige-summary"><span class="eyebrow">REBIRTH PRIVILEGES</span><b id="casinoRebirths">リボーン 0回</b><span id="casinoBoost">本来の配当 ×1</span><a href="./#rebirth">リボーンする →</a></div></section>
@@ -111,7 +115,8 @@
           <p class="stage-caption">カードを押して残すものを選び、1回だけ交換。J以上のワンペアから配当！</p>
           <div id="royalPaytable" class="royal-paytable" aria-label="王者のポーカーの配当"></div></div>
           <div id="onlinePoker" class="online-poker">
-            <div class="room-heading"><div><span class="eyebrow">THE ONE &amp; ONLY TABLE</span><h2>王者のポーカー</h2><p>部屋はひとつ。王者同士、同じ卓で。</p></div><span id="roomPhase" class="room-phase">接続を確認中</span></div>
+            <div class="room-heading"><div><span class="eyebrow">THE SOVEREIGN’S LOUNGE</span><h2>王者のポーカー</h2><p>王者同士、同じ卓で。満室なら、次の部屋へ。</p></div><span id="roomPhase" class="room-phase">接続を確認中</span></div>
+            <div class="room-picker"><label for="roomSelect">対戦部屋<select id="roomSelect"><option value="royal-one">第1室</option></select></label><span id="roomTotal">1部屋 · 満室になると次の部屋が開きます</span></div>
             <div class="room-dashboard"><div><small>あなたの席</small><b id="roomRole">観戦席</b></div><div><small>ポット</small><b id="roomPot">0両</b></div><div><small>参加者</small><b id="roomCount">0 / 6人</b></div><div><small>残り時間</small><b id="roomClock">—</b></div></div>
             <div class="room-table"><div class="room-table-mark" aria-hidden="true">♔<span>THE SOVEREIGN’S TABLE</span></div><div id="roomSeats" class="room-seats" aria-label="対戦部屋の6席"></div></div>
             <p id="roomWatchHint" class="room-watch-hint">対戦中に入室すると観戦になり、次のハンドから参加できます。</p>
@@ -119,9 +124,16 @@
             <form id="roomJoinForm" class="room-join" hidden><div><h3>次のハンドに参加</h3><p>共通の掛け金：<b id="roomCommonStake">最初の参加者が設定</b></p></div><label>ランキングで使う名前<input id="roomName" maxlength="24" autocomplete="off" placeholder="登録済みなら同じ名前を入力"></label><label>この部屋の掛け金（両）<input id="roomStake" type="text" inputmode="numeric" pattern="[0-9]+" maxlength="72" value="100"></label><p>最初の人が掛け金を決め、全員が同額で参加します。名前と最新の町の集計値を成金ランキングにも登録します。</p><button id="roomJoin" type="submit">この掛け金で参加する</button></form>
             <div id="roomOutcome" class="room-outcome" role="status" hidden><h3 id="roomOutcomeTitle"></h3><b id="roomOutcomeAmount"></b></div>
             <div class="room-tools"><button id="roomRefresh" type="button">部屋を更新</button><button id="roomLeave" type="button" hidden>参加を取り消す</button></div><div id="roomLeaveConfirm" class="room-leave-confirm" hidden><p id="roomLeaveConfirmText"></p><button id="roomLeaveCommit" type="button">退席する</button><button id="roomLeaveCancel" type="button">戻る</button></div>
-            <p id="roomMessage" class="room-message" role="status" aria-live="polite">部屋は1つ。リボーン10回以上で参加できます。</p>
+            <p id="roomMessage" class="room-message" role="status" aria-live="polite">リボーン10回以上で参加できます。部屋を選んでね。</p>
             <details class="room-rules"><summary>対人ポーカーの遊び方</summary><p>2〜6人で5枚の役を比べるドローポーカーです。2人の参加が確定すると10秒後に配布。残すカードを選んで1回だけ交換し、45秒以内に確定してください。時間切れはフォールドになります。</p><p>勝者が全員の掛け金を集めたポットを獲得。同じ役の強さなら分配します。勝者の払い戻しには自分のリボーン倍率がかかります。待機中の退席は全額返金、配布後はフォールドです。</p><p>対戦中の途中参加は観戦です。結果は10秒表示してから次の参加を受付。他の人の手札は結果まで非公開で、フォールドした手札も見せません。通信が切れても、再読み込みで参加情報と払い戻しを復元できます。待機中に90秒以上切断した場合や、2分間相手が集まらない場合は、参加を取り消して返金します。</p></details>
           </div>
+        </section>
+        <section id="panel-pachinko" class="casino-panel pachinko-panel" role="tabpanel" aria-labelledby="tab-emperor" hidden>
+          <div class="pachinko-title"><span>THE GOLDEN PAVILION · REBIRTH XX</span><h2>黄金のパチンコ</h2><p>釘の森を抜けて、運命の入賞口へ。<br>十球の銀と、三つの数字が、黄金を呼ぶ。</p></div>
+          <div id="pachinkoMachine" class="pachinko-machine"><canvas id="pachinkoCanvas" width="720" height="820" role="img" aria-label="銀の玉が釘の間を進むパチンコ盤。入賞結果は下に文字でも表示します。"></canvas><div class="pachinko-scoreboard"><small>GOLDEN PACHINKO</small><div id="pachinkoDigits" class="pachinko-digits" aria-label="中央入賞の数字"><span>7</span><span>7</span><span>7</span></div></div><p id="pachinkoCall" class="pachinko-call" role="status">10球に、運を託せ。</p></div>
+          <div class="pachinko-stats"><div><small>発射した玉</small><b id="pachinkoBallCount">0 / 10球</b></div><div><small>中央START入賞</small><b id="pachinkoStartCount">0回</b></div><div><small>1プレイ</small><b>銀の玉10球</b></div></div><progress id="pachinkoProgress" class="pachinko-progress" max="10" value="0" aria-label="10球の発射状況"></progress>
+          <div class="pachinko-prizes"><div><span>7 · 7 · 7</span><small>黄金の大当たり1回</small><b id="pachinkoJackpotRate">600倍</b></div><div><span>ゾロ目</span><small>777以外の大当たり1回</small><b id="pachinkoTripleRate">150倍</b></div></div>
+          <div id="pachinkoBallResults" class="pachinko-ball-results" aria-label="10球それぞれの入賞結果"></div><p class="stage-caption">1プレイ10球。通常の入賞も合算し、大当たりにはリボーン倍率も適用！</p>
         </section>
         <div id="celebration" class="celebration" aria-hidden="true"></div>
         <div id="vipFinale" class="vip-finale" aria-hidden="true" hidden><div class="vip-finale-orbit"></div><span id="vipFinaleCrest" class="vip-finale-crest"></span><span id="vipFinaleTitle" class="vip-finale-title"></span><small id="vipFinaleLabel"></small><strong id="vipFinaleAmount"></strong><span class="vip-finale-line">HISTORY KIDS · EXCLUSIVE COLLECTION</span></div>

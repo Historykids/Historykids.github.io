@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const KEY = 'hk_wallet_v2', M = window.HKAmounts, P=M.rebirth;
-  const games = ['janken', 'roulette', 'slots', 'bitcoin', 'sicbo', 'poker'];
+  const games = ['janken', 'roulette', 'slots', 'bitcoin', 'sicbo', 'poker','pachinko'];
   const integer = M.integer, within = M.valid;
   const amountKeys = new Set(['balance','stake','slotStake','payout','creditedPayout','basePayout']);
   const validCodes = codes => Array.isArray(codes) && codes.length <= 100 && new Set(codes).size === codes.length && codes.every(code => typeof code === 'string' && /^\d{1,16}$/.test(code));
@@ -39,6 +39,7 @@
     if(!data||data.version!==1||data.phase!=='draw'||!Array.isArray(data.hand)||data.hand.length!==5||!Array.isArray(data.deck)||data.deck.length!==47)return false;
     const cards=[...data.hand,...data.deck];return new Set(cards).size===52&&cards.every(card=>typeof card==='string'&&/^[2-9TJQKA][SHDC]$/.test(card));
   }
+  function validPachinko(round){return !!window.HKPachinkoRules?.valid(round.data)&&M.cmp(round.basePayout??round.payout,window.HKPachinkoRules.payout(round.stake,round.data))===0;}
   function read() {
     const raw = localStorage.getItem(KEY);
     if (raw) {
@@ -51,11 +52,12 @@
       if(value.slotBonus?.variant&&!P.unlocked('slots',value.slotBonus.variant,value.rebirths))throw Error('wallet-invalid');
       if (value.pending) {
         const r=value.pending, times=r.rebirths??0, free=r.game==='slots'&&r.freeSpin===true, basis=free?r.slotStake:r.stake;
-        if (!P.valid(times) || times>value.rebirths || ![1,2].includes(r.boostVersion??1) || !P.unlocked(r.game,r.variant||'standard',times) || !games.includes(r.game) || !within(r.stake) || (free?r.stake!==0:r.stake<1) || !within(basis) || basis<1 || !integer(r.payout) || !integer(r.basePayout??r.payout) || M.cmp(r.basePayout??r.payout,M.mul(basis,r.game==='slots'?4800:250))>0 || typeof r.id!=='string') throw Error('wallet-invalid');
+        if (!P.valid(times) || times>value.rebirths || ![1,2].includes(r.boostVersion??1) || !P.unlocked(r.game,r.variant||'standard',times) || !games.includes(r.game) || !within(r.stake) || (free?r.stake!==0:r.stake<1) || !within(basis) || basis<1 || !integer(r.payout) || !integer(r.basePayout??r.payout) || M.cmp(r.basePayout??r.payout,M.mul(basis,r.game==='slots'?4800:r.game==='pachinko'?2000:250))>0 || typeof r.id!=='string') throw Error('wallet-invalid');
         if(r.game!=='bitcoin' && M.cmp(r.payout,refund(r.game,r.data)?r.basePayout??r.payout:P.casinoBoost(r.basePayout??r.payout,times,r.variant,r.boostVersion??1))!==0)throw Error('wallet-invalid');
         if (r.game === 'bitcoin' && (!window.HKBitcoinRules?.validRound(r.data) || r.payout !== 0)) throw Error('wallet-invalid');
         if(r.game==='poker'&&(!(validPokerDeal(r.data)||r.data?.version===2&&r.data.phase==='online'&&r.data.ticket===r.id&&/^[A-Za-z0-9_-]{16,64}$/.test(r.id))||r.variant!=='king'||r.payout!==0))throw Error('wallet-invalid');
         if (r.game === 'sicbo' && !validSicbo(r)) throw Error('wallet-invalid');
+        if(r.game==='pachinko'&&!validPachinko(r))throw Error('wallet-invalid');
       }
       return value;
     }
@@ -131,10 +133,11 @@
       const freeSpin=game==='slots'&&w.slotBonus?.remaining>0, slotStake=freeSpin?w.slotBonus.stake:stake, cost=freeSpin?0:stake;
       if (M.cmp(w.balance,cost)<0) throw Error('insufficient');
       const outcome = draw({freeSpin, stake:slotStake});
-      if (!integer(outcome.payout) || M.cmp(outcome.payout,M.mul(slotStake,game==='slots'?4800:250))>0) throw Error('invalid-payout');
+      if (!integer(outcome.payout) || M.cmp(outcome.payout,M.mul(slotStake,game==='slots'?4800:game==='pachinko'?2000:250))>0) throw Error('invalid-payout');
       if(freeSpin&&w.slotBonus.variant&&w.slotBonus.variant!==variant)throw Error('bonus-variant');
       const round = { id: uid(), game, variant, rebirths:w.rebirths, boostVersion:P.boostVersion, basePayout:outcome.payout, stake:cost, payout:refund(game,outcome.data)?outcome.payout:P.casinoBoost(outcome.payout,w.rebirths,variant), data: outcome.data, at: Date.now(), ...(game==='slots'?{freeSpin,slotStake}:{}) };
       if(game==='sicbo' && !validSicbo(round))throw Error('invalid-payout');
+      if(game==='pachinko'&&!validPachinko(round))throw Error('invalid-payout');
       if(freeSpin)w.slotBonus.remaining--;
       w.balance=M.sub(w.balance,cost); w.pending = round;
       return round;

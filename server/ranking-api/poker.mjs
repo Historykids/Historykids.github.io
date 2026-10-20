@@ -2,6 +2,8 @@ import C from '../../assets/ui/table-rules.js';
 const M=globalThis.HKAmounts;
 export const pokerRoutes=new Set(['/wealth/poker','/wealth/poker/reserve','/wealth/poker/commit','/wealth/poker/draw','/wealth/poker/leave','/wealth/poker/ack']);
 const fail=(code,status=400)=>{throw Object.assign(Error(code),{status});};
+const roomName=n=>n===1?'royal-one':'royal-'+n;
+const roomNumber=value=>{if(value===undefined||value==='royal-one')return 1;if(typeof value!=='string'||!/^royal-[1-9]\d{0,5}$/.test(value))fail('poker-room',404);return Number(value.slice(6));};
 const validId=id=>typeof id==='string'&&/^[A-Za-z0-9_-]{16,64}$/.test(id);
 export class WealthPoker{
  constructor(storage,admin){
@@ -10,6 +12,8 @@ export class WealthPoker{
   this.sql.exec('CREATE TABLE IF NOT EXISTS poker_tickets(id TEXT PRIMARY KEY,owner TEXT NOT NULL,status TEXT NOT NULL,receipt TEXT NOT NULL)');
   this.sql.exec('CREATE INDEX IF NOT EXISTS poker_ticket_owner ON poker_tickets(owner,status)');
   this.sql.exec('INSERT OR IGNORE INTO poker_room(singleton,state) VALUES(1,?)',JSON.stringify(this.empty()));
+  this.sql.exec('CREATE TABLE IF NOT EXISTS poker_rooms(id INTEGER PRIMARY KEY,state TEXT NOT NULL)');
+  this.sql.exec('INSERT OR IGNORE INTO poker_rooms(id,state) SELECT 1,state FROM poker_room WHERE singleton=1');
  }
  empty(){return{phase:'lobby',handId:null,stake:null,players:[],startAt:null,deadline:null,nextAt:null,deck:[],discards:[],result:null};}
  ticket(id){const row=this.sql.exec('SELECT * FROM poker_tickets WHERE id=?',id).toArray()[0];return row?{...JSON.parse(row.receipt),status:row.status,owner:row.owner}:null;}
@@ -48,18 +52,23 @@ export class WealthPoker{
   s.players=paid;s.phase='playing';s.handId=crypto.randomUUID();s.deck=this.shuffle();s.discards=[];s.deadline=now+45000;s.startAt=null;
   for(const p of s.players){p.hand=s.deck.splice(0,5);p.drawn=false;p.folded=false;p.holds=[];}
  }
- view(s,owner){
+ view(s,owner,room,rooms){
   const mine=this.latest(owner),own=s.players.find(p=>p.owner===owner),reveal=s.phase==='showdown';
-  return{room:'royal-one',phase:s.phase,handId:s.handId,stake:s.stake,startAt:s.startAt,deadline:s.deadline,nextAt:s.nextAt,now:this.now(),capacity:6,result:s.result,
+  return{room:roomName(room),rooms:rooms.map(r=>({id:roomName(r.id),name:'第'+r.id+'室',phase:r.state.phase,seats:r.state.players.length,players:r.state.players.filter(p=>p.paid).length,capacity:6,stake:r.state.stake,joinable:r.state.phase==='lobby'&&r.state.players.length<6})),phase:s.phase,handId:s.handId,stake:s.stake,startAt:s.startAt,deadline:s.deadline,nextAt:s.nextAt,now:this.now(),capacity:6,result:s.result,
    players:s.players.map(p=>({id:p.id,name:p.name,rebirths:p.rebirths,paid:p.paid,drawn:!!p.drawn,folded:!!p.folded,hand:p.hand&&(p.owner===owner||reveal&&!p.folded)?p.hand:null,handName:reveal&&!p.folded?C.evaluate(p.hand).name:null})),
-   ownId:own?.id||null,ticket:mine?Object.fromEntries(Object.entries(mine).filter(([key])=>key!=='owner')):null};
+   ownId:own?.id||null,ticket:mine?{...Object.fromEntries(Object.entries(mine).filter(([key])=>key!=='owner')),room:mine.room||'royal-one'}:null};
  }
  fetch(path,data){
   try{
    const owner=data.owner;if(!/^[a-f0-9]{64}$/.test(owner||''))fail('identity-required',401);
    let output;
    const work=()=>{
-    const s=JSON.parse(this.sql.exec('SELECT state FROM poker_room WHERE singleton=1').toArray()[0].state);this.advance(s);
+    const rooms=this.sql.exec('SELECT r.id,CASE WHEN r.id=1 THEN (SELECT state FROM poker_room WHERE singleton=1) ELSE r.state END AS state FROM poker_rooms r ORDER BY r.id').toArray().map(r=>({id:r.id,original:r.state,state:JSON.parse(r.state)}));
+    for(const r of rooms)this.advance(r.state);
+    const latest=this.latest(owner),byId=data.id?this.ticket(data.id):null;
+    if(byId&&byId.owner!==owner)fail('poker-ticket',403);
+    const chosen=byId?.room||latest?.room||(latest?'royal-one':data.room),room=roomNumber(chosen);
+    const target=rooms.find(r=>r.id===room);if(!target)fail('poker-room',404);const s=target.state;
     const own=s.players.find(p=>p.owner===owner);if(own&&path==='/wealth/poker')own.seenAt=this.now();
     if(path==='/wealth/poker/reserve'){
      if(!validId(data.id))fail('poker-input');const previous=this.ticket(data.id),latest=this.latest(owner);
@@ -73,7 +82,7 @@ export class WealthPoker{
      if(!M.valid(data.stake)||M.cmp(data.stake,1)<0)fail('poker-stake');if(s.stake!==null&&M.cmp(data.stake,s.stake))fail('poker-stake-changed',409);
      if(M.cmp(data.stake,player.balance)>0)fail('insufficient');s.stake=M.full(data.stake);
      const p={id:data.id,owner,name:player.name,rebirths:player.rebirths,paid:false,seenAt:this.now(),joinedAt:this.now()};s.players.push(p);
-     this.saveTicket({id:p.id,owner,status:'reserved',stake:s.stake,rebirths:p.rebirths,at:this.now(),payout:'0'});
+     this.saveTicket({id:p.id,owner,room:roomName(room),status:'reserved',stake:s.stake,rebirths:p.rebirths,at:this.now(),payout:'0'});
      }
     }else if(path!=='/wealth/poker'){
      if(!validId(data.id))fail('poker-input');const ticket=this.ticket(data.id);if(!ticket||ticket.owner!==owner)fail('poker-ticket',403);
@@ -98,7 +107,10 @@ export class WealthPoker{
       }
      }
     }
-    this.advance(s);this.sql.exec('UPDATE poker_room SET state=? WHERE singleton=1',JSON.stringify(s));output=this.view(s,owner);
+    this.advance(s);
+    if(rooms.some(r=>r.state.players.length>=6)&&!rooms.some(r=>r.state.phase==='lobby'&&r.state.players.length<6))rooms.push({id:Math.max(...rooms.map(r=>r.id))+1,state:this.empty(),original:null});
+    for(const r of rooms){const json=JSON.stringify(r.state);if(json!==r.original){this.sql.exec('INSERT INTO poker_rooms(id,state) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state',r.id,json);if(r.id===1)this.sql.exec('UPDATE poker_room SET state=? WHERE singleton=1',json);}}
+    output=this.view(s,owner,room,rooms);
    };
    if(this.storage.transactionSync)this.storage.transactionSync(work);else work();
    return Response.json(output);

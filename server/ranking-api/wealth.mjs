@@ -78,12 +78,12 @@ export async function wealthRequest(request, env, reply) {
   const path = new URL(request.url).pathname;
   if (!['/wealth', '/wealth/register'].includes(path)&&!adminRoutes.has(path)&&!pokerRoutes.has(path)&&!noticeRoutes.has(path)) return reply({error: 'not-found'}, 404);
   if (request.method === 'OPTIONS') return reply({ok: true});
-  const read=path==='/wealth'||path==='/wealth/admin/session'||path==='/wealth/admin/board'||path==='/wealth/poker'||path==='/wealth/notices';
+  const read=path==='/wealth'||path==='/wealth/admin/session'||path==='/wealth/admin/board'||path==='/wealth/poker'||path==='/wealth/notices'||path==='/wealth/admin/recipients';
   if (request.method !== (read ? 'GET' : 'POST')) return reply({error: 'method-not-allowed'}, 405);
   if (!env.LEADERBOARD || !env.RANK_READ_LIMITER || !env.RANK_WRITE_LIMITER || !env.RANK_GLOBAL_LIMITER) return reply({error: 'not-configured'}, 503);
   if(pokerRoutes.has(path)&&!env.POKER_ROOM_LIMITER)return reply({error:'not-configured'},503);
   const token = request.headers.get('Authorization')?.replace(/^Bearer /, '') || '';
-  if ((token && !/^[a-f0-9]{64}$/.test(token)) || ((request.method === 'POST'||adminRoutes.has(path)||pokerRoutes.has(path)) && !token)) return reply({error: 'identity-required'}, 401);
+  if ((token && !/^[a-f0-9]{64}$/.test(token)) || ((request.method === 'POST'||adminRoutes.has(path)||path.startsWith('/wealth/admin/')||pokerRoutes.has(path)) && !token)) return reply({error: 'identity-required'}, 401);
   const digest = token ? await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)) : null;
   const owner = digest ? Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('') : '';
   const ip=request.headers.get('CF-Connecting-IP')||'anonymous';
@@ -95,6 +95,7 @@ export async function wealthRequest(request, env, reply) {
   const globalRate = await (pokerRoutes.has(path)?env.POKER_ROOM_LIMITER:env.RANK_GLOBAL_LIMITER).limit({key: 'site'});
   if (!rate.success || !globalRate.success) return reply({error: 'rate-limited'}, 429);
   let data = {};
+  if(path==='/wealth/poker'&&request.method==='GET')data.room=new URL(request.url).searchParams.get('room')||undefined;
   if (request.method === 'POST') {
     if (!request.headers.get('Content-Type')?.startsWith('application/json')) return reply({error: 'json-required'}, 415);
     if (Number(request.headers.get('Content-Length')) > 8000) return reply({error: 'too-large'}, 413);

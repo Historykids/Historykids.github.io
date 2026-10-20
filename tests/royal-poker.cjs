@@ -54,8 +54,8 @@ const call=(p,method,...args)=>new Promise((yes,no)=>p.W[method](...args,yes,no)
   const deals=await Promise.allSettled([call(p,'beginPoker',10,()=>fixture(['AS','KS','QS','JS','TS'])),call(q,'beginPoker',10,()=>fixture(['AS','KS','QS','JS','TS']))]);assert.equal(deals.filter(r=>r.status==='fulfilled').length,1);const id=p.W.snapshot().pending.id;
   await Promise.all([call(p,'finishPoker',id,[0,1,2,3,4]),call(q,'finishPoker',id,[])]);assert.equal(p.W.snapshot().history.length,1);assert.equal(q.W.snapshot().balance,5090);p.w.close();q.w.close();
  });
- await test('only the nine-item selection bar chooses premium games, including keyboard and locked previews',()=>{
-  const p=page({times:9,ui:true,query:'?game=poker&variant=king'});assert.equal(p.w.document.body.dataset.casinoVariant,'standard');assert.equal(p.w.document.querySelectorAll('.casino-tabs [role=tab]').length,9);assert.equal(p.w.document.querySelectorAll('[data-casino-variant]:not(body):not(.casino-tabs *)').length,0);
+ await test('only the ten-item selection bar chooses premium games, including keyboard and locked previews',()=>{
+  const p=page({times:9,ui:true,query:'?game=poker&variant=king'});assert.equal(p.w.document.body.dataset.casinoVariant,'standard');assert.equal(p.w.document.querySelectorAll('.casino-tabs [role=tab]').length,10);assert.equal(p.w.document.querySelectorAll('[data-casino-variant]:not(body):not(.casino-tabs *)').length,0);
   p.$('tab-king').click();assert(!p.$('casinoLock').hidden);assert(p.$('casinoLockMessage').textContent.includes('10回'));assert(p.$('playRound').disabled);assert(p.$('panel-poker').hidden);p.$('tab-king').dispatchEvent(new p.w.KeyboardEvent('keydown',{key:'Home',bubbles:true}));assert(!p.$('panel-janken').hidden);p.w.close();
   const doc=new JSDOM(read('index.html')).window.document;assert.equal(doc.querySelectorAll('.rebirth-unlocks a').length,0);assert.equal(doc.querySelectorAll('a[href*="variant="]').length,0);assert(doc.querySelector('#kingUnlock'));
  });

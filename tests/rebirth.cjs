@@ -106,7 +106,7 @@ const begin=(p,game,stake,draw,variant='standard')=>new Promise((yes,no)=>p.W.be
  });
  await test('each locked VIP room has its own artwork and progress while the selection bar remains the only entrance',()=>{
   const p=page({ui:'casino'});assert(p.$('vipRoom').hidden);
-  for(const [variant,title,required] of [['silver','THE LUNAR SALON',2],['gold','THE PHOENIX VAULT',5],['king','THE SOVEREIGN’S CHAMBER',10],['sovereign','THE IMPERIAL TREASURY',15]]){
+  for(const [variant,title,required] of [['silver','THE LUNAR SALON',2],['gold','THE PHOENIX VAULT',5],['king','THE SOVEREIGN’S CHAMBER',10],['sovereign','THE IMPERIAL TREASURY',15],['emperor','THE GOLDEN PAVILION',20]]){
    p.$('tab-'+variant).click();assert(!p.$('vipRoom').hidden);assert(p.w.document.body.classList.contains('vip-active'));assert.equal(p.w.document.body.dataset.vipLocked,'true');assert.equal(p.$('vipRoomEnglish').textContent,title);assert(p.$('vipRoomArt').querySelector('svg'));assert(p.$('vipLockArt').querySelector('svg'));assert.equal(p.$('vipLockProgress').max,required);assert.equal(p.$('vipLockProgress').value,0);assert(p.$('vipLockRemaining').textContent.includes('あと '+required+'回'));assert(p.$('playRound').disabled);assert(p.$('mobilePlayRound').disabled);
    const ids=Array.from(p.w.document.querySelectorAll('[id]'),el=>el.id);assert.equal(new Set(ids).size,ids.length);assert.equal(p.w.document.querySelectorAll('[data-casino-variant]:not(body):not(.casino-tabs *)').length,0);
   }

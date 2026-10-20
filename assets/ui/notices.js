@@ -8,13 +8,13 @@
  function lastRead(){try{const value=JSON.parse(localStorage.getItem(readKey())||'[]');return new Set(Array.isArray(value)?value.map(String):[]);}catch{return new Set();}}
  function noticeCard(n,isNew=false){
   const article=document.createElement('article');article.className='notice-card';const meta=document.createElement('div');meta.className='notice-meta';
-  const sender=document.createElement('span');sender.className='notice-sender';sender.textContent='運営からのお知らせ';const time=document.createElement('time');time.dateTime=new Date(n.createdAt).toISOString();time.textContent=new Date(n.createdAt).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const sender=document.createElement('span');sender.className='notice-sender';sender.textContent='通知';const time=document.createElement('time');time.dateTime=new Date(n.createdAt).toISOString();time.textContent=new Date(n.createdAt).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
   meta.append(sender,time);if(n.audience==='personal'){const personal=document.createElement('span');personal.className='notice-personal';personal.textContent='あなた宛て';meta.append(personal);}if(isNew){const fresh=document.createElement('span');fresh.className='notice-new';fresh.textContent='NEW';meta.append(fresh);}
   const title=document.createElement('h3'),body=document.createElement('p');body.className='notice-body';title.textContent=n.title;body.textContent=n.body;article.append(meta,title,body);return article;
  }
  function render(){
   const seen=lastRead(),unread=notices.filter(n=>!seen.has(String(n.id))).length;$('noticeUnread').hidden=!unread;$('noticeUnread').textContent=unread>99?'99+':String(unread);
-  $('noticeNav').setAttribute('aria-label','通知'+(unread?' · 未読'+unread+'件':''));$('noticeCount').textContent=notices.length+'件のお知らせ';
+  $('noticeNav').setAttribute('aria-label','通知'+(unread?' · 未読'+unread+'件':''));$('noticeCount').textContent=notices.length+'件の通知';
   $('noticeList').replaceChildren(...notices.map(n=>noticeCard(n,!unreadBefore.has(String(n.id)))));$('noticeEmpty').hidden=notices.length>0;
   if(visible()&&notices.length){try{localStorage.setItem(readKey(),JSON.stringify([...new Set([...seen,...notices.map(n=>String(n.id))])].slice(-1000)));}catch{}$('noticeUnread').hidden=true;$('noticeNav').setAttribute('aria-label','通知');}
  }
@@ -25,7 +25,7 @@
  }
  async function load(){
   if(loading)return;loading=true;$('noticeRefresh').disabled=true;unreadBefore=lastRead();const sequence=epoch,token=identity();
-  try{const data=await A.request('/wealth/notices',undefined,false);if(sequence!==epoch||identity()!==token)return;if(!Array.isArray(data.notices))throw Error('connection');notices=data.notices;render();status('最新のお知らせを読み込みました。');}
+  try{const data=await A.request('/wealth/notices',undefined,false);if(sequence!==epoch||identity()!==token)return;if(!Array.isArray(data.notices))throw Error('connection');notices=data.notices;render();status('最新の通知を読み込みました。');}
   catch(error){if(sequence===epoch)status(A.errorText(error),true);}finally{loading=false;$('noticeRefresh').disabled=false;if(sequence!==epoch)load();}
  }
  function renderRecipients(){
@@ -49,7 +49,7 @@
  $('noticeAudience').onchange=audienceChanged;$('noticeRecipient').onchange=()=>{$('noticePreview').hidden=true;};
  $('noticeSend').onclick=async()=>{
   if(sending||!draft||!role||$('noticePreview').hidden)return;sending=true;controls();const sequence=epoch;
-  try{const data=await A.request(draft.recipient?'/wealth/admin/personal-notices':'/wealth/admin/notices',draft,false);if(sequence!==epoch)return;notices=data.notices;render();draft=null;try{localStorage.removeItem(draftKey);}catch{}$('noticeForm').reset();audienceChanged();$('noticePreview').hidden=true;status(data.sent?.audience==='personal'?data.sent.recipientName+'さんのみに配信しました。':'運営からのお知らせを、全員の通知ページへ配信しました。');}
+  try{const data=await A.request(draft.recipient?'/wealth/admin/personal-notices':'/wealth/admin/notices',draft,false);if(sequence!==epoch)return;notices=data.notices;render();draft=null;try{localStorage.removeItem(draftKey);}catch{}$('noticeForm').reset();audienceChanged();$('noticePreview').hidden=true;status(data.sent?.audience==='personal'?data.sent.recipientName+'さんのみに配信しました。':'通知を全員に配信しました。');}
   catch(error){if(error.message==='admin-required'){role=false;$('noticeCompose').hidden=true;}status(A.errorText(error),true);}finally{sending=false;controls();}
  };
  $('noticeRefresh').onclick=()=>{load();if(visible())checkRole();};

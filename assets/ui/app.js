@@ -611,7 +611,7 @@
     town: ["LEARN & BUILD", "わたしだけの町をつくろう。"],
     rebirth: ["REBIRTH / A NEW CHAPTER", "両を超えて、次の境地へ。"],
     games: ["TIME TO PLAY", "遊びながら、もっと夢中に。"],
-    notifications: ["NOTIFICATIONS", "運営からのお知らせ"],
+    notifications: ["NOTIFICATIONS", "通知"],
     howto: ["HOW TO PLAY", "両をゲットして、自分の町を作ろう。"],
     privacy: ["PRIVACY POLICY", "プライバシーポリシー"],
     operator: ["SITE INFORMATION", "運営者情報"],

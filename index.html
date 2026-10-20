@@ -57,14 +57,14 @@
   <script defer src="./assets/ui/bitcoin-rules.js?v=royal-20261016"></script>
     <script defer src="./assets/ui/pachinko-rules.js?v=expansion-20261020"></script>
   <script defer src="./assets/ui/wallet.js?v=expansion-20261020"></script>
-    <script defer src="./assets/ui/app.js?v=room-20261020"></script>
+    <script defer src="./assets/ui/app.js?v=notification-name-20261020"></script>
     <script type="module" src="./assets/ui/town.js?v=mountains-fast-20261008"></script>
     <script defer src="./assets/ui/wealth-rules.js?v=owner-20261018"></script>
   <script defer src="./assets/ui/ranking-config.js?v=wealth-20261008"></script>
   <script defer src="./assets/ui/admin.js?v=owner-20261018"></script>
   <script defer src="./assets/ui/rebirth.js?v=expansion-20261020"></script>
   <script defer src="./assets/ui/community.js?v=expansion-20261020"></script>
-  <script defer src="./assets/ui/notices.js?v=expansion-20261020"></script>
+  <script defer src="./assets/ui/notices.js?v=notification-name-20261020"></script>
   <link rel="stylesheet" href="./assets/ui/notices.css?v=expansion-20261020">
 </head>
   <body>
@@ -398,10 +398,10 @@
           </div>
         </section>
         <section id="view-notifications" class="view notices-page" hidden aria-labelledby="noticesTitle">
-          <div class="notices-intro"><div><span class="section-label">FROM HISTORY KIDS</span><h2 id="noticesTitle">運営からのお知らせ</h2><p>新しい遊びやアップデートのお知らせを、ここに届けます。</p></div><span class="notice-seal" aria-hidden="true">歴</span></div>
-          <div class="notice-toolbar"><span id="noticeCount">読み込み中</span><button id="noticeRefresh" type="button">お知らせを更新</button></div>
-          <p id="noticeStatus" class="notice-status" role="status" aria-live="polite"></p><div id="noticeList" class="notice-list"></div><p id="noticeEmpty" class="notice-empty" hidden>まだお知らせはありません。<br>運営からの新しいお知らせをお待ちください。</p>
-          <section id="noticeCompose" class="notice-compose" hidden><span class="section-label">ADMINISTRATOR ONLY</span><h3>お知らせを配信する</h3><p>全員へのお知らせと、登録者1人だけへの個人配信を選べます。</p><form id="noticeForm"><label for="noticeAudience">配信先<select id="noticeAudience"><option value="all">全員に配信</option><option value="personal">個人に配信</option></select></label><label id="noticeRecipientField" for="noticeRecipient" hidden>配信する登録者<select id="noticeRecipient"><option value="">登録者を読み込み中</option></select></label><label for="noticeTitle">件名<input id="noticeTitle" maxlength="160" required autocomplete="off" placeholder="アップデートのお知らせ"></label><label for="noticeBody">本文<textarea id="noticeBody" maxlength="4000" rows="7" required placeholder="みんなへ届けたい内容を入力"></textarea></label><p>件名80文字、本文2,000文字まで。配信前に内容を確認できます。</p><button class="primary" type="submit">配信内容を確認</button></form><div id="noticePreview" class="notice-preview" hidden><p id="noticePreviewTarget">配信先：全員</p><div id="noticePreviewCard"></div><button id="noticeSend" class="primary" type="button">全員に配信する</button><button id="noticeEdit" type="button">編集に戻る</button></div></section>
+          <div class="notices-intro"><div><span class="section-label">FROM HISTORY KIDS</span><h2 id="noticesTitle">通知</h2><p>新しい遊びやアップデートの通知を、ここに届けます。</p></div><span class="notice-seal" aria-hidden="true">歴</span></div>
+          <div class="notice-toolbar"><span id="noticeCount">読み込み中</span><button id="noticeRefresh" type="button">通知を更新</button></div>
+          <p id="noticeStatus" class="notice-status" role="status" aria-live="polite"></p><div id="noticeList" class="notice-list"></div><p id="noticeEmpty" class="notice-empty" hidden>まだ通知はありません。<br>運営からの新しい通知をお待ちください。</p>
+          <section id="noticeCompose" class="notice-compose" hidden><span class="section-label">ADMINISTRATOR ONLY</span><h3>通知を配信する</h3><p>全員への通知と、登録者1人だけへの個人配信を選べます。</p><form id="noticeForm"><label for="noticeAudience">配信先<select id="noticeAudience"><option value="all">全員に配信</option><option value="personal">個人に配信</option></select></label><label id="noticeRecipientField" for="noticeRecipient" hidden>配信する登録者<select id="noticeRecipient"><option value="">登録者を読み込み中</option></select></label><label for="noticeTitle">件名<input id="noticeTitle" maxlength="160" required autocomplete="off" placeholder="アップデートの通知"></label><label for="noticeBody">本文<textarea id="noticeBody" maxlength="4000" rows="7" required placeholder="みんなへ届けたい内容を入力"></textarea></label><p>件名80文字、本文2,000文字まで。配信前に内容を確認できます。</p><button class="primary" type="submit">配信内容を確認</button></form><div id="noticePreview" class="notice-preview" hidden><p id="noticePreviewTarget">配信先：全員</p><div id="noticePreviewCard"></div><button id="noticeSend" class="primary" type="button">全員に配信する</button><button id="noticeEdit" type="button">編集に戻る</button></div></section>
         </section>
         <section id="view-howto" class="view guide-main" hidden>
 <p class="guide-lead">クイズに正解して両を集め、好きな建物を買って並べよう。<br>家を建て、畑を作り、農民を呼ぶ。学ぶほど、自分の街が育っていくよ。</p>

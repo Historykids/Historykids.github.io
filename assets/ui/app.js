@@ -611,6 +611,7 @@
     town: ["LEARN & BUILD", "わたしだけの町をつくろう。"],
     rebirth: ["REBIRTH / A NEW CHAPTER", "両を超えて、次の境地へ。"],
     games: ["TIME TO PLAY", "遊びながら、もっと夢中に。"],
+    notifications: ["NOTIFICATIONS", "運営からのお知らせ"],
     howto: ["HOW TO PLAY", "両をゲットして、自分の町を作ろう。"],
     privacy: ["PRIVACY POLICY", "プライバシーポリシー"],
     operator: ["SITE INFORMATION", "運営者情報"],
@@ -631,7 +632,7 @@
     });
     $("pageEyebrow").textContent = labels[v][0];
     $("pageTitle").textContent = labels[v][1];
-    $("eraSection").hidden = ["town", "games", "rebirth", "howto", "missions", "privacy", "operator"].includes(v);
+    $("eraSection").hidden = ["town", "games", "rebirth", "notifications", "howto", "missions", "privacy", "operator"].includes(v);
     $("missionBar").hidden=v!=="learn";
     if(v==="missions") renderActivities();
     if (v === "book") renderBook();
@@ -648,6 +649,7 @@
       }, 1500);
     }
     if (updateHash) history.replaceState(null, "", "#" + v);
+    window.dispatchEvent(new CustomEvent("hk-view-change",{detail:v}));
     if (previousView !== v && (["howto","privacy","operator"].includes(previousView) || ["howto","privacy","operator"].includes(v))) window.scrollTo(0, 0);
   }
   function setEra(era) {

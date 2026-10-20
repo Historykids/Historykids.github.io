@@ -44,7 +44,7 @@ test('expiry and stale event questions cannot earn event rewards or advance a ne
 });
 function openMissions(p){p.click('.nav [data-view="learn"]');p.click('#missionBar [data-view="missions"]');}
 test('only learning shows the mission shortcut, no mission navigation or weekdays remain, and reward claims survive reload',()=>{
- const p=page({money_v1:'50'});assert(!p.$('missionBar').hidden);assert.equal(p.w.document.querySelector('.nav [data-view="missions"]'),null);assert.equal(p.w.document.querySelectorAll('.nav > *').length,7);
+ const p=page({money_v1:'50'});assert(!p.$('missionBar').hidden);assert.equal(p.w.document.querySelector('.nav [data-view="missions"]'),null);assert.equal(p.w.document.querySelectorAll('.nav > *').length,8);
  openMissions(p);assert.equal(p.$('missionList').children.length,5);assert.equal(p.$('missionWeek'),null);assert.equal(p.$('missionDayTitle').textContent,'今日のミッション');assert(!p.$('missionList').textContent.includes('曜日'));assert(p.$('missionBar').hidden);
  for(const view of ['town','games','timeline','howto','rebirth']){p.click(`.nav [data-view="${view}"]`);assert(p.$('missionBar').hidden);}
  p.click('.nav [data-view="town"]');const e=p.w.HKWallet.snapshot().activities.event;assert.equal(e.end-e.start,300000);assert(p.$('townEventCountdown').textContent.includes('5:00'));

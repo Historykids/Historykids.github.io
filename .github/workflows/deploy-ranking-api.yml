@@ -26,6 +26,7 @@ jobs:
       - name: Check answers, ownership, retry and durable storage
         run: |
           node tests/admin.cjs
+          node tests/community-api.cjs
           node tests/ranking-api.cjs
           node tests/wealth-api.cjs
       - name: Deploy ranking storage
@@ -45,16 +46,25 @@ jobs:
           import fs from 'node:fs';
           const base = new URL(process.env.DEPLOYMENT_URL);
           if (base.protocol !== 'https:' || !base.hostname.endsWith('.workers.dev')) throw Error('Unexpected deployment URL');
+          const probeToken=Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0')).join('');
           let ready=false;
           for(let attempt=1;attempt<=12;attempt++) {
             try {const response=await fetch(new URL('/ranking',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});const data=await response.json();ready=response.ok&&Array.isArray(data.entries);if(ready){const wealth=await fetch(new URL('/wealth',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});const board=await wealth.json();ready=wealth.ok&&Array.isArray(board.entries)&&board.entries.every(entry=>Number.isSafeInteger(entry.rebirths));}}catch{}
+            if(ready){
+              try{
+                const notices=await fetch(new URL('/wealth/notices',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
+                const published=await notices.json();
+                const room=await fetch(new URL('/wealth/poker',base),{headers:{Origin:'https://historykids.github.io',Authorization:'Bearer '+probeToken},signal:AbortSignal.timeout(15000)});
+                const table=await room.json();
+                ready=notices.ok&&Array.isArray(published.notices)&&room.ok&&table.room==='royal-one'&&Array.isArray(table.players)&&!('deck' in table)&&table.players.every(player=>!('owner' in player));
+              }catch{ready=false;}
+            }
             if(ready)break;
             console.log('Waiting for ranking HTTPS endpoint: attempt '+attempt);
             if(attempt<12)await new Promise(resolve=>setTimeout(resolve,10000));
           }
           if(!ready)throw Error('Ranking storage did not become available');
           // A rejected claim verifies the deployed authentication runtime without assigning an owner.
-          const probeToken=Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0')).join('');
           const probe=await fetch(new URL('/wealth/admin/claim',base),{method:'POST',headers:{Origin:'https://historykids.github.io','Content-Type':'application/json',Authorization:'Bearer '+probeToken},body:JSON.stringify({code:'00000000'}),signal:AbortSignal.timeout(15000)});
           const denied=await probe.json();
           if(probe.status!==403||!['admin-code-invalid','admin-claimed'].includes(denied.error))throw Error('Administrator authentication runtime check failed: '+JSON.stringify({status:probe.status,error:denied.error}));

@@ -21,7 +21,7 @@
   $('rebirthConfirm').hidden=confirming===null;
   $('rebirthStart').hidden=confirming!==null;
   $('rebirthConfirmText').textContent=limited?'リボーンは現在10,000回までです。':money(w.balance)+' → 1万両。町・住民・学習記録を残して、配当は本来の'+P.factor(next)+'倍になります。この操作は取り消せません。';
-  for(const [id,required,name] of [['silverUnlock',2,'銀のルーレット'],['goldUnlock',5,'金のスロット'],['kingUnlock',10,'王者のポーカー']]){
+  for(const [id,required,name] of [['silverUnlock',2,'銀のルーレット'],['goldUnlock',5,'金のスロット'],['kingUnlock',10,'王者のポーカー'],['sovereignUnlock',15,'王者のスロット']]){
    const el=$(id),open=times>=required;el.textContent=open?'解放済み · カジノの選択バーから':'🔒 リボーン'+required+'回で解放';el.closest('.rebirth-unlock').classList.toggle('unlocked',open);el.closest('.rebirth-unlock').setAttribute('aria-label',name+' · '+(open?'解放済み':'リボーン'+required+'回で解放'));
   }
   $('rebirthRoadmap').innerHTML=limited?'<li><span>上限10,000回に到達しました。</span></li>':Array.from({length:Math.min(5,P.max-times)},(_,i)=>{const n=times+i;return '<li><span>'+(n+1).toLocaleString('ja-JP')+'回目</span><b>'+money(P.cost(n))+'</b><small>配当 ×'+P.factor(n+1)+'</small></li>';}).join('');

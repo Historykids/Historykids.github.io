@@ -35,8 +35,10 @@
  function boostDivisor(version){if(version===1)return 4n;if(version===2)return 10n;throw Error('invalid-boost-version');}
  function boost(value,times,version=2){rebirths(times);const d=boostDivisor(version);return pack(raw(value)*(d+BigInt(times))/d);}
  function factor(times,base=1,version=2){rebirths(times);const d=boostDivisor(version),n=raw(base)*(d+BigInt(times))*100n/d,tail=(n%100n).toString().padStart(2,'0').replace(/0+$/,'');return (n/100n).toString()+(tail?'.'+tail:'');}
- function unlocked(game,variant,times){return count(times)&&(variant==='standard'&&game!=='poker'||variant==='king'&&game==='poker'&&times>=10||variant==='silver'&&game==='roulette'&&times>=2||variant==='gold'&&game==='slots'&&times>=5);}
- const rebirth=Object.freeze({valid:count,max:maxRebirths,boostVersion:2,cost,boost,factor,unlocked,starter:10000});
+ function unlocked(game,variant,times){return count(times)&&(variant==='standard'&&game!=='poker'||variant==='king'&&game==='poker'&&times>=10||variant==='silver'&&game==='roulette'&&times>=2||variant==='gold'&&game==='slots'&&times>=5||variant==='sovereign'&&game==='slots'&&times>=15);}
+ function casinoBoost(value,times,variant,version=2){rebirths(times);const d=boostDivisor(version),extra=variant==='sovereign'?12n:10n;return pack(raw(value)*(d+BigInt(times))*extra/(d*10n));}
+ function casinoFactor(times,base=1,variant='standard'){const n=raw(base)*(10n+BigInt(rebirths(times)))*(variant==='sovereign'?12n:10n),tail=(n%100n).toString().padStart(2,'0').replace(/0+$/,'');return(n/100n).toString()+(tail?'.'+tail:'');}
+ const rebirth=Object.freeze({valid:count,max:maxRebirths,boostVersion:2,cost,boost,factor,casinoBoost,casinoFactor,unlocked,starter:10000});
  const api=Object.freeze({rebirth,units,MAX:cap.toString(),integer,valid,pack,cmp,add,sub,mul,sum,clamp,input,full,format,key});
  root.HKAmounts=api;
  if(typeof module!=='undefined'&&module.exports)module.exports=api;

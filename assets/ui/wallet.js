@@ -48,12 +48,13 @@
       if (value.version !== 2 || !within(value.balance) || !Array.isArray(value.history)) throw Error('wallet-invalid');
       if (value.redeemedCodes !== undefined && !validCodes(value.redeemedCodes)) throw Error('wallet-invalid');
       if (value.slotBonus && (!Number.isInteger(value.slotBonus.remaining) || value.slotBonus.remaining < 0 || value.slotBonus.remaining > 5 || !within(value.slotBonus.stake) || value.slotBonus.stake < 1)) throw Error('wallet-invalid');
+      if(value.slotBonus?.variant&&!P.unlocked('slots',value.slotBonus.variant,value.rebirths))throw Error('wallet-invalid');
       if (value.pending) {
         const r=value.pending, times=r.rebirths??0, free=r.game==='slots'&&r.freeSpin===true, basis=free?r.slotStake:r.stake;
         if (!P.valid(times) || times>value.rebirths || ![1,2].includes(r.boostVersion??1) || !P.unlocked(r.game,r.variant||'standard',times) || !games.includes(r.game) || !within(r.stake) || (free?r.stake!==0:r.stake<1) || !within(basis) || basis<1 || !integer(r.payout) || !integer(r.basePayout??r.payout) || M.cmp(r.basePayout??r.payout,M.mul(basis,r.game==='slots'?4800:250))>0 || typeof r.id!=='string') throw Error('wallet-invalid');
-        if(r.game!=='bitcoin' && M.cmp(r.payout,refund(r.game,r.data)?r.basePayout??r.payout:P.boost(r.basePayout??r.payout,times,r.boostVersion??1))!==0)throw Error('wallet-invalid');
+        if(r.game!=='bitcoin' && M.cmp(r.payout,refund(r.game,r.data)?r.basePayout??r.payout:P.casinoBoost(r.basePayout??r.payout,times,r.variant,r.boostVersion??1))!==0)throw Error('wallet-invalid');
         if (r.game === 'bitcoin' && (!window.HKBitcoinRules?.validRound(r.data) || r.payout !== 0)) throw Error('wallet-invalid');
-        if(r.game==='poker'&&(!validPokerDeal(r.data)||r.variant!=='king'||r.payout!==0))throw Error('wallet-invalid');
+        if(r.game==='poker'&&(!(validPokerDeal(r.data)||r.data?.version===2&&r.data.phase==='online'&&r.data.ticket===r.id&&/^[A-Za-z0-9_-]{16,64}$/.test(r.id))||r.variant!=='king'||r.payout!==0))throw Error('wallet-invalid');
         if (r.game === 'sicbo' && !validSicbo(r)) throw Error('wallet-invalid');
       }
       return value;
@@ -131,7 +132,8 @@
       if (M.cmp(w.balance,cost)<0) throw Error('insufficient');
       const outcome = draw({freeSpin, stake:slotStake});
       if (!integer(outcome.payout) || M.cmp(outcome.payout,M.mul(slotStake,game==='slots'?4800:250))>0) throw Error('invalid-payout');
-      const round = { id: uid(), game, variant, rebirths:w.rebirths, boostVersion:P.boostVersion, basePayout:outcome.payout, stake:cost, payout:refund(game,outcome.data)?outcome.payout:P.boost(outcome.payout,w.rebirths), data: outcome.data, at: Date.now(), ...(game==='slots'?{freeSpin,slotStake}:{}) };
+      if(freeSpin&&w.slotBonus.variant&&w.slotBonus.variant!==variant)throw Error('bonus-variant');
+      const round = { id: uid(), game, variant, rebirths:w.rebirths, boostVersion:P.boostVersion, basePayout:outcome.payout, stake:cost, payout:refund(game,outcome.data)?outcome.payout:P.casinoBoost(outcome.payout,w.rebirths,variant), data: outcome.data, at: Date.now(), ...(game==='slots'?{freeSpin,slotStake}:{}) };
       if(game==='sicbo' && !validSicbo(round))throw Error('invalid-payout');
       if(freeSpin)w.slotBonus.remaining--;
       w.balance=M.sub(w.balance,cost); w.pending = round;
@@ -150,7 +152,7 @@
       const result = { ...w.pending, settledAt: Date.now() };
       result.creditedPayout=M.sub(M.clamp(M.add(w.balance,result.payout)),w.balance);
       w.balance=M.add(w.balance,result.creditedPayout); w.pending = null;
-      if(result.game==='slots'&&!result.freeSpin&&result.data?.bonusTriggered===true)w.slotBonus={remaining:5,stake:result.slotStake||result.stake};
+      if(result.game==='slots'&&!result.freeSpin&&result.data?.bonusTriggered===true)w.slotBonus={remaining:5,stake:result.slotStake||result.stake,variant:result.variant};
       w.history = [result, ...w.history].slice(0, 8);
       return result;
     }, success, failure);
@@ -164,6 +166,26 @@
       const data=deal();if(!validPokerDeal(data))throw Error('invalid-poker');
       const round={id:uid(),game:'poker',variant:'king',rebirths:w.rebirths,boostVersion:P.boostVersion,stake,payout:0,basePayout:0,data,at:Date.now()};
       w.balance=M.sub(w.balance,stake);w.pending=round;return round;
+    },success,failure);
+  }
+  function beginOnlinePoker(ticket,success,failure){
+    transact(w=>{
+      if(!ticket||ticket.status!=='reserved'||!M.valid(ticket.stake)||M.cmp(ticket.stake,1)<0||!/^[A-Za-z0-9_-]{16,64}$/.test(ticket.id))throw Error('invalid-poker');
+      if(w.pending?.id===ticket.id&&w.pending.data?.version===2)return w.pending;
+      if(w.pending)throw Error('pending-round');
+      if(!P.unlocked('poker','king',w.rebirths))throw Error('casino-locked');
+      if(M.cmp(w.balance,ticket.stake)<0)throw Error('insufficient');
+      const round={id:ticket.id,game:'poker',variant:'king',rebirths:w.rebirths,boostVersion:2,stake:M.pack(ticket.stake),payout:0,basePayout:0,data:{version:2,phase:'online',ticket:ticket.id},at:Date.now()};
+      w.balance=M.sub(w.balance,ticket.stake);w.pending=round;return round;
+    },success,failure);
+  }
+  function finishOnlinePoker(ticket,success,failure){
+    transact(w=>{
+      if(!ticket||ticket.status!=='done'||!M.integer(ticket.payout))throw Error('invalid-poker');
+      const old=w.history.find(r=>r.id===ticket.id);if(old)return{...old,already:true};
+      if(w.pending?.id!==ticket.id||w.pending.data?.version!==2||M.cmp(w.pending.stake,ticket.stake))throw Error('round-gone');
+      const result={...w.pending,payout:M.pack(ticket.payout),data:{...w.pending.data,phase:'done',title:ticket.kind==='refund'?'掛け金を返しました。':ticket.handName||'ハンド終了',handName:ticket.handName||'',kind:ticket.kind},settledAt:ticket.settledAt};
+      result.creditedPayout=M.sub(M.clamp(M.add(w.balance,result.payout)),w.balance);w.balance=M.add(w.balance,result.creditedPayout);w.pending=null;w.history=[result,...w.history].slice(0,8);return result;
     },success,failure);
   }
   function finishPoker(id,holds,success,failure){
@@ -204,5 +226,5 @@
   }
   window.addEventListener('storage', e => { if (e.key === KEY || e.key === null) announce(); });
   window.addEventListener('focus', announce);
-  window.HKWallet = { snapshot, adjust, replace, redeem, rebirth, buy, begin, finish, beginBitcoin, finishBitcoin, beginPoker, finishPoker, activity };
+  window.HKWallet = { snapshot, adjust, replace, redeem, rebirth, buy, begin, finish, beginBitcoin, finishBitcoin, beginPoker, finishPoker, beginOnlinePoker, finishOnlinePoker, activity };
 })();

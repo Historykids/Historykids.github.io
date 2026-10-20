@@ -2,6 +2,8 @@ import {HistoryLeaderboard as QuizLeaderboard} from '../figure-api/ranking.mjs';
 import '../../assets/ui/amounts.js';
 import '../../assets/ui/wealth-rules.js';
 import {WealthAdmin,adminRoutes} from './admin.mjs';
+import {WealthPoker,pokerRoutes} from './poker.mjs';
+import {WealthNotices,noticeRoutes} from './notices.mjs';
 const W = globalThis.HKWealthRules, M=globalThis.HKAmounts;
 const decode=row=>{if(!row)return null;for(const key of ['balance','assets','score'])row[key]=M.pack(row[key]);return row;};
 const legacyColumns = 'id,name,balance,buildings,residents,buildingValue,residentValue,assets,score,timestamp,revision';
@@ -32,6 +34,8 @@ export class HistoryLeaderboard extends QuizLeaderboard {
       this.sql.exec('INSERT OR IGNORE INTO wealth_schema_migrations(version) VALUES(3)');
     }
     this.admin=new WealthAdmin(ctx.storage,W);
+    this.poker=new WealthPoker(ctx.storage,this.admin);
+    this.notices=new WealthNotices(ctx.storage,this.admin);
   }
   isBanned(owner) { return !!owner && !!this.sql.exec('SELECT banned FROM wealth_moderation WHERE id=?',owner).toArray()[0]?.banned; }
   board(owner) {
@@ -49,6 +53,8 @@ export class HistoryLeaderboard extends QuizLeaderboard {
     if (!path.startsWith('/wealth')) return super.fetch(request);
     const data = await request.json(), owner = data.owner || '';
     if(adminRoutes.has(path))return this.admin.fetch(path,data);
+    if(pokerRoutes.has(path))return this.poker.fetch(path,data);
+    if(noticeRoutes.has(path))return this.notices.fetch(path,data);
     if (path === '/wealth') return Response.json(this.board(owner));
     if (path !== '/wealth/register') return fail('not-found', 404);
     if (!/^[a-f0-9]{64}$/.test(owner)) return fail('identity-required', 401);
@@ -70,23 +76,24 @@ export class HistoryLeaderboard extends QuizLeaderboard {
 }
 export async function wealthRequest(request, env, reply) {
   const path = new URL(request.url).pathname;
-  if (!['/wealth', '/wealth/register'].includes(path)&&!adminRoutes.has(path)) return reply({error: 'not-found'}, 404);
+  if (!['/wealth', '/wealth/register'].includes(path)&&!adminRoutes.has(path)&&!pokerRoutes.has(path)&&!noticeRoutes.has(path)) return reply({error: 'not-found'}, 404);
   if (request.method === 'OPTIONS') return reply({ok: true});
-  const read=path==='/wealth'||path==='/wealth/admin/session'||path==='/wealth/admin/board';
+  const read=path==='/wealth'||path==='/wealth/admin/session'||path==='/wealth/admin/board'||path==='/wealth/poker'||path==='/wealth/notices';
   if (request.method !== (read ? 'GET' : 'POST')) return reply({error: 'method-not-allowed'}, 405);
   if (!env.LEADERBOARD || !env.RANK_READ_LIMITER || !env.RANK_WRITE_LIMITER || !env.RANK_GLOBAL_LIMITER) return reply({error: 'not-configured'}, 503);
+  if(pokerRoutes.has(path)&&!env.POKER_ROOM_LIMITER)return reply({error:'not-configured'},503);
+  const token = request.headers.get('Authorization')?.replace(/^Bearer /, '') || '';
+  if ((token && !/^[a-f0-9]{64}$/.test(token)) || ((request.method === 'POST'||adminRoutes.has(path)||pokerRoutes.has(path)) && !token)) return reply({error: 'identity-required'}, 401);
+  const digest = token ? await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)) : null;
+  const owner = digest ? Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('') : '';
   const ip=request.headers.get('CF-Connecting-IP')||'anonymous';
   if(path==='/wealth/admin/claim'){
     if(!env.ADMIN_CLAIM_LIMITER)return reply({error:'not-configured'},503);
     if(!(await env.ADMIN_CLAIM_LIMITER.limit({key:ip})).success)return reply({error:'rate-limited'},429);
   }
-  const rate = await (read ? env.RANK_READ_LIMITER : env.RANK_WRITE_LIMITER).limit({key:ip});
-  const globalRate = await env.RANK_GLOBAL_LIMITER.limit({key: 'site'});
+  const rate = await (read ? env.RANK_READ_LIMITER : env.RANK_WRITE_LIMITER).limit({key:pokerRoutes.has(path)?'poker:'+owner:ip});
+  const globalRate = await (pokerRoutes.has(path)?env.POKER_ROOM_LIMITER:env.RANK_GLOBAL_LIMITER).limit({key: 'site'});
   if (!rate.success || !globalRate.success) return reply({error: 'rate-limited'}, 429);
-  const token = request.headers.get('Authorization')?.replace(/^Bearer /, '') || '';
-  if ((token && !/^[a-f0-9]{64}$/.test(token)) || ((request.method === 'POST'||adminRoutes.has(path)) && !token)) return reply({error: 'identity-required'}, 401);
-  const digest = token ? await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)) : null;
-  const owner = digest ? Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('') : '';
   let data = {};
   if (request.method === 'POST') {
     if (!request.headers.get('Content-Type')?.startsWith('application/json')) return reply({error: 'json-required'}, 415);

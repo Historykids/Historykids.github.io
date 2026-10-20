@@ -32,8 +32,8 @@
   return svg('<circle cx="160" cy="160" r="142" fill="none" opacity=".2"/><circle cx="160" cy="160" r="130" fill="none" stroke-width="2"/><circle cx="160" cy="160" r="117" fill="none" opacity=".45"/>'+spokes+inner,theme,'0 0 320 320');
  }
  function render({variant,rebirths,locked,busy,factor}){
-  const room=rooms[variant],hero=$('vipRoom');if(!hero)return;hero.hidden=!room;document.body.classList.toggle('vip-active',!!room);document.body.dataset.vipLocked=String(!!room&&locked);
-  if(!room){current='';$('vipFinale').hidden=true;clearTimeout(finaleTimer);return;}
+  const room=rooms[variant],hero=$('vipRoom');if(!hero)return;const classicSlot=variant==='sovereign'&&!locked;hero.hidden=!room||classicSlot;document.body.classList.toggle('vip-active',!!room&&!classicSlot);document.body.dataset.vipLocked=String(!!room&&locked);
+  if(!room||classicSlot){current='';$('vipFinale').hidden=true;clearTimeout(finaleTimer);return;}
   if(current!==variant){
    current=variant;$('vipRoomArt').innerHTML=roomArt(variant);$('vipRoomNumber').textContent=room.number;$('vipRoomEnglish').textContent=room.en;$('vipRoomTitle').textContent=room.title;$('vipRoomCopy').textContent=room.copy;$('vipRoomFeature').textContent=room.feature;
    $('vipLockArt').innerHTML=crest(variant);$('vipLockRoom').textContent=room.en;$('vipLockSeal').textContent=room.seal;$('vipFinale').hidden=true;$('tableArea').dataset.vipPhase='idle';clearTimeout(finaleTimer);
@@ -43,9 +43,9 @@
   const remaining=Math.max(0,room.required-rebirths);$('vipLockRemaining').textContent='あと '+remaining+'回のリボーンで、この席へ。';$('vipLockProgress').max=room.required;$('vipLockProgress').value=Math.min(rebirths,room.required);$('vipLockCount').textContent=rebirths+' / '+room.required+' REBIRTHS';
   if(busy)$('tableArea').dataset.vipPhase='playing';else if($('tableArea').dataset.vipPhase==='playing')$('tableArea').dataset.vipPhase='idle';
  }
- function start(variant){if(!rooms[variant])return;clearTimeout(finaleTimer);$('vipFinale').hidden=true;$('tableArea').dataset.vipPhase='playing';}
+ function start(variant){if(!rooms[variant]||variant==='sovereign')return;clearTimeout(finaleTimer);$('vipFinale').hidden=true;$('tableArea').dataset.vipPhase='playing';}
  function present(round,{net,fast}){
-  const room=rooms[round.variant];if(!room)return;
+  const room=rooms[round.variant];if(!room||round.variant==='sovereign'){$('vipFinale').hidden=true;return;}
   const win=M.cmp(net,0)>0,bonus=round.data?.bonusTriggered;$('tableArea').dataset.vipPhase=win||bonus?'victory':'idle';
   if(!win&&!bonus){$('vipFinale').hidden=true;return;}
   $('vipFinaleCrest').innerHTML=crest(round.variant);$('vipFinaleTitle').textContent=bonus?'PHOENIX AWAKENED':room.win;$('vipFinaleLabel').textContent=bonus?'無料スピン5回を獲得':'払い戻し';$('vipFinaleAmount').textContent=bonus?'BONUS × 5':M.format(round.creditedPayout??round.payout)+'両';

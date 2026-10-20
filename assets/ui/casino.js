@@ -286,7 +286,7 @@
   }
   function confetti(big) {
     if(fast())return;
-    const count=variant==='king'?80:vipSlots()?70:variant==='silver'?50:big?42:20;$('celebration').innerHTML=Array.from({length:count},()=>'<i style="--x:'+(Math.random()*100)+'%;--delay:'+(Math.random()*.7)+'s"></i>').join('');
+    const count=variant==='king'?80:variant==='gold'?70:variant==='silver'?50:big?42:20;$('celebration').innerHTML=Array.from({length:count},()=>'<i style="--x:'+(Math.random()*100)+'%;--delay:'+(Math.random()*.7)+'s"></i>').join('');
     setTimeout(()=>$('celebration').replaceChildren(),3000);
   }
   function showResult(round,recovered=false) {

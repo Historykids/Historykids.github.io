@@ -159,3 +159,5 @@ body[data-casino-variant=gold] .table-area{background:radial-gradient(ellipse at
 .casino-tabs #tab-sovereign .casino-tab-perk>em{font-size:22px;line-height:1.15;font-style:normal;font-weight:900;white-space:nowrap}
 .casino-tabs #tab-sovereign.room-locked{opacity:1;filter:none}
 .casino-tabs #tab-sovereign.room-locked>span,.casino-tabs #tab-sovereign.room-locked>b,.casino-tabs #tab-sovereign.room-locked>small{opacity:.72}
+
+.casino-recover{width:100%;padding:12px;margin-top:12px;border:1px solid var(--gold-dark);border-radius:8px;background:var(--panel);color:var(--gold);font:inherit;font-size:.72rem;font-weight:700;line-height:1.6}.casino-recover:disabled{opacity:.5}

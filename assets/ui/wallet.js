@@ -49,7 +49,8 @@
       if (value.version !== 2 || !within(value.balance) || !Array.isArray(value.history)) throw Error('wallet-invalid');
       if (value.redeemedCodes !== undefined && !validCodes(value.redeemedCodes)) throw Error('wallet-invalid');
       if (value.slotBonus && (!Number.isInteger(value.slotBonus.remaining) || value.slotBonus.remaining < 0 || value.slotBonus.remaining > 5 || !within(value.slotBonus.stake) || value.slotBonus.stake < 1)) throw Error('wallet-invalid');
-      if(value.slotBonus?.variant&&!P.unlocked('slots',value.slotBonus.variant,value.rebirths))throw Error('wallet-invalid');
+      if(value.slotBonus?.remaining>0&&value.slotBonus.variant&&!P.unlocked('slots',value.slotBonus.variant,value.rebirths))throw Error('wallet-invalid');
+      if(value.slotBonus?.remaining>0&&!value.slotBonus.variant){const source=value.history.find(r=>r.game==='slots'&&!r.freeSpin&&r.data?.bonusTriggered);const variant=source?.variant||'standard';value.slotBonus.variant=P.unlocked('slots',variant,value.rebirths)?variant:'standard';}
       if (value.pending) {
         const r=value.pending, times=r.rebirths??0, free=r.game==='slots'&&r.freeSpin===true, basis=free?r.slotStake:r.stake;
         if (!P.valid(times) || times>value.rebirths || ![1,2].includes(r.boostVersion??1) || !P.unlocked(r.game,r.variant||'standard',times) || !games.includes(r.game) || !within(r.stake) || (free?r.stake!==0:r.stake<1) || !within(basis) || basis<1 || !integer(r.payout) || !integer(r.basePayout??r.payout) || M.cmp(r.basePayout??r.payout,M.mul(basis,r.game==='slots'?4800:r.game==='pachinko'?2000:250))>0 || typeof r.id!=='string') throw Error('wallet-invalid');
@@ -76,8 +77,12 @@
       announce();
       return result;
     };
-    if (navigator.locks?.request) navigator.locks.request('historykids-wallet', work).then(success, failure);
-    else { try { const result = work(); success(result); } catch (error) { failure(error); } }
+    const direct=()=>{let result;try{result=work();}catch(error){failure(error);return;}success(result);};
+    let locks;try{locks=navigator.locks;}catch{direct();return;}
+    if(!locks?.request){direct();return;}
+    let entered=false;
+    const rejected=error=>{if(!entered&&['SecurityError','NotSupportedError'].includes(error?.name))direct();else failure(error);};
+    try{Promise.resolve(locks.request('historykids-wallet',()=>{entered=true;return work();})).then(success,rejected);}catch(error){rejected(error);}
   }
   function adjust(delta, success, failure) {
     transact(w => { w.balance=M.clamp(M.add(w.balance,delta)); return w.balance; }, success, failure);

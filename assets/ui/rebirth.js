@@ -13,7 +13,8 @@
   $('rebirthCost').textContent=limited?'—':money(cost);$('rebirthCost').title=limited?'上限10,000回':M.full(cost)+'両';
   $('rebirthBalance').textContent=money(w.balance);$('rebirthBalance').title=M.full(w.balance)+'両';
   $('rebirthProgress').value=limited||enough?10000:Number(BigInt(M.full(w.balance))*10000n/BigInt(M.full(cost)));
-  $('rebirthRemaining').textContent=limited?'リボーンは現在10,000回までです。':blocked?'カジノの勝負・無料スピンを終えるとリボーンできます。':enough?'準備が整いました。次の境地へ進めます。':'あと '+money(M.sub(cost,w.balance));
+  $('rebirthResume').hidden=!blocked;$('rebirthResume').textContent=w.pending?'途中の勝負を復元する →':'残り'+w.slotBonus?.remaining+'回の無料スピンを再開 →';
+  $('rebirthRemaining').textContent=w.unavailable?'両の記録を読み込めません。保存設定を確認してからページを開き直してください。':limited?'リボーンは現在10,000回までです。':blocked?'カジノの勝負・無料スピンを終えるとリボーンできます。':enough?'準備が整いました。次の境地へ進めます。':'あと '+money(M.sub(cost,w.balance));
   $('rebirthStart').textContent=limited?'上限に到達':'リボーンする';
   $('rebirthStart').disabled=busy||limited||!!blocked||!enough||w.unavailable;
   $('rebirthCommit').disabled=busy||limited||!!blocked||!enough||w.unavailable;
@@ -45,11 +46,11 @@
   if(busy||confirming===null)return;
   const expected=confirming,request=++epoch;busy=true;render();
   W.rebirth(expected,async result=>{
-   confirming=null;render();message('リボーン完了！ '+result.rebirths+'回目の力で、配当は本来の'+P.factor(result.rebirths)+'倍。1万両から再出発！');
+   confirming=null;busy=false;render();message('リボーン完了！ '+result.rebirths+'回目の力で、配当は本来の'+P.factor(result.rebirths)+'倍。1万両から再出発！');
    $('view-rebirth').classList.remove('reborn');void $('view-rebirth').offsetWidth;$('view-rebirth').classList.add('reborn');
    try{if(await syncRanking()&&request===epoch)message('リボーン完了！ 配当は本来の'+P.factor(result.rebirths)+'倍。成金ランキングにも反映しました。');}
    catch{if(request===epoch)message('リボーンは保存済みです。成金ランキングの「最新の経済力に更新」で順位を反映してね。');}
-   finally{busy=false;render();}
+   finally{if(request===epoch){busy=false;render();}}
   },error=>{busy=false;confirming=null;render();message({'insufficient':'必要な両が足りません。','pending-round':'カジノの勝負を終えてから進めてね。','bonus-active':'無料スピンを終えてから進めてね。','rebirth-limit':'リボーンは現在10,000回までです。','rebirth-changed':'別の画面でリボーン済みです。最新の状態を確認してね。'}[error.message]||'保存できませんでした。記録は変更していません。',true);});
  };
  window.addEventListener('hk-wallet-change',render);

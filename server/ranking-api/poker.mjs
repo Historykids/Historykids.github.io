@@ -57,8 +57,8 @@ export class WealthPoker{
   s.players=paid;if(s.rules===H.RULES){H.start(s,this.shuffle(),now,crypto.randomUUID());return;}s.phase='playing';s.handId=crypto.randomUUID();s.deck=this.shuffle();s.discards=[];s.deadline=now+45000;s.startAt=null;
   for(const p of s.players){p.hand=s.deck.splice(0,5);p.drawn=false;p.folded=false;p.holds=[];}
  }
- view(s,owner,room,rooms){
-  const mine=this.latest(owner),own=s.players.find(p=>p.owner===owner),holdem=s.rules===H.RULES,reveal=s.phase==='showdown'&&(!holdem||s.result?.reveal);
+ view(s,owner,room,rooms,requestedTicket=null){
+  const mine=requestedTicket||this.latest(owner),own=s.players.find(p=>p.owner===owner),holdem=s.rules===H.RULES,reveal=s.phase==='showdown'&&(!holdem||s.result?.reveal);
   return{protocols:[H.RULES,'draw-v1'],rules:s.rules||'draw-v1',room:roomName(room),rooms:rooms.map(r=>({id:roomName(r.id),name:'第'+r.id+'室',rules:r.state.rules||'draw-v1',phase:r.state.phase,seats:r.state.players.length,players:r.state.players.filter(p=>p.paid).length,capacity:6,stake:r.state.stake,joinable:r.state.phase==='lobby'&&r.state.players.length<6})),phase:s.phase,handId:s.handId,stake:s.stake,startAt:s.startAt,deadline:s.deadline,nextAt:s.nextAt,now:this.now(),capacity:6,result:s.result,
    ...(holdem?{board:s.board,street:s.street,turn:s.players[s.turn]?.id||null,turnName:s.players[s.turn]?.name||null,actionVersion:s.actionVersion,currentBet:s.currentBet,smallBlind:s.smallBlind,bigBlind:s.bigBlind,options:own?H.options(s,s.players.indexOf(own)):null,log:s.log}:{}),
    players:s.players.map((p,i)=>({id:p.id,name:p.name,rebirths:p.rebirths,paid:p.paid,drawn:!!p.drawn,folded:!!p.folded,hand:p.hand&&(p.owner===owner||reveal&&!p.folded)?p.hand:null,handName:reveal&&!p.folded?C.evaluate(holdem?[...p.hand,...s.board]:p.hand).name:null,...(holdem?{stack:p.stack,bet:p.bet,invested:p.invested,allin:!!p.allin,dealer:s.phase!=='lobby'&&i===s.dealer,sb:s.phase!=='lobby'&&i===s.sb,bb:s.phase!=='lobby'&&i===s.bb,lastAction:p.lastAction}:{} )})),
@@ -133,7 +133,7 @@ export class WealthPoker{
     const freshRules=this.empty().rules;
     if((rooms.some(r=>r.state.players.length>=6)||rooms.every(r=>r.state.rules!==freshRules))&&!rooms.some(r=>r.state.phase==='lobby'&&r.state.players.length<6&&r.state.rules===freshRules))rooms.push({id:Math.max(...rooms.map(r=>r.id))+1,state:this.empty(),original:null});
     for(const r of rooms){const json=JSON.stringify(r.state);if(json!==r.original){this.sql.exec('INSERT INTO poker_rooms(id,state) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state',r.id,json);if(r.id===1)this.sql.exec('UPDATE poker_room SET state=? WHERE singleton=1',json);}}
-    output=this.view(s,owner,room,rooms);
+    output=this.view(s,owner,room,rooms,data.id?this.ticket(data.id):null);
    };
    if(this.storage.transactionSync)this.storage.transactionSync(work);else work();
    return Response.json(output);

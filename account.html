@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ja">
+<head>
+ <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+ <title>ログイン・アカウント｜歴史キッズ</title><meta name="description" content="メールアドレス不要。アカウント名とパスワードで、歴史キッズの両・町・学習記録を保存して続きから遊べます。"><meta name="robots" content="noindex,follow">
+ <link rel="canonical" href="https://historykids.github.io/account.html"><link rel="icon" href="./favicon.ico"><link rel="stylesheet" href="./assets/ui/account.css?v=account-20261021">
+ <script defer src="./assets/ui/amounts.js?v=expansion-20261020"></script><script defer src="./assets/ui/bitcoin-rules.js?v=royal-20261016"></script><script defer src="./assets/ui/pachinko-rules.js?v=expansion-20261020"></script><script defer src="./assets/ui/wallet.js?v=account-20261021"></script>
+ <script defer src="./assets/ui/account-data.js?v=account-20261021"></script><script defer src="./assets/ui/account-sync.js?v=account-20261021"></script><script defer src="./assets/ui/ranking-config.js?v=wealth-20261008"></script><script defer src="./assets/ui/account.js?v=account-20261021"></script>
+</head>
+<body class="account-page">
+ <a class="account-skip" href="#accountMain">アカウントへ</a>
+ <header class="account-header"><a class="account-brand" href="./"><span aria-hidden="true">歴</span><b>歴史キッズ<small>HISTORY KIDS</small></b></a><a href="./">クイズへ戻る ↗</a></header>
+ <main id="accountMain" class="account-layout">
+  <section class="account-intro"><p class="account-eyebrow">YOUR TOWN, WHEREVER YOU PLAY</p><h1 id="accountTitle">いつもの町へ、<br>ログイン。</h1><p class="account-lead">学んだことも、集めた両も、<br>育てた町も。ひとつのアカウントに。</p>
+   <div class="account-town-art" aria-hidden="true"><span>町</span><i></i><b>学ぶ。集める。育てる。</b></div>
+   <div class="account-benefits"><p><b>メールアドレス不要</b><span>アカウント名とパスワードだけ。</span></p><p><b>今の記録から、続けられる</b><span>初めて登録するときは、この端末の記録を引き継ぎます。</span></p><p><b>ほかの端末でも、いつもの町</b><span>両・リボーン・町・学習記録をアカウントに保存。</span></p></div>
+  </section>
+  <div class="account-card-wrap">
+   <section id="accountGuest" class="account-card" aria-label="ログインと新規登録">
+    <div class="account-tabs" aria-label="ログイン方法"><button id="accountLoginTab" type="button" aria-pressed="true">ログイン</button><button id="accountRegisterTab" type="button" aria-pressed="false">新規登録</button></div>
+    <form id="accountForm"><label for="accountUsername">アカウント名</label><input id="accountUsername" name="username" autocomplete="username" required minlength="3" maxlength="24" aria-describedby="accountNameHint" placeholder="例：rekishi_kids"><p id="accountNameHint" class="account-hint">3〜24文字。文字・数字・_・- が使えます。</p>
+     <label for="accountPassword">パスワード</label><input id="accountPassword" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128" aria-describedby="accountPasswordHint"><p id="accountPasswordHint" class="account-hint">8文字以上。メールを使わないため、忘れた場合の再発行はできません。</p>
+     <p id="accountRegisterInfo" class="account-register-note" hidden>この端末で遊んできた記録を、新しいアカウントへ引き継ぎます。アカウント名はログイン用です。ランキングには別のニックネームを使えます。</p>
+     <button id="accountSubmit" class="account-primary" type="submit">ログイン</button>
+    </form><p class="account-guest-link"><a href="./">登録せずに、この端末で遊ぶ →</a></p>
+   </section>
+   <section id="accountSignedIn" class="account-card" hidden aria-label="ログイン中のアカウント"><p class="account-eyebrow">YOUR ACCOUNT</p><h2 id="accountUsernameDisplay"></h2><p data-account-status class="account-save-state" role="status">アカウントに記録を保存</p><div class="account-stats"><div><span>所持両</span><b id="accountBalance">0両</b></div><div><span>リボーン</span><b id="accountRebirths">0回</b></div><div><span>町の建物</span><b id="accountTown">0個</b></div></div><a id="accountContinue" class="account-primary" href="./">続きを遊ぶ →</a><div class="account-actions"><button id="accountSave" type="button">今の記録を保存</button><button id="accountLogout" type="button">保存してログアウト</button></div><details class="account-password-settings"><summary>パスワードを変更</summary><form id="accountPasswordForm"><label for="accountOldPassword">現在のパスワード</label><input id="accountOldPassword" type="password" autocomplete="current-password" minlength="8" maxlength="128" required><label for="accountNewPassword">新しいパスワード</label><input id="accountNewPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required><button type="submit">パスワードを変更する</button></form></details></section>
+   <section id="accountConflict" class="account-conflict" hidden aria-label="使う記録を選ぶ"><h2>どちらの記録で続けますか？</h2><p>別の端末の記録と、この端末の記録が異なります。選んだほうの記録を使って続けます。</p><button id="accountCloud" type="button">サーバーの記録を使う</button><button id="accountLocal" type="button">この端末の記録を使う</button></section>
+   <p id="accountMessage" class="account-message" role="status" aria-live="polite"></p><p class="account-privacy">通信・保存する情報は<a href="./#privacy">プライバシーポリシー</a>をご確認ください。</p>
+  </div>
+ </main><footer class="account-footer">HISTORY KIDS · 学んで、集めて、町をつくろう。</footer>
+</body></html>

@@ -4,6 +4,7 @@ import '../../assets/ui/wealth-rules.js';
 import {WealthAdmin,adminRoutes} from './admin.mjs';
 import {WealthPoker,pokerRoutes} from './poker.mjs';
 import {WealthNotices,noticeRoutes} from './notices.mjs';
+import {Accounts,accountRoutes} from './accounts.mjs';
 const W = globalThis.HKWealthRules, M=globalThis.HKAmounts;
 const decode=row=>{if(!row)return null;for(const key of ['balance','assets','score'])row[key]=M.pack(row[key]);return row;};
 const legacyColumns = 'id,name,balance,buildings,residents,buildingValue,residentValue,assets,score,timestamp,revision';
@@ -36,6 +37,7 @@ export class HistoryLeaderboard extends QuizLeaderboard {
     this.admin=new WealthAdmin(ctx.storage,W);
     this.poker=new WealthPoker(ctx.storage,this.admin);
     this.notices=new WealthNotices(ctx.storage,this.admin);
+    this.accounts=new Accounts(ctx.storage);
   }
   isBanned(owner) { return !!owner && !!this.sql.exec('SELECT banned FROM wealth_moderation WHERE id=?',owner).toArray()[0]?.banned; }
   board(owner) {
@@ -50,8 +52,11 @@ export class HistoryLeaderboard extends QuizLeaderboard {
   }
   async fetch(request) {
     const path = new URL(request.url).pathname;
-    if (!path.startsWith('/wealth')) return super.fetch(request);
-    const data = await request.json(), owner = data.owner || '';
+    const data = await request.json();
+    if(accountRoutes.has(path))return this.accounts.fetch(path,data);
+    try{data.owner=this.accounts.resolve(data.owner||'',path.startsWith('/ranking'));}catch(error){if(error.status)return fail(error.message,error.status);throw error;}
+    if (!path.startsWith('/wealth')) return super.fetch(new Request(request.url,{method:'POST',body:JSON.stringify(data)}));
+    const owner=data.owner;
     if(adminRoutes.has(path))return this.admin.fetch(path,data);
     if(pokerRoutes.has(path))return this.poker.fetch(path,data);
     if(noticeRoutes.has(path))return this.notices.fetch(path,data);
@@ -76,17 +81,21 @@ export class HistoryLeaderboard extends QuizLeaderboard {
 }
 export async function wealthRequest(request, env, reply) {
   const path = new URL(request.url).pathname;
-  if (!['/wealth', '/wealth/register'].includes(path)&&!adminRoutes.has(path)&&!pokerRoutes.has(path)&&!noticeRoutes.has(path)) return reply({error: 'not-found'}, 404);
+  if (!['/wealth', '/wealth/register'].includes(path)&&!adminRoutes.has(path)&&!pokerRoutes.has(path)&&!noticeRoutes.has(path)&&!accountRoutes.has(path)) return reply({error: 'not-found'}, 404);
   if (request.method === 'OPTIONS') return reply({ok: true});
-  const read=path==='/wealth'||path==='/wealth/admin/session'||path==='/wealth/admin/board'||path==='/wealth/poker'||path==='/wealth/notices'||path==='/wealth/admin/recipients';
+  const read=['/wealth/account/session','/wealth/account/load','/wealth/account/capabilities'].includes(path)||path==='/wealth'||path==='/wealth/admin/session'||path==='/wealth/admin/board'||path==='/wealth/poker'||path==='/wealth/notices'||path==='/wealth/admin/recipients';
   if (request.method !== (read ? 'GET' : 'POST')) return reply({error: 'method-not-allowed'}, 405);
   if (!env.LEADERBOARD || !env.RANK_READ_LIMITER || !env.RANK_WRITE_LIMITER || !env.RANK_GLOBAL_LIMITER) return reply({error: 'not-configured'}, 503);
   if(pokerRoutes.has(path)&&!env.POKER_ROOM_LIMITER)return reply({error:'not-configured'},503);
   const token = request.headers.get('Authorization')?.replace(/^Bearer /, '') || '';
-  if ((token && !/^[a-f0-9]{64}$/.test(token)) || ((request.method === 'POST'||adminRoutes.has(path)||path.startsWith('/wealth/admin/')||pokerRoutes.has(path)) && !token)) return reply({error: 'identity-required'}, 401);
+  if ((token && !/^[a-f0-9]{64}$/.test(token)) || ((request.method === 'POST'&&path!=='/wealth/account/login'||adminRoutes.has(path)||path.startsWith('/wealth/admin/')||pokerRoutes.has(path)) && !token)) return reply({error: 'identity-required'}, 401);
   const digest = token ? await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)) : null;
   const owner = digest ? Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('') : '';
   const ip=request.headers.get('CF-Connecting-IP')||'anonymous';
+  if(['/wealth/account/register','/wealth/account/login','/wealth/account/password'].includes(path)){
+    if(!env.ACCOUNT_AUTH_LIMITER)return reply({error:'not-configured'},503);
+    if(!(await env.ACCOUNT_AUTH_LIMITER.limit({key:ip})).success)return reply({error:'account-try-later'},429);
+  }
   if(path==='/wealth/admin/claim'){
     if(!env.ADMIN_CLAIM_LIMITER)return reply({error:'not-configured'},503);
     if(!(await env.ADMIN_CLAIM_LIMITER.limit({key:ip})).success)return reply({error:'rate-limited'},429);
@@ -95,11 +104,11 @@ export async function wealthRequest(request, env, reply) {
   const globalRate = await (pokerRoutes.has(path)?env.POKER_ROOM_LIMITER:env.RANK_GLOBAL_LIMITER).limit({key: 'site'});
   if (!rate.success || !globalRate.success) return reply({error: 'rate-limited'}, 429);
   let data = {};
-  if(path==='/wealth/poker'&&request.method==='GET')data.room=new URL(request.url).searchParams.get('room')||undefined;
+  if(path==='/wealth/poker'&&request.method==='GET'){data.room=new URL(request.url).searchParams.get('room')||undefined;const ticket=new URL(request.url).searchParams.get('ticket');if(ticket)data.id=ticket;}
   if (request.method === 'POST') {
     if (!request.headers.get('Content-Type')?.startsWith('application/json')) return reply({error: 'json-required'}, 415);
-    if (Number(request.headers.get('Content-Length')) > 8000) return reply({error: 'too-large'}, 413);
-    try { const text = await request.text(); if (new TextEncoder().encode(text).length > 8000) return reply({error: 'too-large'}, 413); data = JSON.parse(text); if (!data || typeof data !== 'object' || Array.isArray(data)) throw Error(); }
+    if (Number(request.headers.get('Content-Length')) > (['/wealth/account/save','/wealth/account/register'].includes(path)?1100000:8000)) return reply({error: 'too-large'}, 413);
+    try { const text = await request.text(); if (new TextEncoder().encode(text).length > (['/wealth/account/save','/wealth/account/register'].includes(path)?1100000:8000)) return reply({error: 'too-large'}, 413); data = JSON.parse(text); if (!data || typeof data !== 'object' || Array.isArray(data)) throw Error(); }
     catch { return reply({error: 'invalid-json'}, 400); }
   }
   try {

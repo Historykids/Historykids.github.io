@@ -4,7 +4,7 @@
     {
       "file": "index.html",
       "path": "/",
-      "lastmod": "2026-10-08"
+      "lastmod": "2026-10-21"
     },
     {
       "file": "figures.html",
@@ -14,12 +14,12 @@
     {
       "file": "buzzer.html",
       "path": "/buzzer.html",
-      "lastmod": "2026-10-08"
+      "lastmod": "2026-10-21"
     },
     {
       "file": "ranking.html",
       "path": "/ranking.html",
-      "lastmod": "2026-10-06"
+      "lastmod": "2026-10-21"
     },
     {
       "file": "edogames.html",
@@ -34,7 +34,7 @@
     {
       "file": "casino.html",
       "path": "/casino.html",
-      "lastmod": "2026-10-06"
+      "lastmod": "2026-10-21"
     },
     {
       "file": "Credits.html",
@@ -49,7 +49,7 @@
     {
       "file": "wealth-ranking.html",
       "path": "/wealth-ranking.html",
-      "lastmod": "2026-10-08"
+      "lastmod": "2026-10-21"
     }
   ],
   "aliases": [
@@ -66,6 +66,10 @@
     {
       "file": "google71b999bc694960a2.html",
       "reason": "Google ownership verification, not a content page"
+    },
+    {
+      "file": "account.html",
+      "reason": "Private account sign-in and saved-game management; noindex."
     }
   ]
 }

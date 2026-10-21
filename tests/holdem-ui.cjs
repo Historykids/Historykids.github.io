@@ -61,5 +61,17 @@ async function refresh(...pages){for(const p of pages)p.$('roomRefresh').click()
    assert(a.$('roomHand').hidden);assert.equal(a.$('roomHandCards').children.length,0);assert.equal(a.$('roomSeats').children.length,0);assert(a.$('roomBetting').hidden);
   }finally{a.close();b.close();h.close();}
  });
+ await test('a cloud-restored pending hand can collect its already acknowledged receipt exactly once',async()=>{
+  const {h,a,b}=await pair();let restored;try{
+   const saved=new Map(a.map);a.$('roomFold').click();await flush();assert.equal(a.W.snapshot().balance,999);assert.equal(a.W.snapshot().pending,null);
+   restored=page(h,{map:saved});await flush();assert.equal(restored.W.snapshot().pending,null);assert.equal(restored.W.snapshot().balance,999);assert.equal(restored.W.snapshot().history.length,1);await refresh(restored);assert.equal(restored.W.snapshot().balance,999);
+  }finally{restored?.close();a.close();b.close();h.close();}
+ });
+ await test('a logged-in second device watches an active seat without cancelling or wagering on it',async()=>{
+  const {h,a,b}=await pair();let spectator;try{
+   const saved=new Map(a.map),wallet=JSON.parse(saved.get('hk_wallet_v2'));wallet.pending=null;wallet.balance='1000';saved.set('hk_wallet_v2',JSON.stringify(wallet));saved.delete('hk_poker_reservation_v1');
+   spectator=page(h,{map:saved});spectator.w.HKAccountSync={meta:()=>({username:'same_account'})};spectator.$('tab-king').click();await flush();assert.equal(spectator.W.snapshot().pending,null);assert.equal(h.room().phase,'playing');assert.equal(h.room().players[0].folded,false);assert(spectator.$('roomCall').disabled);assert(spectator.$('roomWatchHint').textContent.includes('別の端末'));assert.equal(spectator.W.snapshot().balance,1000);
+  }finally{spectator?.close();a.close();b.close();h.close();}
+ });
  console.log(checks+' Holdem browser flow checks passed.');
 })().catch(e=>{console.error(e);for(const w of opened)w.close();process.exitCode=1;});

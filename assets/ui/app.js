@@ -220,6 +220,7 @@
     lastUndo = null;
   function save() {
     try {
+      window.HKAccountSync?.assertActive();
       for (const [era, set] of Object.entries(ds))
         localStorage.setItem(set.LS_KEY, JSON.stringify(state.got[era]));
       state.money = W.snapshot().balance;
@@ -230,6 +231,7 @@
       localStorage.setItem("hk_ruby_v2", JSON.stringify(state.ruby));
       localStorage.setItem("hk_era_v2", JSON.stringify(state.era));
       $("saveWarning").hidden = true;
+      window.dispatchEvent(new CustomEvent("hk-progress-change"));
     } catch {
       $("saveWarning").hidden = false;
     }
@@ -971,7 +973,7 @@
   function settings() {
     openDialog(
       "記録・設定",
-      `<div class="settings-row"><h3>記録の保存</h3><p>カード、両、町、リボーン回数はこのブラウザに保存されます。別の端末には自動で移りません。</p><p>両と成金スコアの上限は9999無量大数。表示は上位3単位までですが、値は1両単位で保存されます。</p></div><div class="settings-row"><h3>最初から遊ぶ</h3><p>すべての時代のカード・復習記録・両・町・リボーン回数が初期化されます。一度限りの特典の受け取り記録は残ります。</p><button id="resetRequest">記録をリセット</button></div>`,
+      `<div class="settings-row"><h3>記録の保存</h3><p>ゲストの記録はこのブラウザに保存されます。アカウントへログインすると、カード・両・町・リボーン回数を保存して、別の端末でも続けられます。</p><p>両と成金スコアの上限は9999無量大数。表示は上位3単位までですが、値は1両単位で保存されます。</p></div><div class="settings-row"><p><a href="./account.html">ログイン・アカウントの管理 →</a></p><h3>最初から遊ぶ</h3><p>すべての時代のカード・復習記録・両・町・リボーン回数が初期化されます。一度限りの特典の受け取り記録は残ります。</p><button id="resetRequest">記録をリセット</button></div>`,
     );
   }
   document.addEventListener("click", (e) => {

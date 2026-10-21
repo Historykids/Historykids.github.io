@@ -31,7 +31,7 @@
   function saveName(name){try{root.localStorage.setItem(nicknameKey,name);}catch{}}
   function seconds(ms){return (Math.round(ms/10)/100).toFixed(2);}
   function wait(promise,duration=12000){let timeout;return Promise.race([promise,new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Object.assign(Error("timeout"),{code:"timeout"})),duration);})]).finally(()=>clearTimeout(timeout));}
-  function identity(create=false){let token=root.localStorage.getItem(identityKey)||'';if(!/^[a-f0-9]{64}$/.test(token)){if(!create)return '';token=Array.from(root.crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,'0')).join('');root.localStorage.setItem(identityKey,token);}return token;}
+  function identity(create=false){if(root.HKAccountSync?.meta()){root.HKAccountSync.assertActive();return root.localStorage.getItem('hk_wealth_identity_v1')||'';}let token=root.localStorage.getItem(identityKey)||'';if(!/^[a-f0-9]{64}$/.test(token)){if(!create)return '';token=Array.from(root.crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,'0')).join('');root.localStorage.setItem(identityKey,token);}return token;}
   async function request(action='',body){
     const endpoint=root.HKRankingConfig?.endpoint;if(!endpoint)throw Error('not-configured');
     const token=identity(body!==undefined),headers={...(token?{Authorization:'Bearer '+token}:{}),...(body!==undefined?{'Content-Type':'application/json'}:{})};
@@ -48,7 +48,7 @@
     const metrics=C.rankingMetrics(result),correct=result.roundCorrect??round.correct??result.correct??10;
     const current=C.rankingMetrics({ms:result.elapsedMs,correct,answerMs:result.roundAnswerMs,timingVersion:result.roundAnswerMs?2:1});
     if(!metrics||!current||typeof result.proof!=='string')throw Error('response');
-    const best={...metrics,proof:result.proof,combo:round.combo};root.localStorage.setItem(verifiedKey,JSON.stringify(best));return{best,ms:current.answerMs,score:current.score,correct,timingVersion:result.roundAnswerMs?2:1};
+    root.HKAccountSync?.assertActive();const best={...metrics,proof:result.proof,combo:round.combo};root.localStorage.setItem(verifiedKey,JSON.stringify(best));return{best,ms:current.answerMs,score:current.score,correct,timingVersion:result.roundAnswerMs?2:1};
   }
   async function submit(name,ms){
     name=nickname(name);if(!name)throw Object.assign(Error("nickname"),{code:"nickname"});if(!validTime(ms))throw Error("record");saveName(name);

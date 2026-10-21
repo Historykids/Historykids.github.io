@@ -55,3 +55,14 @@ The explicit `account-data.js` allowlist covers the wallet, town, rebirths, lear
 Register, login, session, logout, password, save, load and capabilities routes share the existing trusted-origin and no-store policy. Cloud save payloads are capped at 1 MiB and remain private to the owning account. Guests can continue without registering. There is no email-based password recovery.
 
 Validation: `node tests/accounts-api.cjs` and `node tests/accounts-ui.cjs`; the deployment probe exercises a rejected login with a random nonexistent name, testing the deployed password runtime without creating an account.
+
+
+## 通知の編集・削除
+
+管理者は通知ページの「送信済みの通知」から、全体配信と個人配信を編集・削除できます。編集で配信先・ID・配信日時は変わらず、受信側には編集済み日時が付き、未読に戻ります。削除は確認画面で確定し、受信側が次に更新した際に一覧から消えます。
+
+`GET /wealth/admin/notice-history?offset=0` は管理者専用の50件ずつの履歴です。個人宛ての名前・IDはこの履歴だけに含め、公開一覧は引き続き全体配信と本人宛てだけを返します。`POST /wealth/admin/notice-edit` は `{id,expectedRevision,requestId,title,body}`、`POST /wealth/admin/notice-delete` は `{id,expectedRevision,requestId}` を受け取ります。正のIDは全体配信、負のIDは個人配信です。変更前の版が異なると409、削除済みなら404です。ログイン済み管理者も既存の所有権解決を通ります。
+
+変更と永続receiptは同一トランザクションで確定します。同じrequestId・内容の再試行は成功を返し、異なる内容には使い回せません。元の配信内容のreceiptも保持するので、編集・削除後に古い送信を再試行しても上書き・復活しません。旧通知はID・本文・日時を維持して移行します。
+
+検証: `node tests/notices-api.cjs`、`node tests/notices-ui.cjs`。公開時の疎通確認は管理者以外の拒否だけを検証し、実際の通知を変更しません。

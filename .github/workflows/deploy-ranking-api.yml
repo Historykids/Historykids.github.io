@@ -25,6 +25,8 @@ jobs:
         run: npm ci
       - name: Check answers, ownership, retry and durable storage
         run: |
+          node tests/notices-api.cjs
+          node tests/notices-ui.cjs
           node tests/accounts-api.cjs
           node tests/accounts-ui.cjs
           node tests/holdem.cjs
@@ -80,6 +82,12 @@ jobs:
           const privatePost=await fetch(new URL('/wealth/admin/personal-notices',base),{method:'POST',headers:{Origin:'https://historykids.github.io',Authorization:'Bearer '+probeToken,'Content-Type':'application/json'},body:JSON.stringify({requestId:crypto.randomUUID(),recipient:'0'.repeat(64),title:'',body:''}),signal:AbortSignal.timeout(15000)});
           if(privatePost.status!==403||(await privatePost.json()).error!=='admin-required')throw Error('Personal delivery must remain administrator-only');
           console.log('Personal delivery access check passed; no notice sent');
+          for(const route of ['notice-history','notice-edit','notice-delete']){
+            const read=route==='notice-history';
+            const response=await fetch(new URL('/wealth/admin/'+route,base),{method:read?'GET':'POST',headers:{Origin:'https://historykids.github.io',Authorization:'Bearer '+probeToken,...(read?{}:{'Content-Type':'application/json'})},...(read?{}:{body:JSON.stringify({requestId:crypto.randomUUID(),id:0,expectedRevision:0})}),signal:AbortSignal.timeout(15000)});
+            if(response.status!==403||(await response.json()).error!=='admin-required')throw Error('Sent-notice management must remain administrator-only: '+route);
+          }
+          console.log('Sent-notice management access checks passed; no notice changed');
           fs.writeFileSync('assets/ui/ranking-config.js','// Public URL only. Never place credentials here.\nwindow.HKRankingConfig=Object.freeze('+JSON.stringify({endpoint:new URL('/ranking',base).href})+');\n');
           const accountLogin=await fetch(new URL('/wealth/account/login',base),{method:'POST',headers:{Origin:'https://historykids.github.io','Content-Type':'application/json'},body:JSON.stringify({username:'runtime_probe_'+crypto.randomUUID().replaceAll('-','').slice(0,8),password:'runtime-probe-not-a-real-password'}),signal:AbortSignal.timeout(15000)});
           const loginDenied=await accountLogin.json();

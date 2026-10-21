@@ -2,6 +2,7 @@ name = "historykids-ranking-api"
 main = "worker.mjs"
 compatibility_date = "2026-10-02"
 workers_dev = true
+compatibility_flags = ["nodejs_compat"]
 
 [[durable_objects.bindings]]
 name = "LEADERBOARD"
@@ -44,4 +45,11 @@ name = "POKER_ROOM_LIMITER"
 namespace_id = "1007"
 [ratelimits.simple]
 limit = 3000
+period = 60
+
+[[ratelimits]]
+name = "ACCOUNT_AUTH_LIMITER"
+namespace_id = "1008"
+[ratelimits.simple]
+limit = 30
 period = 60

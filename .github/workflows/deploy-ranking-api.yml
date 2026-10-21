@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js', 'assets/ui/amounts.js', 'assets/ui/wealth-rules.js']
+    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js', 'assets/ui/amounts.js', 'assets/ui/wealth-rules.js', 'assets/ui/account-data.js']
 permissions:
   contents: write
   pages: write
@@ -25,6 +25,8 @@ jobs:
         run: npm ci
       - name: Check answers, ownership, retry and durable storage
         run: |
+          node tests/accounts-api.cjs
+          node tests/accounts-ui.cjs
           node tests/holdem.cjs
           node tests/holdem-ui.cjs
           node tests/admin.cjs
@@ -79,6 +81,10 @@ jobs:
           if(privatePost.status!==403||(await privatePost.json()).error!=='admin-required')throw Error('Personal delivery must remain administrator-only');
           console.log('Personal delivery access check passed; no notice sent');
           fs.writeFileSync('assets/ui/ranking-config.js','// Public URL only. Never place credentials here.\nwindow.HKRankingConfig=Object.freeze('+JSON.stringify({endpoint:new URL('/ranking',base).href})+');\n');
+          const accountLogin=await fetch(new URL('/wealth/account/login',base),{method:'POST',headers:{Origin:'https://historykids.github.io','Content-Type':'application/json'},body:JSON.stringify({username:'runtime_probe_'+crypto.randomUUID().replaceAll('-','').slice(0,8),password:'runtime-probe-not-a-real-password'}),signal:AbortSignal.timeout(15000)});
+          const loginDenied=await accountLogin.json();
+          if(accountLogin.status!==401||loginDenied.error!=='account-credentials')throw Error('Account password runtime check failed: '+JSON.stringify({status:accountLogin.status,error:loginDenied.error}));
+          console.log('Account authentication runtime check passed; no account created');
           console.log('Ranking storage check passed');
           JS
           git config user.name 'github-actions[bot]'

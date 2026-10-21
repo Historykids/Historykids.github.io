@@ -6,7 +6,7 @@ async function harness(){
  const storage={sql:{exec(q,...args){if(failSql&&q.startsWith(failSql))throw Error('write failed');if(!args.length&&q.includes(';')){db.exec(q);return{toArray:()=>[]};}const st=db.prepare(q);if(/^(SELECT|PRAGMA)/i.test(q))return{toArray:()=>st.all(...args)};st.run(...args);return{toArray:()=>[]};}},transactionSync(fn){db.exec('BEGIN');try{const r=fn();db.exec('COMMIT');return r;}catch(e){db.exec('ROLLBACK');throw e;}}};
  let board=new HistoryLeaderboard({storage});board.poker.now=()=>now;
  const tokens=Array.from({length:16},(_,i)=>(i+1).toString(16).padStart(64,'0')),owner=i=>createHash('sha256').update(tokens[i]).digest('hex'),id=i=>'holdem_ticket_'+String(i).padStart(20,'0');
- const limiter={limit:async()=>({success:true})},env={LEADERBOARD:{idFromName:n=>n,get:()=>({fetch:r=>board.fetch(r)})},RANK_READ_LIMITER:limiter,RANK_WRITE_LIMITER:limiter,RANK_GLOBAL_LIMITER:limiter,ADMIN_CLAIM_LIMITER:limiter,POKER_ROOM_LIMITER:limiter},calls=[];
+ const limiter={limit:async()=>({success:true})},env={LEADERBOARD:{idFromName:n=>n,get:()=>({fetch:r=>board.fetch(r)})},RANK_READ_LIMITER:limiter,RANK_WRITE_LIMITER:limiter,RANK_GLOBAL_LIMITER:limiter,ADMIN_CLAIM_LIMITER:limiter,POKER_ROOM_LIMITER:limiter,ACCOUNT_AUTH_LIMITER:limiter},calls=[];
  async function fetch(url,options={}){
   const path=new URL(url).pathname,headers=new Headers(options.headers);headers.set('Origin','https://historykids.github.io');calls.push({path,body:options.body?JSON.parse(options.body):null});
   const r=await worker.fetch(new Request(url,{method:options.method||'GET',headers,...(options.body?{body:options.body}:{})}),env);

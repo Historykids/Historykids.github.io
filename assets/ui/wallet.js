@@ -69,6 +69,7 @@
   function announce() { window.dispatchEvent(new CustomEvent('hk-wallet-change', { detail: snapshot() })); }
   function transact(change, success = () => {}, failure = () => {}) {
     const work = () => {
+      window.HKAccountSync?.assertActive();
       const wallet = read(), result = change(wallet);
       wallet.balance=M.clamp(wallet.balance);
       // The balance and any unresolved round are committed in one atomic storage value.

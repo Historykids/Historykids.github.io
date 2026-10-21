@@ -5,7 +5,7 @@
  const actionKey='hk_holdem_action_v1',reservationKey='hk_poker_reservation_v1',money=n=>M.format(n)+'両',call=(fn,...args)=>new Promise((resolve,reject)=>W[fn](...args,resolve,reject));
  let state=null,selected=false,busy=false,polling=false,holds=new Set(),handId='',clockOffset=0,leaving=false,epoch=0,selectedRoom='royal-one',raiseView='';
  try{const saved=localStorage.getItem('hk_poker_room_v1');if(saved==='royal-one'||/^royal-[1-9]\d{0,5}$/.test(saved||''))selectedRoom=saved;}catch{}
- const roomRequest=(path,body)=>A.request(body?path:path+'?room='+encodeURIComponent(selectedRoom),body?{...body,room:selectedRoom}:undefined);
+ const roomRequest=(path,body)=>A.request(body?path:path+'?room='+encodeURIComponent(selectedRoom)+(pending()?'&ticket='+encodeURIComponent(pending().id):''),body?{...body,room:selectedRoom}:undefined);
  const pending=()=>{const r=W.snapshot().pending;return r?.game==='poker'&&r.data?.version===2?r:null;};
  function message(text,error=false){$('roomMessage').textContent=text;$('roomMessage').classList.toggle('error',error);}
  function reservation(){try{return JSON.parse(localStorage.getItem(reservationKey)||'null');}catch{return null;}}
@@ -31,7 +31,7 @@
   $('roomPhase').textContent=state.phase==='lobby'?'参加受付中':playing?'対戦中':'結果発表';
   const rooms=state.rooms||[{id:state.room,name:'第1室',seats:state.players.length,phase:state.phase}],options=rooms.map(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.name+' · '+r.seats+'/6席 · '+(r.phase==='lobby'?(r.seats>=6?'満室':'参加受付'):r.phase==='playing'?'対戦中・観戦可':'結果発表');return o;});
   $('roomSelect').replaceChildren(...options);$('roomSelect').value=state.room;$('roomSelect').disabled=busy||polling||!!pending();$('roomTotal').textContent=rooms.length+'部屋 · 満室になると次の部屋が開きます';
-  $('roomRole').textContent=mine&&holdem()&&playing?(mine.folded?'フォールド済み':mine.allin?'オールイン · 結果待ち':state.turn===mine.id?'あなたの番':'対戦中 · 相手の番'):mine?playing?(mine.folded?'フォールド済み':mine.drawn?'交換済み · 結果待ち':'あなたは対戦中'):'あなたの席':playing?'観戦中 · 次のハンドから参加':'観戦席';
+  $('roomRole').textContent=mine&&!pending()&&window.HKAccountSync?.meta()?'別の端末で参加中':mine&&holdem()&&playing?(mine.folded?'フォールド済み':mine.allin?'オールイン · 結果待ち':state.turn===mine.id?'あなたの番':'対戦中 · 相手の番'):mine?playing?(mine.folded?'フォールド済み':mine.drawn?'交換済み · 結果待ち':'あなたは対戦中'):'あなたの席':playing?'観戦中 · 次のハンドから参加':'観戦席';
   $('roomPot').textContent=money(holdem()?(state.result?.pot??M.sum(state.players.map(p=>p.invested||0))):(state.stake?M.mul(state.stake,state.players.filter(p=>p.paid).length):0));
   $('roomCount').textContent=state.players.filter(p=>p.paid).length+' / 6人';
   $('roomCommonStake').textContent=state.stake?money(state.stake):'最初の参加者が設定';
@@ -42,7 +42,7 @@
    if(p)for(let n=0;n<(holdem()?2:5);n++)cards.append(card(p.hand?.[n]));if(p&&holdem()){detail.textContent='↻ '+p.rebirths+'回 · '+(p.folded?'フォールド':p.allin?'オールイン':p.lastAction||'待機中');const stack=document.createElement('p');stack.className='room-seat-stack';stack.textContent=(p.dealer?'D · ':'')+(p.sb?'SB · ':'')+(p.bb?'BB · ':'')+'残り '+money(p.stack??state.stake??0)+' / ベット '+money(p.bet??0);seat.append(stack);}seat.append(name,detail,cards);seats.append(seat);
   }
   $('roomSeats').replaceChildren(seats);
-  const canDraw=!holdem()&&playing&&mine&&!mine.folded&&!mine.drawn;
+  const canDraw=!!pending()&&!holdem()&&playing&&mine&&!mine.folded&&!mine.drawn;
   $('roomHand').hidden=!playing||!mine||mine.folded;$('roomHandCards').replaceChildren(...(mine?.hand||[]).map((c,i)=>card(c,!!canDraw,i)));
   $('roomDraw').disabled=busy||polling||!canDraw;$('roomDraw').textContent=canDraw?(holds.size===5?'5枚を残して確定':(5-holds.size)+'枚を交換して確定'):'交換済み';
   $('roomHoldHint').textContent=holdem()?'あなた専用の手札2枚。共通カードと合わせて最強の5枚を作ります。':mine?.drawn?'ほかの参加者の確定を待っています。':'残すカードを押して選ぼう。交換は1回だけ。';
@@ -60,7 +60,7 @@
    const sb=state.phase==='lobby'&&state.stake?M.pack(BigInt(state.stake)/100n||1n):state.smallBlind;
    $('roomBlinds').textContent=state.stake?'ブラインド '+money(sb)+' / '+money(state.phase==='lobby'?M.mul(sb,2):state.bigBlind):'持ち込み額に合わせてブラインドを設定';
    $('roomTurn').textContent=playing?(state.turn===state.ownId?'あなたの番です':(state.turnName||'参加者')+'さんの番'):state.phase==='lobby'?'2人以上で配布':'ハンド終了';
-   const o=state.options,canBet=!!(playing&&mine&&state.turn===mine.id&&o&&!busy&&!polling&&!savedAction());
+   const o=state.options,canBet=!!(pending()&&playing&&mine&&state.turn===mine.id&&o&&!busy&&!polling&&!savedAction());
    $('roomFold').disabled=!canBet;$('roomCall').disabled=!canBet;$('roomCall').textContent=o?.check?'チェック':'コール '+money(o?.call||0);
    $('roomAllin').disabled=!canBet||(!o.canRaise&&M.cmp(o.max,state.currentBet)>0);
    $('roomRaise').disabled=!canBet||!o.canRaise;$('roomRaiseCommit').disabled=!canBet||!o.canRaise;
@@ -70,6 +70,7 @@
    if(playing&&!mine)$('roomWatchHint').textContent='途中参加は観戦です。他の人の手札は結果発表まで非公開です。次のハンドから参加できます。';
    else if(state.phase==='lobby')$('roomWatchHint').textContent='同じ持ち込み額で2人そろうと10秒後に配布。持ち込みは20両以上、未使用分はハンド終了時に返ります。';
   }
+  if(mine&&!pending()&&window.HKAccountSync?.meta())$('roomWatchHint').textContent='別の端末で参加中の勝負です。この端末では観戦できます。元の端末で勝負を終えて保存してから、アカウント画面で記録を読み込んでください。';
   clock();if(focused!==undefined)$('roomHandCards').querySelector('[data-room-card="'+focused+'"]')?.focus();
  }
  async function reconcile(data){
@@ -79,9 +80,9 @@
    catch(error){data=await roomRequest('/wealth/poker/leave',{id:t.id});t=data.ticket;clearReservation();if(t?.status==='done')await roomRequest('/wealth/poker/ack',{id:t.id});throw error;}
   }
   if(t?.status==='reserved'&&r?.id===t.id){data=await roomRequest('/wealth/poker/commit',{id:t.id});t=data.ticket;}
-  if(t&&['reserved','paid'].includes(t.status)&&!pending()&&saved?.id!==t.id){data=await roomRequest('/wealth/poker/leave',{id:t.id});t=data.ticket;}
-  if(t?.status==='done'){
-   if(pending()?.id===t.id){const result=await call('finishOnlinePoker',t);$('roomOutcome').hidden=false;$('roomOutcomeTitle').textContent=t.kind==='refund'?'掛け金を返しました。':(t.rules==='holdem-v1'?t.won:M.cmp(result.payout,0)>0)?'あなたの勝利！':'ハンド終了';$('roomOutcomeAmount').textContent='払い戻し '+money(result.creditedPayout);message('払い戻しを保存しました。次のハンドも、この部屋で参加できます。');}
+  if(t&&['reserved','paid'].includes(t.status)&&!pending()&&saved?.id!==t.id){if(window.HKAccountSync?.meta()){message('別の端末で参加中の勝負です。この端末では観戦できます。元の端末で精算・保存してから記録を読み込んでください。');return data;}data=await roomRequest('/wealth/poker/leave',{id:t.id});t=data.ticket;}
+  if(t&&['done','acked'].includes(t.status)){
+   if(pending()?.id===t.id){const result=await call('finishOnlinePoker',{...t,status:'done'});$('roomOutcome').hidden=false;$('roomOutcomeTitle').textContent=t.kind==='refund'?'掛け金を返しました。':(t.rules==='holdem-v1'?t.won:M.cmp(result.payout,0)>0)?'あなたの勝利！':'ハンド終了';$('roomOutcomeAmount').textContent='払い戻し '+money(result.creditedPayout);message('払い戻しを保存しました。次のハンドも、この部屋で参加できます。');}
    data=await roomRequest('/wealth/poker/ack',{id:t.id});clearReservation();
   }
   return data;

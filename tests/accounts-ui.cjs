@@ -1,0 +1,46 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{JSDOM}=require('jsdom'),{harness,M}=require('./holdem-harness.cjs');
+const root=path.resolve(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p),'utf8'),wait=()=>new Promise(r=>setTimeout(r,450));
+const opened=[];let checks=0;const test=async(name,fn)=>{await fn();checks++;console.log('PASS',name);};
+function page(h,{map=null,balance='123456789012345678901234567890',main=false}={}){
+ const store=map||new Map([['hk_wallet_v2',JSON.stringify({version:2,balance,rebirths:20,pending:null,history:[],redeemedCodes:['2026']})],['city_v1',JSON.stringify([{id:'home',type:'house',x:2,y:2,rot:0}])],['hk_town_layout_v2',JSON.stringify({version:2,width:60,height:40})],['cards_edo_complete_v1',JSON.stringify({'江戸幕府':true})]]);
+ const w=new JSDOM(read(main?'index.html':'account.html'),{url:'https://historykids.github.io/'+(main?'':'account.html'),runScripts:'outside-only',pretendToBeVisual:true}).window;opened.push(w);let failKey='';
+ Object.defineProperty(w,'localStorage',{value:{getItem:k=>store.get(k)??null,setItem:(k,v)=>{if(k===failKey){failKey='';throw Object.assign(Error('quota'),{name:'QuotaExceededError'});}store.set(k,String(v));},removeItem:k=>store.delete(k)}});
+ w.fetch=h.fetch;w.HKRankingConfig={endpoint:'https://api.example/ranking'};w.setInterval=()=>0;const timers=[];const nativeTimeout=w.setTimeout.bind(w);w.setTimeout=(fn,ms,...args)=>{if(ms===2000){timers.push(fn);return 42;}return nativeTimeout(fn,ms,...args);};w.clearTimeout=id=>{if(id!==42)clearTimeout(id);};w.scrollTo=()=>{};w.matchMedia=()=>({matches:true});
+ for(const f of ['amounts','bitcoin-rules','pachinko-rules','wallet','account-data','account-sync'])w.eval(read('assets/ui/'+f+'.js'));
+ if(!main)w.eval(read('assets/ui/account.js'));
+ return{w,S:w.HKAccountSync,W:w.HKWallet,map:store,$:id=>w.document.getElementById(id),failOnce(k){failKey=k;},close:()=>w.close()};
+}
+async function settled(p){for(let i=0;i<160&&p.$('accountSubmit').disabled;i++)await new Promise(r=>setTimeout(r,25));assert(!p.$('accountSubmit').disabled,'form did not finish');}
+const submit=(p,id='accountForm')=>p.$(id).dispatchEvent(new p.w.Event('submit',{cancelable:true,bubbles:true}));
+async function credentials(p,{register=false,name='test_user',password='a long password'}={}){if(register)p.$('accountRegisterTab').click();p.$('accountUsername').value=name;p.$('accountPassword').value=password;submit(p);await settled(p);}
+const change=(p,amount)=>new Promise((yes,no)=>p.W.adjust(amount,yes,no));
+(async()=>{
+ await test('registration contains exactly name and password, adopts exact existing progress and never saves plaintext passwords',async()=>{
+  const h=await harness(),p=page(h);try{assert.equal(p.$('accountForm').querySelectorAll('input').length,2);assert.equal(p.w.document.querySelectorAll('input[type=email]').length,0);await credentials(p,{register:true});assert(p.S.meta(),p.$('accountMessage').textContent);assert(!p.$('accountSignedIn').hidden);assert.equal(p.W.snapshot().balance,'123456789012345678901234567890');assert.equal(p.W.snapshot().rebirths,20);assert.equal(p.$('accountPassword').value,'');assert([...p.map.values()].every(v=>!v.includes('a long password')));const token=p.map.get('hk_wealth_identity_v1');assert.equal(token,p.map.get('hk_rank_identity_v1'));const response=await p.S.request('load');assert.equal(JSON.parse(response.progress.values.city_v1)[0].id,'home');assert.equal(JSON.parse(response.progress.values.cards_edo_complete_v1)['江戸幕府'],true);}finally{p.close();h.close();}
+ });
+ await test('a second browser logs in and restores the saved wallet, town, learning and rebirths',async()=>{
+  const h=await harness(),a=page(h),b=page(h,{balance:'7'});try{await credentials(a,{register:true});await change(a,9);await a.S.sync(true);await credentials(b);assert.equal(b.W.snapshot().balance,a.W.snapshot().balance,b.$('accountMessage').textContent);assert.equal(b.S.meta().owner,a.S.meta().owner);assert.equal(b.W.snapshot().rebirths,20);assert.equal(b.map.get('city_v1'),a.map.get('city_v1'));assert.equal(b.map.get('cards_edo_complete_v1'),a.map.get('cards_edo_complete_v1'));assert.notEqual(b.map.get('hk_wealth_identity_v1'),a.map.get('hk_wealth_identity_v1'));}finally{a.close();b.close();h.close();}
+ });
+ await test('logout saves before revoking its token, restores guest data and a later login resumes the account',async()=>{
+  const h=await harness(),a=page(h),b=page(h,{balance:'7'});try{await credentials(a,{register:true});await credentials(b);const token=b.map.get('hk_wealth_identity_v1');await change(b,17);await b.S.logout();assert.equal(b.S.meta(),null);assert.equal(b.W.snapshot().balance,7);const revoked=await h.fetch('https://api.example/wealth/account/session',{headers:{Authorization:'Bearer '+token}});assert.equal(revoked.status,401);await credentials(b);assert.equal(b.W.snapshot().balance,M.add('123456789012345678901234567890',17));}finally{a.close();b.close();h.close();}
+ });
+ await test('simultaneous devices cannot silently replace newer progress and can explicitly choose the local or cloud save',async()=>{
+  const h=await harness(),a=page(h),b=page(h);try{await credentials(a,{register:true});await credentials(b);await change(a,1);await a.S.sync(true);await change(b,2);await assert.rejects(b.S.sync(true),/account-conflict/);assert(!b.$('accountConflict').hidden);assert.equal(JSON.parse((await a.S.request('load')).progress.values.hk_wallet_v2).balance,M.add('123456789012345678901234567890',1));await b.S.useLocal();const latest=(await a.S.request('load')).progress;assert.equal(JSON.parse(latest.values.hk_wallet_v2).balance,M.add('123456789012345678901234567890',2));await a.S.useCloud();assert.equal(a.W.snapshot().balance,b.W.snapshot().balance);}finally{a.close();b.close();h.close();}
+ });
+ await test('a lost save response retries idempotently without adding currency or duplicating account rows',async()=>{
+  const h=await harness(),p=page(h);try{await credentials(p,{register:true});await change(p,5);h.lose('/wealth/account/save');await assert.rejects(p.S.sync(true),/response lost/);await p.S.sync(true);assert.equal(h.db.prepare('SELECT COUNT(*) n FROM player_accounts').get().n,1);assert.equal(JSON.parse((await p.S.request('load')).progress.values.hk_wallet_v2).balance,p.W.snapshot().balance);}finally{p.close();h.close();}
+ });
+ await test('a failed local account switch rolls back progress and leaves a retryable guest session',async()=>{
+  const h=await harness(),a=page(h),b=page(h,{balance:'7'});try{await credentials(a,{register:true});b.failOnce('hk_account_session_v1');await credentials(b);assert.equal(b.S.meta(),null);assert.equal(b.W.snapshot().balance,7);assert.equal(b.map.get('hk_account_switch_v1'),undefined);assert(b.$('accountMessage').classList.contains('error'));await credentials(b);assert(b.S.meta());assert.equal(b.W.snapshot().balance,a.W.snapshot().balance);}finally{a.close();b.close();h.close();}
+ });
+ await test('account changes in another tab block stale wallet mutations before they reach storage',async()=>{
+  const h=await harness(),a=page(h),stale=page(h,{map:a.map,main:true});try{await credentials(a,{register:true});stale.w.dispatchEvent(new stale.w.StorageEvent('storage',{key:'hk_account_profile_v1'}));assert(stale.$('accountChanged'));const before=stale.map.get('hk_wallet_v2');await assert.rejects(change(stale,500),/account-changed/);assert.equal(stale.map.get('hk_wallet_v2'),before);}finally{a.close();stale.close();h.close();}
+ });
+ await test('password changes rotate the browser token, retain progress and sign out another browser',async()=>{
+  const h=await harness(),a=page(h),b=page(h);try{await credentials(a,{register:true});await credentials(b);const other=b.map.get('hk_wealth_identity_v1'),old=a.map.get('hk_wealth_identity_v1');a.$('accountOldPassword').value='a long password';a.$('accountNewPassword').value='another new password';submit(a,'accountPasswordForm');await settled(a);assert.notEqual(a.map.get('hk_wealth_identity_v1'),old,a.$('accountMessage').textContent);assert.equal(a.W.snapshot().balance,'123456789012345678901234567890');const revoked=await h.fetch('https://api.example/wealth/account/session',{headers:{Authorization:'Bearer '+other}});assert.equal(revoked.status,401);assert.equal(a.$('accountNewPassword').value,'');assert.equal(a.$('accountOldPassword').value,'');}finally{a.close();b.close();h.close();}
+ });
+ await test('expired-session login preserves unsaved local progress when the server revision is unchanged',async()=>{
+  const h=await harness(),p=page(h);try{await credentials(p,{register:true});await p.S.sync(true);await change(p,13);h.db.prepare('UPDATE player_sessions SET expiresAt=0').run();await assert.rejects(p.S.sync(true),/account-session-expired/);assert(!p.$('accountGuest').hidden);await credentials(p);assert(p.S.meta());assert.equal(p.W.snapshot().balance,M.add('123456789012345678901234567890',13));await p.S.sync(true);assert.equal(JSON.parse((await p.S.request('load')).progress.values.hk_wallet_v2).balance,p.W.snapshot().balance);}finally{p.close();h.close();}
+ });
+ console.log(checks+' account UI checks passed.');
+})().catch(e=>{console.error(e);for(const w of opened)w.close();process.exitCode=1;});

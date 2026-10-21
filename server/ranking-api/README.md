@@ -42,3 +42,16 @@ Originは `https://historykids.github.io` のみ。IPあたり読み込み60回/
 問題IDと正解データは `../figure-api/ranking-questions.mjs` です。クイズを増やした際はこのデータも更新してください。`node tests/ranking-api.cjs` は実際のSQLiteで、旧記録の移行・所有権・正解検証・計測の再送・解説時間の除外・スコア順・自己ベスト更新を確認します。
 
 公式仕様： https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/
+
+
+## Username and password accounts
+
+`/wealth/account/register` and `/wealth/account/login` use a 3–24 character account name and an 8–128 character password; email is not collected. Names use NFKC and case-insensitive uniqueness. Passwords use individually salted scrypt (N=32768, r=8, p=3, 32-byte result). Derivations are serialized with a bounded queue to fit the Worker memory budget. The Worker enables `nodejs_compat`; `ACCOUNT_AUTH_LIMITER` limits attempts by IP, and Durable Object counters also throttle each account name.
+
+Sessions are random 256-bit bearer tokens with a 30-day expiry. The database stores only token digests. Logout revokes that session; a password change revokes all older sessions. A newly registered account adopts its proven guest identity so wealth rankings, administrator access, personal notifications and active poker tickets keep their owner. The separate quiz identity is retained by possession of its original token. Bound guest credentials cannot bypass account sign-in.
+
+The explicit `account-data.js` allowlist covers the wallet, town, rebirths, learning and supported game records. Credentials, admin drafts and private ranking caches are excluded. Authenticated snapshots preserve decimal amount strings and use revisions to reject stale writes. Identical retries are idempotent. One-time-code receipts are retained across saved resets. The account page offers a choice when device snapshots conflict. A journal rolls back interrupted local switches, and stale tabs cannot mutate the newly active profile.
+
+Register, login, session, logout, password, save, load and capabilities routes share the existing trusted-origin and no-store policy. Cloud save payloads are capped at 1 MiB and remain private to the owning account. Guests can continue without registering. There is no email-based password recovery.
+
+Validation: `node tests/accounts-api.cjs` and `node tests/accounts-ui.cjs`; the deployment probe exercises a rejected login with a random nonexistent name, testing the deployed password runtime without creating an account.

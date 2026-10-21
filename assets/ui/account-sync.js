@@ -3,6 +3,8 @@
  const D=window.HKAccountData,W=window.HKWallet;
  if(!D||!W)return;
  const metaKey='hk_account_session_v1',profileKey='hk_account_profile_v1',journalKey='hk_account_switch_v1',guestKey='hk_account_guest_v1',identityKey='hk_wealth_identity_v1',rankKey='hk_rank_identity_v1';
+ const offlineKey=owner=>'hk_account_offline_v1_'+owner;
+ const offline=owner=>{const d=parse(offlineKey(owner));return d?.owner===owner&&d.progress?.values?d:null;};
  const caches=['hk_wealth_cache_v1','hk_leaderboard_cache_v3','hk_notice_draft_v1'];
  const errors={'account-input':'アカウント名は3〜24文字の文字・数字・_・-、パスワードは8〜128文字にしてください。','account-credentials':'アカウント名またはパスワードが違います。','account-name-taken':'このアカウント名は使用されています。別の名前にしてください。','account-already-linked':'この記録はアカウントに登録済みです。ログインしてください。','account-password':'新しいパスワードは8〜128文字にしてください。','account-try-later':'試行回数が多いため、1分ほど待ってから再試行してください。','account-session-expired':'ログインの有効期限が切れました。もう一度ログインしてください。','account-conflict':'別の端末で記録が更新されています。使う記録を選んでください。','account-save-invalid':'記録を確認できません。今の記録を残したまま、保存状態を確認してください。','account-save-large':'保存できる記録の容量を超えています。','account-changed':'別のタブでアカウントが変わりました。ページを読み直してください。','account-storage':'端末に保存できません。ブラウザの保存容量と設定を確認してください。','account-switch-first':'今のアカウントからログアウトしてから、別のアカウントへログインしてください。'};
  const get=k=>localStorage.getItem(k),parse=k=>{try{return JSON.parse(get(k)||'null');}catch{return null;}};
@@ -48,7 +50,8 @@
  async function install(result,{register=false,keepLocal=false}={}){
   assertActive();if(!/^[a-f0-9]{64}$/.test(result.token||'')||!result.progress?.values)throw Error('account-save-invalid');
   const previous=meta();if(previous&&previous.owner!==result.owner)throw Error('account-switch-first');
-  await atomic(()=>{const after={};for(const k of D.keys)after[k]=(keepLocal||register)?get(k):result.progress.values[k]??null;
+  await atomic(()=>{const draft=!previous?offline(result.owner):null,after={};for(const k of D.keys)after[k]=keepLocal&&draft?(draft.progress.values[k]??null):(keepLocal||register)?get(k):result.progress.values[k]??null;
+  after[offlineKey(result.owner)]=null;
   if(!previous)after[guestKey]=JSON.stringify(register?Object.fromEntries([...D.keys,identityKey,rankKey].map(k=>[k,null])):guest());
   after[identityKey]=after[rankKey]=result.token;
   after[metaKey]=JSON.stringify({username:result.username,owner:result.owner,revision:result.revision,expiresAt:result.expiresAt});after[profileKey]=crypto.randomUUID();
@@ -68,8 +71,8 @@
  }
  async function logout(){
   await walletLock(async()=>{
-   assertActive();if(saving)await saving;await sync(true);await request('logout',{});
-   atomicWork(()=>{const saved=parse(guestKey)||{},after={};for(const k of [...D.keys,identityKey,rankKey])after[k]=saved[k]??null;
+   assertActive();if(saving)await saving;const current=meta(),expired=state==='expired'||current?.expiresAt<=Date.now();if(!expired){await sync(true);await request('logout',{});}
+   atomicWork(()=>{const saved=parse(guestKey)||{},after={};if(expired)after[offlineKey(current.owner)]=JSON.stringify({owner:current.owner,revision:current.revision,progress:capture()});for(const k of [...D.keys,identityKey,rankKey])after[k]=saved[k]??null;
     for(const k of [...caches,metaKey,profileKey,guestKey])after[k]=null;return after;});
    lastSaved=null;conflict=false;emit('guest','ログアウトしました');
   });
@@ -93,5 +96,5 @@
  window.addEventListener('pagehide',()=>{if(meta())sync(false,true).catch(()=>{});});
  function start(){if(state==='storage'){emit('storage','保存設定を確認してください');return;}emit(meta()?'ready':'guest');if(meta())schedule();setInterval(()=>{if(!document.hidden&&meta())sync().catch(()=>{});},15000);}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
- window.HKAccountSync=Object.freeze({meta,capture,assertActive,request,install,logout,sync,useCloud,useLocal,profileKey,metaKey,identityKey,errorText:e=>errors[e?.message]||'通信を確認して、もう一度試してください。',get state(){return state;}});
+ window.HKAccountSync=Object.freeze({meta,offline,capture,assertActive,request,install,logout,sync,useCloud,useLocal,profileKey,metaKey,identityKey,errorText:e=>errors[e?.message]||'通信を確認して、もう一度試してください。',get state(){return state;}});
 })();

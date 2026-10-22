@@ -20,7 +20,9 @@ jobs:
           ref: main
       - uses: actions/setup-node@v6
         with:
-          node-version: '24'
+          # October 2026 security release: never fall back to an older cached 24.x.
+          node-version: '>=24.22.1 <25'
+          check-latest: true
       - name: Install test dependencies
         run: npm ci
       - name: Check answers, ownership, retry and durable storage

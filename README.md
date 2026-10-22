@@ -105,3 +105,12 @@ Search Consoleのサイトマップ欄には `https://historykids.github.io/site
 - 三重塔は90両・3×3マス、鳥居は20両・2×1マス。両モデルとも元の縦横比を保ち、接地・90度回転・移動・まとめ買い・保存に対応。
 - 元のGLBの形状・UV・ノード変換とライセンス情報を維持し、テクスチャのみ軽量化。鳥居の敷地は住民が通れ、三重塔では見上げる・僧侶が読経する行動を追加。作者と変更点は `Credits.html` に掲載。
 - 元の添付モデルを再加工する場合は、Pillowを用意して `python scripts/prepare-town-model.py /path/to/upload assets/_m` を実行。通常の表示・検証にPythonやPillowは不要。
+
+
+## Node.js のセキュリティ更新（2026-10-22）
+
+テスト・サイトマップ検証・2つのAPI公開ワークフローは Node.js `>=24.22.1 <25` を使います。2026-10-21公開のセキュリティ修正版を最低バージョンとし、`check-latest: true` で実行時に範囲内の最新リリースを確認します。単に `24` を指定して古いランナーキャッシュを使う設定を廃止しました。ローカルの開発・テストでも同じ範囲を使ってください。
+
+公開HTML・ゲームは GitHub Pages とブラウザ、APIは Cloudflare Workers のランタイムで動きます。Workers の `nodejs_compat` は Node.js API の互換機能で、GitHub Actions 内の Node.js 本体とは別です。今回の更新はテスト・公開作業に使用する Node.js が対象です。Cloudflare側の各脆弱性への対応状況を、この設定変更だけで保証するものではありません。
+
+根拠: [Node.js October 2026 Security Releases](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases)、[Node.js v24.22.1](https://nodejs.org/en/blog/release/v24.22.1)、[Workers Node.js compatibility](https://developers.cloudflare.com/workers/runtime-apis/nodejs/)。

@@ -744,12 +744,17 @@
       button.textContent=!validQuantity(quantity)?"数量を選んでね":limit?"住民は100人まで":short?"両が足りない":item.cat==="resident"?quantity+"人を迎える":quantity+"個を配置";
     }
   }
+  function sengokuRewardShop() {
+    if (!window.HKSengokuTown?.available()) return "";
+    const placed = state.city.some(b => b.type === "unificationCastle");
+    return `<article class="sengoku-town-reward"><span aria-hidden="true">🏯</span><div><small>戦国天下統一 · 永久報酬</small><h3>天下統一城</h3><p>47地域を制覇した、あなたの一城。6×6マス・設置は無料。リボーン後も残ります。</p><button data-place-sengoku-castle ${placed ? "disabled" : ""}>${placed ? "町に設置済み" : "特別報酬を配置する"}</button></div></article>`;
+  }
   function shop(cat = shopCategory) {
     shopCategory=cat;
     openDialog(
       "町づくりショップ",
-      `<p>所持金 <b>${M.format(state.money)}両</b> · はじめての正解は、選択で10両・入力で2倍の20両！</p><div class="shop-bulk"><label for="shopQuantity">まとめ買いの数量 <input id="shopQuantity" type="number" min="1" max="100" step="1" inputmode="numeric" value="${validQuantity(shopQuantity)?shopQuantity:1}"></label><div><button data-shop-quantity="1">1個</button><button data-shop-quantity="5">5個</button><button data-shop-quantity="10">10個</button></div><p id="shopQuantityHint">建物は1個ずつ好きな場所に配置。置いた分だけ支払い、住民はまとめて迎えます。</p></div><div class="town-tools"><button data-shopcat="all" class="${cat === "all" ? "active" : ""}">すべて</button><button data-shopcat="building" class="${cat === "building" ? "active" : ""}">建物</button><button data-shopcat="nature" class="${cat === "nature" ? "active" : ""}">自然</button><button data-shopcat="infrastructure" class="${cat === "infrastructure" ? "active" : ""}">道・橋</button><button data-shopcat="resident" class="${cat === "resident" ? "active" : ""}">住民</button></div><div class="shop-grid">${C.items
-        .filter((i) => cat === "all" || cat === i.cat)
+      `${sengokuRewardShop()}<p>所持金 <b>${M.format(state.money)}両</b> · はじめての正解は、選択で10両・入力で2倍の20両！</p><div class="shop-bulk"><label for="shopQuantity">まとめ買いの数量 <input id="shopQuantity" type="number" min="1" max="100" step="1" inputmode="numeric" value="${validQuantity(shopQuantity)?shopQuantity:1}"></label><div><button data-shop-quantity="1">1個</button><button data-shop-quantity="5">5個</button><button data-shop-quantity="10">10個</button></div><p id="shopQuantityHint">建物は1個ずつ好きな場所に配置。置いた分だけ支払い、住民はまとめて迎えます。</p></div><div class="town-tools"><button data-shopcat="all" class="${cat === "all" ? "active" : ""}">すべて</button><button data-shopcat="building" class="${cat === "building" ? "active" : ""}">建物</button><button data-shopcat="nature" class="${cat === "nature" ? "active" : ""}">自然</button><button data-shopcat="infrastructure" class="${cat === "infrastructure" ? "active" : ""}">道・橋</button><button data-shopcat="resident" class="${cat === "resident" ? "active" : ""}">住民</button></div><div class="shop-grid">${C.items
+        .filter((i) => !i.reward && (cat === "all" || cat === i.cat))
         .map(
           (i) =>
             `<article class="shop-item"><span aria-hidden="true">${i.icon}</span><h3>${i.name}</h3><small>1${i.cat==="resident"?"人":"個"} ${i.price}両${i.cat !== "resident" ? " · " + i.width + "×" + i.depth + "マス" : ""}</small><strong data-shop-total="${i.id}"></strong><button data-buy="${i.id}">選んで購入</button>${i.credit ? `<small><a href="./Credits.html#${E(i.credit)}" target="_blank" rel="noopener">モデルの作者・ライセンス</a></small>` : ""}</article>`,
@@ -901,6 +906,7 @@
     const item = C.items.find(i => i.id === type), building = id && state.city.find(b => b.id === id);
     state.money = W.snapshot().balance;
     if (!item || !validQuantity(quantity)) return;
+    if (item.reward && !id && (!window.HKSengokuTown?.available() || quantity !== 1 || state.city.some(b => b.type === type))) { notify("天下統一の報酬は、町に1城まで設置できます。"); return; }
     if (!id && M.cmp(state.money,item.price * quantity)<0) { notify("残りの配置に必要な両が足りないよ。数量を選び直してね。"); return; }
     const rot = building?.rot ?? batch?.rot ?? 0;
     const cell = building || C.findPlot(state.city, type, rot, batch?.preferred);
@@ -916,7 +922,7 @@
     pending.x = Number($("placeX").value) - 1; pending.y = Number($("placeY").value) - 1;
     const f = C.footprint(pending), item = C.items.find(i => i.id === pending.type), valid = C.canPlace(state.city, pending.x, pending.y, pending.id, pending.type, pending.rot);
     const step = pending.placed + 1, bulk = !pending.id && pending.total > 1;
-    $("placementTitle").textContent = item.name + (pending.id ? "を移動" : "を配置 · " + step + " / " + pending.total + "個 · 1個 " + item.price + "両");
+    $("placementTitle").textContent = item.name + (pending.id ? "を移動" : item.reward ? "を配置 · 特別報酬・無料" : "を配置 · " + step + " / " + pending.total + "個 · 1個 " + item.price + "両");
     $("placeConfirm").textContent = bulk ? step + "個目をここに置く" : "ここに置く";
     $("placeCancel").textContent = bulk ? "残りの配置をやめる" : "キャンセル";
     $("placeConfirm").disabled = !valid || walletPurchase;
@@ -940,6 +946,7 @@
       const b = state.city.find(b => b.id === p.id); if (!b) return;
       Object.assign(b, { x: p.x, y: p.y, rot: p.rot }); save(); renderStats(); cancelPlacement(); notify(item.name + "を移動したよ！"); return;
     }
+    if (item.reward) { commitSengokuCastle(p, plotForReward(p), JSON.stringify(p)); return; }
     // Confirm just this chosen plot; cancellation or edits before the wallet lock spend nothing.
     const plot = { type: p.type, x: p.x, y: p.y, rot: p.rot }, signature = JSON.stringify(p);
     walletPurchase = true; $("placeConfirm").disabled = true;
@@ -953,6 +960,24 @@
         if (pending) notify(item.name + "を置いたよ！あと" + (p.remaining - 1) + "個。次の場所を選んでね。");
       } else notify(item.name + "を" + p.total + "個置いたよ！");
     }, error => { walletPurchase = false; updatePlacement(); walletError(error); });
+  }
+  function plotForReward(p) { return {type:p.type,x:p.x,y:p.y,rot:p.rot}; }
+  async function commitSengokuCastle(p,plot,signature) {
+    walletPurchase=true; $("placeConfirm").disabled=true;
+    const work=()=>{
+      window.HKAccountSync?.assertActive();
+      if (!window.HKSengokuTown?.available() || pending!==p || JSON.stringify(p)!==signature) throw Error("purchase-cancelled");
+      const city=JSON.parse(localStorage.getItem("city_v1")||"[]");
+      if (!Array.isArray(city) || city.some(b=>b.type==="unificationCastle") || !C.canPlace(city,plot.x,plot.y,null,plot.type,plot.rot)) throw Error("purchase-cancelled");
+      const next=[...city,{id:"sengoku-unification-castle",...plot}];
+      localStorage.setItem("city_v1",JSON.stringify(next)); state.city=next; save();
+    };
+    try {
+      let entered=false;
+      try { if(navigator.locks?.request) await navigator.locks.request("historykids-wallet",()=>{entered=true;work();}); else {entered=true;work();} }
+      catch(error) { if(!entered&&["SecurityError","NotSupportedError"].includes(error?.name))work();else throw error; }
+      walletPurchase=false;renderStats();cancelPlacement();notify("天下統一城を置いたよ！天下人の証は、リボーンしても残ります。");
+    } catch(error) {walletPurchase=false;updatePlacement();walletError(error);}
   }
   function deleteBuilding(id) {
     const b = state.city.find((b) => b.id === id);
@@ -1050,6 +1075,7 @@
     if (C.items.some(i=>i.cat==="resident" && i.id===b.dataset.buy)) { addResident(b.dataset.buy,shopQuantity); return; }
     if (b.dataset.watchResident) { watchResident(b.dataset.watchResident); return; }
     if (b.dataset.dismissResident) { dismissResident(b.dataset.dismissResident); return; }
+    if (b.hasAttribute("data-place-sengoku-castle")) { startPlacement("unificationCastle",null,1); return; }
     if (b.dataset.buy) {
       startPlacement(b.dataset.buy,null,shopQuantity);
       return;
@@ -1228,6 +1254,7 @@
     if (view === "town") renderTown();
     if ($("dialog").open && $("dialogBody").querySelector("[data-buy]")) shop();
   });
+  window.addEventListener("hk-sengoku-reward",()=>{if($("dialog").open&&$("dialogBody").querySelector(".shop-bulk"))shop();});
   window.addEventListener("storage", e => {
     if (e.key !== "hk_wallet_v2" && e.key !== "money_v1") notify("別のタブで記録が更新されました。読み直すと反映されます。");
   });

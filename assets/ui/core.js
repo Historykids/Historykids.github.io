@@ -5,6 +5,7 @@
     { id: "house", name: "家", price: 30, cat: "building", icon: "🏠", width: 2, depth: 2, height: 1.4 },
     { id: "shop", name: "商家", price: 40, cat: "building", icon: "🏪", width: 3, depth: 2, height: 1.5 },
     { id: "castle", name: "城", price: 120, cat: "building", icon: "🏯", width: 6, depth: 5, height: 7 },
+    { id: "unificationCastle", name: "天下統一城", price: 0, cat: "building", icon: "🏯", width: 6, depth: 6, height: 9, reward: true, preserveAspect: true },
     { id: "temple", name: "寺", price: 70, cat: "building", icon: "⛩️", width: 4, depth: 4, height: 2.6 },
     { id: "pagoda", name: "三重塔", price: 90, cat: "building", icon: "🏯", width: 3, depth: 3, height: 4.8, preserveAspect: true, credit: "pagoda-credit" },
     { id: "torii", name: "鳥居", price: 20, cat: "building", icon: "⛩️", width: 2, depth: 1, height: 1.6, preserveAspect: true, credit: "torii-credit" },

@@ -84,7 +84,7 @@ function page(seed = {}) {
   console.log('PASS automatic saves retain expanded land and complete building plots');
   const all=page({money_v1:"1000",hk_town_layout_v2:JSON.stringify({version:2,width:60,height:40})});
   all.click("#town2d");
-  const items=all.w.HKCore.items.filter(i=>i.cat!=="resident");
+  const items=all.w.HKCore.items.filter(i=>i.cat!=="resident"&&!i.reward);
   for(let i=0;i<items.length;i++) {
     const item=items[i],x=2+i%3*12,y=2+Math.floor(i/3)*10;
     all.click("#shopBtn");all.click(`[data-buy="${item.id}"]`);all.w.HK.setCell(x,y);all.click("#placeConfirm");
@@ -97,7 +97,7 @@ function page(seed = {}) {
     checkCity(all.w.HK.state.city,all.w.HKCore.town);
   }
   assert.equal(all.w.HK.state.city.length,12);assert.equal(all.w.document.querySelectorAll(".grid-cell.occupied").length,95);
-  console.log("PASS every building type occupies, rotates, displays and moves its complete footprint");
+  console.log("PASS every purchasable building type occupies, rotates, displays and moves its complete footprint");
   all.w.close();
   p.w.close(); restored.w.close(); q.w.close();
 })().catch(e => { console.error(e); process.exitCode=1; });

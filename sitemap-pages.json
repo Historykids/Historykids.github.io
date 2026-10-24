@@ -4,7 +4,7 @@
     {
       "file": "index.html",
       "path": "/",
-      "lastmod": "2026-10-21"
+      "lastmod": "2026-10-25"
     },
     {
       "file": "figures.html",
@@ -39,7 +39,7 @@
     {
       "file": "Credits.html",
       "path": "/Credits.html",
-      "lastmod": "2026-10-08"
+      "lastmod": "2026-10-25"
     },
     {
       "file": "blackjack.html",
@@ -50,6 +50,11 @@
       "file": "wealth-ranking.html",
       "path": "/wealth-ranking.html",
       "lastmod": "2026-10-21"
+    },
+    {
+      "file": "sengoku.html",
+      "path": "/sengoku.html",
+      "lastmod": "2026-10-25"
     }
   ],
   "aliases": [

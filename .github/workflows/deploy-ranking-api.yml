@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js', 'assets/ui/amounts.js', 'assets/ui/wealth-rules.js', 'assets/ui/account-data.js']
+    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js', 'assets/ui/amounts.js', 'assets/ui/wealth-rules.js', 'assets/ui/account-data.js', 'assets/ui/sengoku-rules.js']
 permissions:
   contents: write
   pages: write
@@ -27,6 +27,9 @@ jobs:
         run: npm ci
       - name: Check answers, ownership, retry and durable storage
         run: |
+          node scripts/sengoku-questions.cjs
+          node tests/sengoku-api.cjs
+          node tests/sengoku-ui.cjs
           node tests/notices-api.cjs
           node tests/notices-ui.cjs
           node tests/accounts-api.cjs
@@ -90,6 +93,13 @@ jobs:
             if(response.status!==403||(await response.json()).error!=='admin-required')throw Error('Sent-notice management must remain administrator-only: '+route);
           }
           console.log('Sent-notice management access checks passed; no notice changed');
+          const campaign=await fetch(new URL('/wealth/sengoku',base),{headers:{Origin:'https://historykids.github.io',Authorization:'Bearer '+probeToken},signal:AbortSignal.timeout(15000)});
+          const campaignState=await campaign.json();
+          if(!campaign.ok||campaignState.protocol!=='sengoku-v1'||campaignState.state!==null)throw Error('Sengoku campaign read check failed');
+          const conquest=await fetch(new URL('/wealth/sengoku/board',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
+          const conquestBoard=await conquest.json();
+          if(!conquest.ok||!Array.isArray(conquestBoard.entries)||conquestBoard.entries.some(r=>'pending' in r||'resources' in r||'learnedCards' in r))throw Error('Sengoku public ranking privacy check failed');
+          console.log('Sengoku campaign and public ranking checks passed; no campaign created');
           fs.writeFileSync('assets/ui/ranking-config.js','// Public URL only. Never place credentials here.\nwindow.HKRankingConfig=Object.freeze('+JSON.stringify({endpoint:new URL('/ranking',base).href})+');\n');
           const accountLogin=await fetch(new URL('/wealth/account/login',base),{method:'POST',headers:{Origin:'https://historykids.github.io','Content-Type':'application/json'},body:JSON.stringify({username:'runtime_probe_'+crypto.randomUUID().replaceAll('-','').slice(0,8),password:'runtime-probe-not-a-real-password'}),signal:AbortSignal.timeout(15000)});
           const loginDenied=await accountLogin.json();

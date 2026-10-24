@@ -79,3 +79,18 @@ Validation: `node tests/accounts-api.cjs` and `node tests/accounts-ui.cjs`; the 
 `GET /wealth/sengoku/board?period=alltime|weekly` は公開参加に同意したアカウントだけを載せます。全期間は最多制覇地域、倒した地域の敵将数、累計獲得軍功、達成日時の順。週間は月曜日0時（日本時間）からの軍功と達成日時の順で、週を変えるだけなので全体の進行を初期化しません。名前・戦績以外の個人進行、問題、兵糧は公開しません。BANとNGワードを適用します。
 
 ルール・47地域・進軍路は `assets/ui/sengoku-rules.js`。問題と同じ長さの誤答候補は既存の歴史カードから `npm run sengoku:write` で生成します。`npm run sengoku:check`、`node tests/sengoku-api.cjs`、`node tests/sengoku-ui.cjs` が途中復元、権限、再送、ロールバック、全47地域の実際の攻略、周回、限定城の無料設置とリボーン後の保持を検証します。公開後のチェックは読み取りだけで、テスト用の国や戦績を作りません。
+
+
+## 47-player Sengoku worlds
+
+`GET /wealth/sengoku/worlds` lists public server summaries. `GET /wealth/sengoku/world?world=ID` reads a shared world (omitting the parameter resumes the caller's active world). `POST /wealth/sengoku/world/action` requires the existing authenticated account session and an owner-scoped request ID plus that player's revision. Actions: join, train, begin, answer, next, retreat, guard, recruit, upgrade, commander, fortify, respawn, leave.
+
+Each persistent logical server holds up to 47 unique participant slots in `sengoku_worlds`. An account may have one active membership. Any of the 47 prefectures may be requested as a birthplace; matchmaking only assigns neutral, unlocked land. If the selected server is full or its birthplace is occupied, another eligible world is selected or created. The 47th join provisions a spare open world in the same transaction. A retired participant cannot re-enter that same world or recycle its slot. Finished maps remain archived when the winner leaves.
+
+World creation, slot reservation, territory changes, resource awards, permanent castle entitlements and durable receipts share one SQLite transaction in the existing Durable Object. Separate worlds have independent maps and economies. Indexed public summaries keep the lobby from loading private campaign/question state. No casino wealth, rebirth factor or old solo army is imported. The old solo API and save tables remain compatible.
+
+Land and sea routes are open from the start, including Hokkaido/Okinawa. Spawn/respawn protection lasts two minutes, ending upon initiating an attack; captured land has 30 seconds of protection. Every five-question quiz/siege expires after five minutes. Reads and actions settle expired locks, refunding 75% of reserved battle food exactly once. Disjoint wars can proceed concurrently, while overlapping armies/defenders/regions are locked. Player revisions avoid conflicts from unrelated world activity. The target territory's revision is checked separately.
+
+Defense uses its saved formation, tactic, commander/castle level and last completed training quiz bonus (0–50%). The attack snapshot, defender power, quiz snapshots and deadline are fixed at declaration. The defender can be offline; no response or message is required. A tie favors defense. A successful siege changes the actual shared territory owner. Soldiers/generals remain after defeat; zero-land players can respawn in neutral land or leave for a fresh world. All 47 territories wins and closes the world, and the town castle entitlement is permanently owned by the account.
+
+Public views expose random world player IDs, display names, territories and defensive information, never account owner hashes, sessions, resources or unanswered quiz solutions. Only the authenticated caller receives their own current question and personal campaign. Polling pauses for hidden tabs and uses the existing per-player Sengoku rate limit. UI action journals retry the same request ID on reconnect, and cached data never overrides verified server state.

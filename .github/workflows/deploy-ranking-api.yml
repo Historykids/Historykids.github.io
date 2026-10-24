@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js', 'assets/ui/amounts.js', 'assets/ui/wealth-rules.js', 'assets/ui/account-data.js', 'assets/ui/sengoku-rules.js']
+    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js', 'assets/ui/amounts.js', 'assets/ui/wealth-rules.js', 'assets/ui/account-data.js', 'assets/ui/sengoku-rules.js', 'assets/ui/sengoku-world-rules.js']
 permissions:
   contents: write
   pages: write
@@ -28,6 +28,8 @@ jobs:
       - name: Check answers, ownership, retry and durable storage
         run: |
           node scripts/sengoku-questions.cjs
+          node tests/sengoku-worlds.cjs
+          node tests/sengoku-worlds-ui.cjs
           node tests/sengoku-api.cjs
           node tests/sengoku-ui.cjs
           node tests/notices-api.cjs
@@ -100,6 +102,12 @@ jobs:
           const conquestBoard=await conquest.json();
           if(!conquest.ok||!Array.isArray(conquestBoard.entries)||conquestBoard.entries.some(r=>'pending' in r||'resources' in r||'learnedCards' in r))throw Error('Sengoku public ranking privacy check failed');
           console.log('Sengoku campaign and public ranking checks passed; no campaign created');
+          const shared=await fetch(new URL('/wealth/sengoku/world',base),{headers:{Origin:'https://historykids.github.io',Authorization:'Bearer '+probeToken},signal:AbortSignal.timeout(15000)});
+          const sharedState=await shared.json();
+          const worldsResponse=await fetch(new URL('/wealth/sengoku/worlds',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
+          const worlds=await worldsResponse.json();
+          if(!shared.ok||sharedState.protocol!=='sengoku-world-v1'||sharedState.own!==null||!worldsResponse.ok||worlds.capacity!==47||!Array.isArray(worlds.worlds)||worlds.worlds.some(w=>w.players>47))throw Error('Shared Sengoku world runtime check failed');
+          console.log('47-player Sengoku world checks passed; no world or player created');
           fs.writeFileSync('assets/ui/ranking-config.js','// Public URL only. Never place credentials here.\nwindow.HKRankingConfig=Object.freeze('+JSON.stringify({endpoint:new URL('/ranking',base).href})+');\n');
           const accountLogin=await fetch(new URL('/wealth/account/login',base),{method:'POST',headers:{Origin:'https://historykids.github.io','Content-Type':'application/json'},body:JSON.stringify({username:'runtime_probe_'+crypto.randomUUID().replaceAll('-','').slice(0,8),password:'runtime-probe-not-a-real-password'}),signal:AbortSignal.timeout(15000)});
           const loginDenied=await accountLogin.json();

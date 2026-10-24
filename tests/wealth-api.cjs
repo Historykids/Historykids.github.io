@@ -50,7 +50,7 @@ const assert = require('node:assert/strict'), {DatabaseSync} = require('node:sql
     const C = globalThis.HKCore, snapshot = {balance: 0, buildings: {}, residents: {}};
     for (const item of C.items) snapshot[item.cat === 'resident' ? 'residents' : 'buildings'][item.id] = 1;
     const r = await req('/wealth/register', {name: '全部の町', snapshot, expectedRevision: 0}, 'c'.repeat(64));
-    assert.equal(r.body.own.buildings, 12); assert.equal(r.body.own.residents, 4); assert.equal(r.body.own.assets, C.items.reduce((a, b) => a+b.price, 0));
+    assert.equal(r.body.own.buildings, 13); assert.equal(r.body.own.residents, 4); assert.equal(r.body.own.assets, C.items.reduce((a, b) => a+b.price, 0));
   });
   await test('tied points share competition rank and exact own rank survives the top-100 limit', async () => {
     await req('/wealth/register', {name: '同点', snapshot: empty, expectedRevision: 0}, 'd'.repeat(64));

@@ -1,0 +1,15 @@
+CC0 1.0 Universal
+
+This work has been dedicated to the public domain under CC0 1.0 Universal.
+
+Asset Name: ディフォルメ都道府県日本地図
+Creator: lalamalink
+Contact: lalamalink@gmail.com
+Version: 2026.06.30
+Source: https://github.com/lalamalink/japan-map-svg
+License URL: https://creativecommons.org/publicdomain/zero/1.0/
+
+No rights reserved.
+
+For the full legal code, see:
+https://creativecommons.org/publicdomain/zero/1.0/

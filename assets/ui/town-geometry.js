@@ -112,6 +112,16 @@ export function createBuilding(type) {
     [-.6,-.3,0,.3,.6].forEach((z,i)=>{
       box(.06,.62,.15,i%2?0xad895e:0x98734e,.03,.4,z);
     });
+  } else if (type === "unificationCastle") {
+    box(1.16,.18,1.08,0x74786c,0,.09,0);
+    for(let i=0;i<4;i++) {
+      const w=.96-i*.17,d=.86-i*.15,y=.18+i*.34;
+      box(w*.8,.28,d*.8,0xf4e9cc,0,y+.14,0);
+      roof(w,d,.18,y+.28,0xd4a645);
+      [-.2,.2].forEach(x=>{const light=box(.085,.09,.025,0xf4cb69,x*(1-i*.15),y+.16,d*.42);light.material.emissive.setHex(0xf4cb69);light.material.emissiveIntensity=.45;});
+    }
+    [-.49,.49].forEach(x=>{box(.025,1.17,.025,0x654d32,x,.76,.38);const flag=box(.18,.34,.025,0x9a432e,x+.08,1.13,.38);flag.name="unification-banner";});
+    mesh(new THREE.ConeGeometry(.08,.18,5),0xe0be5a,0,1.63,0);
   } else {
     const castle = type === "castle", temple = type === "temple";
     box(.7, .12, .66, 0x858477, 0, .06, 0);

@@ -42,7 +42,7 @@ async function main() {
     const item = global.HKCore.items.find((i) => i.id === object.userData.id);
     assert(size.x <= item.width && size.z <= item.depth && size.y <= item.height + .04);
   }
-  console.log("PASS all twelve building types remain visible if GLB loading fails");
+  console.log("PASS all building types, including the reward castle, remain visible if GLB loading fails");
   // Real asset node transforms and accessor bounds exercise model normalization.
   const assetTypes = { "house.2a9f3.glb":"house", "j8ap2an8eses0ho1p.glb":"shop", "ja76386p2an8esecas6t9le.glb":"castle", "japanese.tem3pl4e1383.glb":"temple", "pagoda.glb":"pagoda", "torii.glb":"torii", "t6r7e9e.glb":"tree", "f2i342el2d.glb":"field", "w8a9l0k9w7a2y.glb":"road", "b7r89i6d8g9e.glb":"bridge", "fence_wood.glb":"fence", "s7c7h9o89ol.glb":"school" };
   for (const file of fs.readdirSync(path.join(root, "assets/_m")).filter((p) => p.endsWith(".glb"))) {

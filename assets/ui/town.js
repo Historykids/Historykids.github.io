@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "../vendor/OrbitControls.js";
 import { GLTFLoader } from "../vendor/GLTFLoader.js";
-import { fitModel, alignLinearModel, createBuilding, createGround, groundGridOpacity, syncBuildings } from "./town-geometry.js?v=pagoda-torii-20261008";
+import { fitModel, alignLinearModel, createBuilding, createGround, groundGridOpacity, syncBuildings } from "./town-geometry.js?v=sengoku-20261025";
 import { createFarmerView } from "./farmer-3d.js?v=missions-20261005";
 import { createLandscape } from "./town-landscape.js?v=mountains-fast-20261008";
 import { SoftwareTownRenderer } from "./town-software-renderer.js?v=scenery-cache-20261008";
@@ -30,6 +30,7 @@ let town = null,
   marker = null,
   failedTypes = new Set();
 function loadModel(type) {
+  if(type==="unificationCastle"){if(!cache.has(type))cache.set(type,Promise.resolve(createBuilding(type)));return cache.get(type);}
   if (!cache.has(type)) {
     const url = new URL("../_m/" + urls[type], import.meta.url);
     cache.set(

@@ -47,7 +47,7 @@ function page({balance = 100, city = [], residents = [], store = null, failRead 
     const entry={id:'hidden',name:'さとうきよと',...R.metrics({balance:100,buildings:{},residents:{}}),revision:1,timestamp:1,rank:1},safe={...entry,id:'safe',name:'城下町',rank:2},store=new Map([['money_v1','100'],['hk_wealth_identity_v1','a'.repeat(64)],['hk_wealth_cache_v1',JSON.stringify({entries:[entry,safe],own:entry,ownRank:1,total:2,at:1})]]),p=page({store,failRead:true});
     await tick();assert(!p.$('wealthRows').textContent.includes('さとう'));assert(p.$('wealthRows').textContent.includes('城下町'));assert.equal(p.$('ownRank').textContent,'未登録');assert(p.$('townState').textContent.includes('別の名前'));p.w.close();
   });
-  await test('buying every kind of structure or resident conserves asset value and rewards growth', () => {
+  await test('adding every catalog structure or resident conserves asset value and rewards growth', () => {
     for (const item of C.items) {
       const snapshot = {balance: 1000-item.price, buildings: {}, residents: {}};
       snapshot[item.cat === 'resident' ? 'residents' : 'buildings'][item.id] = 1;

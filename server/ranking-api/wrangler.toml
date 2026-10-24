@@ -53,3 +53,11 @@ namespace_id = "1008"
 [ratelimits.simple]
 limit = 30
 period = 60
+
+
+[[ratelimits]]
+name = "SENGOKU_ACTIVITY_LIMITER"
+namespace_id = "1009"
+[ratelimits.simple]
+limit = 3000
+period = 60

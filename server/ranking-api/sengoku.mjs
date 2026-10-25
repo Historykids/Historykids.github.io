@@ -20,7 +20,7 @@ export class SengokuCampaign{
  account(owner){const a=this.accounts.row(owner);return{signedIn:!!a,name:a?.name||null};}
  question(p){
   const item=p.questions[p.index],q=item.snapshot||questions.get(item.id);
-  return{id:q.id,prompt:q.prompt,choices:item.order.map(i=>q.choices[i])};
+  return{id:q.id,prompt:q.prompt,choices:item.order.map(i=>q.choices[i]),...(q.eraTitle?{eraTitle:q.eraTitle}:{})};
  }
  view(owner){
   const row=this.row(owner);if(!row)return{owner,state:null,revision:0,account:this.account(owner),protocol:'sengoku-v1'};
@@ -29,7 +29,7 @@ export class SengokuCampaign{
   return{owner,state:s,revision:row.revision,updatedAt:row.updatedAt,account:this.account(owner),protocol:'sengoku-v1'};
  }
  shuffle(list){const a=[...list];for(let i=a.length-1;i>0;i--){const j=crypto.getRandomValues(new Uint32Array(1))[0]%(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;}
- deck(){return this.shuffle(sengokuQuestions).slice(0,5).map(q=>({id:q.id,snapshot:{...q,choices:[...q.choices]},order:this.shuffle([0,1,2,3])}));}
+ deck(bank=sengokuQuestions){return this.shuffle(bank).slice(0,5).map(q=>({id:q.id,snapshot:{...q,choices:[...q.choices]},order:this.shuffle([0,1,2,3])}));}
  earn(s,owner,amount,now){
   s.resources.militaryMerit=cap(s.resources.militaryMerit+amount);s.totalMerit=cap(s.totalMerit+amount);
   const week=C.weekKey(new Date(now));s.week=s.week.key===week?s.week:{key:week,merit:0};s.week.merit=cap(s.week.merit+amount);

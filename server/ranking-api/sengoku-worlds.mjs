@@ -1,4 +1,5 @@
 import '../../assets/ui/sengoku-world-rules.js';
+import {historyQuestions} from './sengoku-questions.mjs';
 const R=globalThis.HKSengokuRules,G=globalThis.HKSengokuWorldRules,W=globalThis.HKWealthRules;
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{status});};
 const fields={join:['region','worldId'],train:[],begin:['target','regionRevision'],answer:['battleId','index','choice'],next:['battleId','index'],retreat:['battleId'],claim:['generalId'],commander:['generalId'],respawn:['region'],leave:[]};
@@ -51,7 +52,8 @@ export class SengokuWorlds{
  read(id){const row=this.row(id);if(!row)return null;const w=JSON.parse(row.state);if(w.rulesVersion!==2){this.upgradeWorld(w);this.save(w);}return w;}
  summary(w){return{id:w.id,players:w.players.length,capacity:G.LIMIT,status:w.status,joinable:this.recruitable(w),available:w.regions.filter(r=>!r.owner&&!r.battle).map(r=>r.id),winner:w.winner,createdAt:w.createdAt};}
  save(w){this.sql.exec('INSERT OR REPLACE INTO sengoku_world_rule_versions(worldId,version) VALUES(?,2)',w.id);w.revision++;w.updatedAt=this.now();this.sql.exec('INSERT INTO sengoku_worlds(id,state,revision,updatedAt,summary,recruiting) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state,revision=excluded.revision,updatedAt=excluded.updatedAt,summary=excluded.summary,recruiting=excluded.recruiting',w.id,JSON.stringify(w),w.revision,w.updatedAt,JSON.stringify(this.summary(w)),Number(this.recruitable(w)));}
- create(){const id=(this.sql.exec('SELECT MAX(id) AS n FROM sengoku_worlds').toArray()[0].n||0)+1,w={id,rulesVersion:2,revision:0,createdAt:this.now(),updatedAt:this.now(),status:'open',players:[],regions:R.regions.map(r=>({id:r.id,owner:null,revision:0,protectedUntil:0})),events:[],winner:null};this.save(w);return w;}
+ latest(){const row=this.sql.exec('SELECT state FROM sengoku_worlds ORDER BY id DESC LIMIT 1').toArray()[0];return row?JSON.parse(row.state):null;}
+ create(){const last=this.latest();if(last&&last.players.length<G.LIMIT)fail('world-capacity-wait',409);const id=(last?.id||0)+1,w={id,rulesVersion:2,revision:0,createdAt:this.now(),updatedAt:this.now(),status:'open',players:[],regions:R.regions.map(r=>({id:r.id,owner:null,revision:0,protectedUntil:0})),events:[],winner:null};this.save(w);return w;}
  recruitable(w){return w.status==='open'&&w.players.length<G.LIMIT&&w.regions.some(r=>!r.owner&&!r.battle);}
  event(w,text){w.events.unshift({id:crypto.randomUUID(),text,at:this.now()});w.events=w.events.slice(0,30);}
  sync(w,p){p.s.ownedRegions=w.regions.filter(r=>r.owner===p.id).map(r=>r.id);p.s.bestTerritories=Math.max(p.s.bestTerritories,p.s.ownedRegions.length);}
@@ -69,7 +71,7 @@ export class SengokuWorlds{
  }
  list(owner){
   const rows=this.sql.exec('SELECT summary FROM sengoku_worlds ORDER BY id DESC LIMIT 60').toArray(),member=this.member(owner);
-  return{protocol:'sengoku-world-v2',capacity:G.LIMIT,activeWorldId:member?.worldId||null,worlds:rows.map(row=>JSON.parse(row.summary))};
+  return{protocol:'sengoku-world-v2',capacity:G.LIMIT,worldCreation:'capacity-only',quiz:{eras:[...new Set(historyQuestions.map(q=>q.era))],questions:historyQuestions.length},activeWorldId:member?.worldId||null,worlds:rows.map(row=>JSON.parse(row.summary))};
  }
  tick(w){
   let changed=false;
@@ -105,12 +107,13 @@ export class SengokuWorlds{
   if(this.member(owner))fail('world-already-joined',409);if(data.revision!==0||!R.region(data.region)||!(data.worldId==='auto'||Number.isSafeInteger(data.worldId)&&data.worldId>0))fail('world-input');
   const possible=w=>w&&this.recruitable(w)&&!w.players.some(p=>p.owner===owner)&&w.regions.some(r=>r.id===data.region&&!r.owner&&!r.battle);
   let w=data.worldId==='auto'?null:this.read(data.worldId);if(!possible(w))w=null;
-  if(!w){const rows=this.sql.exec('SELECT id,summary FROM sengoku_worlds WHERE recruiting=1 ORDER BY id LIMIT 1000').toArray().filter(r=>JSON.parse(r.summary).available.includes(data.region));for(const row of rows.slice(0,50)){const candidate=this.read(row.id);if(possible(candidate)){w=candidate;break;}}}w||=this.create();
+  if(!w){const rows=this.sql.exec('SELECT id,summary FROM sengoku_worlds WHERE recruiting=1 ORDER BY id').toArray().filter(r=>JSON.parse(r.summary).available.includes(data.region));for(const row of rows){const candidate=this.read(row.id);if(possible(candidate)){w=candidate;break;}}}
+  if(!w){const last=this.latest();if(last&&last.players.length<G.LIMIT)fail('world-region-unavailable',409);w=this.create();}
   const s=G.initial(data.region,this.now());
   const account=this.accounts.row(owner),p={id:crypto.randomUUID(),owner,name:account.name,home:data.region,s,revision:1,incoming:null,joinedAt:this.now()};w.players.push(p);
   const region=w.regions.find(r=>r.id===data.region);region.owner=p.id;region.revision++;region.protectedUntil=this.now()+G.PROTECTION;
   this.sql.exec('INSERT INTO sengoku_world_members(owner,worldId,playerId) VALUES(?,?,?)',owner,w.id,p.id);this.event(w,p.name+'が'+R.region(data.region).name+'で旗を掲げた');this.rank(w,p);this.save(w);
-  if(!this.recruitable(w)&&!this.sql.exec('SELECT id FROM sengoku_worlds WHERE recruiting=1 AND id<>? LIMIT 1',w.id).toArray().length)this.create();
+  if(w.players.length===G.LIMIT&&this.latest().id===w.id)this.create();
  }
  apply(w,p,data){
   const s=p.s,type=data.type;if(data.revision!==p.revision)fail('world-conflict',409);
@@ -124,7 +127,7 @@ export class SengokuWorlds{
     const defender=w.players.find(a=>a.id===region.owner);if(defender&&(defender.incoming||defender.s.pending?.mode==='battle'))fail('world-busy',409);
     target=region.id;if(defender){defenderId=defender.id;defenderName=defender.name;defense=G.defense(defender.s);}else defense=R.enemy(s,region.id).army;
    }
-   const q={id:crypto.randomUUID(),mode:type==='train'?'training':'battle',target,attackSnapshot:G.snapshot(s),index:0,phase:'question',questions:this.campaign.deck(),answers:[],deadline:this.now()+G.BATTLE_TIME,defenderId,defenderName,defense};s.pending=q;
+   const q={id:crypto.randomUUID(),mode:type==='train'?'training':'battle',target,attackSnapshot:G.snapshot(s),index:0,phase:'question',questions:this.campaign.deck(historyQuestions),answers:[],deadline:this.now()+G.BATTLE_TIME,defenderId,defenderName,defense};s.pending=q;
    if(target){const region=w.regions.find(r=>r.id===target);region.battle={id:q.id,attacker:p.id,deadline:q.deadline};const defender=w.players.find(d=>d.id===defenderId);if(defender){defender.incoming={id:q.id,attacker:p.name,region:target,deadline:q.deadline};defender.revision++;}for(const r of w.regions.filter(r=>r.owner===p.id))r.protectedUntil=Math.min(r.protectedUntil,this.now());}
   }else if(['answer','next','retreat'].includes(type)){
    const q=s.pending;if(!q||q.id!==data.battleId)fail('world-battle',409);

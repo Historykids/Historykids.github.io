@@ -132,7 +132,7 @@ export class SengokuWorlds{
    else{if(q.index!==data.index)fail('world-conflict',409);if(type==='next'){if(q.phase!=='review')fail('world-conflict',409);q.index++;q.phase='question';}
     else{if(q.phase!=='question')fail('world-conflict',409);if(!Number.isSafeInteger(data.choice)||data.choice<0||data.choice>3)fail('world-input');const item=q.questions[q.index],question=item.snapshot,chosen=item.order[data.choice];const earned=chosen===question.answer?G.rewardCorrect(s,question.id):{added:0,levels:[]};q.answers.push({added:earned.added,levels:earned.levels,id:question.id,prompt:question.prompt,correct:chosen===question.answer,chosen:question.choices[chosen],correctText:question.choices[question.answer],explanation:question.explanation,source:question.source});if(q.index===4)this.finish(w,p);else q.phase='review';}}
   }else if(type==='claim'){
-   const meta=G.generals[data.generalId];if(!meta||G.available(s)<1)fail('world-general-credit');const current=s.generals.find(g=>g.id===data.generalId),missing=Object.keys(G.generals).some(id=>!s.generals.some(g=>g.id===id));
+   if(typeof data.generalId!=='string'||!Object.hasOwn(G.generals,data.generalId))fail('world-general');const meta=G.generals[data.generalId];if(G.available(s)<1)fail('world-general-credit');const current=s.generals.find(g=>g.id===data.generalId),missing=Object.keys(G.generals).some(id=>!s.generals.some(g=>g.id===id));
    if(current){if(missing||current.level>=G.MAX_LEVEL)fail('world-general-owned');current.level++;current.experience=0;}else s.generals.push({id:data.generalId,level:1,experience:0});s.generalClaims++;s.activeGeneral||=data.generalId;
    this.event(w,p.name+'が'+meta.name+'を'+(current?'育成':'獲得')+'した');
   }else if(type==='commander'){

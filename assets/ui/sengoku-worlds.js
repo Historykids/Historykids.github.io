@@ -50,7 +50,7 @@
  function render(){
   $('swLobby').hidden=!!own();$('swCampaign').hidden=!own();$('swMapSection').hidden=false;
   if(own()){
-   $('swWorldLabel').textContent='WORLD '+w().id+' / '+w().players.length+' OF 47';$('swPlayerName').textContent=own().name+'の軍勢';$('swPlayerDetail').textContent=R.region(own().home).name+'出身 · '+(G.active(s())?G.generals[G.active(s()).id].name+' Lv.'+G.active(s()).level:'武将は50問正解で獲得');
+   $('swWorldLabel').textContent='WORLD '+w().id+' / '+w().players.length+' OF 47';$('swPlayerName').textContent=own().name+'の軍勢';$('swPlayerDetail').textContent=R.region(own().home).name+'出身 · '+(G.active(s())?G.generals[G.active(s()).id].name+' Lv.'+G.active(s()).level:'武将獲得クイズ50問で仲間に');
    $('swOwned').textContent=s().ownedRegions.length;$('swArmy').textContent=fmt(s().soldiers);$('swForce').textContent=fmt(own().force);$('swGeneralCount').textContent=s().generals.length;
    const alert=own().incoming?own().incoming.attacker+'が'+R.region(own().incoming.region).name+'へ進軍中。5問連続正解の攻撃を受けると兵士が減ります。育成クイズは続けられます。':!s().ownedRegions.length?'全領土を失いました。武将と育成はそのまま。兵士獲得クイズで立て直し、中立県で再起するか、故郷の奪還戦に挑もう。':own().lastDefense?'直近の防衛：'+R.region(own().lastDefense.region).name+' · '+fmt(own().lastDefense.damage)+'人減 · '+(own().lastDefense.captured?'占領されました。残る領土から立て直そう。':'領土は守りました。'):w().winner?w().winner.name+'が天下統一！ 育成と故郷の奪還戦は継続できます。':'';
    $('swAlert').hidden=!alert;$('swAlert').textContent=alert;$('swMapTitle').textContent='同じ地図に、軍旗がひしめく。';

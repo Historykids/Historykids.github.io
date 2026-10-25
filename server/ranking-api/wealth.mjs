@@ -89,7 +89,7 @@ export async function wealthRequest(request, env, reply) {
   const path = new URL(request.url).pathname;
   if (!['/wealth', '/wealth/register'].includes(path)&&!adminRoutes.has(path)&&!pokerRoutes.has(path)&&!noticeRoutes.has(path)&&!accountRoutes.has(path)&&!sengokuRoutes.has(path)&&!worldRoutes.has(path)) return reply({error: 'not-found'}, 404);
   if (request.method === 'OPTIONS') return reply({ok: true});
-  const read=['/wealth/account/session','/wealth/account/load','/wealth/account/capabilities'].includes(path)||path==='/wealth'||path==='/wealth/admin/session'||path==='/wealth/admin/board'||path==='/wealth/poker'||path==='/wealth/notices'||path==='/wealth/admin/recipients'||path==='/wealth/admin/notice-history'||path==='/wealth/sengoku'||path==='/wealth/sengoku/board'||path==='/wealth/sengoku/world'||path==='/wealth/sengoku/worlds';
+  const read=['/wealth/account/session','/wealth/account/load','/wealth/account/capabilities'].includes(path)||path==='/wealth'||path==='/wealth/admin/session'||path==='/wealth/admin/board'||path==='/wealth/poker'||path==='/wealth/notices'||path==='/wealth/admin/recipients'||path==='/wealth/admin/notice-history'||path==='/wealth/sengoku'||path==='/wealth/sengoku/board'||path==='/wealth/sengoku/world'||path==='/wealth/sengoku/worlds'||path==='/wealth/sengoku/world/ranking';
   if (request.method !== (read ? 'GET' : 'POST')) return reply({error: 'method-not-allowed'}, 405);
   if (!env.LEADERBOARD || !env.RANK_READ_LIMITER || !env.RANK_WRITE_LIMITER || !env.RANK_GLOBAL_LIMITER) return reply({error: 'not-configured'}, 503);
   if(pokerRoutes.has(path)&&!env.POKER_ROOM_LIMITER)return reply({error:'not-configured'},503);
@@ -112,7 +112,7 @@ export async function wealthRequest(request, env, reply) {
   if (!rate.success || !globalRate.success) return reply({error: 'rate-limited'}, 429);
   let data = {};
   if(path==='/wealth/poker'&&request.method==='GET'){data.room=new URL(request.url).searchParams.get('room')||undefined;const ticket=new URL(request.url).searchParams.get('ticket');if(ticket)data.id=ticket;}
-  if(path==='/wealth/sengoku/world'){const id=new URL(request.url).searchParams.get('world');if(id!==null)data.worldId=Number(id);}
+  if(path==='/wealth/sengoku/world'||path==='/wealth/sengoku/world/ranking'){const id=new URL(request.url).searchParams.get('world');if(id!==null)data.worldId=Number(id);}
   if(path==='/wealth/sengoku/board')data.period=new URL(request.url).searchParams.get('period')||'alltime';
   if(path==='/wealth/admin/notice-history')data.offset=Number(new URL(request.url).searchParams.get('offset')||0);
   if (request.method === 'POST') {

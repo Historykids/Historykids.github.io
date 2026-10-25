@@ -1,4 +1,4 @@
-name: Verify public alliance runtime
+name: Verify public Sengoku runtime
 on:
   push:
     branches: [main]
@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
-      - name: Verify public alliance configuration and ranking
+      - name: Verify public protection rules and alliance ranking
         run: |
           node --input-type=module <<'JS'
           const base='https://historykids-ranking-api.historykids-5185046038.workers.dev';
@@ -20,9 +20,12 @@ jobs:
             const d=await r.json();
             if(!r.ok)throw Error(path+' returned '+r.status);
             if(path.endsWith('/worlds')){
+              console.log(JSON.stringify({protectionMs:d.protectionMs,homeReclaimProtectionMs:d.homeReclaimProtectionMs,homeReclaimIgnoresProtection:d.homeReclaimIgnoresProtection,captureCooldownMs:d.captureCooldownMs}));
+              if(d.protectionMs!==1800000||d.homeReclaimProtectionMs!==0||d.homeReclaimIgnoresProtection!==true||d.captureCooldownMs!==1800000)throw Error('Province protection configuration mismatch');
               if(d.protocol!=='sengoku-world-v3'||d.alliances?.protocol!=='sengoku-alliance-v1'||d.alliances.maxMembers!==5||d.alliances.bonusPerAlly!==2||d.alliances.maxSoldierBonus!==8)throw Error('Alliance configuration mismatch');
             }else if(d.protocol!=='sengoku-alliance-v1'||d.maxMembers!==5||!Array.isArray(d.entries)||d.entries.some(a=>'owner' in a||'allianceInvites' in a||!Number.isSafeInteger(a.force)))throw Error('Alliance ranking mismatch');
             console.log(path+' passed');
           }
-          console.log('Public alliance checks passed; no alliance, invitation or player created');
+          console.log('Public protection and alliance checks passed; no alliance, invitation or player created');
           JS
+

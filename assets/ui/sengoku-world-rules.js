@@ -1,7 +1,7 @@
 /* Four independent quiz purposes; combat damage is committed by the server. */
 (function(root){
  'use strict';
- const LIMIT=47,PROTECTION=120000,BATTLE_TIME=300000,CAPTURE_COOLDOWN=1800000,SOLDIERS_PER_CORRECT=20,GENERAL_INTERVAL=50,MAX_LEVEL=100,MAX_SOLDIERS=1000000000000;
+ const LIMIT=47,PROTECTION=1800000,BATTLE_TIME=300000,CAPTURE_COOLDOWN=1800000,SOLDIERS_PER_CORRECT=20,GENERAL_INTERVAL=50,MAX_LEVEL=100,MAX_SOLDIERS=1000000000000;
  const modes={general:{title:'武将獲得クイズ',reward:'正解50問ごとに武将1人'},soldiers:{title:'兵士獲得クイズ',reward:'正解1問で兵士20人＋武将の効果'},level:{title:'武将育成クイズ',reward:'選んだ武将だけに経験値'},battle:{title:'合戦クイズ',reward:'5問連続正解で攻撃・不正解で即終了'}};
  const generals={
   nobunaga:{name:'織田信長',mark:'織',attack:4,description:'Lvごとに攻撃兵力＋4%'},
@@ -21,6 +21,7 @@
  const damage=q=>Number((BigInt(q.force)+1n)/2n);
  const available=s=>Math.max(0,Math.floor(s.correctByMode.general/GENERAL_INTERVAL)-(s.generalClaims||0));
  function reachable(s,target,home,frontier=[]){return root.HKSengokuRules.reachable({...s,ownedRegions:[...new Set([...s.ownedRegions,...frontier])]},target)||!s.ownedRegions.length&&target===home;}
+ const homeReclaim=(s,target,home)=>!s.ownedRegions.length&&s.bestTerritories>0&&s.homeEstablished!==false&&target===home;
  function rewardCorrect(s,id,mode,allianceBonus=0){
   s.totalCorrect++;s.correctByMode[mode]++;s.learnedCards=[...new Set([...s.learnedCards,id])];
   let added=0,experience=0,allianceAdded=0;const levels=[];
@@ -28,7 +29,7 @@
   if(mode==='level'){const g=active(s);if(g&&g.level<MAX_LEVEL){experience=1+buffs(s).experience;g.experience+=experience;while(g.level<MAX_LEVEL&&g.experience>=g.level*10){g.experience-=g.level*10;g.level++;levels.push(g.level);}if(g.level===MAX_LEVEL)g.experience=0;}}
   return{added,allianceAdded,experience,levels,generalProgress:mode==='general'?1:0};
  }
- function initial(region,now){return{version:3,soldiers:0,generals:[],activeGeneral:null,generalClaims:0,totalCorrect:0,correctByMode:{general:0,soldiers:0,level:0,battle:0},attackCooldownUntil:0,learnedCards:[],claimedRewards:[],ownedRegions:[region],capital:region,bestTerritories:1,defeatedRegions:[],battlesWon:0,battlesLost:0,unifications:0,port:true,pending:null,lastResult:null,startedAt:now};}
- const api={LIMIT,PROTECTION,BATTLE_TIME,CAPTURE_COOLDOWN,SOLDIERS_PER_CORRECT,GENERAL_INTERVAL,MAX_LEVEL,MAX_SOLDIERS,modes,generals,active,buffs,attack,snapshot,damage,available,reachable,rewardCorrect,initial};
+ function initial(region,now){return{version:3,homeEstablished:true,soldiers:0,generals:[],activeGeneral:null,generalClaims:0,totalCorrect:0,correctByMode:{general:0,soldiers:0,level:0,battle:0},attackCooldownUntil:0,learnedCards:[],claimedRewards:[],ownedRegions:[region],capital:region,bestTerritories:1,defeatedRegions:[],battlesWon:0,battlesLost:0,unifications:0,port:true,pending:null,lastResult:null,startedAt:now};}
+ const api={LIMIT,PROTECTION,BATTLE_TIME,CAPTURE_COOLDOWN,SOLDIERS_PER_CORRECT,GENERAL_INTERVAL,MAX_LEVEL,MAX_SOLDIERS,modes,generals,active,buffs,attack,snapshot,damage,available,reachable,homeReclaim,rewardCorrect,initial};
  root.HKSengokuWorldRules=Object.freeze(api);if(typeof module!=='undefined')module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

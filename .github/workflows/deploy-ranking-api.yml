@@ -110,7 +110,7 @@ jobs:
           for(let attempt=0;attempt<60;attempt++){
             worldsResponse=await fetch(new URL('/wealth/sengoku/worlds',base),{headers:{Origin:'https://historykids.github.io','Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
             worlds=await worldsResponse.json();
-            if(worldsResponse.ok&&worlds.protocol==='sengoku-world-v3'&&worlds.combat==='five-correct-half-force'&&worlds.alliances?.protocol==='sengoku-alliance-v1'&&worlds.captureCooldownMs===1800000&&worlds.startingProvince==='any-owner'&&worlds.respawnProvince==='neutral-only')break;
+            if(worldsResponse.ok&&worlds.protocol==='sengoku-world-v3'&&worlds.combat==='five-correct-half-force'&&worlds.alliances?.protocol==='sengoku-alliance-v1'&&worlds.captureCooldownMs===1800000&&worlds.startingProvince==='any-owner'&&worlds.respawnProvince==='neutral-only'&&worlds.protectionMs===1800000&&worlds.homeReclaimProtectionMs===0&&worlds.homeReclaimIgnoresProtection===true)break;
             if(attempt<59)await new Promise(resolve=>setTimeout(resolve,5000));
           }
           if(!worldsResponse.ok||worlds.protocol!=='sengoku-world-v3'||worlds.capacity!==47||!Array.isArray(worlds.worlds)||worlds.worlds.some(w=>w.players>47))throw Error('Shared Sengoku world runtime check failed');
@@ -118,6 +118,8 @@ jobs:
           if(JSON.stringify(worlds.quizModes)!==JSON.stringify(['general','soldiers','level','battle'])||worlds.combat!=='five-correct-half-force'||worlds.captureCooldownMs!==1800000)throw Error('Four quiz modes and capture cooldown runtime check failed');
           if(!shared.ok||sharedState.own!==null)throw Error('Shared Sengoku private view check failed');
           if(worlds.startingProvince!=='any-owner'||worlds.respawnProvince!=='neutral-only')throw Error('Home selection and neutral respawn runtime check failed');
+          if(worlds.protectionMs!==1800000||worlds.homeReclaimProtectionMs!==0||worlds.homeReclaimIgnoresProtection!==true)throw Error('Thirty-minute protection and unprotected home reclamation check failed');
+          console.log('Thirty-minute province protection and home reclamation checks passed; no battle created');
           console.log('Four separate quiz modes, half-force combat and thirty-minute capture cooldown checks passed; no world or player created');
           const alliesResponse=await fetch(new URL('/wealth/sengoku/world/alliances',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
           const allies=await alliesResponse.json();

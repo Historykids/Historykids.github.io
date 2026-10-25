@@ -52,20 +52,26 @@ export class SengokuWorlds{
  member(owner){return this.sql.exec('SELECT worldId,playerId FROM sengoku_world_members WHERE owner=?',owner).toArray()[0];}
  row(id){return this.sql.exec('SELECT state FROM sengoku_worlds WHERE id=?',id).toArray()[0];}
  upgradeFourQuizzes(w){
+  w.garrisonVersion=0;
   if(w.rulesVersion!==2)this.upgradeWorld(w);
   for(const region of w.regions){delete region.battle;region.garrison=region.owner?0:R.enemy({unifications:0},region.id).army;}
   for(const p of w.players){
    const s=p.s,q=s.pending;s.version=3;s.correctByMode={general:s.totalCorrect||0,soldiers:0,level:0,battle:0};s.attackCooldownUntil=0;
-   if(q){s.lastResult={id:q.id,outcome:'updated',mode:q.mode==='battle'?'battle':'soldiers',target:q.target,correct:q.answers.filter(a=>a.correct).length,added:q.answers.reduce((n,a)=>n+(a.added||0),0),review:q.answers,at:this.now()};s.pending=null;}
+   if(q){s.lastResult={id:q.id,outcome:'updated',mode:q.mode==='battle'?'battle':'soldiers',target:q.target,correct:q.answers.filter(a=>a.correct).length,added:q.answers.reduce((n,a)=>n+(a.added||0),0),garrisonAdded:q.answers.reduce((n,a)=>n+(a.garrisonAdded||0),0),review:q.answers,at:this.now()};s.pending=null;}
    p.incoming=null;p.revision++;this.rank(w,p);
   }
   w.rulesVersion=3;
  }
- read(id){const row=this.row(id);if(!row)return null;const w=JSON.parse(row.state);if(w.rulesVersion!==3){this.upgradeFourQuizzes(w);this.save(w);}if(this.alliances.init(w))this.save(w);return w;}
+ initializeGarrisons(w){
+  for(const r of w.regions)if(r.owner){const p=w.players.find(p=>p.id===r.owner);r.garrison=p?.s.soldiers||0;r.revision++;}
+  for(const p of w.players){const q=p.s.pending;if(q?.mode==='battle')q.defenderSoldiers=w.regions.find(r=>r.id===q.target)?.garrison||0;p.revision++;}w.garrisonVersion=1;
+ }
+ reinforce(w,p,amount){let added=0;if(amount>0)for(const r of w.regions.filter(r=>r.owner===p.id)){const next=Math.min(G.MAX_SOLDIERS,r.garrison+amount);if(next!==r.garrison){added+=next-r.garrison;r.garrison=next;r.revision++;}}return added;}
+ read(id){const row=this.row(id);if(!row)return null;const w=JSON.parse(row.state);let changed=false;if(w.rulesVersion!==3){this.upgradeFourQuizzes(w);changed=true;}if(w.garrisonVersion!==1){this.initializeGarrisons(w);changed=true;}if(this.alliances.init(w))changed=true;if(changed)this.save(w);return w;}
  summary(w){return{id:w.id,players:w.players.length,capacity:G.LIMIT,status:w.status,joinable:this.recruitable(w),startingRegions:w.regions.filter(r=>r.owner||!r.battle).map(r=>r.id),available:w.regions.filter(r=>!r.owner&&!r.battle).map(r=>r.id),winner:w.winner,createdAt:w.createdAt};}
  save(w){this.sql.exec('INSERT OR REPLACE INTO sengoku_world_rule_versions(worldId,version) VALUES(?,3)',w.id);w.revision++;w.updatedAt=this.now();this.sql.exec('INSERT INTO sengoku_worlds(id,state,revision,updatedAt,summary,recruiting) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state,revision=excluded.revision,updatedAt=excluded.updatedAt,summary=excluded.summary,recruiting=excluded.recruiting',w.id,JSON.stringify(w),w.revision,w.updatedAt,JSON.stringify(this.summary(w)),Number(this.recruitable(w)));}
  latest(){const row=this.sql.exec('SELECT state FROM sengoku_worlds ORDER BY id DESC LIMIT 1').toArray()[0];return row?JSON.parse(row.state):null;}
- create(){const last=this.latest();if(last&&last.players.length<G.LIMIT)fail('world-capacity-wait',409);const id=(last?.id||0)+1,w={id,rulesVersion:3,revision:0,createdAt:this.now(),updatedAt:this.now(),status:'open',players:[],regions:R.regions.map(r=>({id:r.id,owner:null,revision:0,protectedUntil:0,garrison:R.enemy({unifications:0},r.id).army})),events:[],winner:null,alliances:[],allianceInvites:[]};this.save(w);return w;}
+ create(){const last=this.latest();if(last&&last.players.length<G.LIMIT)fail('world-capacity-wait',409);const id=(last?.id||0)+1,w={id,rulesVersion:3,garrisonVersion:1,revision:0,createdAt:this.now(),updatedAt:this.now(),status:'open',players:[],regions:R.regions.map(r=>({id:r.id,owner:null,revision:0,protectedUntil:0,garrison:R.enemy({unifications:0},r.id).army})),events:[],winner:null,alliances:[],allianceInvites:[]};this.save(w);return w;}
  recruitable(w){return w.players.length<G.LIMIT;}
  event(w,text){w.events.unshift({id:crypto.randomUUID(),text,at:this.now()});w.events=w.events.slice(0,30);}
  sync(w,p){p.s.ownedRegions=w.regions.filter(r=>r.owner===p.id).map(r=>r.id);p.s.bestTerritories=Math.max(p.s.bestTerritories,p.s.ownedRegions.length);}
@@ -73,7 +79,7 @@ export class SengokuWorlds{
  pending(q){if(!q)return null;return{id:q.id,mode:q.mode,target:q.target,index:q.index,phase:q.phase,correct:q.answers.filter(a=>a.correct).length,deadline:q.deadline,allianceBonus:q.allianceBonus||0,soldiers:q.attackSnapshot.soldiers,force:q.attackSnapshot.force,damage:G.damage(q.attackSnapshot),defenderName:q.defenderName,enemySoldiers:q.defenderSoldiers,question:q.phase==='question'?this.campaign.question(q):null,feedback:q.phase==='review'?q.answers.at(-1):null};}
  publicWorld(w){
   const visibleName=p=>this.isBanned(p.owner)||W.blockedName(p.name,this.admin.words())?'参加者':p.name;
-  return{id:w.id,revision:w.revision,createdAt:w.createdAt,updatedAt:w.updatedAt,status:w.status,capacity:G.LIMIT,joinable:this.recruitable(w),winner:w.winner,regions:w.regions.map(r=>({...r})),alliances:this.alliances.publicGroups(w),players:w.players.map(p=>({id:p.id,allianceId:p.allianceId||null,canJoinAlliance:this.alliances.eligible(p),inBattle:!!p.incoming||p.s.pending?.mode==='battle',name:visibleName(p),home:p.home,territories:p.s.ownedRegions.length,best:p.s.bestTerritories,force:G.attack(p.s),soldiers:p.s.soldiers,generals:p.s.generals.length,wins:p.s.battlesWon,retired:!!p.retired,level:G.active(p.s)?.level||0,generalId:G.active(p.s)?.id||null,incoming:p.incoming?{region:p.incoming.region,deadline:p.incoming.deadline}:null})),events:w.events};
+  return{id:w.id,armyModel:'province-garrisons-v1',revision:w.revision,createdAt:w.createdAt,updatedAt:w.updatedAt,status:w.status,capacity:G.LIMIT,joinable:this.recruitable(w),winner:w.winner,regions:w.regions.map(r=>({...r})),alliances:this.alliances.publicGroups(w),players:w.players.map(p=>({id:p.id,allianceId:p.allianceId||null,canJoinAlliance:this.alliances.eligible(p),inBattle:!!p.incoming||p.s.pending?.mode==='battle',name:visibleName(p),home:p.home,territories:p.s.ownedRegions.length,best:p.s.bestTerritories,force:G.attack(p.s),soldiers:p.s.soldiers,generals:p.s.generals.length,wins:p.s.battlesWon,retired:!!p.retired,level:G.active(p.s)?.level||0,generalId:G.active(p.s)?.id||null,incoming:p.incoming?{region:p.incoming.region,deadline:p.incoming.deadline}:null})),events:w.events};
  }
  view(owner,requested){
   const member=this.member(owner),id=requested||member?.worldId,w=id?this.read(id):null,p=w&&member?.worldId===w.id?w.players.find(p=>p.id===member.playerId):null;
@@ -83,7 +89,7 @@ export class SengokuWorlds{
  }
  list(owner){
   const rows=this.sql.exec('SELECT summary FROM sengoku_worlds ORDER BY id DESC LIMIT 60').toArray(),member=this.member(owner);
-  return{protocol:'sengoku-world-v3',capacity:G.LIMIT,alliances:{protocol:'sengoku-alliance-v1',maxMembers:5,bonusPerAlly:2,maxSoldierBonus:8},startingProvince:'any-owner',respawnProvince:'neutral-only',worldCreation:'capacity-only',combat:'five-correct-half-force',captureCooldownMs:G.CAPTURE_COOLDOWN,protectionMs:G.PROTECTION,homeReclaimProtectionMs:0,homeReclaimIgnoresProtection:true,quizModes:Object.keys(G.modes),quiz:{eras:[...new Set(historyQuestions.map(q=>q.era))],questions:historyQuestions.length},activeWorldId:member?.worldId||null,worlds:rows.map(row=>{const summary=JSON.parse(row.summary);return{...summary,joinable:summary.players<G.LIMIT,startingRegions:summary.startingRegions||R.regions.map(r=>r.id)};})};
+  return{protocol:'sengoku-world-v3',capacity:G.LIMIT,armyModel:'province-garrisons-v1',garrisonReinforcement:'soldier-quiz',alliances:{protocol:'sengoku-alliance-v1',maxMembers:5,bonusPerAlly:2,maxSoldierBonus:8},startingProvince:'any-owner',respawnProvince:'neutral-only',worldCreation:'capacity-only',combat:'five-correct-half-force',captureCooldownMs:G.CAPTURE_COOLDOWN,protectionMs:G.PROTECTION,homeReclaimProtectionMs:0,homeReclaimIgnoresProtection:true,quizModes:Object.keys(G.modes),quiz:{eras:[...new Set(historyQuestions.map(q=>q.era))],questions:historyQuestions.length},activeWorldId:member?.worldId||null,worlds:rows.map(row=>{const summary=JSON.parse(row.summary);return{...summary,joinable:summary.players<G.LIMIT,startingRegions:summary.startingRegions||R.regions.map(r=>r.id)};})};
  }
  tick(w){
   let changed=this.alliances.expire(w);
@@ -92,7 +98,7 @@ export class SengokuWorlds{
  }
  cancel(w,p,outcome='retreat'){
   const q=p.s.pending;if(!q)return;
-  p.s.lastResult={id:q.id,outcome,mode:q.mode,target:q.target,correct:q.answers.filter(a=>a.correct).length,added:q.answers.reduce((n,a)=>n+(a.added||0),0),review:q.answers,at:this.now()};
+  p.s.lastResult={id:q.id,outcome,mode:q.mode,target:q.target,correct:q.answers.filter(a=>a.correct).length,added:q.answers.reduce((n,a)=>n+(a.added||0),0),garrisonAdded:q.answers.reduce((n,a)=>n+(a.garrisonAdded||0),0),review:q.answers,at:this.now()};
   const region=w.regions.find(r=>r.id===q.target);if(region?.battle?.id===q.id)delete region.battle;
   const defender=w.players.find(d=>d.id===q.defenderId);if(defender?.incoming?.id===q.id){defender.incoming=null;defender.revision++;}
   p.s.pending=null;
@@ -102,10 +108,10 @@ export class SengokuWorlds{
   const q=p.s.pending,state=p.s,correct=q.answers.filter(a=>a.correct).length,combat=q.mode==='battle';let captured=false,homeReclaimed=false,damage=0,remaining=0,beforeSoldiers=0;
   if(combat){
    const region=w.regions.find(r=>r.id===q.target);if(region.owner!==q.defenderId||region.battle?.id!==q.id)fail('world-changed',409);
-   const defender=w.players.find(d=>d.id===q.defenderId);beforeSoldiers=defender?defender.s.soldiers:region.garrison;remaining=beforeSoldiers;
-   if(!incorrect&&correct===5){damage=Math.min(beforeSoldiers,G.damage(q.attackSnapshot));remaining=beforeSoldiers-damage;if(defender)defender.s.soldiers=remaining;else region.garrison=remaining;captured=remaining===0;}
+   const defender=w.players.find(d=>d.id===q.defenderId);beforeSoldiers=region.garrison;remaining=beforeSoldiers;
+   if(!incorrect&&correct===5){damage=Math.min(beforeSoldiers,G.damage(q.attackSnapshot));remaining=beforeSoldiers-damage;region.garrison=remaining;if(damage)region.revision++;captured=remaining===0;}
    if(captured){
-    const landless=!state.ownedRegions.length;homeReclaimed=G.homeReclaim(state,q.target,p.home);region.owner=p.id;region.garrison=0;region.revision++;region.protectedUntil=homeReclaimed?0:this.now()+G.PROTECTION;state.battlesWon++;state.defeatedRegions=[...new Set([...state.defeatedRegions,q.target])];state.attackCooldownUntil=this.now()+G.CAPTURE_COOLDOWN;this.sync(w,p);if(q.target===p.home)state.homeEstablished=true;if(landless)state.capital=q.target;
+    const landless=!state.ownedRegions.length;homeReclaimed=G.homeReclaim(state,q.target,p.home);region.owner=p.id;region.garrison=state.soldiers;region.revision++;region.protectedUntil=homeReclaimed?0:this.now()+G.PROTECTION;state.battlesWon++;state.defeatedRegions=[...new Set([...state.defeatedRegions,q.target])];state.attackCooldownUntil=this.now()+G.CAPTURE_COOLDOWN;this.sync(w,p);if(q.target===p.home)state.homeEstablished=true;if(landless)state.capital=q.target;
     if(defender){this.sync(w,defender);defender.s.battlesLost++;if(defender.s.capital===q.target)defender.s.capital=defender.s.ownedRegions[0]||defender.home;}
     if(w.winner&&w.winner.id!==p.id){w.lastWinner=w.winner;w.winner=null;w.status='open';}
     this.event(w,p.name+'が'+R.region(q.target).name+'を占領'+(defender?'（'+defender.name+'の領土）':'（守備隊）'));
@@ -114,7 +120,7 @@ export class SengokuWorlds{
    delete region.battle;
    if(defender){defender.incoming=null;defender.lastDefense={attacker:p.name,region:q.target,won:!captured,damage,remaining,captured,eliminated:!defender.s.ownedRegions.length,at:this.now()};defender.revision++;this.rank(w,defender);}
   }
-  state.lastResult={id:q.id,mode:q.mode,outcome:combat?incorrect?'incorrect':captured?'captured':'hit':'complete',target:q.target,correct,force:q.attackSnapshot.force,damage,remaining,beforeSoldiers,homeReclaimed,added:q.answers.reduce((n,a)=>n+(a.added||0),0),experience:q.answers.reduce((n,a)=>n+(a.experience||0),0),generalProgress:q.answers.reduce((n,a)=>n+(a.generalProgress||0),0),cooldownUntil:state.attackCooldownUntil,review:q.answers,at:this.now()};state.pending=null;
+  state.lastResult={id:q.id,mode:q.mode,outcome:combat?incorrect?'incorrect':captured?'captured':'hit':'complete',target:q.target,correct,force:q.attackSnapshot.force,damage,remaining,beforeSoldiers,homeReclaimed,added:q.answers.reduce((n,a)=>n+(a.added||0),0),garrisonAdded:q.answers.reduce((n,a)=>n+(a.garrisonAdded||0),0),experience:q.answers.reduce((n,a)=>n+(a.experience||0),0),generalProgress:q.answers.reduce((n,a)=>n+(a.generalProgress||0),0),cooldownUntil:state.attackCooldownUntil,review:q.answers,at:this.now()};state.pending=null;
   if(captured&&state.ownedRegions.length===47){w.status='finished';w.winner={id:p.id,name:p.name,at:this.now()};state.unifications++;if(!state.claimedRewards.includes('unification-castle'))state.claimedRewards.push('unification-castle');this.sql.exec('INSERT OR IGNORE INTO sengoku_world_rewards(owner,reward) VALUES(?,?)',p.owner,'unification-castle');this.event(w,p.name+'が天下統一を達成！ 故郷の奪還戦は継続できます。');}
  }
 
@@ -126,7 +132,7 @@ export class SengokuWorlds{
   if(!w){const last=this.latest();if(last&&last.players.length<G.LIMIT)fail('world-region-unavailable',409);w=this.create();}
   const region=w.regions.find(r=>r.id===data.region),s=G.initial(data.region,this.now());if(region.owner){s.ownedRegions=[];s.bestTerritories=0;s.homeEstablished=false;}
   const account=this.accounts.row(owner),p={id:crypto.randomUUID(),owner,name:account.name,home:data.region,s,revision:1,incoming:null,joinedAt:this.now()};w.players.push(p);
-  if(!region.owner){region.owner=p.id;region.revision++;region.protectedUntil=this.now()+G.PROTECTION;}
+  if(!region.owner){region.owner=p.id;region.garrison=s.soldiers;region.revision++;region.protectedUntil=this.now()+G.PROTECTION;}
   this.sql.exec('INSERT INTO sengoku_world_members(owner,worldId,playerId) VALUES(?,?,?)',owner,w.id,p.id);this.event(w,p.name+'が'+R.region(data.region).name+'で旗を掲げた');this.rank(w,p);this.save(w);
   if(w.players.length===G.LIMIT&&this.latest().id===w.id)this.create();
  }
@@ -143,7 +149,7 @@ export class SengokuWorlds{
     if(s.attackCooldownUntil>this.now())fail('world-cooldown',409);
     if(s.soldiers<1)fail('world-soldiers');const region=w.regions.find(r=>r.id===data.target);if(region&&this.alliances.friendly(w,p,region.owner))fail('alliance-friendly',409);if(!region||!G.reachable(s,region.id,p.home,this.alliances.frontier(w,p)))fail('world-route');if(region.revision!==data.regionRevision)fail('world-changed',409);if(region.protectedUntil>this.now()&&!G.homeReclaim(s,region.id,p.home))fail('world-protected',409);if(region.battle)fail('world-busy',409);
     const defender=w.players.find(a=>a.id===region.owner);if(defender&&(defender.incoming||defender.s.pending?.mode==='battle'))fail('world-busy',409);
-    target=region.id;if(defender){defenderId=defender.id;defenderName=defender.name;defenderSoldiers=defender.s.soldiers;}else defenderSoldiers=region.garrison;
+    target=region.id;if(defender){defenderId=defender.id;defenderName=defender.name;defenderSoldiers=region.garrison;}else defenderSoldiers=region.garrison;
    }
    const q={id:crypto.randomUUID(),mode:type==='quiz'?data.mode:'battle',allianceBonus:type==='quiz'&&data.mode==='soldiers'?this.alliances.bonus(w,p):0,target,attackSnapshot:G.snapshot(s),index:0,phase:'question',questions:this.campaign.deck(historyQuestions),answers:[],deadline:this.now()+G.BATTLE_TIME,defenderId,defenderName,defenderSoldiers};s.pending=q;
    if(target){const region=w.regions.find(r=>r.id===target);region.battle={id:q.id,attacker:p.id,deadline:q.deadline};const defender=w.players.find(d=>d.id===defenderId);if(defender){defender.incoming={id:q.id,attacker:p.name,region:target,deadline:q.deadline};defender.revision++;}for(const r of w.regions.filter(r=>r.owner===p.id))r.protectedUntil=Math.min(r.protectedUntil,this.now());}
@@ -151,7 +157,7 @@ export class SengokuWorlds{
    const q=s.pending;if(!q||q.id!==data.battleId)fail('world-battle',409);
    if(type==='retreat')this.cancel(w,p);
    else{if(q.index!==data.index)fail('world-conflict',409);if(type==='next'){if(q.phase!=='review')fail('world-conflict',409);q.index++;q.phase='question';}
-    else{if(q.phase!=='question')fail('world-conflict',409);if(!Number.isSafeInteger(data.choice)||data.choice<0||data.choice>3)fail('world-input');const item=q.questions[q.index],question=item.snapshot,chosen=item.order[data.choice];const earned=chosen===question.answer?G.rewardCorrect(s,question.id,q.mode,q.allianceBonus||0):{added:0,experience:0,generalProgress:0,levels:[]};q.answers.push({added:earned.added,allianceAdded:earned.allianceAdded||0,experience:earned.experience,generalProgress:earned.generalProgress,levels:earned.levels,id:question.id,prompt:question.prompt,correct:chosen===question.answer,chosen:question.choices[chosen],correctText:question.choices[question.answer],explanation:question.explanation,source:question.source});if(q.mode==='battle'&&chosen!==question.answer)this.finish(w,p,true);else if(q.index===4)this.finish(w,p);else q.phase='review';}}
+    else{if(q.phase!=='question')fail('world-conflict',409);if(!Number.isSafeInteger(data.choice)||data.choice<0||data.choice>3)fail('world-input');const item=q.questions[q.index],question=item.snapshot,chosen=item.order[data.choice];const earned=chosen===question.answer?G.rewardCorrect(s,question.id,q.mode,q.allianceBonus||0):{added:0,experience:0,generalProgress:0,levels:[]};const garrisonAdded=this.reinforce(w,p,earned.recruitment||0);q.answers.push({garrisonAdded,added:earned.added,allianceAdded:earned.allianceAdded||0,experience:earned.experience,generalProgress:earned.generalProgress,levels:earned.levels,id:question.id,prompt:question.prompt,correct:chosen===question.answer,chosen:question.choices[chosen],correctText:question.choices[question.answer],explanation:question.explanation,source:question.source});if(q.mode==='battle'&&chosen!==question.answer)this.finish(w,p,true);else if(q.index===4)this.finish(w,p);else q.phase='review';}}
   }else if(type==='claim'){
    if(typeof data.generalId!=='string'||!Object.hasOwn(G.generals,data.generalId))fail('world-general');const meta=G.generals[data.generalId];if(G.available(s)<1)fail('world-general-credit');const current=s.generals.find(g=>g.id===data.generalId);
    if(current)fail('world-general-owned');else s.generals.push({id:data.generalId,level:1,experience:0});s.generalClaims++;s.activeGeneral||=data.generalId;
@@ -159,7 +165,7 @@ export class SengokuWorlds{
   }else if(type==='commander'){
    if(!s.generals.some(g=>g.id===data.generalId))fail('world-general');s.activeGeneral=data.generalId;
   }else if(type==='respawn'){
-   const region=w.regions.find(r=>r.id===data.region);if(s.ownedRegions.length||!region||region.owner||region.battle)fail('world-respawn');region.owner=p.id;region.garrison=0;region.revision++;region.protectedUntil=this.now()+G.PROTECTION;s.capital=region.id;if(region.id===p.home)s.homeEstablished=true;this.sync(w,p);this.event(w,p.name+'が'+R.region(region.id).name+'で再起した');
+   const region=w.regions.find(r=>r.id===data.region);if(s.ownedRegions.length||!region||region.owner||region.battle)fail('world-respawn');region.owner=p.id;region.garrison=s.soldiers;region.revision++;region.protectedUntil=this.now()+G.PROTECTION;s.capital=region.id;if(region.id===p.home)s.homeEstablished=true;this.sync(w,p);this.event(w,p.name+'が'+R.region(region.id).name+'で再起した');
   }else if(type==='leave'){
    this.alliances.detach(w,p);
    if(w.status!=='finished')for(const region of w.regions.filter(r=>r.owner===p.id)){region.owner=null;region.garrison=0;region.revision++;region.protectedUntil=0;delete region.battle;}p.retired=true;this.sync(w,p);this.sql.exec('DELETE FROM sengoku_world_members WHERE owner=?',p.owner);this.event(w,p.name+'がワールドを離れた');

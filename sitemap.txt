@@ -10,3 +10,4 @@ https://historykids.github.io/blackjack.html
 https://historykids.github.io/wealth-ranking.html
 https://historykids.github.io/sengoku.html
 https://historykids.github.io/sengoku-solo.html
+https://historykids.github.io/sengoku-ranking.html

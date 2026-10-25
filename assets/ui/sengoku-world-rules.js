@@ -2,7 +2,7 @@
 (function(root){
  'use strict';
  const LIMIT=null,WORLD_COUNT=3,PROTECTION=3600000,BATTLE_TIME=300000,CAPTURE_COOLDOWN=300000,ATTACK_COOLDOWN=300000,WRONG_COOLDOWN=300000,SOLDIERS_PER_CORRECT=20,GENERAL_INTERVAL=50,MAX_LEVEL=100,MAX_SOLDIERS=1000000000000;
- const modes={general:{title:'武将獲得クイズ',reward:'正解50問ごとに武将1人'},soldiers:{title:'兵士獲得クイズ',reward:'正解1問で兵士20人＋武将の効果'},level:{title:'武将育成クイズ',reward:'選んだ武将だけに経験値'},battle:{title:'合戦クイズ',reward:'5問連続正解で4分の1の攻撃・攻撃後は5分待ち'}};
+ const modes={general:{title:'武将獲得クイズ',reward:'正解50問ごとに武将1人'},soldiers:{title:'兵士獲得クイズ',reward:'正解1問で兵士20人＋武将の効果'},level:{title:'武将育成クイズ',reward:'選んだ武将だけに経験値'},battle:{title:'合戦クイズ',reward:'5問連続正解で10分の1の攻撃・攻撃後は5分待ち'}};
  const generals={
   nobunaga:{name:'織田信長',mark:'織',attack:4,description:'Lvごとに攻撃兵力＋4%'},
   shingen:{name:'武田信玄',mark:'武',attack:3,recruit:1,description:'Lvごとに攻撃兵力＋3%・兵士獲得クイズの兵士＋1人'},
@@ -18,7 +18,7 @@
  function buffs(s){const g=active(s),m=g?generals[g.id]:null;return{attack:(m?.attack||0)*(g?.level||0),recruit:(m?.recruit||0)*(g?.level||0),experience:(m?.experience||0)*(g?.level||0)};}
  const attack=s=>Number(BigInt(s.soldiers)*BigInt(100+buffs(s).attack)/100n);
  const snapshot=s=>({soldiers:s.soldiers,force:attack(s)});
- const damage=q=>Number((BigInt(q.force)+3n)/4n);
+ const damage=q=>Number((BigInt(q.force)+9n)/10n);
  const available=s=>Math.max(0,Math.floor(s.correctByMode.general/GENERAL_INTERVAL)-(s.generalClaims||0));
  function reachable(s,target,home,frontier=[]){return root.HKSengokuKuniMap.reachable({...s,ownedRegions:[...new Set([...s.ownedRegions,...frontier])]},target)||!s.ownedRegions.length&&(target===home||reclaim(s,target));}
  const reclaim=(s,target)=>(s.heldRegions||[]).includes(target);

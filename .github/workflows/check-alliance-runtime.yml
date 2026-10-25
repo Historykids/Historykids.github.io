@@ -1,0 +1,23 @@
+name: Verify public alliance runtime
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/check-alliance-runtime.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Check public alliance protocol without creating game state
+        run: |
+          node --input-type=module <<'JS'
+          const base='https://historykids-ranking-api.historykids-5185046038.workers.dev';
+          for(const path of ['/wealth/sengoku/worlds','/wealth/sengoku/world/alliances']){
+            const r=await fetch(base+path,{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
+            const d=await r.json();
+            console.log(JSON.stringify({path,status:r.status,error:d.error,protocol:d.protocol,alliances:d.alliances,maxMembers:d.maxMembers,hasEntries:Array.isArray(d.entries),keys:Object.keys(d)}));
+          }
+          JS

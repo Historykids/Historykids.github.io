@@ -1,31 +1,34 @@
-/* One troop type. Only server-verified correct answers create soldiers. */
+/* Four independent quiz purposes; combat damage is committed by the server. */
 (function(root){
  'use strict';
- const LIMIT=47,PROTECTION=120000,BATTLE_TIME=300000,SOLDIERS_PER_CORRECT=20,GENERAL_INTERVAL=50,MAX_LEVEL=100,MAX_SOLDIERS=1000000000000;
+ const LIMIT=47,PROTECTION=120000,BATTLE_TIME=300000,CAPTURE_COOLDOWN=300000,SOLDIERS_PER_CORRECT=20,GENERAL_INTERVAL=50,MAX_LEVEL=100,MAX_SOLDIERS=1000000000000;
+ const modes={general:{title:'武将獲得クイズ',reward:'正解50問ごとに武将1人'},soldiers:{title:'兵士獲得クイズ',reward:'正解1問で兵士20人＋武将の効果'},level:{title:'武将育成クイズ',reward:'選んだ武将だけに経験値'},battle:{title:'合戦クイズ',reward:'5問連続正解で攻撃・不正解で即終了'}};
  const generals={
-  nobunaga:{name:'織田信長',mark:'織',attack:4,description:'レベルごとに兵士の攻撃力＋4%'},
-  shingen:{name:'武田信玄',mark:'武',attack:3,defense:1,description:'レベルごとに攻撃力＋3%・守備力＋1%'},
-  kenshin:{name:'上杉謙信',mark:'毘',defense:5,description:'レベルごとに兵士の守備力＋5%'},
-  ieyasu:{name:'徳川家康',mark:'徳',attack:1,defense:3,description:'レベルごとに攻撃力＋1%・守備力＋3%'},
-  masamune:{name:'伊達政宗',mark:'伊',attack:2,defense:2,description:'レベルごとに攻撃力・守備力＋2%'},
-  yukimura:{name:'真田幸村',mark:'六',quiz:1,attack:1,description:'レベルごとに攻撃力＋1%・合戦の正解1問の戦力補正＋1%'},
-  motonari:{name:'毛利元就',mark:'毛',quiz:1,defense:1,description:'レベルごとに守備力＋1%・合戦の正解1問の戦力補正＋1%'},
-  yoshihiro:{name:'島津義弘',mark:'島',attack:3,defense:1,description:'レベルごとに攻撃力＋3%・守備力＋1%'},
-  hideyoshi:{name:'豊臣秀吉',mark:'豊',recruit:1,description:'レベルごとに正解でもらえる兵士＋1人'}
+  nobunaga:{name:'織田信長',mark:'織',attack:4,description:'Lvごとに攻撃兵力＋4%'},
+  shingen:{name:'武田信玄',mark:'武',attack:3,recruit:1,description:'Lvごとに攻撃兵力＋3%・兵士獲得クイズの兵士＋1人'},
+  kenshin:{name:'上杉謙信',mark:'毘',recruit:5,description:'Lvごとに兵士獲得クイズの兵士＋5人'},
+  ieyasu:{name:'徳川家康',mark:'徳',attack:1,recruit:3,description:'Lvごとに攻撃兵力＋1%・兵士獲得クイズの兵士＋3人'},
+  masamune:{name:'伊達政宗',mark:'伊',attack:2,recruit:2,description:'Lvごとに攻撃兵力＋2%・兵士獲得クイズの兵士＋2人'},
+  yukimura:{name:'真田幸村',mark:'六',attack:1,experience:1,description:'Lvごとに攻撃兵力＋1%・育成クイズの経験値＋1'},
+  motonari:{name:'毛利元就',mark:'毛',recruit:1,experience:1,description:'Lvごとに兵士獲得クイズの兵士＋1人・育成クイズの経験値＋1'},
+  yoshihiro:{name:'島津義弘',mark:'島',attack:3,recruit:1,description:'Lvごとに攻撃兵力＋3%・兵士獲得クイズの兵士＋1人'},
+  hideyoshi:{name:'豊臣秀吉',mark:'豊',recruit:1,description:'Lvごとに兵士獲得クイズの兵士＋1人'}
  };
  const active=s=>s.generals.find(g=>g.id===s.activeGeneral)||null;
- function buffs(s){const g=active(s),meta=g?generals[g.id]:null;return{attack:(meta?.attack||0)*(g?.level||0),defense:(meta?.defense||0)*(g?.level||0),quiz:(meta?.quiz||0)*(g?.level||0),recruit:(meta?.recruit||0)*(g?.level||0)};}
- function power(soldiers,bonus,quiz=0){return Number(BigInt(soldiers)*BigInt(100+bonus)*BigInt(100+quiz)/10000n);}
- const attack=s=>power(s.soldiers,buffs(s).attack),defense=s=>power(s.soldiers,buffs(s).defense);
- function battlePower(snapshot,correct){return power(snapshot.soldiers,snapshot.attack,correct*(10+snapshot.quiz));}
- const snapshot=s=>({soldiers:s.soldiers,attack:buffs(s).attack,quiz:buffs(s).quiz});
- const available=s=>Math.max(0,Math.floor(s.totalCorrect/GENERAL_INTERVAL)-(s.generalClaims||0));
- const recruitGain=s=>Math.min(MAX_SOLDIERS-s.soldiers,SOLDIERS_PER_CORRECT+buffs(s).recruit);
- function rewardCorrect(s,id){const added=recruitGain(s);s.soldiers+=added;s.totalCorrect++;s.learnedCards=[...new Set([...s.learnedCards,id])];const g=active(s),levels=[];
-  if(g&&g.level<MAX_LEVEL){g.experience++;while(g.level<MAX_LEVEL&&g.experience>=g.level*10){g.experience-=g.level*10;g.level++;levels.push(g.level);}if(g.level===MAX_LEVEL)g.experience=0;}
-  return{added,levels};
+ function buffs(s){const g=active(s),m=g?generals[g.id]:null;return{attack:(m?.attack||0)*(g?.level||0),recruit:(m?.recruit||0)*(g?.level||0),experience:(m?.experience||0)*(g?.level||0)};}
+ const attack=s=>Number(BigInt(s.soldiers)*BigInt(100+buffs(s).attack)/100n);
+ const snapshot=s=>({soldiers:s.soldiers,force:attack(s)});
+ const damage=q=>Number((BigInt(q.force)+1n)/2n);
+ const available=s=>Math.max(0,Math.floor(s.correctByMode.general/GENERAL_INTERVAL)-(s.generalClaims||0));
+ function reachable(s,target,home){return root.HKSengokuRules.reachable(s,target)||!s.ownedRegions.length&&target===home;}
+ function rewardCorrect(s,id,mode){
+  s.totalCorrect++;s.correctByMode[mode]++;s.learnedCards=[...new Set([...s.learnedCards,id])];
+  let added=0,experience=0;const levels=[];
+  if(mode==='soldiers'){added=Math.min(MAX_SOLDIERS-s.soldiers,SOLDIERS_PER_CORRECT+buffs(s).recruit);s.soldiers+=added;}
+  if(mode==='level'){const g=active(s);if(g&&g.level<MAX_LEVEL){experience=1+buffs(s).experience;g.experience+=experience;while(g.level<MAX_LEVEL&&g.experience>=g.level*10){g.experience-=g.level*10;g.level++;levels.push(g.level);}if(g.level===MAX_LEVEL)g.experience=0;}}
+  return{added,experience,levels,generalProgress:mode==='general'?1:0};
  }
- function initial(region,now){return{version:2,soldiers:0,generals:[],activeGeneral:null,generalClaims:0,totalCorrect:0,learnedCards:[],claimedRewards:[],ownedRegions:[region],capital:region,bestTerritories:1,defeatedRegions:[],battlesWon:0,battlesLost:0,unifications:0,port:true,pending:null,lastResult:null,startedAt:now};}
- const api={LIMIT,PROTECTION,BATTLE_TIME,SOLDIERS_PER_CORRECT,GENERAL_INTERVAL,MAX_LEVEL,MAX_SOLDIERS,generals,active,buffs,power,attack,defense,battlePower,snapshot,available,recruitGain,rewardCorrect,initial};
+ function initial(region,now){return{version:3,soldiers:0,generals:[],activeGeneral:null,generalClaims:0,totalCorrect:0,correctByMode:{general:0,soldiers:0,level:0,battle:0},attackCooldownUntil:0,learnedCards:[],claimedRewards:[],ownedRegions:[region],capital:region,bestTerritories:1,defeatedRegions:[],battlesWon:0,battlesLost:0,unifications:0,port:true,pending:null,lastResult:null,startedAt:now};}
+ const api={LIMIT,PROTECTION,BATTLE_TIME,CAPTURE_COOLDOWN,SOLDIERS_PER_CORRECT,GENERAL_INTERVAL,MAX_LEVEL,MAX_SOLDIERS,modes,generals,active,buffs,attack,snapshot,damage,available,reachable,rewardCorrect,initial};
  root.HKSengokuWorldRules=Object.freeze(api);if(typeof module!=='undefined')module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

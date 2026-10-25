@@ -13,3 +13,5 @@
 .worlds-page .japan-map .map-inset{fill:none;stroke:#7892a5;stroke-width:1;vector-effect:non-scaling-stroke;pointer-events:none}
 .sw-recruit-role{border-top:1px solid #d5c8ab;padding:14px 0 2px;width:100%}.sw-recruit-role h4{margin:0 0 6px}.sw-recruit-role label{display:grid;gap:6px;font-size:12px}.sw-recruit-role button{margin-top:10px!important;width:100%}.sw-recruit-role select{width:100%}
 @media(max-width:650px){.worlds-page .japan-map{height:450px}.worlds-page .japan-map text{font-size:28px}}
+
+.sw-world-switch{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin:0 0 1rem;padding:1rem;border:1px solid var(--line,#d8ccaf);border-radius:12px;background:rgba(255,255,255,.55)}.sw-world-switch label{display:grid;gap:.35rem;font-weight:700;min-width:180px}.sw-world-switch p{flex:1;min-width:220px;margin:0;line-height:1.7}

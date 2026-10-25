@@ -15,15 +15,15 @@ jobs:
         run: |
           node --input-type=module <<'JS'
           const base='https://historykids-ranking-api.historykids-5185046038.workers.dev';
-          let ready=false;for(let attempt=0;attempt<96;attempt++){const r=await fetch(base+'/wealth/sengoku/worlds',{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});const d=await r.json();ready=r.ok&&d.protocol==='sengoku-world-v5'&&d.attackCooldownMs===0&&d.captureCooldownMs===3600000&&d.worldCount===3&&d.mapVersion==='kyukoku-v1'&&d.defenseResetVersion==='three-worlds-defense-zero-20261025'&&d.allianceFeatures==='command-center-v2';if(ready)break;if(attempt<95)await new Promise(resolve=>setTimeout(resolve,5000));}if(!ready)throw Error('Updated Sengoku configuration did not become ready');
+          let ready=false;for(let attempt=0;attempt<96;attempt++){const r=await fetch(base+'/wealth/sengoku/worlds',{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});const d=await r.json();ready=r.ok&&d.protocol==='sengoku-world-v6'&&d.attackCooldownMs===300000&&d.captureCooldownMs===300000&&d.worldCount===3&&d.mapVersion==='kyukoku-v1'&&d.defenseResetVersion==='three-worlds-defense-zero-20261025'&&d.allianceFeatures==='command-center-v2'&&d.damageDivisor===4&&d.wrongAnswerCooldownMs===300000&&d.worldSwitch==='preserve-world-progress'&&d.territoryResetVersion==='quarter-force-neutral-half-20261025';if(ready)break;if(attempt<95)await new Promise(resolve=>setTimeout(resolve,5000));}if(!ready)throw Error('Updated Sengoku configuration did not become ready');
           for(const path of ['/wealth/sengoku/worlds','/wealth/sengoku/world/alliances']){
             const r=await fetch(base+path,{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
             const d=await r.json();
             if(!r.ok)throw Error(path+' returned '+r.status);
             if(path.endsWith('/worlds')){
               console.log(JSON.stringify({protectionMs:d.protectionMs,reclaimProtectionMs:d.reclaimProtectionMs,reclaimIgnoresProtection:d.reclaimIgnoresProtection,captureCooldownMs:d.captureCooldownMs}));
-              if(d.protectionMs!==3600000||d.reclaimProtectionMs!==0||d.reclaimIgnoresProtection!==true||d.captureCooldownMs!==3600000)throw Error('Province protection configuration mismatch');
-              if(d.protocol!=='sengoku-world-v5'||d.alliances?.protocol!=='sengoku-alliance-v1'||d.alliances.maxMembers!==5||d.alliances.bonusPerAlly!==2||d.alliances.maxSoldierBonus!==8)throw Error('Alliance configuration mismatch');
+              if(d.protectionMs!==3600000||d.reclaimProtectionMs!==0||d.reclaimIgnoresProtection!==true||d.captureCooldownMs!==300000)throw Error('Province protection configuration mismatch');
+              if(d.protocol!=='sengoku-world-v6'||d.alliances?.protocol!=='sengoku-alliance-v1'||d.alliances.maxMembers!==5||d.alliances.bonusPerAlly!==2||d.alliances.maxSoldierBonus!==8)throw Error('Alliance configuration mismatch');
             }else if(d.protocol!=='sengoku-alliance-v1'||d.maxMembers!==5||!Array.isArray(d.entries)||d.entries.some(a=>'owner' in a||'allianceInvites' in a||!Number.isSafeInteger(a.force)))throw Error('Alliance ranking mismatch');
             console.log(path+' passed');
           }

@@ -20,13 +20,13 @@
  const snapshot=s=>({soldiers:s.soldiers,force:attack(s)});
  const damage=q=>Number((BigInt(q.force)+1n)/2n);
  const available=s=>Math.max(0,Math.floor(s.correctByMode.general/GENERAL_INTERVAL)-(s.generalClaims||0));
- function reachable(s,target,home){return root.HKSengokuRules.reachable(s,target)||!s.ownedRegions.length&&target===home;}
- function rewardCorrect(s,id,mode){
+ function reachable(s,target,home,frontier=[]){return root.HKSengokuRules.reachable({...s,ownedRegions:[...new Set([...s.ownedRegions,...frontier])]},target)||!s.ownedRegions.length&&target===home;}
+ function rewardCorrect(s,id,mode,allianceBonus=0){
   s.totalCorrect++;s.correctByMode[mode]++;s.learnedCards=[...new Set([...s.learnedCards,id])];
-  let added=0,experience=0;const levels=[];
-  if(mode==='soldiers'){added=Math.min(MAX_SOLDIERS-s.soldiers,SOLDIERS_PER_CORRECT+buffs(s).recruit);s.soldiers+=added;}
+  let added=0,experience=0,allianceAdded=0;const levels=[];
+  if(mode==='soldiers'){const free=MAX_SOLDIERS-s.soldiers,base=SOLDIERS_PER_CORRECT+buffs(s).recruit;added=Math.min(free,base+allianceBonus);allianceAdded=added-Math.min(free,base);s.soldiers+=added;}
   if(mode==='level'){const g=active(s);if(g&&g.level<MAX_LEVEL){experience=1+buffs(s).experience;g.experience+=experience;while(g.level<MAX_LEVEL&&g.experience>=g.level*10){g.experience-=g.level*10;g.level++;levels.push(g.level);}if(g.level===MAX_LEVEL)g.experience=0;}}
-  return{added,experience,levels,generalProgress:mode==='general'?1:0};
+  return{added,allianceAdded,experience,levels,generalProgress:mode==='general'?1:0};
  }
  function initial(region,now){return{version:3,soldiers:0,generals:[],activeGeneral:null,generalClaims:0,totalCorrect:0,correctByMode:{general:0,soldiers:0,level:0,battle:0},attackCooldownUntil:0,learnedCards:[],claimedRewards:[],ownedRegions:[region],capital:region,bestTerritories:1,defeatedRegions:[],battlesWon:0,battlesLost:0,unifications:0,port:true,pending:null,lastResult:null,startedAt:now};}
  const api={LIMIT,PROTECTION,BATTLE_TIME,CAPTURE_COOLDOWN,SOLDIERS_PER_CORRECT,GENERAL_INTERVAL,MAX_LEVEL,MAX_SOLDIERS,modes,generals,active,buffs,attack,snapshot,damage,available,reachable,rewardCorrect,initial};

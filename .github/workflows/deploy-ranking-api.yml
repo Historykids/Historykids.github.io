@@ -30,6 +30,8 @@ jobs:
           node scripts/sengoku-questions.cjs
           node tests/sengoku-worlds.cjs
           node tests/sengoku-worlds-ui.cjs
+          node tests/sengoku-alliances.cjs
+          node tests/sengoku-alliances-ui.cjs
           node tests/sengoku-api.cjs
           node tests/sengoku-ui.cjs
           node tests/notices-api.cjs
@@ -108,7 +110,7 @@ jobs:
           for(let attempt=0;attempt<12;attempt++){
             worldsResponse=await fetch(new URL('/wealth/sengoku/worlds',base),{headers:{Origin:'https://historykids.github.io','Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
             worlds=await worldsResponse.json();
-            if(worldsResponse.ok&&worlds.protocol==='sengoku-world-v3'&&worlds.combat==='five-correct-half-force')break;
+            if(worldsResponse.ok&&worlds.protocol==='sengoku-world-v3'&&worlds.combat==='five-correct-half-force'&&worlds.alliances?.protocol==='sengoku-alliance-v1')break;
             if(attempt<11)await new Promise(resolve=>setTimeout(resolve,1500));
           }
           if(!worldsResponse.ok||worlds.protocol!=='sengoku-world-v3'||worlds.capacity!==47||!Array.isArray(worlds.worlds)||worlds.worlds.some(w=>w.players>47))throw Error('Shared Sengoku world runtime check failed');
@@ -116,6 +118,11 @@ jobs:
           if(JSON.stringify(worlds.quizModes)!==JSON.stringify(['general','soldiers','level','battle'])||worlds.combat!=='five-correct-half-force'||worlds.captureCooldownMs!==300000)throw Error('Four quiz modes and capture cooldown runtime check failed');
           if(!shared.ok||sharedState.own!==null)throw Error('Shared Sengoku private view check failed');
           console.log('Four separate quiz modes, half-force combat and five-minute capture cooldown checks passed; no world or player created');
+          const alliesResponse=await fetch(new URL('/wealth/sengoku/world/alliances',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
+          const allies=await alliesResponse.json();
+          if(!alliesResponse.ok||allies.protocol!=='sengoku-alliance-v1'||allies.maxMembers!==5||!Array.isArray(allies.entries)||allies.entries.some(a=>'owner' in a||'allianceInvites' in a||!Number.isSafeInteger(a.force)))throw Error('Alliance ranking runtime check failed');
+          if(worlds.alliances?.maxMembers!==5||worlds.alliances.bonusPerAlly!==2||worlds.alliances.maxSoldierBonus!==8)throw Error('Alliance benefits runtime check failed');
+          console.log('Alliance consent, benefit configuration and separate ranking checks passed; no alliance or invitation created');
           const forceResponse=await fetch(new URL('/wealth/sengoku/world/ranking',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
           const force=await forceResponse.json();
           if(!forceResponse.ok||force.protocol!=='sengoku-force-v1'||!Array.isArray(force.entries)||force.entries.some(r=>!Number.isSafeInteger(r.force)||!Number.isSafeInteger(r.soldiers)||'owner' in r||'pending' in r))throw Error('Sengoku force ranking runtime check failed');

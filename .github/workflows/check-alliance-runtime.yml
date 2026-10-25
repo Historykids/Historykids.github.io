@@ -21,3 +21,18 @@ jobs:
             console.log(JSON.stringify({path,status:r.status,error:d.error,protocol:d.protocol,alliances:d.alliances,maxMembers:d.maxMembers,hasEntries:Array.isArray(d.entries),keys:Object.keys(d)}));
           }
           JS
+      - name: Inspect deployed bundle identity
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          node --input-type=module <<'JS'
+          const api='https://api.cloudflare.com/client/v4/accounts/'+process.env.CF_ACCOUNT_ID+'/workers/scripts/historykids-ranking-api';
+          const headers={Authorization:'Bearer '+process.env.CF_API_TOKEN};
+          const r=await fetch(api+'/content',{headers,signal:AbortSignal.timeout(15000)});
+          const text=await r.text();
+          console.log(JSON.stringify({bundleStatus:r.status,hasAllianceProtocol:text.includes('sengoku-alliance-v1'),hasAllianceRoute:text.includes('/wealth/sengoku/world/alliances'),hasAllianceClass:text.includes('sengoku_alliance_groups')}));
+          const versions=await fetch(api+'/deployments',{headers,signal:AbortSignal.timeout(15000)});
+          const data=await versions.json();
+          console.log(JSON.stringify({deploymentStatus:versions.status,success:data.success,active:data.result?.deployments?.slice(0,2).map(d=>({id:d.id,created_on:d.created_on,versions:d.versions}))}));
+          JS

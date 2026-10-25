@@ -107,11 +107,11 @@ jobs:
           const shared=await fetch(new URL('/wealth/sengoku/world',base),{headers:{Origin:'https://historykids.github.io',Authorization:'Bearer '+probeToken},signal:AbortSignal.timeout(15000)});
           const sharedState=await shared.json();
           let worlds,worldsResponse;
-          for(let attempt=0;attempt<12;attempt++){
+          for(let attempt=0;attempt<60;attempt++){
             worldsResponse=await fetch(new URL('/wealth/sengoku/worlds',base),{headers:{Origin:'https://historykids.github.io','Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
             worlds=await worldsResponse.json();
             if(worldsResponse.ok&&worlds.protocol==='sengoku-world-v3'&&worlds.combat==='five-correct-half-force'&&worlds.alliances?.protocol==='sengoku-alliance-v1')break;
-            if(attempt<11)await new Promise(resolve=>setTimeout(resolve,1500));
+            if(attempt<59)await new Promise(resolve=>setTimeout(resolve,5000));
           }
           if(!worldsResponse.ok||worlds.protocol!=='sengoku-world-v3'||worlds.capacity!==47||!Array.isArray(worlds.worlds)||worlds.worlds.some(w=>w.players>47))throw Error('Shared Sengoku world runtime check failed');
           if(worlds.worldCreation!=='capacity-only'||worlds.quiz?.eras?.length!==14||worlds.quiz.eras[0]!=='jomon'||worlds.quiz.eras.at(-1)!=='heisei'||worlds.quiz.questions!==298)throw Error('Jomon–Heisei quiz and capacity-only world rules runtime check failed');

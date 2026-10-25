@@ -125,3 +125,17 @@ A new participant can choose a province already owned by another player, includi
 The owned-province garrison is saved independently of the player's offensive soldier reserve. Combat damages only the target province; the reserve, other provinces and force ranking remain unchanged. At zero defenders the province changes owner and receives the new owner's current reserve as its garrison. Neutral starts have zero defenders, and respawns copy the existing reserve without spending it. Correct soldier-quiz answers reinforce all currently owned provinces by the recruitment reward, independently capped at the soldier limit, even if the reserve is already at its cap. Other quiz modes give no garrison reinforcement.
 
 Existing v3 worlds initialize owned garrisons once from the current reserve. Pending quizzes, questions, answers, attack snapshots, locks, rewards and cooldowns are preserved. Damaged garrisons never reset on reload or unrelated ownership changes. Ownership, garrison loss, reinforcement, rankings and receipts use the existing atomic transactions and replay protection. Public configuration advertises `armyModel: province-garrisons-v1`; public regions expose their current `garrison`.
+
+### 旧国マップ・常設5ワールド（2026-10-25）
+
+オンライン版は `sengoku-world-v4`、書き込み `rules: 4`。`assets/ui/sengoku-kuni-map.js` が旧国68国＋蝦夷地・琉球の70領地、独自模式図、陸路・海路、旧47県との対応を定義する。ひとり用は以前の地図・ルールを保つ。
+
+- ワールド1〜5を初回アクセス時に冪等作成する。人数上限は設けず、満員による追加作成はしない。おまかせは参加人数の少ないワールドを選ぶ。すでに6以降にいる旧参加者は元の記録を保持するが、新規参加先にはしない。
+- 攻撃兵は保存済みの `state.soldiers`、守備兵は各 `region.garrison`。兵士クイズは `role: 'attack'` なら攻撃兵のみ、`role: 'defense', region: 'owari'` なら所有する指定1領地の守備兵のみを増やす。同じクイズカテゴリの別コースで、武将獲得・育成の正解数や経験値と混ぜない。対象はクイズ開始時に固定し、奪われた場合は補充クイズを終了する。正解ごとの報酬と送信レシートは同じトランザクションで確定する。
+- 攻撃自体のクールタイムは0。通常の占領に成功した場合だけ、成功時点から次の攻撃まで1時間待ち。占領に至らない攻撃・不正解・撤退・期限切れでは待ち時間は発生しない。通常の開始・再起・占領地は1時間保護。過去の実際の所有を `heldRegions` に記録し、奪還は既存クールタイム・相手の保護を待たず出陣でき、新しい待ち時間も保護も付けない。進軍路・同盟の同士討ち禁止・合戦ロックは共通。
+- 新たに所有した土地の守備兵は0。攻撃兵をコピー・消費せず、その土地の守備兵クイズで配置する。全領土を失っても攻撃兵・武将・学習記録は保持。再起は中立地限定、最初の故郷は他勢力の土地も選べるが所有履歴には数えない。
+- 70領地同時支配で天下統一。個人・同盟ランキングの勢力は攻撃兵と武将バフから算出し、守備兵の損失では減らさない。
+- 移行は `mapVersion: 'kyukoku-v1'` を1回だけ適用。元の県別地図と途中の戦闘を `legacyPrefectureMap` に保存。旧国の代表県の領主を優先し、代表県が中立なら交差県の領主を採用する。旧県の守備兵は同じ領主の対応先に分割し複製しない。対応先を失う分は `migrationGuardReserve` に保存する。攻撃兵・武将・学習・永久報酬・同盟を保持し、進行中の学習クイズは継続、旧県への合戦は安全に中断する。移行前の原データは公開レスポンスへ出さない。
+- 同じワールドに戻る際は退役したプレイヤーの学習・兵士・武将を復元する。離脱時は土地を解放する。別ワールドの進行は混ぜない。
+
+この節が、それ以前の47人上限・満員時の追加生成・30分待ち・全自領への自動補充の説明を置き換える。公開検証は70領地・5ワールド・`capacity:null`・1時間と奪還例外・個人/同盟順位のプライバシーを確認し、実プレイヤーや合戦は作らない。

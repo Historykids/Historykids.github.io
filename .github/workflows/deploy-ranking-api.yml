@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js', 'assets/ui/amounts.js', 'assets/ui/wealth-rules.js', 'assets/ui/account-data.js', 'assets/ui/sengoku-rules.js', 'assets/ui/sengoku-world-rules.js', 'assets/ui/sengoku-kuni-map.js']
+    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js', 'assets/ui/amounts.js', 'assets/ui/wealth-rules.js', 'assets/ui/account-data.js', 'assets/ui/sengoku-rules.js', 'assets/ui/sengoku-world-rules.js', 'assets/ui/sengoku-kuni-map.js', 'assets/ui/sengoku-ranking-rules.js', 'assets/ui/sengoku-chat-rules.js']
 permissions:
   contents: write
   pages: write
@@ -30,6 +30,9 @@ jobs:
           node scripts/sengoku-questions.cjs
           node tests/sengoku-worlds.cjs
           node tests/sengoku-worlds-ui.cjs
+          node tests/sengoku-strategy.cjs
+          node tests/sengoku-chat.cjs
+          node tests/sengoku-strategy-ui.cjs
           node tests/sengoku-command.cjs
           node tests/sengoku-balance.cjs
           node tests/sengoku-balance-ui.cjs
@@ -140,8 +143,15 @@ jobs:
           console.log('Alliance consent, benefit configuration and separate ranking checks passed; no alliance or invitation created');
           const forceResponse=await fetch(new URL('/wealth/sengoku/world/ranking',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
           const force=await forceResponse.json();
-          if(!forceResponse.ok||force.protocol!=='sengoku-force-v1'||!Array.isArray(force.entries)||force.entries.some(r=>!Number.isSafeInteger(r.force)||!Number.isSafeInteger(r.soldiers)||'owner' in r||'pending' in r))throw Error('Sengoku force ranking runtime check failed');
-          console.log('Simple soldier and force ranking checks passed; no player or quiz created');
+          if(!forceResponse.ok||force.protocol!=='sengoku-force-v2'||force.scoring!=='balanced-v1'||!Array.isArray(force.entries)||force.entries.some(r=>!Number.isSafeInteger(r.score)||r.score<0||r.score>10000||!r.breakdown||!Number.isSafeInteger(r.force)||!Number.isSafeInteger(r.soldiers)||'owner' in r||'pending' in r))throw Error('Sengoku force ranking runtime check failed');
+          const regionalResponse=await fetch(new URL('/wealth/sengoku/world/ranking?world=1&region=europe',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
+          const regional=await regionalResponse.json();
+          if(!regionalResponse.ok||regional.protocol!=='sengoku-force-v2'||regional.region!=='europe'||regional.territoryCount!==7||regional.entries.some(r=>r.territories<1))throw Error('Regional force ranking runtime check failed');
+          await import('./assets/ui/sengoku-chat-rules.js');
+          const chatResponse=await fetch(new URL('/wealth/sengoku/chat',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
+          const chat=await chatResponse.json();
+          if(!chatResponse.ok||chat.protocol!=='sengoku-emoji-chat-v1'||chat.canSend!==false||!Array.isArray(chat.messages)||chat.messages.some(m=>!globalThis.HKSengokuChatRules.valid(m.emojis)||'owner' in m||'requestId' in m))throw Error('Emoji-only chat read check failed');
+          console.log('Composite and regional rankings and emoji-only chat read checks passed; no player, quiz or chat message created');
           fs.writeFileSync('assets/ui/ranking-config.js','// Public URL only. Never place credentials here.\nwindow.HKRankingConfig=Object.freeze('+JSON.stringify({endpoint:new URL('/ranking',base).href})+');\n');
           const accountLogin=await fetch(new URL('/wealth/account/login',base),{method:'POST',headers:{Origin:'https://historykids.github.io','Content-Type':'application/json'},body:JSON.stringify({username:'runtime_probe_'+crypto.randomUUID().replaceAll('-','').slice(0,8),password:'runtime-probe-not-a-real-password'}),signal:AbortSignal.timeout(15000)});
           const loginDenied=await accountLogin.json();

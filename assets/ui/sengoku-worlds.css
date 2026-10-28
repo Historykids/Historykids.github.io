@@ -15,3 +15,19 @@
 @media(max-width:650px){.worlds-page .japan-map{height:450px}.worlds-page .japan-map text{font-size:28px}}
 
 .sw-world-switch{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin:0 0 1rem;padding:1rem;border:1px solid var(--line,#d8ccaf);border-radius:12px;background:rgba(255,255,255,.55)}.sw-world-switch label{display:grid;gap:.35rem;font-weight:700;min-width:180px}.sw-world-switch p{flex:1;min-width:220px;margin:0;line-height:1.7}
+/* A single atlas projection for overseas regions and the Japanese provinces. */
+.worlds-page .japan-map{height:540px;background:radial-gradient(ellipse at 45% 25%,#e3e9df,#b9cec9);position:relative;border:1px solid #879e94}
+.worlds-page .japan-map svg{aspect-ratio:16/9;min-height:0;touch-action:pan-y}
+.worlds-page .japan-map path[data-code]{fill:#f3eddc;stroke:#647a6e;stroke-width:.6}
+.worlds-page .japan-map path[data-area=japan]{stroke-width:.35}
+.worlds-page .japan-map path[data-code].self{fill:#50715c}.worlds-page .japan-map path[data-code].ally{fill:#88b6b0}.worlds-page .japan-map path[data-code].rival{fill:var(--region-color)}
+.worlds-page .japan-map path[data-code].selected{stroke:#b34230;stroke-width:2}.worlds-page .japan-map path[data-code].fighting{fill:#b64333}
+.worlds-page .japan-map text[data-area=overseas]{font:15px serif;stroke:#f4eddb;stroke-width:3px;fill:#304b40}
+.worlds-page .japan-map text[data-area=japan]{font:1.65px serif;stroke:#fffdf5;stroke-width:.35px;visibility:hidden}
+.worlds-page .japan-map svg[data-detail=province] text[data-area=japan]{visibility:visible}
+.worlds-page .japan-map .sea-line{stroke:#527b80;stroke-width:.7;opacity:.48}
+.worlds-page .japan-map .has-custom-map path[data-code]{fill-opacity:.52}.worlds-page .japan-map .has-custom-map path[data-code].self,.worlds-page .japan-map .has-custom-map path[data-code].ally,.worlds-page .japan-map .has-custom-map path[data-code].rival{fill-opacity:.85}
+.worlds-page .map-zoom{display:flex;flex-wrap:wrap;gap:6px}.worlds-page .map-zoom button{min-width:40px;min-height:40px}
+.sw-upload{border:1px solid #c8b993;background:#f2ecdd;padding:14px 18px;margin:14px 0 22px}.sw-upload summary{cursor:pointer;font-weight:700;color:#2f4c40}.sw-upload p{line-height:1.8}.sw-upload label{display:grid;gap:7px;font-size:13px}.sw-upload input[type=file]{max-width:100%;padding:12px;background:#fffaf0;border:1px dashed #b29c72}.sw-upload input[type=range]{width:100%;accent-color:#365844}.sw-upload #swMapImageControls{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}.sw-upload button{font-size:12px;min-height:42px}.sw-upload .error{color:#a44135}
+@media(max-width:650px){.worlds-page .japan-map{height:420px}.sw-upload{padding:13px}.worlds-page .map-zoom button{font-size:12px}.sw-upload #swMapImageControls{gap:12px}}
+.worlds-page .japan-map text[data-area=overseas]{font-size:24px}.worlds-page .japan-map svg[data-detail=world] text[data-area=overseas][data-major=false]{visibility:hidden}.worlds-page .japan-map svg[data-detail=province] text[data-area=overseas]{font-size:3px;stroke-width:.5px}

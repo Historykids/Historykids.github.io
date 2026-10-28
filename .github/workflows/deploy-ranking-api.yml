@@ -33,6 +33,8 @@ jobs:
           node tests/sengoku-command.cjs
           node tests/sengoku-balance.cjs
           node tests/sengoku-balance-ui.cjs
+          node tests/sengoku-global.cjs
+          node tests/sengoku-global-ui.cjs
           node tests/sengoku-alliances.cjs
           node tests/sengoku-alliances-ui.cjs
           node tests/sengoku-api.cjs
@@ -113,10 +115,10 @@ jobs:
           for(let attempt=0;attempt<72;attempt++){
             worldsResponse=await fetch(new URL('/wealth/sengoku/worlds',base),{headers:{Origin:'https://historykids.github.io','Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
             worlds=await worldsResponse.json();
-            if(worldsResponse.ok&&worlds.protocol==='sengoku-world-v6'&&worlds.combat==='five-correct-tenth-force'&&worlds.alliances?.protocol==='sengoku-alliance-v1'&&worlds.captureCooldownMs===300000&&worlds.attackCooldownMs===300000&&worlds.startingProvince==='any-owner'&&worlds.respawnProvince==='neutral-only'&&worlds.protectionMs===3600000&&worlds.reclaimProtectionMs===0&&worlds.reclaimIgnoresProtection===true&&worlds.armyModel==='split-attack-defense-v2'&&worlds.mapVersion==='kyukoku-v1'&&worlds.worldCreation==='fixed-three'&&worlds.defenseResetVersion==='three-worlds-defense-zero-20261025'&&worlds.allianceFeatures==='command-center-v2'&&worlds.damageDivisor===10&&worlds.wrongAnswerCooldownMs===300000&&worlds.worldSwitch==='preserve-world-progress'&&worlds.territoryResetVersion==='quarter-force-neutral-half-20261025')break;
+            if(worldsResponse.ok&&worlds.protocol==='sengoku-world-v6'&&worlds.combat==='five-correct-tenth-force'&&worlds.alliances?.protocol==='sengoku-alliance-v1'&&worlds.captureCooldownMs===300000&&worlds.attackCooldownMs===300000&&worlds.startingProvince==='any-owner'&&worlds.respawnProvince==='neutral-only'&&worlds.protectionMs===3600000&&worlds.reclaimProtectionMs===0&&worlds.reclaimIgnoresProtection===true&&worlds.armyModel==='split-attack-defense-v2'&&worlds.mapVersion==='world-18c-v1'&&worlds.mapExpansionVersion==='global-map-neutral-20261028'&&worlds.worldCreation==='fixed-three'&&worlds.defenseResetVersion==='three-worlds-defense-zero-20261025'&&worlds.allianceFeatures==='command-center-v2'&&worlds.damageDivisor===10&&worlds.wrongAnswerCooldownMs===300000&&worlds.worldSwitch==='preserve-world-progress'&&worlds.territoryResetVersion==='quarter-force-neutral-half-20261025')break;
             if(attempt<71)await new Promise(resolve=>setTimeout(resolve,5000));
           }
-          if(!worldsResponse.ok||worlds.protocol!=='sengoku-world-v6'||worlds.capacity!==null||!Array.isArray(worlds.worlds)||worlds.worldCount!==3||worlds.worlds.length!==3||worlds.territoryCount!==70||worlds.worlds.some(w=>w.capacity!==null))throw Error('Shared Sengoku world runtime check failed');
+          if(!worldsResponse.ok||worlds.protocol!=='sengoku-world-v6'||worlds.capacity!==null||!Array.isArray(worlds.worlds)||worlds.worldCount!==3||worlds.worlds.length!==3||worlds.territoryCount!==110||worlds.worlds.some(w=>w.capacity!==null))throw Error('Shared Sengoku world runtime check failed');
           if(worlds.worldCreation!=='fixed-three'||worlds.quiz?.eras?.length!==14||worlds.quiz.eras[0]!=='jomon'||worlds.quiz.eras.at(-1)!=='heisei'||worlds.quiz.questions!==298)throw Error('Jomon–Heisei quiz and fixed-three world rules runtime check failed');
           if(JSON.stringify(worlds.quizModes)!==JSON.stringify(['general','soldiers','level','battle'])||worlds.combat!=='five-correct-tenth-force'||worlds.captureCooldownMs!==300000)throw Error('Four quiz modes and capture cooldown runtime check failed');
           if(!shared.ok||sharedState.own!==null)throw Error('Shared Sengoku private view check failed');
@@ -124,10 +126,10 @@ jobs:
           if(worlds.startingProvince!=='any-owner'||worlds.respawnProvince!=='neutral-only')throw Error('Home selection and neutral respawn runtime check failed');
           if(worlds.protectionMs!==3600000||worlds.reclaimProtectionMs!==0||worlds.reclaimIgnoresProtection!==true)throw Error('One-hour protection and unprotected land reclamation check failed');
           if(worlds.armyModel!=='split-attack-defense-v2'||worlds.garrisonReinforcement!=='selected-land-quiz')throw Error('Independent province garrison check failed');
-          if(worlds.defenseResetVersion!=='three-worlds-defense-zero-20261025'||worlds.allianceFeatures!=='command-center-v2'||worlds.attackCooldownMs!==300000||worlds.reclaimCooldownMs!==300000||worlds.mapVersion!=='kyukoku-v1')throw Error('Old-country reclamation configuration mismatch');
+          if(worlds.defenseResetVersion!=='three-worlds-defense-zero-20261025'||worlds.allianceFeatures!=='command-center-v2'||worlds.attackCooldownMs!==300000||worlds.reclaimCooldownMs!==300000||worlds.mapVersion!=='world-18c-v1')throw Error('Old-country reclamation configuration mismatch');
           const mapResponse=await fetch(new URL('/wealth/sengoku/world?world=1',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
           const map=await mapResponse.json();
-          if(!mapResponse.ok||map.protocol!=='sengoku-world-v6'||map.own!==null||map.world?.regions?.length!==70||!map.world.regions.some(r=>r.id==='owari')||map.world.legacyPrefectureMap||map.world.players.some(p=>'owner' in p||'state' in p))throw Error('Seventy old-country public map check failed');
+          if(!mapResponse.ok||map.protocol!=='sengoku-world-v6'||map.own!==null||map.world?.regions?.length!==110||!map.world.regions.some(r=>r.id==='owari')||map.world.legacyPrefectureMap||map.world.players.some(p=>'owner' in p||'state' in p))throw Error('World public map check failed');
           console.log('Seventy old-country regions, three unlimited worlds and selected-land defense recruitment checks passed; no player or battle created');
           console.log('One-hour province protection and land reclamation checks passed; no battle created');
           console.log('Four separate quiz modes, tenth-force combat and five-minute attack cooldown checks passed; no player, battle or quiz created');

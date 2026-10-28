@@ -173,3 +173,13 @@ Existing v3 worlds initialize owned garrisons once from the current reserve. Pen
 ### 2026-10-26 攻撃ダメージを10分の1へ変更
 
 現行の合戦ダメージは `ceil(frozen attack force / 10)`。5問連続正解時に、武将バフを含む出陣時攻撃兵力の10分の1（端数切り上げ）だけ、対象の現在の守備兵を減らす。公開設定は `combat: five-correct-tenth-force` と `damageDivisor: 10`。画面の予測・進行中のクイズ・結果判定は同じ共有計算を使う。5分待ち・保護期間・ワールド・領有権・軍勢・同盟のルールは維持し、完了済みの中立化の移行キーを変えない。
+
+## World atlas expansion (2026-10-28)
+
+The shared geography now contains 110 game areas: the same 70 Japanese province IDs and 40 overseas areas based on the owner-supplied eighteenth-century reference. This is a fictional composite, not a single historical date or a claim about real sovereignty. Sea links are explicit game routes. Starting homes remain Japanese; overseas areas can be conquered or used for neutral-only recovery. Three worlds remain unlimited. Damage and all cooldowns are unchanged.
+
+`global-map-neutral-20261028` archives each raw world before appending missing overseas areas with owner null, garrison zero and no protection. All three world updates, ranking sync and the completion marker commit atomically. Japanese ownership, garrisons, learning quizzes, ongoing battles, armies, generals, alliances and account entitlements are preserved. Existing territory/defense reset keys are not changed or repeated. Subsequent requests never reset conquered overseas lands. A completed Japanese campaign retains its castle reward at 70 Japanese lands; victory in the expanded world requires all 110 areas.
+
+World polling now has a single in-flight read: a slow response cannot be superseded forever by the five-second timer. World-list refresh is at most once every 30 seconds, including the lobby. List failures retain the verified campaign connection; world failures back off (30 seconds for throttling), while explicit refresh can retry immediately. Mutating actions retain the original journal and idempotency rules.
+
+Map uploads are optional device-local backgrounds, stored per world in a separate IndexedDB database `hk_sengoku_map_images_v1`. They are never sent to the game server or account sync. Only PNG/JPEG/WebP up to 8 MiB, 24 MP and 8192 pixels per side are accepted; decoding and canvas re-encoding remove embedded metadata. SVG/HTML are rejected. Image opacity, position, scale, restoration and removal affect only presentation; territory boundaries and authority remain server-controlled. Storage denial shows an explicit temporary-session message. Verify with `tests/sengoku-global.cjs` and `tests/sengoku-global-ui.cjs`.

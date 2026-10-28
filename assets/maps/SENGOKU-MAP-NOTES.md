@@ -19,3 +19,7 @@ those in `assets/ui/sengoku-kuni-map.js`.
 
 These outlines are for game navigation, not surveying or exact reconstruction
 of borders at a particular historical date.
+
+## 世界版（2026-10-28）
+
+`sengoku-world.svg` combines the existing 70 Japanese outlines with 40 overseas game areas derived from the second owner-supplied reference, 「18世紀後半の世界地図（投稿用）-1.jpeg」. Coastlines are simplified; obstructing caption boxes are removed and unclear outlines are redrawn. All original raster files remain outside the repository. Overseas ownership begins neutral regardless of the reference's imperial colors. Japanese province paths are transformed into the atlas projection; Ryukyu moves from its old inset to the island-chain area. The composite deliberately combines different eras and uses simplified game borders/routes, rather than reproducing one historical political map. It does not assert current boundaries or sovereignty.

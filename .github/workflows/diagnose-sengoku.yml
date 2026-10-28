@@ -1,0 +1,24 @@
+name: Diagnose public Sengoku connection
+on:
+  push:
+    branches: [codex/sengoku-connection-probe-20261028]
+    paths: [.github/workflows/diagnose-sengoku.yml]
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Read public health and world responses
+        run: |
+          node --input-type=module <<'JS'
+          const base='https://historykids-ranking-api.historykids-5185046038.workers.dev';
+          for(const path of ['/health','/wealth/sengoku/worlds','/wealth/sengoku/world','/wealth/sengoku/world?world=1','/wealth/sengoku/world?world=2','/wealth/sengoku/world?world=3']){
+            try {
+              const r=await fetch(base+path,{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
+              const d=await r.json().catch(()=>null);
+              console.log(JSON.stringify({path,status:r.status,cors:r.headers.get('access-control-allow-origin'),ready:d?.ready,error:typeof d?.error==='string'&&/^[a-z0-9-]+$/.test(d.error)?d.error:undefined,protocol:d?.protocol,mapVersion:d?.mapVersion||d?.world?.mapVersion,territoryCount:d?.territoryCount,worldCount:d?.worldCount,overseasTerritoryCount:d?.overseasTerritoryCount,mapExpansionVersion:d?.mapExpansionVersion,regions:d?.world?.regions?.length,world:d?.world?.id,hasAccount:!!d?.account?.signedIn}));
+            } catch(e) { console.log(JSON.stringify({path,error:e.name})); }
+          }
+          JS

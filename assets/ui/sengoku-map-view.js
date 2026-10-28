@@ -1,15 +1,21 @@
 /* A continuous SVG camera. Gestures change the view, never the shared world. */
 (function(root){
  'use strict';
- function create({svg,host,bounds,japanBounds,onChange=()=>{}}){
+ function create({svg,host,bounds,japanBounds,selectedRegion=null,onChange=()=>{}}){
   const win=host.ownerDocument.defaultView,doc=host.ownerDocument,points=new Map(),cleanups=[];
   const reduced=()=>win.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const clock=()=>win.performance.now(),copy=v=>({...v});
+  const labels=[...svg.querySelectorAll('text[data-label]')].map(el=>({el,id:el.dataset.label,japan:el.dataset.area==='japan',major:el.dataset.major==='true',x:Number(el.getAttribute('x')),y:Number(el.getAttribute('y')),length:[...el.textContent].length}));let labelUnit='';
   let view,target,frame=0,lastFrame=0,animation=false,inertia=null,gesture=null,suppressUntil=0,lastTap=null,preset='japan',destroyed=false;
   function rect(){const r=host.getBoundingClientRect();return{left:r.left||0,top:r.top||0,width:r.width||700,height:r.height||600};}
   function limits(){const r=rect();return{aspect:r.width/r.height,min:bounds.width/64,max:Math.max(bounds.width,bounds.height*r.width/r.height)};}
   function constrain(v){const {aspect,min,max}=limits(),width=Math.max(min,Math.min(max,v.width)),height=width/aspect,cx=v.x+v.width/2,cy=v.y+v.height/2;return{width,height,x:width>=bounds.width?(bounds.width-width)/2:Math.max(0,Math.min(bounds.width-width,cx-width/2)),y:height>=bounds.height?(bounds.height-height)/2:Math.max(0,Math.min(bounds.height-height,cy-height/2))};}
-  function emit(){svg.setAttribute('viewBox',[view.x,view.y,view.width,view.height].map(n=>Number(n.toFixed(6))).join(' '));svg.dataset.detail=view.width<=360?'province':view.width<=1000?'regional':'world';onChange({zoom:bounds.width/view.width,minimum:view.width>=limits().max-.001,maximum:view.width<=limits().min+.001});}
+  function layoutLabels(){const r=rect(),unit=view.width/r.width,value=unit.toFixed(8);if(value!==labelUnit){labelUnit=value;svg.style.setProperty('--map-japan-label',(unit*8).toFixed(6)+'px');svg.style.setProperty('--map-world-label',(unit*9).toFixed(6)+'px');svg.style.setProperty('--map-label-stroke',(unit*1.2).toFixed(6)+'px');}
+   const occupied=[],visible=new Set(),detail=svg.dataset.detail,candidates=labels.filter(label=>label.id===selectedRegion||(label.japan?detail==='province':detail!=='world'||label.major)).sort((a,b)=>(a.id===selectedRegion?-10:a.japan?0:a.major?1:2)-(b.id===selectedRegion?-10:b.japan?0:b.major?1:2));
+   for(const label of candidates){const size=label.japan?8:9,x=(label.x-view.x)/unit,y=(label.y-view.y)/unit,width=label.length*size,box={left:x-width/2-2,right:x+width/2+2,top:y-size/2-2,bottom:y+size/2+2};if(box.right<0||box.left>r.width||box.bottom<0||box.top>r.height)continue;if(occupied.some(other=>box.left<other.right&&box.right>other.left&&box.top<other.bottom&&box.bottom>other.top))continue;visible.add(label.id);occupied.push(box);}
+   for(const label of labels){const visibility=visible.has(label.id)?'visible':'hidden';if(label.el.style.visibility!==visibility)label.el.style.visibility=visibility;label.el.classList.toggle('is-map-selected',label.id===selectedRegion);}
+  }
+  function emit(){svg.setAttribute('viewBox',[view.x,view.y,view.width,view.height].map(n=>Number(n.toFixed(6))).join(' '));svg.dataset.detail=view.width<=360?'province':view.width<=1000?'regional':'world';layoutLabels();onChange({zoom:bounds.width/view.width,minimum:view.width>=limits().max-.001,maximum:view.width<=limits().min+.001});}
   function schedule(){if(!frame&&!destroyed)frame=win.requestAnimationFrame(tick);}
   function tick(time){frame=0;const dt=Math.min(40,Math.max(1,lastFrame?time-lastFrame:16));lastFrame=time;
    if(inertia){const previous=target;target=constrain({...target,x:target.x+inertia.x*dt,y:target.y+inertia.y*dt});if(Math.abs(target.x-previous.x)<.00001)inertia.x=0;if(Math.abs(target.y-previous.y)<.00001)inertia.y=0;const decay=Math.exp(-dt/150);inertia.x*=decay;inertia.y*=decay;if(Math.hypot(inertia.x,inertia.y)<.0005||time-inertia.at>650)inertia=null;}
@@ -49,7 +55,7 @@
   const observer=win.ResizeObserver?new win.ResizeObserver(resize):null;observer?.observe(host);listen(win,'resize',resize);
   host.tabIndex=0;host.setAttribute('aria-label','地図。ドラッグで移動、ホイールやピンチで拡大縮小。矢印キーで移動、プラス・マイナスで拡大縮小、Homeで日本へ戻る。');
   view={x:0,y:0,...bounds};target=copy(view);japan(false);
-  return Object.freeze({japan,world,focus,zoomBy(factor){zoomAt(factor);},getView(){return{...view,zoom:bounds.width/view.width};},destroy(){destroyed=true;cancel();observer?.disconnect();for(const remove of cleanups)remove();}});
+  return Object.freeze({japan,world,focus,setSelected(id){if(selectedRegion!==id){selectedRegion=id;layoutLabels();}},zoomBy(factor){zoomAt(factor);},getView(){return{...view,zoom:bounds.width/view.width};},destroy(){destroyed=true;cancel();observer?.disconnect();for(const remove of cleanups)remove();}});
  }
  root.HKSengokuMapView=Object.freeze({create});
 })(typeof window!=='undefined'?window:globalThis);

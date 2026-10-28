@@ -93,6 +93,9 @@
    path:`M${l+8},${t}H${r-8}L${r},${t+8}V${b-8}L${r-8},${b}H${l+8}L${l},${b-8}V${t+8}Z`,
    legacyPrefecture,legacyPrefectures:Object.freeze(legacyPrefectures)});
  });
+ const japanRegions=Object.freeze([...regions]);
+ const overseas=[["russia","ロシア",650,205],["qing","清",746,389],["joseon","朝鮮",847,413],["britain","ブリテン諸島",119,291],["france","フランス",168,353],["iberia","イベリア",175,423],["scandinavia","北欧",268,209],["central_europe","中部ヨーロッパ",267,329],["italy","イタリア",238,404],["ottoman","オスマン",320,443],["kazakh","カザフ",526,329],["bukhara","ブハラ",510,393],["kokand","コーカンド",591,390],["persia","ペルシア",458,442],["afghanistan","アフガニスタン",546,446],["india","インド",576,524],["bengal","ベンガル",640,498],["burma","ビルマ",680,529],["siam","シャム",711,559],["vietnam","大越",738,546],["arabia","アラビア",427,515],["north_africa","北アフリカ",249,559],["south_africa","南アフリカ",303,737],["madagascar","マダガスカル",419,749],["indonesia","東インド諸島",777,667],["philippines","フィリピン",825,573],["oceania","オーストラリア",881,788],["new_zealand","ニュージーランド",1086,883],["pacific","太平洋諸島",1150,672],["canada","北アメリカ北部",1492,263],["united_states","アメリカ合衆国",1698,428],["louisiana","ルイジアナ",1645,383],["new_spain","ヌエバ・エスパーニャ",1522,483],["caribbean","カリブ諸島",1741,551],["new_granada","南アメリカ北部",1732,621],["peru","アンデス",1733,754],["la_plata","ラプラタ",1728,884],["brazil","ブラジル",1841,724],["greenland","グリーンランド",1867,151],["iceland","アイスランド",57,179]];
+ for(const [id,name,x,y] of overseas)regions.push(Object.freeze({id,name,short:name,reading:name,province:name,supplemental:true,overseas:true,modern:"海外のゲーム地域",castle:name+"の拠点",tier:2,unit:"infantry",x,y,legacyPrefecture:null,legacyPrefectures:Object.freeze([])}));
  const regionById=new Map(regions.map(r=>[r.id,r]));
  // Land links describe bordering old provinces; water links are game routes.
  const land=`
@@ -115,14 +118,16 @@
  chikuzen-hizen chikuzen-chikugo chikuzen-buzen chikugo-hizen chikugo-higo chikugo-bungo
  buzen-bungo bungo-higo bungo-hyuga higo-hyuga higo-satsuma higo-osumi hyuga-osumi hyuga-satsuma osumi-satsuma`;
  const sea='ezo-mutsu sado-echigo oki-izumo oki-hoki awaji-settsu awaji-harima awaji-awa awaji-kii awa-kii sanuki-bizen iyo-aki iyo-suo iyo-bungo nagato-buzen hizen-iki iki-tsushima satsuma-ryukyu osumi-ryukyu';
- const routes=Object.freeze([[land,false],[sea,true]].flatMap(([text,water])=>text.trim().split(/\s+/).map(pair=>Object.freeze({ends:Object.freeze(pair.split('-')),sea:water}))));
+ const globalLand='russia-qing russia-kazakh russia-scandinavia russia-central_europe qing-joseon qing-kokand qing-afghanistan qing-india qing-burma qing-vietnam kazakh-bukhara kazakh-kokand bukhara-kokand bukhara-persia bukhara-afghanistan kokand-afghanistan persia-afghanistan persia-ottoman afghanistan-india india-bengal bengal-burma burma-siam siam-vietnam ottoman-arabia ottoman-central_europe central_europe-france central_europe-italy france-iberia north_africa-south_africa canada-united_states canada-louisiana united_states-louisiana louisiana-new_spain new_spain-new_granada new_granada-peru peru-la_plata peru-brazil la_plata-brazil new_granada-brazil';
+ const globalSea='tsushima-joseon ezo-russia ryukyu-qing hizen-qing ryukyu-philippines qing-philippines vietnam-philippines vietnam-indonesia siam-indonesia india-arabia arabia-north_africa ottoman-north_africa iberia-north_africa iberia-britain britain-france britain-scandinavia britain-iceland iceland-greenland greenland-canada russia-canada italy-north_africa south_africa-madagascar indonesia-oceania philippines-pacific pacific-new_zealand oceania-new_zealand new_spain-caribbean caribbean-new_granada iberia-caribbean';
+ const routes=Object.freeze([[land,false],[sea,true],[globalLand,false],[globalSea,true]].flatMap(([text,water])=>text.trim().split(/\s+/).map(pair=>Object.freeze({ends:Object.freeze(pair.split('-')),sea:water}))));
  const legacy=['ezo','mutsu','mutsu','mutsu','dewa','dewa','mutsu','hitachi','shimotsuke','kozuke','musashi','shimosa','musashi','sagami','echigo','etchu','kaga','echizen','kai','shinano','mino','suruga','owari','ise','omi','yamashiro','settsu','harima','yamato','kii','inaba','izumo','bizen','aki','suo','awa','sanuki','iyo','tosa','chikuzen','hizen','hizen','higo','bungo','hyuga','satsuma','ryukyu'];
  const region=id=>regionById.get(id);
  const legacyRegion=id=>region(id)?id:/^(?:0?[1-9]|[1-3][0-9]|4[0-7])$/.test(String(id))?legacy[Number(id)-1]:null;
  function reachable(state,id){return !!region(id)&&!state.ownedRegions.includes(id)&&routes.some(edge=>(!edge.sea||state.port)&&edge.ends.includes(id)&&edge.ends.some(n=>state.ownedRegions.includes(n)));}
  function enemy(state,id){const r=region(id);if(!r)return null;return{...r,army:Math.round((200+r.tier*r.tier*120)*(1+Math.min(state.unifications||0,20)*.25)),level:r.tier,reward:r.tier>=4?300:100};}
- const api=Object.freeze({version:1,regions:Object.freeze(regions),routes,region,reachable,enemy,legacyRegion,
-  viewBox:'0 0 1450 1200',mapNote:'旧国68か国＋蝦夷地・琉球のゲーム用模式図。位置と進軍路を示し、歴史上の国境そのものは表していません。',
+ const api=Object.freeze({version:2,mapVersion:"world-18c-v1",japanRegions,overseasRegions:Object.freeze(regions.filter(r=>r.overseas)),regions:Object.freeze(regions),routes,region,reachable,enemy,legacyRegion,
+  viewBox:'0 0 1920 1080',mapNote:'旧国68か国＋蝦夷地・琉球のゲーム用模式図。位置と進軍路を示し、歴史上の国境そのものは表していません。',
   source:'https://www.env.go.jp/content/000303787.pdf'});
  root.HKSengokuKuniMap=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

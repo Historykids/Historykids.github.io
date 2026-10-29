@@ -36,7 +36,7 @@ jobs:
           node tests/sengoku-command.cjs
           node tests/sengoku-balance.cjs
           node tests/sengoku-balance-ui.cjs
-          node tests/sengoku-global.cjs
+          node tests/sengoku-global.cjs && node tests/sengoku-modern.cjs
           node tests/sengoku-global-ui.cjs
           node tests/sengoku-alliances.cjs
           node tests/sengoku-alliances-ui.cjs
@@ -118,24 +118,24 @@ jobs:
           for(let attempt=0;attempt<72;attempt++){
             worldsResponse=await fetch(new URL('/wealth/sengoku/worlds',base),{headers:{Origin:'https://historykids.github.io','Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
             worlds=await worldsResponse.json();
-            if(worldsResponse.ok&&worlds.protocol==='sengoku-world-v6'&&worlds.combat==='five-correct-tenth-force'&&worlds.alliances?.protocol==='sengoku-alliance-v1'&&worlds.captureCooldownMs===300000&&worlds.attackCooldownMs===300000&&worlds.startingProvince==='any-owner'&&worlds.respawnProvince==='neutral-only'&&worlds.startingRegionScope==='japan-only'&&worlds.respawnRegionScope==='japan-only'&&worlds.protectionMs===3600000&&worlds.reclaimProtectionMs===0&&worlds.reclaimIgnoresProtection===true&&worlds.armyModel==='split-attack-defense-v2'&&worlds.mapVersion==='world-18c-v1'&&worlds.mapExpansionVersion==='global-map-neutral-20261028'&&worlds.worldCreation==='fixed-three'&&worlds.defenseResetVersion==='three-worlds-defense-zero-20261025'&&worlds.allianceFeatures==='command-center-v2'&&worlds.damageDivisor===10&&worlds.wrongAnswerCooldownMs===300000&&worlds.worldSwitch==='preserve-world-progress'&&worlds.territoryResetVersion==='quarter-force-neutral-half-20261025'&&worlds.overseasInitialGarrison===5000&&worlds.overseasGarrisonVersion==='overseas-neutral-5000-20261029-v1')break;
+            if(worldsResponse.ok&&worlds.protocol==='sengoku-world-v6'&&worlds.combat==='five-correct-tenth-force'&&worlds.alliances?.protocol==='sengoku-alliance-v1'&&worlds.captureCooldownMs===300000&&worlds.attackCooldownMs===300000&&worlds.startingProvince==='zero-garrison-unprotected'&&worlds.respawnProvince==='zero-garrison-unprotected'&&worlds.clientRules===7&&worlds.modernMapVersion==='modern-borders-20261029-v1'&&worlds.titlesVersion==='unification-v1'&&worlds.startingRegionScope==='worldwide'&&worlds.respawnRegionScope==='worldwide'&&worlds.protectionMs===7200000&&worlds.reclaimProtectionMs===0&&worlds.reclaimIgnoresProtection===true&&worlds.armyModel==='split-attack-defense-v2'&&worlds.mapVersion==='world-modern-v1'&&worlds.mapExpansionVersion==='global-map-neutral-20261028'&&worlds.worldCreation==='fixed-three'&&worlds.defenseResetVersion==='three-worlds-defense-zero-20261025'&&worlds.allianceFeatures==='command-center-v2'&&worlds.damageDivisor===10&&worlds.wrongAnswerCooldownMs===300000&&worlds.worldSwitch==='preserve-world-progress'&&worlds.territoryResetVersion==='quarter-force-neutral-half-20261025'&&worlds.overseasInitialGarrison===5000&&worlds.overseasGarrisonVersion==='overseas-neutral-5000-20261029-v1')break;
             if(attempt<71)await new Promise(resolve=>setTimeout(resolve,5000));
           }
-          if(!worldsResponse.ok||worlds.protocol!=='sengoku-world-v6'||worlds.capacity!==null||!Array.isArray(worlds.worlds)||worlds.worldCount!==3||worlds.worlds.length!==3||worlds.territoryCount!==110||worlds.worlds.some(w=>w.capacity!==null))throw Error('Shared Sengoku world runtime check failed');
+          if(!worldsResponse.ok||worlds.protocol!=='sengoku-world-v6'||worlds.capacity!==null||!Array.isArray(worlds.worlds)||worlds.worldCount!==3||worlds.worlds.length!==3||worlds.territoryCount!==311||worlds.worlds.some(w=>w.capacity!==null))throw Error('Shared Sengoku world runtime check failed');
           if(worlds.worldCreation!=='fixed-three'||worlds.quiz?.eras?.length!==14||worlds.quiz.eras[0]!=='jomon'||worlds.quiz.eras.at(-1)!=='heisei'||worlds.quiz.questions!==298)throw Error('Jomon–Heisei quiz and fixed-three world rules runtime check failed');
           if(JSON.stringify(worlds.quizModes)!==JSON.stringify(['general','soldiers','level','battle'])||worlds.combat!=='five-correct-tenth-force'||worlds.captureCooldownMs!==300000)throw Error('Four quiz modes and capture cooldown runtime check failed');
           if(!shared.ok||sharedState.own!==null)throw Error('Shared Sengoku private view check failed');
           if(worlds.damageDivisor!==10||worlds.wrongAnswerCooldownMs!==300000||worlds.worldSwitch!=='preserve-world-progress'||worlds.territoryResetVersion!=='quarter-force-neutral-half-20261025')throw Error('Combat balance and world-switch configuration mismatch');
-          if(worlds.startingProvince!=='any-owner'||worlds.respawnProvince!=='neutral-only'||worlds.startingRegionScope!=='japan-only'||worlds.respawnRegionScope!=='japan-only')throw Error('Home selection and neutral respawn runtime check failed');
-          if(worlds.protectionMs!==3600000||worlds.reclaimProtectionMs!==0||worlds.reclaimIgnoresProtection!==true)throw Error('One-hour protection and unprotected land reclamation check failed');
+          if(worlds.startingProvince!=='zero-garrison-unprotected'||worlds.respawnProvince!=='zero-garrison-unprotected'||worlds.startingRegionScope!=='worldwide'||worlds.respawnRegionScope!=='worldwide')throw Error('Home selection and neutral respawn runtime check failed');
+          if(worlds.protectionMs!==7200000||worlds.reclaimProtectionMs!==0||worlds.reclaimIgnoresProtection!==true)throw Error('One-hour protection and unprotected land reclamation check failed');
           if(worlds.armyModel!=='split-attack-defense-v2'||worlds.garrisonReinforcement!=='selected-land-quiz')throw Error('Independent province garrison check failed');
-          if(worlds.defenseResetVersion!=='three-worlds-defense-zero-20261025'||worlds.allianceFeatures!=='command-center-v2'||worlds.attackCooldownMs!==300000||worlds.reclaimCooldownMs!==300000||worlds.mapVersion!=='world-18c-v1')throw Error('Old-country reclamation configuration mismatch');
+          if(worlds.defenseResetVersion!=='three-worlds-defense-zero-20261025'||worlds.allianceFeatures!=='command-center-v2'||worlds.attackCooldownMs!==300000||worlds.reclaimCooldownMs!==300000||worlds.mapVersion!=='world-modern-v1')throw Error('Old-country reclamation configuration mismatch');
           if(worlds.overseasInitialGarrison!==5000||worlds.overseasGarrisonVersion!=='overseas-neutral-5000-20261029-v1')throw Error('Neutral overseas garrison configuration mismatch');
           const mapResponse=await fetch(new URL('/wealth/sengoku/world?world=1',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
           const map=await mapResponse.json();
-          if(!mapResponse.ok||map.protocol!=='sengoku-world-v6'||map.own!==null||map.world?.regions?.length!==110||!map.world.regions.some(r=>r.id==='owari')||map.world.legacyPrefectureMap||map.world.players.some(p=>'owner' in p||'state' in p))throw Error('World public map check failed');
+          if(!mapResponse.ok||map.protocol!=='sengoku-world-v6'||map.own!==null||map.world?.regions?.length!==311||!map.world.regions.some(r=>r.id==='owari')||map.world.legacyPrefectureMap||map.world.players.some(p=>'owner' in p||'state' in p))throw Error('World public map check failed');
           await import('./assets/ui/sengoku-kuni-map.js');
-          if(worlds.worlds.some(w=>[...w.startingRegions,...w.available].some(id=>!globalThis.HKSengokuKuniMap.japanRegions.some(r=>r.id===id))))throw Error('Starting homes and respawn choices must remain Japanese');
+          if(worlds.worlds.some(w=>[...w.startingRegions,...w.available].some(id=>!globalThis.HKSengokuKuniMap.region(id))))throw Error('Starting homes and respawn choices must be valid world regions');
           for(const id of [1,2,3]){
             const response=await fetch(new URL('/wealth/sengoku/world?world='+id,base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
             const view=await response.json();
@@ -152,16 +152,18 @@ jobs:
           console.log('Alliance consent, benefit configuration and separate ranking checks passed; no alliance or invitation created');
           const forceResponse=await fetch(new URL('/wealth/sengoku/world/ranking',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
           const force=await forceResponse.json();
-          if(!forceResponse.ok||force.protocol!=='sengoku-force-v2'||force.scoring!=='balanced-v1'||!Array.isArray(force.entries)||force.entries.some(r=>!Number.isSafeInteger(r.score)||r.score<0||r.score>10000||!r.breakdown||!Number.isSafeInteger(r.force)||!Number.isSafeInteger(r.soldiers)||'owner' in r||'pending' in r))throw Error('Sengoku force ranking runtime check failed');
+          if(!forceResponse.ok||force.protocol!=='sengoku-force-v2'||force.scoring!=='balanced-modern-v2'||!Array.isArray(force.entries)||force.entries.some(r=>!Number.isSafeInteger(r.score)||r.score<0||r.score>10000||!r.breakdown||!Number.isSafeInteger(r.force)||!Number.isSafeInteger(r.soldiers)||'owner' in r||'pending' in r))throw Error('Sengoku force ranking runtime check failed');
           const regionalResponse=await fetch(new URL('/wealth/sengoku/world/ranking?world=1&region=europe',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
           const regional=await regionalResponse.json();
-          if(!regionalResponse.ok||regional.protocol!=='sengoku-force-v2'||regional.region!=='europe'||regional.territoryCount!==7||regional.entries.some(r=>r.territories<1))throw Error('Regional force ranking runtime check failed');
+          if(!regionalResponse.ok||regional.protocol!=='sengoku-force-v2'||regional.region!=='europe'||regional.territoryCount!==50||regional.entries.some(r=>r.territories<1))throw Error('Regional force ranking runtime check failed');
           await import('./assets/ui/sengoku-chat-rules.js');
           const chatResponse=await fetch(new URL('/wealth/sengoku/chat',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
           const chat=await chatResponse.json();
           if(!chatResponse.ok||chat.protocol!=='sengoku-emoji-chat-v1'||chat.canSend!==false||!Array.isArray(chat.messages)||chat.messages.some(m=>!globalThis.HKSengokuChatRules.valid(m.emojis)||'owner' in m||'requestId' in m))throw Error('Emoji-only chat read check failed');
           console.log('Composite and regional rankings and emoji-only chat read checks passed; no player, quiz or chat message created');
           fs.writeFileSync('assets/ui/ranking-config.js','// Public URL only. Never place credentials here.\nwindow.HKRankingConfig=Object.freeze('+JSON.stringify({endpoint:new URL('/ranking',base).href})+');\n');
+          const capabilitiesResponse=await fetch(new URL('/wealth/account/capabilities',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
+          const capabilities=await capabilitiesResponse.json();if(!capabilitiesResponse.ok||capabilities.rename!==true)throw Error('Account rename capability check failed');
           const accountLogin=await fetch(new URL('/wealth/account/login',base),{method:'POST',headers:{Origin:'https://historykids.github.io','Content-Type':'application/json'},body:JSON.stringify({username:'runtime_probe_'+crypto.randomUUID().replaceAll('-','').slice(0,8),password:'runtime-probe-not-a-real-password'}),signal:AbortSignal.timeout(15000)});
           const loginDenied=await accountLogin.json();
           if(accountLogin.status!==401||loginDenied.error!=='account-credentials')throw Error('Account password runtime check failed: '+JSON.stringify({status:accountLogin.status,error:loginDenied.error}));

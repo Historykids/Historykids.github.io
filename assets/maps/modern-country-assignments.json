@@ -1,0 +1,247 @@
+{
+  "version": "modern-20261029-v1",
+  "source": "https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_50m_admin_0_countries.geojson",
+  "sha256": "3e458fc036ad0a66411f2c1e6cac49c5d7bfb81cb1123bc513b22511a2b7fdeb",
+  "legacyAssignments": [
+    {
+      "oldId": "russia",
+      "newId": "russia",
+      "name": "ロシア",
+      "countryCode": "RUS"
+    },
+    {
+      "oldId": "qing",
+      "newId": "qing",
+      "name": "中国",
+      "countryCode": "CHN"
+    },
+    {
+      "oldId": "joseon",
+      "newId": "joseon",
+      "name": "韓国",
+      "countryCode": "KOR"
+    },
+    {
+      "oldId": "britain",
+      "newId": "britain",
+      "name": "イギリス",
+      "countryCode": "GBR"
+    },
+    {
+      "oldId": "france",
+      "newId": "france",
+      "name": "フランス",
+      "countryCode": "FRA"
+    },
+    {
+      "oldId": "iberia",
+      "newId": "iberia",
+      "name": "スペイン",
+      "countryCode": "ESP"
+    },
+    {
+      "oldId": "scandinavia",
+      "newId": "scandinavia",
+      "name": "ノルウェー",
+      "countryCode": "NOR"
+    },
+    {
+      "oldId": "central_europe",
+      "newId": "central_europe",
+      "name": "ドイツ",
+      "countryCode": "DEU"
+    },
+    {
+      "oldId": "italy",
+      "newId": "italy",
+      "name": "イタリア",
+      "countryCode": "ITA"
+    },
+    {
+      "oldId": "ottoman",
+      "newId": "ottoman",
+      "name": "トルコ",
+      "countryCode": "TUR"
+    },
+    {
+      "oldId": "kazakh",
+      "newId": "kazakh",
+      "name": "カザフスタン",
+      "countryCode": "KAZ"
+    },
+    {
+      "oldId": "bukhara",
+      "newId": "bukhara",
+      "name": "ウズベキスタン",
+      "countryCode": "UZB"
+    },
+    {
+      "oldId": "kokand",
+      "newId": "kokand",
+      "name": "キルギス",
+      "countryCode": "KGZ"
+    },
+    {
+      "oldId": "persia",
+      "newId": "persia",
+      "name": "イラン",
+      "countryCode": "IRN"
+    },
+    {
+      "oldId": "afghanistan",
+      "newId": "afghanistan",
+      "name": "アフガニスタン",
+      "countryCode": "AFG"
+    },
+    {
+      "oldId": "india",
+      "newId": "india",
+      "name": "インド",
+      "countryCode": "IND"
+    },
+    {
+      "oldId": "bengal",
+      "newId": "bengal",
+      "name": "バングラデシュ",
+      "countryCode": "BGD"
+    },
+    {
+      "oldId": "burma",
+      "newId": "burma",
+      "name": "ミャンマー",
+      "countryCode": "MMR"
+    },
+    {
+      "oldId": "siam",
+      "newId": "siam",
+      "name": "タイ王国",
+      "countryCode": "THA"
+    },
+    {
+      "oldId": "vietnam",
+      "newId": "vietnam",
+      "name": "ベトナム",
+      "countryCode": "VNM"
+    },
+    {
+      "oldId": "arabia",
+      "newId": "arabia",
+      "name": "サウジアラビア",
+      "countryCode": "SAU"
+    },
+    {
+      "oldId": "north_africa",
+      "newId": "north_africa",
+      "name": "アルジェリア",
+      "countryCode": "DZA"
+    },
+    {
+      "oldId": "south_africa",
+      "newId": "south_africa",
+      "name": "南アフリカ共和国",
+      "countryCode": "ZAF"
+    },
+    {
+      "oldId": "madagascar",
+      "newId": "madagascar",
+      "name": "マダガスカル",
+      "countryCode": "MDG"
+    },
+    {
+      "oldId": "indonesia",
+      "newId": "indonesia",
+      "name": "インドネシア",
+      "countryCode": "IDN"
+    },
+    {
+      "oldId": "philippines",
+      "newId": "philippines",
+      "name": "フィリピン",
+      "countryCode": "PHL"
+    },
+    {
+      "oldId": "oceania",
+      "newId": "oceania",
+      "name": "オーストラリア",
+      "countryCode": "AUS"
+    },
+    {
+      "oldId": "new_zealand",
+      "newId": "new_zealand",
+      "name": "ニュージーランド",
+      "countryCode": "NZL"
+    },
+    {
+      "oldId": "pacific",
+      "newId": "pacific",
+      "name": "パプアニューギニア",
+      "countryCode": "PNG"
+    },
+    {
+      "oldId": "canada",
+      "newId": "canada",
+      "name": "カナダ",
+      "countryCode": "CAN"
+    },
+    {
+      "oldId": "united_states",
+      "newId": "united_states",
+      "name": "アメリカ合衆国",
+      "countryCode": "USA"
+    },
+    {
+      "oldId": "louisiana",
+      "newId": "louisiana",
+      "name": "バハマ",
+      "countryCode": "BHS"
+    },
+    {
+      "oldId": "new_spain",
+      "newId": "new_spain",
+      "name": "メキシコ",
+      "countryCode": "MEX"
+    },
+    {
+      "oldId": "caribbean",
+      "newId": "caribbean",
+      "name": "キューバ",
+      "countryCode": "CUB"
+    },
+    {
+      "oldId": "new_granada",
+      "newId": "new_granada",
+      "name": "コロンビア",
+      "countryCode": "COL"
+    },
+    {
+      "oldId": "peru",
+      "newId": "peru",
+      "name": "ペルー",
+      "countryCode": "PER"
+    },
+    {
+      "oldId": "la_plata",
+      "newId": "la_plata",
+      "name": "アルゼンチン",
+      "countryCode": "ARG"
+    },
+    {
+      "oldId": "brazil",
+      "newId": "brazil",
+      "name": "ブラジル",
+      "countryCode": "BRA"
+    },
+    {
+      "oldId": "greenland",
+      "newId": "greenland",
+      "name": "グリーンランド",
+      "countryCode": "GRL"
+    },
+    {
+      "oldId": "iceland",
+      "newId": "iceland",
+      "name": "アイスランド",
+      "countryCode": "ISL"
+    }
+  ]
+}

@@ -11,7 +11,7 @@ export class SengokuChat{
  until(owner){const r=this.sql.exec('SELECT * FROM sengoku_chat_limits WHERE owner=?',owner).toArray()[0];return r?Math.max(r.lastAt+C.COOLDOWN,r.count>=C.MAX_PER_WINDOW?r.windowAt+C.WINDOW:0):0;}
  view(owner){
   const rows=this.sql.exec('SELECT c.*,a.name FROM sengoku_chat_messages c JOIN player_accounts a ON a.owner=c.owner ORDER BY c.at DESC,c.rowid DESC LIMIT 200').toArray(),messages=[];
-  for(const r of rows){if(r.at<this.w.now()-604800000)continue;if(this.w.isBanned(r.owner)||globalThis.HKWealthRules.blockedName(r.name,this.w.admin.words()))continue;let emojis;try{emojis=JSON.parse(r.emojis);}catch{continue;}if(!C.valid(emojis))continue;messages.push({id:r.id,name:r.name,emojis,worldId:r.worldId,at:r.at,own:r.owner===owner});if(messages.length===60)break;}
+  for(const r of rows){if(r.at<this.w.now()-604800000)continue;if(this.w.isBanned(r.owner)||globalThis.HKWealthRules.blockedName(r.name,this.w.admin.words()))continue;let emojis;try{emojis=JSON.parse(r.emojis);}catch{continue;}if(!C.valid(emojis))continue;messages.push({id:r.id,name:r.name,title:this.w.equippedTitle(r.owner),emojis,worldId:r.worldId,at:r.at,own:r.owner===owner});if(messages.length===60)break;}
   return{protocol:'sengoku-emoji-chat-v1',messages:messages.reverse(),canSend:this.eligible(owner),cooldownUntil:this.until(owner),maxEmojis:C.MAX_EMOJIS,at:this.w.now()};
  }
  send(owner,data){

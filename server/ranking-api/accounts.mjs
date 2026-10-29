@@ -2,7 +2,7 @@ import {scrypt,timingSafeEqual} from 'node:crypto';
 import '../../assets/ui/account-data.js';
 import '../../assets/ui/amounts.js';
 const D=globalThis.HKAccountData,M=globalThis.HKAmounts;
-const routes=['register','login','session','logout','password','save','load','capabilities'];
+const routes=['register','login','session','logout','password','rename','save','load','capabilities'];
 export const accountRoutes=new Set(routes.map(p=>'/wealth/account/'+p));
 const validToken=t=>typeof t==='string'&&/^[a-f0-9]{64}$/.test(t);
 const hex=a=>Array.from(a,b=>b.toString(16).padStart(2,'0')).join('');
@@ -47,6 +47,7 @@ export class Accounts{
   this.sql.exec('CREATE TABLE IF NOT EXISTS player_accounts(username TEXT PRIMARY KEY,name TEXT NOT NULL,owner TEXT NOT NULL UNIQUE,rankOwner TEXT NOT NULL UNIQUE,salt TEXT NOT NULL,passwordHash TEXT NOT NULL,passwordVersion INTEGER NOT NULL DEFAULT 1,progress TEXT NOT NULL,revision INTEGER NOT NULL,createdAt INTEGER NOT NULL,updatedAt INTEGER NOT NULL)');
   this.sql.exec('CREATE TABLE IF NOT EXISTS player_sessions(tokenHash TEXT PRIMARY KEY,owner TEXT NOT NULL,expiresAt INTEGER NOT NULL,createdAt INTEGER NOT NULL)');
   this.sql.exec('CREATE INDEX IF NOT EXISTS player_sessions_owner ON player_sessions(owner,expiresAt)');
+  this.sql.exec('CREATE TABLE IF NOT EXISTS player_name_changes(owner TEXT NOT NULL,requestId TEXT NOT NULL,name TEXT NOT NULL,PRIMARY KEY(owner,requestId))');
   this.sql.exec('CREATE TABLE IF NOT EXISTS player_login_attempts(username TEXT PRIMARY KEY,attempts INTEGER NOT NULL,resetAt INTEGER NOT NULL)');
  }
  row(owner){return this.sql.exec('SELECT * FROM player_accounts WHERE owner=?',owner).toArray()[0];}
@@ -78,7 +79,7 @@ export class Accounts{
  async fetch(path,data){
   try{
    const action=path.slice(path.lastIndexOf('/')+1),hash=data.owner||'';
-   if(action==='capabilities')return Response.json({passwordLogin:true,emailRequired:false,cloudSave:1});
+   if(action==='capabilities')return Response.json({passwordLogin:true,emailRequired:false,cloudSave:1,rename:true});
    if(action==='register'||action==='login'){
     const name=username(data.username);if(!name||!password(data.password))fail(action==='login'?'account-credentials':'account-input',action==='login'?401:400);
     this.budget(name.key);
@@ -105,6 +106,20 @@ export class Accounts{
    if(action==='session')return Response.json({...this.public(a),expiresAt:session.expiresAt});
    if(action==='load')return Response.json({...this.public(a),progress:JSON.parse(a.progress)});
    if(action==='logout'){this.sql.exec('UPDATE player_sessions SET expiresAt=0 WHERE tokenHash=?',hash);return Response.json({loggedOut:true});}
+   if(action==='rename'){
+    const name=username(data.username);if(!name||typeof data.requestId!=='string'||!/^[A-Za-z0-9_-]{16,64}$/.test(data.requestId)||Object.keys(data).some(k=>!['owner','username','password','requestId'].includes(k)))fail('account-input');
+    const prior=this.sql.exec('SELECT name FROM player_name_changes WHERE owner=? AND requestId=?',a.owner,data.requestId).toArray()[0];
+    if(prior){if(prior.name!==name.name)fail('account-name-conflict',409);return Response.json({...this.public(this.row(a.owner)),renamed:true,replayed:true});}
+    this.budget(a.username);if(!password(data.password)||!await this.verify(a,data.password))fail('account-credentials',401);
+    const work=()=>{
+     const fresh=this.authenticated(hash).account;if(fresh.passwordVersion!==a.passwordVersion||fresh.username!==a.username||fresh.name!==a.name)fail('account-name-conflict',409);
+     this.validateRename?.(a,name.name);const taken=this.byName(name.key);if(taken&&taken.owner!==a.owner)fail('account-name-taken',409);
+     this.sql.exec('UPDATE player_accounts SET username=?,name=?,updatedAt=? WHERE owner=?',name.key,name.name,Math.max(this.now(),fresh.updatedAt+1),a.owner);
+     this.onRename?.(a,name.name);this.sql.exec('INSERT INTO player_name_changes(owner,requestId,name) VALUES(?,?,?)',a.owner,data.requestId,name.name);
+    };
+    if(this.storage.transactionSync)this.storage.transactionSync(work);else work();
+    this.sql.exec('DELETE FROM player_login_attempts WHERE username=?',a.username);return Response.json({...this.public(this.row(a.owner)),renamed:true});
+   }
    if(action==='password'){
     this.budget(a.username);if(!password(data.newPassword))fail('account-password');if(typeof data.password!=='string'||!password(data.password)||!await this.verify(a,data.password))fail('account-credentials',401);
     const salt=random(),passwordHash=await hashPassword(data.newPassword,salt);

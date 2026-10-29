@@ -1,7 +1,7 @@
 (function(){
  'use strict';
  const S=window.HKAccountSync,$=id=>document.getElementById(id),M=window.HKAmounts;if(!S)return;
- let mode='login',busy=false,pendingLogin=null,sessionExpired=false;
+ let mode='login',busy=false,pendingLogin=null,sessionExpired=false,renameRequest=null;
  function message(text,error=false){$('accountMessage').textContent=text;$('accountMessage').classList.toggle('error',error);}
  function summary(){
   const w=window.HKWallet.snapshot();$('accountBalance').textContent=M.format(w.balance)+'両';$('accountRebirths').textContent=(w.rebirths||0).toLocaleString('ja-JP')+'回';
@@ -37,6 +37,7 @@
  $('accountLogout').onclick=()=>run(()=>S.logout(),'ログアウトしました。この端末ではゲストの記録に戻ります。');
  $('accountCloud').onclick=()=>run(async()=>{if(pendingLogin){await finishLogin(pendingLogin);return;}await S.useCloud();},'サーバーの記録を読み込みました。');
  $('accountLocal').onclick=()=>run(async()=>{if(pendingLogin){await finishLogin(pendingLogin,true);}await S.useLocal();},'この端末の記録を保存しました。');
+ $('accountRenameForm').onsubmit=e=>{e.preventDefault();run(async()=>{await S.sync(true);const username=$('accountNewName').value;if(!renameRequest||renameRequest.username!==username)renameRequest={username,requestId:crypto.randomUUID()};const r=await S.request('rename',{...renameRequest,password:$('accountRenamePassword').value});S.refreshName(r);renameRequest=null;$('accountRenameForm').reset();},'アカウント名を変更しました。次回は新しい名前でログインしてください。');};
  $('accountPasswordForm').onsubmit=e=>{e.preventDefault();run(async()=>{await S.sync(true);const r=await S.request('password',{password:$('accountOldPassword').value,newPassword:$('accountNewPassword').value});await S.install(r,{keepLocal:true});$('accountPasswordForm').reset();},'パスワードを変更しました。ほかの端末では再ログインしてください。');};
  window.addEventListener('hk-account-sync',e=>{if(e.detail.state==='expired'){sessionExpired=true;mode='login';$('accountUsername').value=S.meta()?.username||'';}if(e.detail.state==='conflict'||e.detail.state==='expired')message(e.detail.message,true);render();});
  try{const next=new URL(new URLSearchParams(location.search).get('next')||'./',location.href);if(next.origin===location.origin&&next.pathname.endsWith('.html')||next.origin===location.origin&&next.pathname==='/')$('accountContinue').href=next.href;}catch{}

@@ -6,7 +6,7 @@
  const offlineKey=owner=>'hk_account_offline_v1_'+owner;
  const offline=owner=>{const d=parse(offlineKey(owner));return d?.owner===owner&&d.progress?.values?d:null;};
  const caches=['hk_wealth_cache_v1','hk_leaderboard_cache_v3','hk_notice_draft_v1'];
- const errors={'account-input':'アカウント名は3〜24文字の文字・数字・_・-、パスワードは8〜128文字にしてください。','account-credentials':'アカウント名またはパスワードが違います。','account-name-taken':'このアカウント名は使用されています。別の名前にしてください。','account-already-linked':'この記録はアカウントに登録済みです。ログインしてください。','account-password':'新しいパスワードは8〜128文字にしてください。','account-try-later':'試行回数が多いため、1分ほど待ってから再試行してください。','account-session-expired':'ログインの有効期限が切れました。もう一度ログインしてください。','account-conflict':'別の端末で記録が更新されています。使う記録を選んでください。','account-save-invalid':'記録を確認できません。今の記録を残したまま、保存状態を確認してください。','account-save-large':'保存できる記録の容量を超えています。','account-changed':'別のタブでアカウントが変わりました。ページを読み直してください。','account-storage':'端末に保存できません。ブラウザの保存容量と設定を確認してください。','account-switch-first':'今のアカウントからログアウトしてから、別のアカウントへログインしてください。'};
+ const errors={'account-name-blocked':'このアカウント名には使えない言葉が含まれています。','account-name-conflict':'別の画面で名前が変更されました。ページを読み直してください。','account-input':'アカウント名は3〜24文字の文字・数字・_・-、パスワードは8〜128文字にしてください。','account-credentials':'アカウント名またはパスワードが違います。','account-name-taken':'このアカウント名は使用されています。別の名前にしてください。','account-already-linked':'この記録はアカウントに登録済みです。ログインしてください。','account-password':'新しいパスワードは8〜128文字にしてください。','account-try-later':'試行回数が多いため、1分ほど待ってから再試行してください。','account-session-expired':'ログインの有効期限が切れました。もう一度ログインしてください。','account-conflict':'別の端末で記録が更新されています。使う記録を選んでください。','account-save-invalid':'記録を確認できません。今の記録を残したまま、保存状態を確認してください。','account-save-large':'保存できる記録の容量を超えています。','account-changed':'別のタブでアカウントが変わりました。ページを読み直してください。','account-storage':'端末に保存できません。ブラウザの保存容量と設定を確認してください。','account-switch-first':'今のアカウントからログアウトしてから、別のアカウントへログインしてください。'};
  const get=k=>localStorage.getItem(k),parse=k=>{try{return JSON.parse(get(k)||'null');}catch{return null;}};
  let loadedProfile=null,saving=null,timer=null,lastSaved=null,conflict=false,state='guest',switching=false;
  const meta=()=>{const m=parse(metaKey);return m&&typeof m.username==='string'&&/^[a-f0-9]{64}$/.test(m.owner||'')&&Number.isSafeInteger(m.revision)?m:null;};
@@ -54,17 +54,19 @@
   after[offlineKey(result.owner)]=null;
   if(!previous)after[guestKey]=JSON.stringify(register?Object.fromEntries([...D.keys,identityKey,rankKey].map(k=>[k,null])):guest());
   after[identityKey]=after[rankKey]=result.token;
-  after[metaKey]=JSON.stringify({username:result.username,owner:result.owner,revision:result.revision,expiresAt:result.expiresAt});after[profileKey]=crypto.randomUUID();
+  after[metaKey]=JSON.stringify({username:result.username,owner:result.owner,revision:result.revision,accountUpdatedAt:result.updatedAt,expiresAt:result.expiresAt});after[profileKey]=crypto.randomUUID();
   for(const k of caches)after[k]=null;
   return after;});lastSaved=null;conflict=false;emit('saved','ログインしました。記録を引き継いで遊べます。');schedule();
  }
+ function updateMeta(result){const current=meta();if(!current||result.owner!==current.owner)throw Error('account-changed');const newer=(result.updatedAt||0)>=(current.accountUpdatedAt||0);localStorage.setItem(metaKey,JSON.stringify({...current,revision:Math.max(current.revision,result.revision),...(newer?{username:result.username,accountUpdatedAt:result.updatedAt}:{})}));}
+ function refreshName(result){assertActive();updateMeta(result);emit('saved','アカウント名を変更しました');}
  function schedule(){if(!meta()||conflict||state==='expired'||switching)return;clearTimeout(timer);timer=setTimeout(()=>sync().catch(()=>{}),2000);}
  async function sync(force=false,keepalive=false){
   assertActive();if(!meta())return null;if(conflict)throw Error('account-conflict');if(saving)return saving;
   const snapshot=capture(),serialized=JSON.stringify(snapshot);if(!force&&serialized===lastSaved)return meta();
   const current=meta(),profile=loadedProfile;emit('saving','記録を保存中…');
   saving=(async()=>{
-   try{const r=await request('save',{revision:current.revision,progress:snapshot},undefined,keepalive);assertActive();if(profile!==loadedProfile)throw Error('account-changed');localStorage.setItem(metaKey,JSON.stringify({...current,revision:r.revision}));lastSaved=serialized;emit('saved','記録を保存しました');return r;}
+   try{const r=await request('save',{revision:current.revision,progress:snapshot},undefined,keepalive);assertActive();if(profile!==loadedProfile)throw Error('account-changed');updateMeta(r);lastSaved=serialized;emit('saved','記録を保存しました');return r;}
    catch(error){if(error.message==='account-conflict')conflict=true;emit(error.message==='account-session-expired'?'expired':conflict?'conflict':'offline',errors[error.message]||'接続が戻ると記録の保存を再試行します');throw error;}
    finally{saving=null;}
   })();return saving;
@@ -79,22 +81,22 @@
  }
  async function useCloud(){
   assertActive();if(saving)await saving;const r=await request('load'),current=meta(),after={};
-  for(const k of D.keys)after[k]=r.progress.values[k]??null;after[metaKey]=JSON.stringify({...current,revision:r.revision});after[profileKey]=crypto.randomUUID();for(const k of caches)after[k]=null;
+  for(const k of D.keys)after[k]=r.progress.values[k]??null;after[metaKey]=JSON.stringify({...current,revision:r.revision,username:r.username,accountUpdatedAt:r.updatedAt});after[profileKey]=crypto.randomUUID();for(const k of caches)after[k]=null;
   await atomic(after);lastSaved=JSON.stringify(capture());conflict=false;emit('saved','サーバーの記録を読み込みました');return r;
  }
- async function useLocal(){assertActive();if(saving)await saving;const r=await request('session');localStorage.setItem(metaKey,JSON.stringify({...meta(),revision:r.revision}));conflict=false;return sync(true);}
+ async function useLocal(){assertActive();if(saving)await saving;const r=await request('session');updateMeta(r);conflict=false;return sync(true);}
  function changed(){
   if(get(profileKey)===loadedProfile&&!get(journalKey))return;
   clearTimeout(timer);state='changed';if(document.getElementById('accountChanged'))return;
   const box=document.createElement('div');box.id='accountChanged';box.className='account-changed';box.setAttribute('role','alertdialog');box.setAttribute('aria-modal','true');box.setAttribute('aria-label','アカウントが変更されました');
   const p=document.createElement('p');p.textContent=errors['account-changed'];const button=document.createElement('button');button.textContent='ページを読み直す';button.onclick=()=>location.reload();box.append(p,button);document.body.append(box);button.focus();
  }
- window.addEventListener('storage',e=>{if(e.key===profileKey||e.key===journalKey||e.key===null)changed();else if(D.keys.includes(e.key))schedule();});
+ window.addEventListener('storage',e=>{if(e.key===profileKey||e.key===journalKey||e.key===null)changed();else if(e.key===metaKey)emit(meta()?'ready':'guest');else if(D.keys.includes(e.key))schedule();});
  window.addEventListener('hk-wallet-change',schedule);window.addEventListener('hk-progress-change',schedule);
  window.addEventListener('focus',()=>{try{assertActive();schedule();}catch{changed();}});
  document.addEventListener('visibilitychange',()=>{if(document.hidden&&meta())sync(false,true).catch(()=>{});});
  window.addEventListener('pagehide',()=>{if(meta())sync(false,true).catch(()=>{});});
  function start(){if(state==='storage'){emit('storage','保存設定を確認してください');return;}emit(meta()?'ready':'guest');if(meta())schedule();setInterval(()=>{if(!document.hidden&&meta())sync().catch(()=>{});},15000);}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
- window.HKAccountSync=Object.freeze({meta,offline,capture,assertActive,request,install,logout,sync,useCloud,useLocal,profileKey,metaKey,identityKey,errorText:e=>errors[e?.message]||'通信を確認して、もう一度試してください。',get state(){return state;}});
+ window.HKAccountSync=Object.freeze({meta,offline,refreshName,capture,assertActive,request,install,logout,sync,useCloud,useLocal,profileKey,metaKey,identityKey,errorText:e=>errors[e?.message]||'通信を確認して、もう一度試してください。',get state(){return state;}});
 })();

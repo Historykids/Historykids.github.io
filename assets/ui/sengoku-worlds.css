@@ -40,3 +40,5 @@
 .sw-map-help{font-size:12px;line-height:1.7;color:#456259;padding:8px 12px;margin:0;background:#dce5d9;border-top:1px solid #b8c8b6}
 @media(max-width:650px){.worlds-page .japan-map{height:clamp(420px,68svh,650px)}.sw-map-help{font-size:11px;padding:8px}}
 .worlds-page .map-zoom{position:static;justify-content:flex-end;padding:8px 12px;background:#e5eadd;border-top:1px solid #bccbb9}
+
+.sw-honors{margin-block-end:2rem;padding:clamp(1rem,3vw,2rem);border:1px solid #c6b590;background:linear-gradient(125deg,#f6eedb,#fffaf0);border-radius:8px}.sw-honors label{display:block;max-width:30rem;margin-block:1rem}.sw-title-catalog{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.65rem;padding:0;list-style:none}.sw-title-catalog li{display:flex;flex-direction:column;gap:.25rem;padding:.8rem;border:1px solid #d6c9ad;border-radius:6px}.title-locked{color:#797569}.title-earned{background:#ede3c0;color:#604417}.sw-title-catalog span{font-size:.85rem}

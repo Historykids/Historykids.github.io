@@ -42,6 +42,8 @@ export class HistoryLeaderboard extends QuizLeaderboard {
     this.accounts=new Accounts(ctx.storage);
     this.sengoku=new SengokuCampaign(ctx.storage,this.admin,this.accounts,owner=>this.isBanned(owner));
     this.sengokuWorlds=new SengokuWorlds(ctx.storage,this.accounts,this.admin,this.sengoku,owner=>this.isBanned(owner));
+    this.accounts.validateRename=(a,name)=>{if(this.isBanned(a.owner))throw Object.assign(Error('banned'),{status:403});if(W.blockedName(name,this.admin.words()))throw Object.assign(Error('account-name-blocked'),{status:400});};
+    this.accounts.onRename=(a,name)=>{this.sengokuWorlds.renameAccount(a,name);this.sql.exec('UPDATE wealth_scores_v2 SET name=? WHERE id=?',name,a.owner);this.sql.exec('UPDATE wealth_scores SET name=? WHERE id=?',name,a.owner);this.sql.exec('UPDATE wealth_moderation SET nameBlocked=0 WHERE id=? AND banned=0',a.owner);};
   }
   isBanned(owner) { return !!owner && !!this.sql.exec('SELECT banned FROM wealth_moderation WHERE id=?',owner).toArray()[0]?.banned; }
   board(owner) {
@@ -99,7 +101,7 @@ export async function wealthRequest(request, env, reply) {
   const digest = token ? await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)) : null;
   const owner = digest ? Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('') : '';
   const ip=request.headers.get('CF-Connecting-IP')||'anonymous';
-  if(['/wealth/account/register','/wealth/account/login','/wealth/account/password'].includes(path)){
+  if(['/wealth/account/register','/wealth/account/login','/wealth/account/password','/wealth/account/rename'].includes(path)){
     if(!env.ACCOUNT_AUTH_LIMITER)return reply({error:'not-configured'},503);
     if(!(await env.ACCOUNT_AUTH_LIMITER.limit({key:ip})).success)return reply({error:'account-try-later'},429);
   }

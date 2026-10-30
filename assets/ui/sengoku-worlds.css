@@ -42,3 +42,5 @@
 .worlds-page .map-zoom{position:static;justify-content:flex-end;padding:8px 12px;background:#e5eadd;border-top:1px solid #bccbb9}
 
 .sw-honors{margin-block-end:2rem;padding:clamp(1rem,3vw,2rem);border:1px solid #c6b590;background:linear-gradient(125deg,#f6eedb,#fffaf0);border-radius:8px}.sw-honors label{display:block;max-width:30rem;margin-block:1rem}.sw-title-catalog{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.65rem;padding:0;list-style:none}.sw-title-catalog li{display:flex;flex-direction:column;gap:.25rem;padding:.8rem;border:1px solid #d6c9ad;border-radius:6px}.title-locked{color:#797569}.title-earned{background:#ede3c0;color:#604417}.sw-title-catalog span{font-size:.85rem}
+
+.sw-name-form{display:flex;flex-wrap:wrap;gap:14px;align-items:end;padding:24px;background:#e7eadf;border:1px solid #c3cab7;border-radius:14px;margin:20px 0}.sw-name-form label{display:grid;gap:8px;flex:1;min-width:200px}.sw-name-form input{width:100%;padding:13px;border:1px solid #a5b4a5;border-radius:7px;background:#fffdf6;color:#203c33;font:inherit}.sw-name-form p{flex-basis:100%;margin:0}.sw-world-switch>a{white-space:nowrap}

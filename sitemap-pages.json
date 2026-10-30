@@ -4,7 +4,7 @@
     {
       "file": "index.html",
       "path": "/",
-      "lastmod": "2026-10-25"
+      "lastmod": "2026-10-30"
     },
     {
       "file": "figures.html",
@@ -54,7 +54,7 @@
     {
       "file": "sengoku.html",
       "path": "/sengoku.html",
-      "lastmod": "2026-10-29"
+      "lastmod": "2026-10-30"
     },
     {
       "file": "sengoku-solo.html",
@@ -70,6 +70,11 @@
       "file": "sengoku-alliance-ranking.html",
       "path": "/sengoku-alliance-ranking.html",
       "lastmod": "2026-10-29"
+    },
+    {
+      "file": "sengoku-worlds.html",
+      "path": "/sengoku-worlds.html",
+      "lastmod": "2026-10-30"
     }
   ],
   "aliases": [

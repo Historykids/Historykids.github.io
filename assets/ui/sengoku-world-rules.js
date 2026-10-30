@@ -1,7 +1,7 @@
 /* Four independent quiz purposes; combat damage is committed by the server. */
 (function(root){
  'use strict';
- const LIMIT=null,WORLD_COUNT=3,PROTECTION=7200000,BATTLE_TIME=300000,CAPTURE_COOLDOWN=300000,ATTACK_COOLDOWN=300000,WRONG_COOLDOWN=300000,SOLDIERS_PER_CORRECT=20,DEFENSE_PER_CORRECT=50,GENERAL_INTERVAL=50,MAX_LEVEL=100,MAX_SOLDIERS=1000000000000;
+ const LIMIT=null,WORLD_COUNT=5,PROTECTION=7200000,BATTLE_TIME=300000,CAPTURE_COOLDOWN=300000,ATTACK_COOLDOWN=300000,WRONG_COOLDOWN=300000,SOLDIERS_PER_CORRECT=20,DEFENSE_PER_CORRECT=50,GENERAL_INTERVAL=50,MAX_LEVEL=100,MAX_SOLDIERS=1000000000000;
  const canSpawn=(region,now)=>!!region&&region.garrison===0&&(region.protectedUntil||0)<=now&&!region.battle;
  const modes={general:{title:'武将獲得クイズ',reward:'正解50問ごとに武将1人'},soldiers:{title:'兵士獲得クイズ',reward:'正解1問で攻撃兵20人・守備兵50人＋武将の効果'},level:{title:'武将育成クイズ',reward:'選んだ武将だけに経験値'},battle:{title:'合戦クイズ',reward:'5問連続正解で10分の1の攻撃・攻撃後は5分待ち'}};
  const generals={

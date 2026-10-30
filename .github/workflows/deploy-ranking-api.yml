@@ -36,7 +36,7 @@ jobs:
           node tests/sengoku-command.cjs
           node tests/sengoku-balance.cjs
           node tests/sengoku-balance-ui.cjs
-          node tests/sengoku-global.cjs && node tests/sengoku-modern.cjs && node tests/sengoku-antarctica.cjs
+          node tests/sengoku-global.cjs && node tests/sengoku-modern.cjs && node tests/sengoku-antarctica.cjs && node tests/sengoku-travel.cjs
           node tests/sengoku-global-ui.cjs
           node tests/sengoku-alliances.cjs
           node tests/sengoku-alliances-ui.cjs
@@ -118,11 +118,11 @@ jobs:
           for(let attempt=0;attempt<72;attempt++){
             worldsResponse=await fetch(new URL('/wealth/sengoku/worlds',base),{headers:{Origin:'https://historykids.github.io','Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
             worlds=await worldsResponse.json();
-            if(worldsResponse.ok&&worlds.protocol==='sengoku-world-v6'&&worlds.combat==='five-correct-tenth-force'&&worlds.alliances?.protocol==='sengoku-alliance-v1'&&worlds.captureCooldownMs===300000&&worlds.attackCooldownMs===300000&&worlds.startingProvince==='zero-garrison-unprotected'&&worlds.respawnProvince==='zero-garrison-unprotected'&&worlds.clientRules===7&&worlds.modernMapVersion==='modern-borders-20261029-v1'&&worlds.titlesVersion==='unification-antarctica-v2'&&worlds.antarcticaInitialGarrison===50000&&worlds.antarcticaVersion==='antarctica-50000-20261029-v1'&&worlds.defenseSoldiersPerCorrect===50&&worlds.attackSoldiersPerCorrect===20&&worlds.titleCatalog?.some(t=>t.id==='antarctica'&&t.name==='南極の覇者')&&worlds.startingRegionScope==='worldwide'&&worlds.respawnRegionScope==='worldwide'&&worlds.protectionMs===7200000&&worlds.reclaimProtectionMs===0&&worlds.reclaimIgnoresProtection===true&&worlds.armyModel==='split-attack-defense-v2'&&worlds.mapVersion==='world-modern-v1'&&worlds.mapExpansionVersion==='global-map-neutral-20261028'&&worlds.worldCreation==='fixed-three'&&worlds.defenseResetVersion==='three-worlds-defense-zero-20261025'&&worlds.allianceFeatures==='command-center-v2'&&worlds.damageDivisor===10&&worlds.wrongAnswerCooldownMs===300000&&worlds.worldSwitch==='preserve-world-progress'&&worlds.territoryResetVersion==='quarter-force-neutral-half-20261025'&&worlds.overseasInitialGarrison===5000&&worlds.overseasGarrisonVersion==='overseas-neutral-5000-20261029-v1')break;
+            if(worldsResponse.ok&&worlds.protocol==='sengoku-world-v6'&&worlds.combat==='five-correct-tenth-force'&&worlds.alliances?.protocol==='sengoku-alliance-v1'&&worlds.captureCooldownMs===300000&&worlds.attackCooldownMs===300000&&worlds.startingProvince==='zero-garrison-unprotected'&&worlds.respawnProvince==='zero-garrison-unprotected'&&worlds.clientRules===7&&worlds.modernMapVersion==='modern-borders-20261029-v1'&&worlds.titlesVersion==='unification-antarctica-v2'&&worlds.antarcticaInitialGarrison===50000&&worlds.antarcticaVersion==='antarctica-50000-20261029-v1'&&worlds.defenseSoldiersPerCorrect===50&&worlds.attackSoldiersPerCorrect===20&&worlds.titleCatalog?.some(t=>t.id==='antarctica'&&t.name==='南極の覇者')&&worlds.startingRegionScope==='worldwide'&&worlds.respawnRegionScope==='worldwide'&&worlds.protectionMs===7200000&&worlds.reclaimProtectionMs===0&&worlds.reclaimIgnoresProtection===true&&worlds.armyModel==='split-attack-defense-v2'&&worlds.mapVersion==='world-modern-v1'&&worlds.mapExpansionVersion==='global-map-neutral-20261028'&&worlds.worldCreation==='fixed-five'&&worlds.worldCount===5&&worlds.guestEntry==='name-first-v1'&&worlds.defenseResetVersion==='three-worlds-defense-zero-20261025'&&worlds.allianceFeatures==='command-center-v2'&&worlds.damageDivisor===10&&worlds.wrongAnswerCooldownMs===300000&&worlds.worldSwitch==='preserve-world-progress'&&worlds.territoryResetVersion==='quarter-force-neutral-half-20261025'&&worlds.overseasInitialGarrison===5000&&worlds.overseasGarrisonVersion==='overseas-neutral-5000-20261029-v1')break;
             if(attempt<71)await new Promise(resolve=>setTimeout(resolve,5000));
           }
-          if(!worldsResponse.ok||worlds.protocol!=='sengoku-world-v6'||worlds.capacity!==null||!Array.isArray(worlds.worlds)||worlds.worldCount!==3||worlds.worlds.length!==3||worlds.territoryCount!==311||worlds.worlds.some(w=>w.capacity!==null))throw Error('Shared Sengoku world runtime check failed');
-          if(worlds.worldCreation!=='fixed-three'||worlds.quiz?.eras?.length!==14||worlds.quiz.eras[0]!=='jomon'||worlds.quiz.eras.at(-1)!=='heisei'||worlds.quiz.questions!==298)throw Error('Jomon–Heisei quiz and fixed-three world rules runtime check failed');
+          if(!worldsResponse.ok||worlds.protocol!=='sengoku-world-v6'||worlds.capacity!==null||!Array.isArray(worlds.worlds)||worlds.worldCount!==5||worlds.worlds.length!==5||worlds.territoryCount!==311||worlds.worlds.some(w=>w.capacity!==null))throw Error('Shared Sengoku world runtime check failed');
+          if(worlds.guestEntry!=='name-first-v1'||worlds.worldsVersion!=='five-worlds-name-first-20261030-v1'||worlds.worldCreation!=='fixed-five'||worlds.quiz?.eras?.length!==14||worlds.quiz.eras[0]!=='jomon'||worlds.quiz.eras.at(-1)!=='heisei'||worlds.quiz.questions!==298)throw Error('Jomon–Heisei quiz and fixed-five world rules runtime check failed');
           if(JSON.stringify(worlds.quizModes)!==JSON.stringify(['general','soldiers','level','battle'])||worlds.combat!=='five-correct-tenth-force'||worlds.captureCooldownMs!==300000)throw Error('Four quiz modes and capture cooldown runtime check failed');
           if(!shared.ok||sharedState.own!==null)throw Error('Shared Sengoku private view check failed');
           if(worlds.damageDivisor!==10||worlds.wrongAnswerCooldownMs!==300000||worlds.worldSwitch!=='preserve-world-progress'||worlds.territoryResetVersion!=='quarter-force-neutral-half-20261025')throw Error('Combat balance and world-switch configuration mismatch');
@@ -137,13 +137,13 @@ jobs:
           if(!mapResponse.ok||map.protocol!=='sengoku-world-v6'||map.own!==null||map.world?.regions?.length!==311||!map.world.regions.some(r=>r.id==='owari')||map.world.legacyPrefectureMap||map.world.players.some(p=>'owner' in p||'state' in p))throw Error('World public map check failed');
           await import('./assets/ui/sengoku-kuni-map.js');
           if(worlds.worlds.some(w=>[...w.startingRegions,...w.available].some(id=>!globalThis.HKSengokuKuniMap.region(id))))throw Error('Starting homes and respawn choices must be valid world regions');
-          for(const id of [1,2,3]){
+          for(const id of [1,2,3,4,5]){
             const response=await fetch(new URL('/wealth/sengoku/world?world='+id,base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
             const view=await response.json();
             if(!response.ok||!Array.isArray(view.world?.regions)||view.world.regions.filter(r=>!r.owner&&globalThis.HKSengokuKuniMap.region(r.id)?.overseas).some(r=>!Number.isSafeInteger(r.garrison)||r.garrison<0||r.garrison>(globalThis.HKSengokuKuniMap.region(r.id)?.continent==='antarctica'?50000:5000)))throw Error('Neutral overseas garrison read check failed');
           }
-          console.log('Neutral overseas garrison configuration checked in all three worlds; no army or ownership changed by the check');
-          console.log('Seventy old-country regions, three unlimited worlds and selected-land defense recruitment checks passed; no player or battle created');
+          console.log('Neutral overseas garrison configuration checked in all five worlds; no army or ownership changed by the check');
+          console.log('Seventy old-country regions, five unlimited worlds and selected-land defense recruitment checks passed; no player or battle created');
           console.log('One-hour province protection and land reclamation checks passed; no battle created');
           console.log('Four separate quiz modes, tenth-force combat and five-minute attack cooldown checks passed; no player, battle or quiz created');
           const alliesResponse=await fetch(new URL('/wealth/sengoku/world/alliances',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});

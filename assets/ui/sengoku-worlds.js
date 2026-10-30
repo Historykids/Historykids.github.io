@@ -79,7 +79,7 @@
   const alliance=player?.allianceId?w()?.alliances?.find(group=>group.id===player.allianceId):null;panel.append(node('p','sw-watch sw-region-alliance','所属同盟：'+(player?player.allianceId?alliance?.name||'情報を確認中':'未所属':'なし（中立）')));
   if(player?.title)panel.querySelector('.sw-region-owner').append(node('span','sg-title',player.title.name));
   if(!own()){
-   const eligible=G.canSpawn(region,now());panel.append(node('p','sw-watch','守備兵 '+fmt(region.garrison)+'人'),node('p','sw-note',eligible?'この土地から開始できます。今の持ち主がいても、開始時にあなたの領地へ移ります。':'開始には守備兵0人・保護期間外・合戦中ではないことが必要です。'),node('p','sw-join-state',selected===start?'開始する国に選択中':'地図の国を選んで出発しよう。'));
+   const eligible=G.canSpawn(region,now());panel.append(node('p','sw-watch','守備兵 '+fmt(region.garrison)+'人'),node('p','sw-note',eligible?'この土地から開始できます。獲得時に守備兵2,000人を配置します。今の持ち主がいても、開始時にあなたの領地へ移ります。':'開始には守備兵0人・保護期間外・合戦中ではないことが必要です。'),node('p','sw-join-state',selected===start?'開始する国に選択中':'地図の国を選んで出発しよう。'));
    if(region.protectedUntil>now())panel.append(node('p','sw-note','保護中：'+new Date(region.protectedUntil).toLocaleTimeString('ja-JP')+'まで'));return;
   }
   const mine=region.owner===own().id,allied=!!own().alliance&&player?.allianceId===own().alliance.id,can=G.reachable(s(),selected,own().home,own().alliance?.frontier||[]),foe=enemy(selected),protectedNow=region.protectedUntil>now(),locked=!!region.battle;

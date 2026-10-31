@@ -25,14 +25,14 @@
  function reachable(s,target,home,frontier=[]){return root.HKSengokuKuniMap.reachable({...s,ownedRegions:[...new Set([...s.ownedRegions,...frontier])]},target)||!s.ownedRegions.length&&(target===home||reclaim(s,target));}
  const reclaim=(s,target)=>(s.heldRegions||[]).includes(target);
  const homeReclaim=(s,target,home)=>target===home&&reclaim(s,target);
- function rewardCorrect(s,id,mode,allianceBonus=0,role='attack'){
+ function rewardCorrect(s,id,mode,allianceBonus=0,role='attack',allianceEffects={}){
   s.totalCorrect++;s.correctByMode[mode]++;s.learnedCards=[...new Set([...s.learnedCards,id])];
   let added=0,experience=0,allianceAdded=0,recruitment=0;const levels=[];
   if(mode==='soldiers'&&Number.isSafeInteger(s.recruitMicros)&&s.recruitMicros>0){
    recruitment=s.recruitMicros/10000;
    if(role!=='defense'){const total=BigInt(s.soldiers)*10000n+BigInt(s.attackFraction||0),cap=BigInt(MAX_SOLDIERS)*10000n,wanted=BigInt(s.recruitMicros),delta=wanted>cap-total?cap-total:wanted,next=total+delta;s.soldiers=Number(next/10000n);s.attackFraction=Number(next%10000n);added=Number(delta)/10000;}
-  }else if(mode==='soldiers'){const free=MAX_SOLDIERS-s.soldiers,base=(role==='defense'?DEFENSE_PER_CORRECT:SOLDIERS_PER_CORRECT)+buffs(s).recruit;recruitment=base+allianceBonus;added=role==='defense'?0:Math.min(free,recruitment);allianceAdded=role==='defense'?0:added-Math.min(free,base);s.soldiers+=added;if(s.soldiers>=MAX_SOLDIERS)s.attackFraction=0;}
-  if(mode==='level'){const g=active(s);if(g&&g.level<MAX_LEVEL){experience=1+buffs(s).experience;g.experience+=experience;while(g.level<MAX_LEVEL&&g.experience>=g.level*10){g.experience-=g.level*10;g.level++;levels.push(g.level);}if(g.level===MAX_LEVEL)g.experience=0;}}
+  }else if(mode==='soldiers'){const free=MAX_SOLDIERS-s.soldiers,base=(role==='defense'?DEFENSE_PER_CORRECT:SOLDIERS_PER_CORRECT)+buffs(s).recruit;recruitment=base+allianceBonus+(allianceEffects.recruit||0);added=role==='defense'?0:Math.min(free,recruitment);allianceAdded=role==='defense'?0:added-Math.min(free,base);s.soldiers+=added;if(s.soldiers>=MAX_SOLDIERS)s.attackFraction=0;}
+  if(mode==='level'){const g=active(s);if(g&&g.level<MAX_LEVEL){experience=1+buffs(s).experience+(allianceEffects.experience||0);g.experience+=experience;while(g.level<MAX_LEVEL&&g.experience>=g.level*10){g.experience-=g.level*10;g.level++;levels.push(g.level);}if(g.level===MAX_LEVEL)g.experience=0;}}
   return{added,allianceAdded,recruitment,experience,levels,generalProgress:mode==='general'?1:0};
  }
  function initial(region,now){return{version:6,attackUnit:'infantry',attackFraction:0,heldRegions:[region],homeEstablished:true,soldiers:0,generals:[],activeGeneral:null,generalClaims:0,totalCorrect:0,correctByMode:{general:0,soldiers:0,level:0,battle:0},attackCooldownUntil:0,battleCooldownUntil:0,failedAttackCooldownUntil:0,learnedCards:[],claimedRewards:[],ownedRegions:[region],capital:region,bestTerritories:1,defeatedRegions:[],battlesWon:0,battlesLost:0,unifications:0,port:true,pending:null,lastResult:null,startedAt:now};}

@@ -10,7 +10,7 @@
     sengoku: { en: "SENGOKU", years: "1467–1600" },
     edo: { en: "EDO", years: "1603–1868" },
   };
-  const eraMeta = Object.fromEntries(C.eraOrder.filter((era) => ds[era]).map((era) => [era, ds[era].meta || legacyEraMeta[era]]));
+  const eraMeta = Object.fromEntries(C.allEraOrder.filter((era) => ds[era]).map((era) => [era, ds[era].meta || legacyEraMeta[era]]));
   const answerKanji = {
     こめ: "米",
     えど: "江戸",
@@ -273,7 +273,7 @@
     $("wrongCount").textContent = records.filter(
       (r) => state.wrong[r.id] && !got(r),
     ).length;
-    $("eraTabs").innerHTML = Object.entries(eraMeta)
+    $("eraTabs").innerHTML = Object.entries(eraMeta).filter(([era])=>!era.startsWith("world_"))
       .map(([era, m]) => {
         const arr = records.filter((r) => r.era === era),
           g = arr.filter(got).length;
@@ -281,6 +281,7 @@
         return `<button class="era-tab ${era === state.era ? "active" : ""}" data-era="${era}" aria-pressed="${era === state.era}" aria-label="${E(label)}" title="${E(label)}"><strong>${E(ds[era].title.replace(/時代$/, ""))}</strong><span class="mini-progress" aria-hidden="true"><i style="width:${(g / arr.length) * 100}%"></i></span></button>`;
       })
       .join("");
+    const worldTabs=$("worldEraTabs");if(worldTabs){const worldEras=Object.keys(eraMeta).filter(era=>era.startsWith('world_'));$("worldEraGroup").hidden=!worldEras.length;worldTabs.innerHTML=worldEras.map(era=>{const a=records.filter(r=>r.era===era),g=a.filter(got).length;return `<button class="era-tab ${era===state.era?'active':''}" data-era="${era}" aria-pressed="${era===state.era}" aria-label="${E(ds[era].title+' · '+g+'/'+a.length+'枚収集')}"><strong>${E(ds[era].title.replace('世界史・',''))}</strong><span class="mini-progress" aria-hidden="true"><i style="width:${g/a.length*100}%"></i></span></button>`;}).join('');}
     $("eraSelectionHint").textContent = `${ds[state.era].title} · ${eraMeta[state.era].years}`;
     $("lessonName").textContent = ds[state.era].title + "を探検";
     $("rubyBtn").innerHTML =
@@ -341,7 +342,7 @@
     setView("learn");
     const summary=A.summary(W.snapshot().activities);
     if(metric==="eras") {
-      const era=C.eraOrder.find(e=>!summary.daily.eras[e] && records.some(r=>r.era===e && !got(r))) || C.eraOrder.find(e=>!summary.daily.eras[e]);
+      const era=C.allEraOrder.find(e=>!summary.daily.eras[e] && records.some(r=>r.era===e && !got(r))) || C.allEraOrder.find(e=>!summary.daily.eras[e]);
       if(era) setEra(era);
     } else if(metric==="read" || metric==="replay") {
       const record=records.find(r=>got(r) && !summary.daily[metric][r.id]) || records.find(got);

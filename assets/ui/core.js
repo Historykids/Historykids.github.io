@@ -615,7 +615,7 @@
   function choiceAnswers(record, records) {
     const correct = record.answers.join("・");
     const alternatives = (record.distractors || distractors[correct] || []).filter((a) =>
-      Array.from(a).length === Array.from(correct).length && !answerOK(a, record.answers));
+      (record.subject==='world'||String(record.era||'').startsWith('world_')||Array.from(a).length === Array.from(correct).length) && !answerOK(a, record.answers));
     if (alternatives.length < 3) throw new Error("Choices missing for " + correct);
     return seededPick([correct, ...seededPick(alternatives, 3, record.id || record.name)], 4, (record.id || record.name) + "choices");
   }
@@ -640,6 +640,7 @@
   function rankingCompare(a, b) { return b.score - a.score || a.answerMs - b.answerMs; }
   const api = {
     eraOrder: ["jomon", "yayoi", "kofun", "asuka", "nara", "heian", "kamakura", "muromachi", "sengoku", "edo", "meiji", "taisho", "showa", "heisei"],
+    worldEraOrder: ["world_ancient","world_medieval","world_early_modern","world_modern","world_contemporary"],
     rankingScore,
     rankingMetrics,
     rankingCompare,
@@ -671,6 +672,7 @@
     validTownLayout,
     choiceAnswers,
   };
+  api.allEraOrder=[...api.eraOrder,...api.worldEraOrder.filter(era=>root.dataSets?.[era])];
   root.HKCore = api;
   if (typeof module !== "undefined") module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

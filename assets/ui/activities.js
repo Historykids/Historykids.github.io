@@ -50,7 +50,7 @@
         a.nextEventAt=start+eventPeriod;
       }
     } else if(action==="read" && typeof data.id==="string") d.read[data.id]=true;
-    else if(action==="quiz" && typeof data.id==="string" && C.eraOrder.includes(data.era)) {
+    else if(action==="quiz" && typeof data.id==="string" && C.allEraOrder.includes(data.era)) {
       d.correct[data.id]=true; d.eras[data.era]=true;
       if(data.mode==="type" || data.mode==="choice") d[data.mode][data.id]=true;
       if(data.replay) d.replay[data.id]=true;

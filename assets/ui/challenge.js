@@ -46,7 +46,7 @@
     if (clock) clearInterval(clock);
     const config = settings(), candidates = config.era === "ALL" ? [...new Map(pool.map((q) => [q.name, q])).values()] : pool.filter((q) => q.era === config.era);
     const seed = Date.now() + "|" + Math.random();
-    const mixed = C.eraOrder.flatMap(era=>C.seededPick(candidates.filter(q=>q.era===era),1,seed+era));
+    const mixed = C.allEraOrder.flatMap(era=>C.seededPick(candidates.filter(q=>q.era===era),1,seed+era));
     const online=game==='sprint'&&!!window.HKRankingConfig?.endpoint;
     run = { ...config, qs: C.seededPick(game === "sprint" ? mixed : candidates, game === "sprint" ? 10 : candidates.length, seed), start: performance.now() + 3000, phase: online?'connecting':"countdown", score: 0, correct: 0, misses: 0, combo: 0, maxCombo: 0, penalty: 0, lives: 3, log: [], totalAnswerMs:0, nextAt: 0 };
     qi = 0; resultMs = 0; registrationMs = 0; lock(true);

@@ -5,3 +5,5 @@
 @media(max-width:700px){.sx-shell{padding:18px 15px;margin:16px 0}.sx-heading{align-items:flex-start}.sx-heading>button{font-size:12px;white-space:nowrap}.sx-castle-grid,.sx-missions,.sx-diplomacy-form,.sx-admin-form{grid-template-columns:1fr}.sx-diplomacy-form,.sx-admin-form,.sx-board,.sx-alliance-diplomacy{padding:15px}.worlds-page .sw-tabs button{font-size:10px;padding:14px 3px;min-width:0;overflow-wrap:anywhere}.sx-message-feed{padding:10px;max-height:320px}.sx-notification-bar{padding:12px}.sx-notification-bar summary{gap:8px}.sx-chat-bubble{max-width:96%}}
 
 .sx-notification-bar summary::after{content:'▾';margin-left:auto}.sx-notification-bar[open] summary::after{content:'▴'}
+
+.sx-castle-effect.is-locked{background:var(--cream);border:1px dashed var(--line);padding:12px;border-radius:5px}.sx-castle-effect.is-locked progress{opacity:.5}.sx-support-action:empty{display:none}.sx-support-status{margin:10px 0;font-size:12px;overflow-wrap:anywhere}.sx-support-action{margin:12px 0}.sx-support-action button{margin-bottom:6px}

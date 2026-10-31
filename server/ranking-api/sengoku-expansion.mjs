@@ -2,11 +2,13 @@ import '../../assets/ui/sengoku-tactics.js';
 const T=globalThis.HKSengokuTactics,G=globalThis.HKSengokuWorldRules,R=globalThis.HKSengokuKuniMap;
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{status});};
 const safeId=s=>typeof s==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(s);
-export const expansionFields={castle_upgrade:['region'],attack_unit:['unit'],defense_unit:['region','unit'],support_create:['region'],support_cancel:['supportId'],alliance_post:['message','region'],alliance_dissolve:[],treaty_offer:['targetId','kind','giveRegion','receiveRegion'],treaty_respond:['offerId','accept'],treaty_cancel:['offerId']};
+export const expansionFields={castle_upgrade:['region'],attack_unit:['unit'],defense_unit:['region','unit'],support_create:['region'],support_cancel:['supportId'],alliance_post:['message','region'],alliance_dissolve:[],treaty_offer:['targetId','kind','giveRegion','receiveRegion','scope','durationHours','note'],notification_read:['notificationId'],treaty_respond:['offerId','accept'],treaty_cancel:['offerId']};
 export const expansionRoutes=new Set(['/wealth/sengoku/world/timeline','/wealth/sengoku/world/admin','/wealth/sengoku/world/admin/action']);
 export class SengokuExpansion{
  constructor(game){
   this.g=game;this.sql=game.sql;
+  this.sql.exec('CREATE TABLE IF NOT EXISTS sengoku_notifications(id TEXT PRIMARY KEY,owner TEXT NOT NULL,worldId INTEGER NOT NULL,kind TEXT NOT NULL,text TEXT NOT NULL,region TEXT,at INTEGER NOT NULL,readAt INTEGER NOT NULL DEFAULT 0)');
+  this.sql.exec('CREATE INDEX IF NOT EXISTS sengoku_notifications_owner ON sengoku_notifications(owner,at DESC)');
   this.sql.exec('CREATE TABLE IF NOT EXISTS sengoku_user_controls(owner TEXT PRIMARY KEY,banned INTEGER NOT NULL DEFAULT 0,accessUntil INTEGER NOT NULL DEFAULT 0,learningUntil INTEGER NOT NULL DEFAULT 0,chatUntil INTEGER NOT NULL DEFAULT 0,recruitMicros INTEGER,revision INTEGER NOT NULL DEFAULT 0)');
   this.sql.exec('CREATE TABLE IF NOT EXISTS sengoku_admin_receipts(actor TEXT NOT NULL,requestId TEXT NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(actor,requestId))');
   this.sql.exec('CREATE TABLE IF NOT EXISTS sengoku_admin_audit(id INTEGER PRIMARY KEY AUTOINCREMENT,actor TEXT NOT NULL,target TEXT NOT NULL,kind TEXT NOT NULL,value TEXT NOT NULL,at INTEGER NOT NULL)');
@@ -19,6 +21,8 @@ export class SengokuExpansion{
   this.sql.exec('CREATE TABLE IF NOT EXISTS sengoku_alliance_missions(allianceId TEXT NOT NULL,week INTEGER NOT NULL,missionId TEXT NOT NULL,points INTEGER NOT NULL,at INTEGER NOT NULL,PRIMARY KEY(allianceId,week,missionId))');
  }
  now(){return this.g.now();}
+ notify(w,players,kind,text,region=null){for(const owner of new Set(players.filter(p=>p&&!p.retired).map(p=>p.owner))){this.sql.exec('INSERT INTO sengoku_notifications(id,owner,worldId,kind,text,region,at) VALUES(?,?,?,?,?,?,?)',crypto.randomUUID(),owner,w.id,kind,text,region,this.now());this.sql.exec('DELETE FROM sengoku_notifications WHERE owner=? AND id NOT IN (SELECT id FROM sengoku_notifications WHERE owner=? ORDER BY at DESC,rowid DESC LIMIT 100)',owner,owner);}}
+ notifications(owner){if(!owner)return [];return this.sql.exec('SELECT id,worldId,kind,text,region,at,readAt FROM sengoku_notifications WHERE owner=? ORDER BY at DESC,rowid DESC LIMIT 100',owner).toArray();}
  control(owner){return this.sql.exec('SELECT * FROM sengoku_user_controls WHERE owner=?',owner).toArray()[0]||{banned:0,accessUntil:0,learningUntil:0,chatUntil:0,recruitMicros:null,revision:0};}
  banned(owner){return !!this.control(owner).banned;}
  access(owner,kind='play'){
@@ -53,7 +57,7 @@ export class SengokuExpansion{
  }
  learn(w,p,q,correct){
   p.s.recruitMicros=this.control(p.owner).recruitMicros;
-  if(!correct)return;if(q.role==='castle'){const r=w.regions.find(r=>r.id===q.reinforceRegion&&r.owner===p.id);if(!r||r.battle)fail('sengoku-castle');r.castleTraining??={};r.castleEffects??={};const kind=q.castleEffect;if(kind==='build'&&!r.castleLevel){r.castleWork=(r.castleWork||0)+1;if(r.castleWork>=10){r.castleWork-=10;r.castleLevel=1;this.g.event(w,p.name+'が'+R.region(r.id).name+'に城を建設した。','castle');}}else if(['wall','moat','barracks'].includes(kind)&&r.castleLevel&&(r.castleEffects[kind]||0)<5){r.castleTraining[kind]=(r.castleTraining[kind]||0)+1;if(r.castleTraining[kind]>=10){r.castleTraining[kind]-=10;r.castleEffects[kind]=(r.castleEffects[kind]||0)+1;}}r.revision++;}
+  if(!correct)return;if(q.role==='castle'){const r=w.regions.find(r=>r.id===q.reinforceRegion&&r.owner===p.id);if(!r||r.battle)fail('sengoku-castle');r.castleTraining??={};r.castleEffects??={};const kind=q.castleEffect;if(kind==='build'&&!r.castleLevel){r.castleWork=(r.castleWork||0)+1;if(r.castleWork>=10){r.castleWork-=10;r.castleLevel=1;this.g.event(w,p.name+'が'+R.region(r.id).name+'に城を建設した。','castle');this.notify(w,[p],'castle',R.region(r.id).name+'の城が完成しました。基本守備＋10%。',r.id);}}else if(['wall','moat','barracks'].includes(kind)&&r.castleLevel&&(r.castleEffects[kind]||0)<5){r.castleTraining[kind]=(r.castleTraining[kind]||0)+1;if(r.castleTraining[kind]>=10){r.castleTraining[kind]-=10;r.castleEffects[kind]=(r.castleEffects[kind]||0)+1;this.notify(w,[p],'castle',R.region(r.id).name+'の'+({wall:'城壁',moat:'堀',barracks:'兵舎'}[kind])+'をLv.'+r.castleEffects[kind]+'に強化しました。',r.id);}}r.revision++;}
   if(p.allianceId){this.activity(w,p.allianceId,q.id+':answer:'+q.index,p.id,{correct:1});this.honors(w,p.allianceId);}
  }
  reinforce(r,amount){
@@ -69,12 +73,12 @@ export class SengokuExpansion{
  }
  begin(w,p,q,region){
   q.tactics=T.snapshot(p.s,region,this.now());q.damage=T.damage(q.attackSnapshot.force,q.tactics);const a=this.g.alliances.group(w,p),defender=w.players.find(d=>d.id===region.owner),enemy=defender?.allianceId;
-  q.enemyAlliance=enemy||null;const enemyGroup=w.alliances.find(x=>x.id===enemy);q.upset=!!(a&&enemyGroup&&this.stats(w,enemyGroup).score>this.stats(w,a).score);
+  if(defender)this.notify(w,[defender],'battle',p.name+'が'+R.region(region.id).name+'に攻撃を開始しました。',region.id);q.enemyAlliance=enemy||null;const enemyGroup=w.alliances.find(x=>x.id===enemy);q.upset=!!(a&&enemyGroup&&this.stats(w,enemyGroup).score>this.stats(w,a).score);
   const support=(w.supportRequests||[]).find(s=>s.allianceId===p.allianceId&&s.region===region.id&&!s.closedAt&&s.expiresAt>this.now());
   if(support){support.participants=[...new Set([...(support.participants||[]),p.id])];q.supportId=support.id;this.activity(w,p.allianceId,q.id+':support',p.id,{contribution:1});this.honors(w,p.allianceId);}
  }
  captured(w,p,q,oldOwner){
-  const r=w.regions.find(r=>r.id===q.target);r.garrisonFraction=0;r.castleWork=0;
+  this.notify(w,[p,w.players.find(m=>m.id===oldOwner)],'conquest',p.name+'が'+R.region(q.target).name+'を占領しました。',q.target);const r=w.regions.find(r=>r.id===q.target);r.garrisonFraction=0;r.castleWork=0;
   const support=(w.supportRequests||[]).find(s=>s.id===q.supportId),joint=!!support&&new Set(support.participants||[]).size>=2;
   if(p.allianceId){this.activity(w,p.allianceId,q.id+':capture',p.id,{captures:oldOwner?1:0,jointWins:joint?1:0,upsetRegion:q.upset?q.target:null});
    if(joint)for(const playerId of support.participants)this.activity(w,p.allianceId,q.id+':reward:'+playerId,playerId,{contribution:10});this.honors(w,p.allianceId);}
@@ -108,6 +112,7 @@ export class SengokuExpansion{
  canRepresent(w,p){const a=this.g.alliances.group(w,p);return !a||a.leaderId===p.id;}
  apply(w,p,data){
   if(!Object.hasOwn(expansionFields,data.type))return false;this.access(p.owner);const type=data.type,a=this.g.alliances.group(w,p),r=w.regions.find(r=>r.id===data.region),locked=!!p.s.pending||!!p.incoming;
+  if(type==='notification_read'){if(data.notificationId!=='all'&&!this.notifications(p.owner).some(n=>n.id===data.notificationId))fail('sengoku-notification');if(data.notificationId==='all')this.sql.exec('UPDATE sengoku_notifications SET readAt=? WHERE owner=? AND readAt=0',this.now(),p.owner);else this.sql.exec('UPDATE sengoku_notifications SET readAt=? WHERE owner=? AND id=? AND readAt=0',this.now(),p.owner,data.notificationId);return true;}
   if(locked)fail('world-pending',409);
   if(type==='attack_unit'){if(!T.units[data.unit])fail('sengoku-unit');p.s.attackUnit=data.unit;}
   else if(type==='defense_unit'){if(!r||r.owner!==p.id||r.battle||!T.units[data.unit])fail('sengoku-unit');r.defenseUnit=data.unit;r.revision++;}
@@ -116,42 +121,44 @@ export class SengokuExpansion{
   }else if(type==='support_create'){
    if(!a||!this.g.alliances.permissions(w,a,p).command)fail('alliance-command',403);if(!r||r.owner===p.id||this.g.alliances.friendly(w,p,r.owner)||!G.reachable(p.s,r.id,p.home,this.g.alliances.frontier(w,p)))fail('world-route');this.validateAttack(w,p,r);if(r.protectedUntil>this.now())fail('world-protected',409);
    const active=w.supportRequests.filter(s=>!s.closedAt&&s.expiresAt>this.now());if(active.some(s=>s.allianceId===a.id&&s.region===r.id))fail('sengoku-support-exists',409);if(active.filter(s=>s.playerId===p.id).length>=3)fail('sengoku-support-limit');
-   w.supportRequests.push({id:crypto.randomUUID(),allianceId:a.id,playerId:p.id,by:p.name,region:r.id,createdAt:this.now(),expiresAt:this.now()+1800000,participants:[]});
+   this.notify(w,this.g.alliances.members(w,a).filter(m=>m.id!==p.id),'support',p.name+'から'+R.region(r.id).name+'への援軍要請が届きました。期限30分。',r.id);w.supportRequests.push({id:crypto.randomUUID(),allianceId:a.id,playerId:p.id,by:p.name,region:r.id,createdAt:this.now(),expiresAt:this.now()+1800000,participants:[]});
   }else if(type==='support_cancel'){
    const support=w.supportRequests.find(s=>s.id===data.supportId&&s.allianceId===a?.id);if(!support||support.playerId!==p.id&&!this.g.alliances.permissions(w,a,p).command)fail('sengoku-support');support.closedAt=this.now();
   }else if(type==='alliance_post'){
    if(!a||!Object.hasOwn(T.messages,data.message)||data.region!==undefined&&!R.region(data.region))fail('sengoku-message');const recent=w.alliancePosts.findLast(m=>m.playerId===p.id);if(recent&&recent.at+10000>this.now())fail('sengoku-message-wait',429);
-   w.alliancePosts.push({id:crypto.randomUUID(),allianceId:a.id,playerId:p.id,name:p.name,message:data.message,region:data.region||null,at:this.now()});w.alliancePosts=w.alliancePosts.slice(-200);
+   w.alliancePosts.push({id:crypto.randomUUID(),allianceId:a.id,playerId:p.id,name:p.name,message:data.message,region:data.region||null,at:this.now()});w.alliancePosts=w.alliancePosts.slice(-200);this.notify(w,this.g.alliances.members(w,a).filter(m=>m.id!==p.id),'chat',p.name+'：'+T.messages[data.message],data.region||null);
   }else if(type==='alliance_dissolve'){
    if(!a||a.leaderId!==p.id)fail('alliance-leader',403);const members=this.g.alliances.members(w,a);this.g.alliances.busy(members);if(members.some(m=>m.s.pending))fail('alliance-battle',409);for(const m of members){m.allianceId=null;m.allianceReadyAt=this.now()+300000;if(m.id!==p.id)m.revision++;}w.alliances=w.alliances.filter(g=>g.id!==a.id);w.allianceInvites=w.allianceInvites.filter(i=>i.allianceId!==a.id);w.allianceApplications=w.allianceApplications.filter(i=>i.allianceId!==a.id);for(const s of w.supportRequests.filter(s=>s.allianceId===a.id))s.closedAt=this.now();this.g.alliances.sync(w);this.g.event(w,'同盟「'+a.name+'」が解散した。','alliance');
   }else if(type==='treaty_offer'){
-   const target=w.players.find(m=>m.id===data.targetId&&!m.retired);if(!target||target.id===p.id||this.g.isBanned(target.owner)||this.g.alliances.friendly(w,p,target.id)||!this.canRepresent(w,p)||!this.canRepresent(w,target))fail('sengoku-diplomacy-target');if(!['ceasefire','pact','exchange'].includes(data.kind))fail('sengoku-diplomacy');
+   const target=w.players.find(m=>m.id===data.targetId&&!m.retired),scope=data.scope||(p.allianceId&&target?.allianceId?'alliance':'player');if(!target||target.id===p.id||this.g.isBanned(target.owner)||this.g.alliances.friendly(w,p,target.id)||!['alliance','player'].includes(scope)||scope==='alliance'&&(!p.allianceId||!target.allianceId||!this.canRepresent(w,p)||!this.canRepresent(w,target))||data.scope===undefined&&(!this.canRepresent(w,p)||!this.canRepresent(w,target)))fail('sengoku-diplomacy-target');if(!['ceasefire','pact','exchange'].includes(data.kind))fail('sengoku-diplomacy');
+   const durationHours=data.durationHours??(data.kind==='pact'?72:24);if(data.kind!=='exchange'&&!(data.kind==='pact'?[24,48,72]:[6,12,24]).includes(durationHours))fail('sengoku-diplomacy');const proposalNote=this.g.alliances.text(data.note||'',120);
    if(w.diplomacy.filter(t=>t.fromPlayer===p.id&&t.status==='offered'&&t.expiresAt>this.now()).length>=3)fail('sengoku-diplomacy-limit');
    if(data.kind==='exchange'){const give=w.regions.find(r=>r.id===data.giveRegion&&r.owner===p.id),receive=w.regions.find(r=>r.id===data.receiveRegion&&r.owner===target.id);if(!give||!receive||give.battle||receive.battle||give.protectedUntil>this.now()||receive.protectedUntil>this.now())fail('sengoku-exchange');}
-   w.diplomacy.push({id:crypto.randomUUID(),kind:data.kind,status:'offered',from:this.side(w,p),to:this.side(w,target),fromPlayer:p.id,toPlayer:target.id,fromName:p.name,toName:target.name,giveRegion:data.kind==='exchange'?data.giveRegion:null,receiveRegion:data.kind==='exchange'?data.receiveRegion:null,createdAt:this.now(),expiresAt:this.now()+86400000});
+   w.diplomacy.push({id:crypto.randomUUID(),scope,durationHours:data.kind==='exchange'?null:durationHours,note:proposalNote,kind:data.kind,status:'offered',from:data.scope===undefined?this.side(w,p):scope==='player'?{kind:'player',id:p.id}:this.side(w,p),to:data.scope===undefined?this.side(w,target):scope==='player'?{kind:'player',id:target.id}:this.side(w,target),fromPlayer:p.id,toPlayer:target.id,fromName:scope==='alliance'?a.name:p.name,toName:scope==='alliance'?this.g.alliances.group(w,target).name:target.name,giveRegion:data.kind==='exchange'?data.giveRegion:null,receiveRegion:data.kind==='exchange'?data.receiveRegion:null,createdAt:this.now(),expiresAt:this.now()+86400000});this.notify(w,[target],'diplomacy',p.name+'から'+(scope==='alliance'?'同盟':'個人')+'への'+({ceasefire:'停戦',pact:'不可侵',exchange:'領土交換'}[data.kind])+'提案が届きました。24時間以内に返答できます。');
   }else if(type==='treaty_cancel'){
-   const offer=w.diplomacy.find(t=>t.id===data.offerId&&t.fromPlayer===p.id&&t.status==='offered');if(!offer)fail('sengoku-diplomacy');offer.status='withdrawn';
+   const offer=w.diplomacy.find(t=>t.id===data.offerId&&t.fromPlayer===p.id&&t.status==='offered');if(!offer)fail('sengoku-diplomacy');offer.status='withdrawn';this.notify(w,[w.players.find(m=>m.id===offer.toPlayer)],'diplomacy',offer.fromName+'が外交提案を取り下げました。');
   }else if(type==='treaty_respond'){
-   const offer=w.diplomacy.find(t=>t.id===data.offerId&&t.toPlayer===p.id&&t.status==='offered'&&t.expiresAt>this.now()),from=offer&&w.players.find(m=>m.id===offer.fromPlayer&&!m.retired);if(!offer||typeof data.accept!=='boolean'||!from||!this.canRepresent(w,p)||!this.canRepresent(w,from)||!this.inSide(w,p,offer.to)||!this.inSide(w,from,offer.from))fail('sengoku-diplomacy');
-   if(!data.accept){offer.status='rejected';return true;}const involved=w.players.filter(m=>this.inSide(w,m,offer.from)||this.inSide(w,m,offer.to));this.g.alliances.busy(involved);if(from.s.pending||from.incoming)fail('alliance-battle',409);
+   const offer=w.diplomacy.find(t=>t.id===data.offerId&&t.toPlayer===p.id&&t.status==='offered'&&t.expiresAt>this.now()),from=offer&&w.players.find(m=>m.id===offer.fromPlayer&&!m.retired);if(!offer||typeof data.accept!=='boolean'||!from||offer.to.kind==='alliance'&&!this.canRepresent(w,p)||offer.from.kind==='alliance'&&!this.canRepresent(w,from)||!this.inSide(w,p,offer.to)||!this.inSide(w,from,offer.from))fail('sengoku-diplomacy');
+   if(!data.accept){offer.status='rejected';this.notify(w,[from],'diplomacy',offer.toName+'が外交提案を断りました。');return true;}const involved=w.players.filter(m=>this.inSide(w,m,offer.from)||this.inSide(w,m,offer.to));this.g.alliances.busy(involved);if(from.s.pending||from.incoming)fail('alliance-battle',409);
    if(offer.kind==='exchange'){
     const give=w.regions.find(r=>r.id===offer.giveRegion&&r.owner===from.id),receive=w.regions.find(r=>r.id===offer.receiveRegion&&r.owner===p.id);if(!give||!receive||give.battle||receive.battle||give.protectedUntil>this.now()||receive.protectedUntil>this.now()||(give.lastTradeAt||0)+86400000>this.now()||(receive.lastTradeAt||0)+86400000>this.now())fail('sengoku-exchange');
     for(const [land,next]of [[give,p],[receive,from]]){land.owner=next.id;land.protectedUntil=this.now()+G.PROTECTION;land.lastTradeAt=this.now();land.revision++;next.s.heldRegions=[...new Set([...next.s.heldRegions,land.id])];}
     for(const m of [from,p]){this.g.sync(w,m);if(!m.s.ownedRegions.includes(m.s.capital))m.s.capital=m.s.ownedRegions[0]||m.home;this.g.rank(w,m);}from.revision++;offer.status='completed';this.g.event(w,from.name+'と'+p.name+'が'+R.region(give.id).name+'と'+R.region(receive.id).name+'を交換した。','diplomacy');
-   }else{offer.fromPlayers=w.players.filter(m=>this.inSide(w,m,offer.from)).map(m=>m.id);offer.toPlayers=w.players.filter(m=>this.inSide(w,m,offer.to)).map(m=>m.id);offer.status='active';offer.until=this.now()+(offer.kind==='pact'?259200000:86400000);this.g.event(w,offer.fromName+'と'+offer.toName+'が'+(offer.kind==='pact'?'72時間の不可侵条約':'24時間の停戦協定')+'を結んだ。','diplomacy');}
+   }else{offer.fromPlayers=w.players.filter(m=>this.inSide(w,m,offer.from)).map(m=>m.id);offer.toPlayers=w.players.filter(m=>this.inSide(w,m,offer.to)).map(m=>m.id);offer.status='active';offer.until=this.now()+(offer.durationHours??(offer.kind==='pact'?72:24))*3600000;this.g.event(w,offer.fromName+'と'+offer.toName+'が'+((offer.durationHours??(offer.kind==='pact'?72:24))+'時間の'+(offer.kind==='pact'?'不可侵条約':'停戦協定'))+'を結んだ。','diplomacy');}
+   this.notify(w,involved,'diplomacy',offer.fromName+'と'+offer.toName+'の'+({exchange:'領土交換が成立しました。',pact:'不可侵条約が成立しました。',ceasefire:'停戦協定が成立しました。'}[offer.kind]));
    if(from.allianceId)this.honors(w,from.allianceId);if(p.allianceId)this.honors(w,p.allianceId);
   }
   return true;
  }
  expire(w){
-  let changed=false;for(const t of w.diplomacy||[]){if(t.status==='active'&&t.until<=this.now()){t.status='expired';this.g.event(w,t.fromName+'と'+t.toName+'の協定が満了した。','diplomacy');changed=true;}if(t.status==='offered'&&t.expiresAt<=this.now()){t.status='expired';changed=true;}}
+  let changed=false;for(const t of w.diplomacy||[]){if(t.status==='active'&&t.until<=this.now()){t.status='expired';this.notify(w,w.players.filter(p=>this.inSide(w,p,t.from)||this.inSide(w,p,t.to)),'diplomacy',t.fromName+'と'+t.toName+'の協定が満了しました。');this.g.event(w,t.fromName+'と'+t.toName+'の協定が満了した。','diplomacy');changed=true;}if(t.status==='offered'&&t.expiresAt<=this.now()){t.status='expired';changed=true;}}
   if((w.supportRequests||[]).length>300){w.supportRequests=w.supportRequests.filter(s=>s.expiresAt+86400000>this.now());changed=true;}
   if((w.diplomacy||[]).length>300){w.diplomacy=w.diplomacy.filter(t=>t.status==='active'||t.expiresAt+604800000>this.now());changed=true;}return changed;
  }
  view(w,p,owner){
   const a=p&&this.g.alliances.group(w,p),alliance=a?this.stats(w,a):null,controls=this.control(owner);
   if(alliance){delete alliance.lands;delete alliance.members;alliance.posts=w.alliancePosts.filter(m=>m.allianceId===a.id).slice(-50);alliance.contribution=this.sql.exec('SELECT COALESCE(SUM(contribution),0) points FROM sengoku_alliance_activity WHERE allianceId=? AND playerId=?',a.id,p.id).toArray()[0].points;}
-  return{version:T.version,admin:this.g.admin.isAdmin(owner),controls:{banned:!!controls.banned,accessUntil:controls.accessUntil,learningUntil:controls.learningUntil,chatUntil:controls.chatUntil,recruitMicros:controls.recruitMicros},attackFraction:p?.s.attackFraction||0,supportRequests:w.supportRequests.filter(s=>s.allianceId===a?.id&&!s.closedAt&&s.expiresAt>this.now()),publicSupports:w.supportRequests.filter(s=>s.allianceId===a?.id&&!s.closedAt&&s.expiresAt>this.now()).map(s=>({region:s.region,allianceId:s.allianceId})),diplomacy:w.diplomacy.filter(t=>t.status==='active'||p&&(t.fromPlayer===p.id||t.toPlayer===p.id)).slice(-80),alliance,timeline:this.timeline(w.id).entries};
+  return{version:T.version,socialVersion:'social-20261101-v1',notifications:this.notifications(owner),admin:this.g.admin.isAdmin(owner),controls:{banned:!!controls.banned,accessUntil:controls.accessUntil,learningUntil:controls.learningUntil,chatUntil:controls.chatUntil,recruitMicros:controls.recruitMicros},attackFraction:p?.s.attackFraction||0,supportRequests:w.supportRequests.filter(s=>s.allianceId===a?.id&&!s.closedAt&&s.expiresAt>this.now()),publicSupports:w.supportRequests.filter(s=>s.allianceId===a?.id&&!s.closedAt&&s.expiresAt>this.now()).map(s=>({region:s.region,allianceId:s.allianceId})),diplomacy:w.diplomacy.filter(t=>p&&(this.inSide(w,p,t.from)||this.inSide(w,p,t.to)||(t.fromPlayers||[]).includes(p.id)||(t.toPlayers||[]).includes(p.id))).slice(-80),alliance,timeline:this.timeline(w.id).entries};
  }
  adminBoard(owner){
   if(!this.g.admin.isAdmin(owner))fail('admin-required',403);const map=new Map();for(let id=1;id<=G.WORLD_COUNT;id++){const w=this.g.read(id);for(const p of w.players){let item=map.get(p.owner);if(!item){item={targetId:p.id,name:this.g.profile(p.owner)?.name||p.name,worlds:[],control:this.control(p.owner),attackUntil:this.g.penalty(p.owner).until};delete item.control.owner;map.set(p.owner,item);}item.worlds.push({id,soldiers:T.troopCount(p.s),territories:p.s.ownedRegions.length,retired:!!p.retired});}}

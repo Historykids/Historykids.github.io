@@ -26,8 +26,8 @@ jobs:
               if(manual?.version!=='account-cooldown-20261031-v1'||manual.status!=='applied'||manual.years!==4||manual.until!==expires.getTime())throw Error('Requested account attack cooldown was not applied uniquely');
               if(d.strategyVersion!=='strategy-alliance-20261031-v1'||d.personalRecruitment?.status!=='applied'||d.personalRecruitment.rewardMicros!==1||d.personalRecruitment.scale!==10000)throw Error('Strategy and personal recruitment configuration mismatch');
               if(d.initialGarrisonCountsForRanking!==false||d.rankingVersion!=='earned-defense-v3'||d.initialOwnedGarrison!==2000||d.protectionMs!==7200000||d.startingProtectionMs!==7200000||d.respawnProtectionMs!==7200000||d.reclaimProtectionMs!==7200000||d.reclaimIgnoresProtection!==false||d.captureCooldownMs!==300000)throw Error('Province protection configuration mismatch');
-              if(d.protocol!=='sengoku-world-v6'||d.alliances?.protocol!=='sengoku-alliance-v1'||d.alliances.maxMembers!==20||d.alliances.bonusPerAlly!==2||d.alliances.maxSoldierBonus!==8)throw Error('Alliance configuration mismatch');
-            }else if(d.protocol!=='sengoku-alliance-v1'||d.maxMembers!==20||!Array.isArray(d.entries)||d.entries.some(a=>'owner' in a||'allianceInvites' in a||!Number.isSafeInteger(a.force)))throw Error('Alliance ranking mismatch');
+              if(d.protocol!=='sengoku-world-v6'||d.alliances?.protocol!=='sengoku-alliance-v1'||d.alliances.maxMembers!==5||d.alliances.bonusPerAlly!==2||d.alliances.maxSoldierBonus!==8)throw Error('Alliance configuration mismatch');
+            }else if(d.protocol!=='sengoku-alliance-v1'||d.maxMembers!==5||!Array.isArray(d.entries)||d.entries.some(a=>'owner' in a||'allianceInvites' in a||!Number.isSafeInteger(a.force)))throw Error('Alliance ranking mismatch');
             console.log(path+' passed');
           }
           console.log('Public protection and alliance checks passed; no alliance, invitation or player created');

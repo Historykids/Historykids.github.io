@@ -132,7 +132,7 @@ jobs:
           const manual=worlds.manualAttackCooldown,expires=new Date(manual?.appliedAt);expires.setUTCFullYear(expires.getUTCFullYear()+4);
           if(manual?.version!=='account-cooldown-20261031-v1'||manual.status!=='applied'||manual.years!==4||manual.until!==expires.getTime())throw Error('Requested account attack cooldown was not applied uniquely');
           console.log('Requested account attack cooldown verified until '+new Date(manual.until).toISOString());
-          if(worlds.strategyVersion!=='strategy-alliance-20261031-v1'||worlds.personalRecruitment?.status!=='applied'||worlds.personalRecruitment.rewardMicros!==1||worlds.personalRecruitment.scale!==10000||worlds.alliances?.maxMembers!==20)throw Error('Strategy, alliance and personal recruitment configuration mismatch');
+          if(worlds.strategyVersion!=='strategy-alliance-20261031-v1'||worlds.personalRecruitment?.status!=='applied'||worlds.personalRecruitment.rewardMicros!==1||worlds.personalRecruitment.scale!==10000||worlds.alliances?.maxMembers!==5)throw Error('Strategy, alliance and personal recruitment configuration mismatch');
           const historyResponse=await fetch(new URL('/wealth/sengoku/world/timeline?world=1',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)}),history=await historyResponse.json();
           if(!historyResponse.ok||!Array.isArray(history.entries)||history.entries.some(e=>'owner' in e||'state' in e))throw Error('Chronicle runtime check failed');
           const strategyAdmin=await fetch(new URL('/wealth/sengoku/world/admin',base),{headers:{Origin:'https://historykids.github.io',Authorization:'Bearer '+probeToken},signal:AbortSignal.timeout(15000)});
@@ -158,8 +158,8 @@ jobs:
           console.log('Four separate quiz modes, tenth-force combat and five-minute attack cooldown checks passed; no player, battle or quiz created');
           const alliesResponse=await fetch(new URL('/wealth/sengoku/world/alliances',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
           const allies=await alliesResponse.json();
-          if(!alliesResponse.ok||allies.protocol!=='sengoku-alliance-v1'||allies.maxMembers!==20||!Array.isArray(allies.entries)||allies.entries.some(a=>'owner' in a||'allianceInvites' in a||!Number.isSafeInteger(a.force)))throw Error('Alliance ranking runtime check failed');
-          if(worlds.alliances?.maxMembers!==20||worlds.alliances.bonusPerAlly!==2||worlds.alliances.maxSoldierBonus!==8)throw Error('Alliance benefits runtime check failed');
+          if(!alliesResponse.ok||allies.protocol!=='sengoku-alliance-v1'||allies.maxMembers!==5||!Array.isArray(allies.entries)||allies.entries.some(a=>'owner' in a||'allianceInvites' in a||!Number.isSafeInteger(a.force)))throw Error('Alliance ranking runtime check failed');
+          if(worlds.alliances?.maxMembers!==5||worlds.alliances.bonusPerAlly!==2||worlds.alliances.maxSoldierBonus!==8)throw Error('Alliance benefits runtime check failed');
           console.log('Alliance consent, benefit configuration and separate ranking checks passed; no alliance or invitation created');
           const forceResponse=await fetch(new URL('/wealth/sengoku/world/ranking',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
           const force=await forceResponse.json();

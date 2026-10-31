@@ -10,7 +10,8 @@
   ['🌸','桜'],['🌻','ひまわり'],['🍁','もみじ'],['❄️','雪'],['☀️','晴れ'],['🌙','月'],['🌈','虹'],['🌏','地球'],
   ['📚','勉強'],['✏️','鉛筆'],['💡','ひらめき'],['🎯','目標'],['🍵','お茶'],['🍙','おにぎり'],['🍡','だんご'],['🎮','ゲーム']
  ].map(([emoji,label])=>Object.freeze({emoji,label})));
+ const presets=Object.freeze(['こんにちは！','ありがとう！','おつかれさま！','同盟メンバー募集中！','同盟に入りたいです！','援軍をお願いします！','一緒に攻めよう！','停戦を希望します！','ナイス！','クイズがんばろう！']);
  const allowed=new Set(palette.map(p=>p.emoji)),MAX_EMOJIS=8,COOLDOWN=5000,WINDOW=60000,MAX_PER_WINDOW=10;
- const valid=value=>Array.isArray(value)&&value.length>=1&&value.length<=MAX_EMOJIS&&value.every(e=>typeof e==='string'&&allowed.has(e));
- const api=Object.freeze({palette,MAX_EMOJIS,COOLDOWN,WINDOW,MAX_PER_WINDOW,valid});root.HKSengokuChatRules=api;if(typeof module!=='undefined')module.exports=api;
+ const valid=value=>Array.isArray(value)&&value.length>=1&&value.length<=MAX_EMOJIS&&(value.every(e=>typeof e==='string'&&allowed.has(e))||(value.length===1&&presets.includes(value[0])));
+ const api=Object.freeze({palette,presets,MAX_EMOJIS,COOLDOWN,WINDOW,MAX_PER_WINDOW,valid});root.HKSengokuChatRules=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

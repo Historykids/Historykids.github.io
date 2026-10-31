@@ -35,7 +35,7 @@ export class SengokuAlliances{
  log(w,a,text){a.audit??=[];a.audit.unshift({id:crypto.randomUUID(),text,at:this.now()});a.audit=a.audit.slice(0,20);a.updatedAt=this.now();this.touch(w,this.members(w,a));}
  command(w,p,data){let a=this.group(w,p),type=data.type;
   if(type==='alliance_apply'){
-   if(a)fail('alliance-joined');this.ready(p);this.busy([p]);a=w.alliances.find(a=>a.id===data.allianceId);if(!a)fail('alliance-none');if(this.members(w,a).length>=20)fail('alliance-full');if(w.allianceApplications.some(i=>i.playerId===p.id&&i.allianceId===a.id))fail('alliance-applied');if(w.allianceApplications.filter(i=>i.playerId===p.id).length>=3)fail('alliance-application-limit');
+   if(a)fail('alliance-joined');this.ready(p);this.busy([p]);a=w.alliances.find(a=>a.id===data.allianceId);if(!a)fail('alliance-none');if(this.members(w,a).length>=5)fail('alliance-full');if(w.allianceApplications.some(i=>i.playerId===p.id&&i.allianceId===a.id))fail('alliance-applied');if(w.allianceApplications.filter(i=>i.playerId===p.id).length>=3)fail('alliance-application-limit');
    w.allianceApplications.push({id:crypto.randomUUID(),allianceId:a.id,playerId:p.id,note:this.text(data.note||'',100),createdAt:this.now(),expiresAt:this.now()+86400000});this.touch(w,this.members(w,a).filter(m=>this.permissions(w,a,m).manage),p);return;
   }
   if(type==='alliance_withdraw'){const i=w.allianceApplications.find(i=>i.id===data.applicationId&&i.playerId===p.id);if(!i)fail('alliance-application-gone',409);w.allianceApplications=w.allianceApplications.filter(v=>v.id!==i.id);a=w.alliances.find(a=>a.id===i.allianceId);if(a)this.touch(w,this.members(w,a),p);return;}
@@ -53,7 +53,7 @@ export class SengokuAlliances{
    const o=a.objective;if(!o||o.id!==data.objectiveId||o.expiresAt<=this.now()||typeof data.ready!=='boolean')fail('alliance-objective-gone',409);o.ready=(o.ready||[]).filter(id=>id!==p.id);if(data.ready)o.ready.push(p.id);this.touch(w,members,p);
   }else if(type==='alliance_review'){
    if(!perms.manage)fail('alliance-leader',403);const i=w.allianceApplications.find(i=>i.id===data.applicationId&&i.allianceId===a.id&&i.expiresAt>this.now()),target=i&&w.players.find(p=>p.id===i.playerId);if(!i||typeof data.accept!=='boolean'||!this.eligible(target))fail('alliance-application-gone',409);
-   if(data.accept){if(target.allianceId)fail('alliance-joined');this.ready(target);this.busy([...members,target]);if(target.s.pending)fail('alliance-battle',409);if(members.length>=20)fail('alliance-full',409);target.allianceId=a.id;w.allianceInvites=w.allianceInvites.filter(i=>i.targetId!==target.id);w.allianceApplications=w.allianceApplications.filter(i=>i.playerId!==target.id);this.log(w,a,target.name+'が加入申請の承認により参加しました。');this.touch(w,[target],p);
+   if(data.accept){if(target.allianceId)fail('alliance-joined');this.ready(target);this.busy([...members,target]);if(target.s.pending)fail('alliance-battle',409);if(members.length>=5)fail('alliance-full',409);target.allianceId=a.id;w.allianceInvites=w.allianceInvites.filter(i=>i.targetId!==target.id);w.allianceApplications=w.allianceApplications.filter(i=>i.playerId!==target.id);this.log(w,a,target.name+'が加入申請の承認により参加しました。');this.touch(w,[target],p);
    }else{w.allianceApplications=w.allianceApplications.filter(v=>v.id!==i.id);this.touch(w,[target,...members],p);}
   }else fail('world-input');this.sync(w);
  }
@@ -70,14 +70,14 @@ export class SengokuAlliances{
    if(a)fail('alliance-joined');this.ready(p);this.busy([p]);a={id:crypto.randomUUID(),name:this.name(w,data.name),leaderId:p.id,createdAt:this.now(),updatedAt:this.now()};w.alliances.push(a);p.allianceId=a.id;w.allianceInvites=w.allianceInvites.filter(i=>i.targetId!==p.id);this.game.event(w,p.name+'が同盟「'+a.name+'」を旗揚げした');
   }else if(type==='alliance_respond'){
    const i=w.allianceInvites.find(i=>i.id===data.inviteId&&i.targetId===p.id&&i.expiresAt>this.now());if(!i||typeof data.accept!=='boolean')fail('alliance-invite-gone',409);const group=w.alliances.find(g=>g.id===i.allianceId);if(!group)fail('alliance-invite-gone',409);
-   if(data.accept){if(a)fail('alliance-joined');this.ready(p);const members=this.members(w,group);this.busy([...members,p]);if(members.length>=20)fail('alliance-full',409);p.allianceId=group.id;w.allianceApplications=w.allianceApplications.filter(i=>i.playerId!==p.id);group.updatedAt=this.now();this.touch(w,members,p);w.allianceInvites=w.allianceInvites.filter(inv=>inv.targetId!==p.id);this.game.event(w,p.name+'が同盟「'+group.name+'」に参加した');}else w.allianceInvites=w.allianceInvites.filter(inv=>inv.id!==i.id);
+   if(data.accept){if(a)fail('alliance-joined');this.ready(p);const members=this.members(w,group);this.busy([...members,p]);if(members.length>=5)fail('alliance-full',409);p.allianceId=group.id;w.allianceApplications=w.allianceApplications.filter(i=>i.playerId!==p.id);group.updatedAt=this.now();this.touch(w,members,p);w.allianceInvites=w.allianceInvites.filter(inv=>inv.targetId!==p.id);this.game.event(w,p.name+'が同盟「'+group.name+'」に参加した');}else w.allianceInvites=w.allianceInvites.filter(inv=>inv.id!==i.id);
    const leader=w.players.find(m=>m.id===group.leaderId);if(!data.accept)this.touch(w,[leader],p);
   }else{
    if(!a)fail('alliance-none');const members=this.members(w,a);
    if(type==='alliance_leave'){this.detach(w,p);this.game.event(w,p.name+'が同盟を離れた');return;}
    if(!this.permissions(w,a,p).manage)fail('alliance-leader',403);if(['alliance_rename','alliance_lead'].includes(type)&&a.leaderId!==p.id)fail('alliance-leader',403);
    if(type==='alliance_invite'){
-    const target=w.players.find(m=>m.id===data.playerId);if(!this.eligible(target)||target.id===p.id||target.allianceId)fail('alliance-target');if(members.length>=20)fail('alliance-full',409);if(w.allianceInvites.some(i=>i.allianceId===a.id&&i.targetId===target.id&&i.expiresAt>this.now()))fail('alliance-invited');
+    const target=w.players.find(m=>m.id===data.playerId);if(!this.eligible(target)||target.id===p.id||target.allianceId)fail('alliance-target');if(members.length>=5)fail('alliance-full',409);if(w.allianceInvites.some(i=>i.allianceId===a.id&&i.targetId===target.id&&i.expiresAt>this.now()))fail('alliance-invited');
     w.allianceInvites.push({id:crypto.randomUUID(),allianceId:a.id,fromId:p.id,targetId:target.id,createdAt:this.now(),expiresAt:this.now()+86400000});this.touch(w,[target],p);
    }else if(type==='alliance_cancel'){
     const i=w.allianceInvites.find(i=>i.id===data.inviteId&&i.allianceId===a.id);if(!i)fail('alliance-invite-gone',409);w.allianceInvites=w.allianceInvites.filter(inv=>inv.id!==i.id);this.touch(w,[w.players.find(m=>m.id===i.targetId)],p);

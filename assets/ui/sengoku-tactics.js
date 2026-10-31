@@ -1,8 +1,8 @@
 /* Shared game rules. All mutations and battle snapshots are verified on the server. */
 (function(root){
  'use strict';
- const R=root.HKSengokuKuniMap,G=root.HKSengokuWorldRules,SCALE=10000,MAX_MEMBERS=20,MAX_DEPUTIES=3;
- const units=Object.freeze({infantry:{name:'足軽',mark:'歩',beats:'gunners'},archers:{name:'弓兵',mark:'弓',beats:'infantry'},cavalry:{name:'騎馬兵',mark:'騎',beats:'archers'},gunners:{name:'鉄砲兵',mark:'銃',beats:'cavalry'}});
+ const R=root.HKSengokuKuniMap,G=root.HKSengokuWorldRules,SCALE=10000,MAX_MEMBERS=5,MAX_DEPUTIES=3;
+ const units=Object.freeze({infantry:{name:'兵士',mark:'兵'}});
  const terrainNames={plain:'平野',mountain:'山岳',forest:'森林',coast:'海岸'},weatherNames={sunny:'晴れ',rain:'雨',fog:'霧'};
  const mountain=new Set(['kai','shinano','hida','mutsu','country_npl','country_btn','country_che','afghanistan']);
  const forest=new Set(['echigo','dewa','ezo','country_fin','country_swe','country_cog']);
@@ -18,14 +18,8 @@
  function snapshot(s,region,now){return{attackUnit:units[s.attackUnit]?s.attackUnit:'infantry',defenseUnit:units[region.defenseUnit]?region.defenseUnit:'infantry',castleLevel:Math.max(0,Math.min(10,region.castleLevel||0)),terrain:terrain(region.id),weather:weather(region.id,now)};}
  function modifiers(t){
   let attack=10000,defense=10000,notes=[];
-  if(units[t.attackUnit]?.beats===t.defenseUnit){attack=12500;notes.push('兵種相性：攻撃＋25%');}
-  else if(units[t.defenseUnit]?.beats===t.attackUnit){attack=8000;notes.push('兵種相性：攻撃−20%');}
   if(t.terrain==='mountain'){defense=Math.floor(defense*120/100);notes.push('山岳：守備＋20%');}
   if(t.terrain==='forest'){defense=Math.floor(defense*110/100);notes.push('森林：守備＋10%');}
-  if(t.attackUnit==='cavalry'&&t.terrain==='plain'){attack=Math.floor(attack*115/100);notes.push('平野の騎馬：攻撃＋15%');}
-  if(t.weather==='rain'&&t.attackUnit==='gunners'){attack=Math.floor(attack*75/100);notes.push('雨の鉄砲：攻撃−25%');}
-  if(t.weather==='rain'&&t.defenseUnit==='gunners'){defense=Math.floor(defense*75/100);notes.push('雨の鉄砲：守備−25%');}
-  if(t.weather==='fog'&&t.attackUnit==='archers'){attack=Math.floor(attack*90/100);notes.push('霧の弓兵：攻撃−10%');}
   if(t.castleLevel){defense=Math.floor(defense*(100+t.castleLevel*10)/100);notes.push('城Lv.'+t.castleLevel+'：守備＋'+t.castleLevel*10+'%');}
   return{attack,defense,notes};
  }

@@ -129,7 +129,10 @@ export class Accounts{
     this.sql.exec('DELETE FROM player_login_attempts WHERE username=?',a.username);return Response.json(await this.newSession(this.row(a.owner)));
    }
    if(action==='save'){
-    const save=progress(data.progress),old=JSON.parse(a.progress),wallet=JSON.parse(save.values.hk_wallet_v2),oldWallet=JSON.parse(old.values.hk_wallet_v2);
+    const old=JSON.parse(a.progress);let posted=data.progress;
+    // Older open tabs do not send world-history keys. Preserve them unless the client explicitly clears them.
+    if(object(posted)&&object(posted.values))posted={...posted,values:{...Object.fromEntries(D.keys.filter(key=>key.startsWith('cards_world_')&&!Object.hasOwn(posted.values,key)).map(key=>[key,old.values[key]??null])),...posted.values}};
+    const save=progress(posted),wallet=JSON.parse(save.values.hk_wallet_v2),oldWallet=JSON.parse(old.values.hk_wallet_v2);
     wallet.redeemedCodes=[...new Set([...(wallet.redeemedCodes||[]),...(oldWallet.redeemedCodes||[])])];save.values.hk_wallet_v2=JSON.stringify(wallet);
     const serialized=JSON.stringify(save);
     if(serialized===a.progress)return Response.json({...this.public(a),saved:true});

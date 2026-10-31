@@ -53,7 +53,7 @@ export class SengokuExpansion{
  }
  learn(w,p,q,correct){
   p.s.recruitMicros=this.control(p.owner).recruitMicros;
-  if(!correct)return;if(q.role==='defense'){const r=w.regions.find(r=>r.id===q.reinforceRegion&&r.owner===p.id);if(r)r.castleWork=(r.castleWork||0)+1;}
+  if(!correct)return;if(q.role==='castle'){const r=w.regions.find(r=>r.id===q.reinforceRegion&&r.owner===p.id);if(!r||r.battle)fail('sengoku-castle');r.castleTraining??={};r.castleEffects??={};const kind=q.castleEffect;if(kind==='build'&&!r.castleLevel){r.castleWork=(r.castleWork||0)+1;if(r.castleWork>=10){r.castleWork-=10;r.castleLevel=1;this.g.event(w,p.name+'が'+R.region(r.id).name+'に城を建設した。','castle');}}else if(['wall','moat','barracks'].includes(kind)&&r.castleLevel&&(r.castleEffects[kind]||0)<5){r.castleTraining[kind]=(r.castleTraining[kind]||0)+1;if(r.castleTraining[kind]>=10){r.castleTraining[kind]-=10;r.castleEffects[kind]=(r.castleEffects[kind]||0)+1;}}r.revision++;}
   if(p.allianceId){this.activity(w,p.allianceId,q.id+':answer:'+q.index,p.id,{correct:1});this.honors(w,p.allianceId);}
  }
  reinforce(r,amount){
@@ -112,7 +112,7 @@ export class SengokuExpansion{
   if(type==='attack_unit'){if(!T.units[data.unit])fail('sengoku-unit');p.s.attackUnit=data.unit;}
   else if(type==='defense_unit'){if(!r||r.owner!==p.id||r.battle||!T.units[data.unit])fail('sengoku-unit');r.defenseUnit=data.unit;r.revision++;}
   else if(type==='castle_upgrade'){
-   if(!r||r.owner!==p.id||r.battle)fail('sengoku-castle');if((r.castleLevel||0)>=10)fail('sengoku-castle-max');const cost=r.castleLevel?10:5;if((r.castleWork||0)<cost)fail('sengoku-castle-work');r.castleWork-=cost;r.castleLevel=(r.castleLevel||0)+1;r.revision++;this.g.event(w,p.name+'が'+R.region(r.id).name+'の城をLv.'+r.castleLevel+'に強化した。','castle');
+   if(!r||r.owner!==p.id||r.battle)fail('sengoku-castle');if((r.castleLevel||0)>=10)fail('sengoku-castle-max');const cost=10;if((r.castleWork||0)<cost)fail('sengoku-castle-work');r.castleWork-=cost;r.castleLevel=(r.castleLevel||0)+1;r.revision++;this.g.event(w,p.name+'が'+R.region(r.id).name+'の城をLv.'+r.castleLevel+'に強化した。','castle');
   }else if(type==='support_create'){
    if(!a||!this.g.alliances.permissions(w,a,p).command)fail('alliance-command',403);if(!r||r.owner===p.id||this.g.alliances.friendly(w,p,r.owner)||!G.reachable(p.s,r.id,p.home,this.g.alliances.frontier(w,p)))fail('world-route');this.validateAttack(w,p,r);if(r.protectedUntil>this.now())fail('world-protected',409);
    const active=w.supportRequests.filter(s=>!s.closedAt&&s.expiresAt>this.now());if(active.some(s=>s.allianceId===a.id&&s.region===r.id))fail('sengoku-support-exists',409);if(active.filter(s=>s.playerId===p.id).length>=3)fail('sengoku-support-limit');

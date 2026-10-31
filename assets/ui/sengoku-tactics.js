@@ -15,12 +15,14 @@
  const troopCount=s=>count(s.soldiers,s.attackFraction),guardCount=r=>count(r.garrison,r.garrisonFraction);
  const overseasRecovery=(r,now)=>!!r&&!r.owner&&!!R.region(r.id)?.overseas&&!major.has(r.id)&&!r.battle&&(r.protectedUntil||0)<=now;
  const canRecover=(r,now)=>G.canSpawn(r,now)||overseasRecovery(r,now);
- function snapshot(s,region,now){return{attackUnit:units[s.attackUnit]?s.attackUnit:'infantry',defenseUnit:units[region.defenseUnit]?region.defenseUnit:'infantry',castleLevel:Math.max(0,Math.min(10,region.castleLevel||0)),terrain:terrain(region.id),weather:weather(region.id,now)};}
+ function snapshot(s,region,now){return{attackUnit:units[s.attackUnit]?s.attackUnit:'infantry',defenseUnit:units[region.defenseUnit]?region.defenseUnit:'infantry',castleWall:Math.min(5,region.castleEffects?.wall||0),castleMoat:Math.min(5,region.castleEffects?.moat||0),castleLevel:Math.max(0,Math.min(10,region.castleLevel||0)),terrain:terrain(region.id),weather:weather(region.id,now)};}
  function modifiers(t){
   let attack=10000,defense=10000,notes=[];
   if(t.terrain==='mountain'){defense=Math.floor(defense*120/100);notes.push('山岳：守備＋20%');}
   if(t.terrain==='forest'){defense=Math.floor(defense*110/100);notes.push('森林：守備＋10%');}
   if(t.castleLevel){defense=Math.floor(defense*(100+t.castleLevel*10)/100);notes.push('城Lv.'+t.castleLevel+'：守備＋'+t.castleLevel*10+'%');}
+  if(t.castleWall){defense=Math.floor(defense*(100+t.castleWall*5)/100);notes.push('城壁：守備＋'+t.castleWall*5+'%');}
+  if(t.castleMoat){defense=Math.ceil(defense*100/(100-t.castleMoat*3));notes.push('堀：被害−'+t.castleMoat*3+'%');}
   return{attack,defense,notes};
  }
  function damage(force,t){if(!t)return G.damage({force});const m=modifiers(t),a=BigInt(force)*BigInt(m.attack),b=10n*BigInt(m.defense);return Number((a+b-1n)/b);}

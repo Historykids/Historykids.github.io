@@ -3,3 +3,5 @@
 @media(prefers-reduced-motion:reduce){.sx-map-flag,#swMap path.sx-support{animation:none}}
 
 .sx-backdrop{position:fixed;inset:0;background:#18251e99;z-index:999}.sx-backdrop[hidden]{display:none}.sx-confirm{box-shadow:0 20px 70px #0005}
+
+.sw-tabs .sx-toolbar{display:contents}.sw-tabs .sx-toolbar button{margin:0;white-space:nowrap}.sx-castle-effect{width:100%;border-top:1px solid #d5c4a1;padding:.6rem 0}.sx-castle-effect h4{margin:.4rem 0}.sx-castle-quiz{border:2px solid #927539;background:#fffcf3;border-radius:.8rem;padding:1.2rem;margin-bottom:1.2rem}.sx-castle-quiz .answer-grid{display:grid;gap:.6rem}.sw-tabs{overflow-x:auto}

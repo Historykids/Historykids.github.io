@@ -6,7 +6,7 @@ function reply(body,status=200,allow=origin){return Response.json(body,{status,h
 export default {async fetch(request,env){
  const url=new URL(request.url),incoming=request.headers.get('Origin');
  if(incoming&&incoming!==origin)return reply({error:'origin-not-allowed'},403,'');
- if(url.pathname==='/health'&&request.method==='GET')return reply({ready:!!env.LEADERBOARD&&!!env.RANK_READ_LIMITER&&!!env.RANK_WRITE_LIMITER&&!!env.RANK_GLOBAL_LIMITER});
+ if(url.pathname==='/health'&&request.method==='GET')return reply({release:'simple-alliance-20261101-r1',ready:!!env.LEADERBOARD&&!!env.RANK_READ_LIMITER&&!!env.RANK_WRITE_LIMITER&&!!env.RANK_GLOBAL_LIMITER});
  if(!incoming)return reply({error:'origin-required'},403,'');
  return url.pathname.startsWith('/wealth')?wealthRequest(request,env,reply):rankingRequest(request,env,reply);
 }};

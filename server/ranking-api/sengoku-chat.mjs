@@ -7,7 +7,7 @@ export class SengokuChat{
   this.sql.exec('CREATE TABLE IF NOT EXISTS sengoku_chat_receipts(owner TEXT NOT NULL,requestId TEXT NOT NULL,payload TEXT NOT NULL,messageId TEXT NOT NULL,at INTEGER NOT NULL,PRIMARY KEY(owner,requestId))');
   this.sql.exec('CREATE TABLE IF NOT EXISTS sengoku_chat_limits(owner TEXT PRIMARY KEY,lastAt INTEGER NOT NULL,windowAt INTEGER NOT NULL,count INTEGER NOT NULL)');
  }
- eligible(owner){const a=this.w.profile(owner);return !!a&&!this.w.isBanned(owner)&&!globalThis.HKWealthRules.blockedName(a.name,this.w.admin.words());}
+ eligible(owner){const c=this.w.expansion?.control(owner);if(c&&(c.banned||c.accessUntil>this.w.now()||c.chatUntil>this.w.now()))return false;const a=this.w.profile(owner);return !!a&&!this.w.isBanned(owner)&&!globalThis.HKWealthRules.blockedName(a.name,this.w.admin.words());}
  until(owner){const r=this.sql.exec('SELECT * FROM sengoku_chat_limits WHERE owner=?',owner).toArray()[0];return r?Math.max(r.lastAt+C.COOLDOWN,r.count>=C.MAX_PER_WINDOW?r.windowAt+C.WINDOW:0):0;}
  view(owner){
   const rows=this.sql.exec('SELECT c.*,COALESCE(a.name,g.name) name FROM sengoku_chat_messages c LEFT JOIN player_accounts a ON a.owner=c.owner LEFT JOIN sengoku_guest_profiles g ON g.owner=c.owner ORDER BY c.at DESC,c.rowid DESC LIMIT 200').toArray(),messages=[];
@@ -15,6 +15,7 @@ export class SengokuChat{
   return{protocol:'sengoku-emoji-chat-v1',messages:messages.reverse(),canSend:this.eligible(owner),cooldownUntil:this.until(owner),maxEmojis:C.MAX_EMOJIS,at:this.w.now()};
  }
  send(owner,data){
+  this.w.expansion?.access(owner,'chat');
   if(!this.w.profile(owner))fail('world-account',401);if(this.w.isBanned(owner))fail('banned',403);if(!this.eligible(owner))fail('nickname-blocked',403);
   if(Object.keys(data).some(k=>!['owner','requestId','emojis'].includes(k))||typeof data.requestId!=='string'||!/^[A-Za-z0-9_-]{16,64}$/.test(data.requestId)||!C.valid(data.emojis))fail('chat-emoji-only');
   const payload=JSON.stringify(data.emojis);let replayed=false,messageId;

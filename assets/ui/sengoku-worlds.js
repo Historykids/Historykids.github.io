@@ -93,6 +93,11 @@
   panel.append(node('p','muted small','プレイヤーの領土は合戦で所有者が変わります。海路は最初から通行できます。'));
  }
  function prepare(id){plan=id;dismissed=s().lastResult?.id;renderBattle();setTab('battle',false,false);$('swBattlePrep').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});controls();}
+ async function beginBattle(id){
+  if(!own()||!R.region(id)||busy||!online||journal||changed)return;const sequence=epoch,current=identity(),region=regionData(id);plan=id;dismissed=s().lastResult?.id;setTab('battle',false,false);
+  await act('begin',{target:id,regionRevision:region.revision});
+  if(sequence!==epoch||identity()!==current)return;if(s()?.pending?.mode==='battle'&&s().pending.target===id){setTab('battle',false,false);$('swQuiz').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});$('swAnswers').querySelector('button')?.focus({preventScroll:true});}
+ }
  function estimate(){const targetPlayer=plan?w()?.players.find(p=>p.id===regionData(plan).owner):null,friendly=!!own().alliance&&targetPlayer?.allianceId===own().alliance.id;const valid=plan&&!friendly&&s().soldiers>0&&G.reachable(s(),plan,own().home,own().alliance?.frontier||[]),foe=valid?enemy(plan):null,region=plan?regionData(plan):null;$('swEstimate').replaceChildren();
   if(valid){for(const [label,value]of [['自軍の攻撃兵',s().soldiers],['攻撃兵力（武将バフ込み）',G.attack(s())],['5問連続正解のダメージ',T?T.damage(G.attack(s()),T.snapshot(s(),regionData(plan),now(),T.combatBuffs(data,regionData(plan)))):G.damage(G.snapshot(s()))],['この領地の守備兵',foe.soldiers]]){const e=node('span','',label+' ');e.append(node('strong','',fmt(value)));$('swEstimate').append(e);}}
   else $('swEstimate').textContent=s().soldiers?'マップから出陣先を選んでね。':'兵士獲得クイズで、兵士を増やそう。';
@@ -153,5 +158,5 @@
  setInterval(()=>{if(!document.hidden)load();},5000);setInterval(()=>{deadline();cooldown();},1000);
  data={protocol:'sengoku-world-v6',account:{signedIn:false,name:null},world:null,own:null,activeWorldId:null,rewards:[],at:Date.now()};render();
  (async()=>{try{window.HKAccountSync?.assertActive();token=A.identity(true);const sequence=epoch;let owner=window.HKAccountSync?.meta()?.owner;try{owner||=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token))),b=>b.toString(16).padStart(2,'0')).join('');}catch{}if(sequence!==epoch)return;cacheKey=owner?'hk_sengoku_world_v1_'+owner:'';try{const cached=JSON.parse(localStorage.getItem(cacheKey)||'null');if(cached?.protocol==='sengoku-world-v6'){journal=cached.action&&typeof cached.action.requestId==='string'?cached.action:null;if(cached.view)accept(cached.view,false);}}catch{data=null;journal=null;}await load();}catch(error){status(errorText(error),true);controls();}})();loadMap();
- window.HKSengokuUI=Object.freeze({get:()=>data,selected:()=>selected,battleTarget:()=>plan,now,act,goMap,prepare,refresh:()=>load({force:true}),locked:()=>busy||!online||!!journal||changed});
+ window.HKSengokuUI=Object.freeze({get:()=>data,selected:()=>selected,battleTarget:()=>plan,now,act,goMap,prepare,beginBattle,refresh:()=>load({force:true}),locked:()=>busy||!online||!!journal||changed});
 })();

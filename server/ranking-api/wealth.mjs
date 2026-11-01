@@ -114,6 +114,7 @@ export async function wealthRequest(request, env, reply) {
   if (!rate.success || !globalRate.success) return reply({error: 'rate-limited'}, 429);
   let data = {};
   if(path==='/wealth/poker'&&request.method==='GET'){data.room=new URL(request.url).searchParams.get('room')||undefined;const ticket=new URL(request.url).searchParams.get('ticket');if(ticket)data.id=ticket;}
+  if(path==='/wealth/sengoku/chat'){const id=new URL(request.url).searchParams.get('world');if(id!==null){const channel=Number(id);if(!Number.isSafeInteger(channel)||channel<1||channel>globalThis.HKSengokuWorldRules.WORLD_COUNT)return reply({error:'chat-channel'},400);data.channelWorldId=channel;}}
   if(path==='/wealth/sengoku/world'||path==='/wealth/sengoku/world/ranking'||path==='/wealth/sengoku/world/alliances'||path==='/wealth/sengoku/world/timeline'){const id=new URL(request.url).searchParams.get('world');if(id!==null)data.worldId=Number(id);}
   if(path==='/wealth/sengoku/world/timeline'){const before=new URL(request.url).searchParams.get('before');if(before!==null)data.before=Number(before);}
   if(path==='/wealth/sengoku/world/ranking'){const region=new URL(request.url).searchParams.get('region');if(region!==null)data.region=region;}

@@ -102,12 +102,8 @@ export class SengokuExpansion{
   for(const m of s.missions)if(m.complete)this.sql.exec('INSERT OR IGNORE INTO sengoku_alliance_missions(allianceId,week,missionId,points,at) VALUES(?,?,?,?,?)',a.id,s.weekStart,m.id,m.points,this.now());
   for(const [titleId,condition]of [['hundred',s.territories>=100],['joint',s.allJointWins>=10],['japan',R.japanRegions.every(r=>owned.has(r.id))],['world',R.regions.every(r=>owned.has(r.id))],['upset',s.upsets>=10]])if(condition)this.sql.exec('INSERT OR IGNORE INTO sengoku_alliance_honors(allianceId,titleId,at) VALUES(?,?,?)',a.id,titleId,this.now());
  }
- ranking(owner,worldId){
-  if(worldId!==undefined&&(!Number.isSafeInteger(worldId)||worldId<1||worldId>G.WORLD_COUNT))fail('world-input');return this.g.atomic(()=>{
-   const entries=[];for(let id=1;id<=G.WORLD_COUNT;id++){if(worldId&&id!==worldId)continue;const w=this.g.read(id);for(const a of w.alliances){if(globalThis.HKWealthRules.blockedName(a.name,this.g.admin.words()))continue;this.honors(w,a.id);const s=this.stats(w,a);if(!s.members.length)continue;entries.push({id:a.id,name:a.name,worldId:id,leader:this.g.alliances.visible(w.players.find(p=>p.id===a.leaderId)),force:s.members.reduce((n,p)=>n+G.attack(p.s),0),soldiers:s.members.reduce((n,p)=>n+p.s.soldiers,0),wins:s.members.reduce((n,p)=>n+p.s.battlesWon,0),members:s.members.map(p=>({id:p.id,name:p.name,force:G.attack(p.s),territories:p.s.ownedRegions.length})),territories:s.territories,territoryPoints:s.territoryPoints,activityPoints:s.activityPoints,score:s.score,weekStart:s.weekStart,weekEnd:s.weekEnd,titlePoints:s.titlePoints,honors:s.honors,own:s.members.some(p=>p.owner===owner)&&(!worldId?id===this.g.member(owner)?.worldId:true)});}}
-   entries.sort((a,b)=>b.score-a.score||b.territories-a.territories||a.id.localeCompare(b.id));let rank=0,prior=null;entries.forEach((a,i)=>{if(a.score!==prior)rank=i+1;a.rank=rank;prior=a.score;});return{protocol:'sengoku-alliance-v1',scoring:'weekly-activity-v2',territoryCount:R.regions.length,entries:entries.slice(0,100),own:entries.find(a=>a.own)||null,total:entries.length,worldId:worldId||null,activeWorldId:this.g.member(owner)?.worldId||null,maxMembers:T.MAX_MEMBERS,at:this.now()};
-  });
- }
+ ranking(owner,worldId){return this.g.alliances.ranking(owner,worldId);}
+
  side(w,p){return p?.allianceId?{kind:'alliance',id:p.allianceId}:{kind:'player',id:p?.id};}
  inSide(w,p,side){return !!p&&(side.kind==='alliance'?p.allianceId===side.id:p.id===side.id);}
  truce(w,p,owner){const d=w.players.find(m=>m.id===owner);if(!d)return false;return(w.diplomacy||[]).some(t=>t.status==='active'&&t.until>this.now()&&(((this.inSide(w,p,t.from)||(t.fromPlayers||[]).includes(p.id))&&(this.inSide(w,d,t.to)||(t.toPlayers||[]).includes(d.id)))||((this.inSide(w,p,t.to)||(t.toPlayers||[]).includes(p.id))&&(this.inSide(w,d,t.from)||(t.fromPlayers||[]).includes(d.id)))));}

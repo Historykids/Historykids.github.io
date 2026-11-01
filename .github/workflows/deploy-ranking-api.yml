@@ -158,8 +158,14 @@ jobs:
           console.log('Seventy old-country regions, five unlimited worlds and selected-land defense recruitment checks passed; no player or battle created');
           console.log('One-hour province protection and land reclamation checks passed; no battle created');
           console.log('Four separate quiz modes, tenth-force combat and five-minute attack cooldown checks passed; no player, battle or quiz created');
-          const alliesResponse=await fetch(new URL('/wealth/sengoku/world/alliances',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
-          const allies=await alliesResponse.json();
+          let alliesResponse,allies;
+          for(let attempt=0;attempt<72;attempt++){
+            alliesResponse=await fetch(new URL('/wealth/sengoku/world/alliances',base),{headers:{Origin:'https://historykids.github.io',Authorization:'Bearer '+probeToken,'Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
+            allies=await alliesResponse.json();
+            if(alliesResponse.ok&&allies.scoring==='member-force-v1')break;
+            if(attempt<71)await new Promise(resolve=>setTimeout(resolve,5000));
+          }
+          if(allies.scoring!=='member-force-v1')throw Error('Member-force alliance ranking did not become ready');
           if(!alliesResponse.ok||allies.protocol!=='sengoku-alliance-v1'||allies.maxMembers!==5||!Array.isArray(allies.entries)||allies.entries.some(a=>'owner' in a||'allianceInvites' in a||!Number.isSafeInteger(a.force)))throw Error('Alliance ranking runtime check failed');
           if(worlds.alliances?.maxMembers!==5||worlds.alliances.bonusPerAlly!==2||worlds.alliances.maxSoldierBonus!==8)throw Error('Alliance benefits runtime check failed');
           console.log('Alliance consent, benefit configuration and separate ranking checks passed; no alliance or invitation created');

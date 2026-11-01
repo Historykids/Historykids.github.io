@@ -100,6 +100,10 @@
     {
       "file": "account.html",
       "reason": "Private account sign-in and saved-game management; noindex."
+    },
+    {
+      "file": "tenka-season1.html",
+      "reason": "Owner-only Season 1 prototype; noindex and API access restricted to the existing administrator."
     }
   ]
 }

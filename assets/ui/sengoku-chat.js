@@ -3,7 +3,7 @@
  const node=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;},identity=()=>{try{return A.identity(false);}catch{return '';}};
  let draft=[],outbox=null,sending=false,reading=false,readAgain=false,canSend=false,hasProfile=false,invalid=false,seq=0,offset=0,until=0,lastMessages='',channel=null,activeWorldId=null,channelsReady=false;
  const uuid=()=>crypto.randomUUID?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,'0')).join('');
- const now=()=>Date.now()+offset,channelName=()=>channel?'ワールド '+channel:'全ワールド共通',errors={'chat-emoji-only':'絵文字は8個まで、定型文は1つ選んで送れます。','chat-cooldown':'連投は少し待ってね。送れる時刻を確認しています。','chat-request':'送信内容や送信先が変わりました。ページを読み直してください。','chat-channel':'チャットの範囲を選び直してください。','chat-world-membership':'ワールド別の送信は、現在参加しているワールドでできます。','world-account':'最初に戦国天下統一の画面で名前を入力してね。ログインは不要です。','banned':'このアカウントでは送信できません。','nickname-blocked':'このアカウント名では送信できません。'};
+ const now=()=>Date.now()+offset,channelName=()=>window.HKSeason1Config?'Season 1のチャット':channel?'ワールド '+channel:'全ワールド共通',errors={'chat-emoji-only':'絵文字は8個まで、定型文は1つ選んで送れます。','chat-cooldown':'連投は少し待ってね。送れる時刻を確認しています。','chat-request':'送信内容や送信先が変わりました。ページを読み直してください。','chat-channel':'チャットの範囲を選び直してください。','chat-world-membership':'ワールド別の送信は、現在参加しているワールドでできます。','world-account':'最初に戦国天下統一の画面で名前を入力してね。ログインは不要です。','banned':'このアカウントでは送信できません。','nickname-blocked':'このアカウント名では送信できません。'};
  function controls(){
   $('scLogin').hidden=hasProfile;const wait=Math.max(0,Math.ceil((until-now())/1000));
   $('scChannel').disabled=invalid||sending||!!outbox||!channelsReady;$('scPresetCategory').disabled=invalid||sending||!!outbox;
@@ -14,7 +14,7 @@
   $('scRefresh').disabled=invalid||reading||sending;$('scCount').textContent=C.presets.includes(draft[0])?'定型文 1件':draft.length+' / '+C.MAX_EMOJIS;
   $('scFeedTitle').textContent=channelName();$('scMessages').setAttribute('aria-label',channelName()+'のメッセージ');
   $('scTarget').textContent='送信先：'+channelName();
-  $('scChannelHint').textContent=channel?'このワールド宛てのメッセージを表示します。送信は現在このワールドに参加している人ができます。':'全5ワールドのみんなに届く共通チャットです。';
+  $('scChannelHint').textContent=channel?'このワールド宛てのメッセージを表示します。送信は現在このワールドに参加している人ができます。':window.HKSeason1Config?'この試作サーバーだけのチャットです。':'全5ワールドのみんなに届く共通チャットです。';
   $('scWait').textContent=hasProfile&&channel&&activeWorldId!==channel?'このワールドは閲覧できます。送信は参加中のワールドか「全ワールド共通」でできます。':wait?'次の送信まで '+wait+'秒':canSend?'絵文字か定型文を選んで送信できます。':'読むだけでも参加できます。送信するには名前を入力してね。';
  }
  function compose(){$('scDraft').textContent=draft.join('')||'絵文字を選ぼう';controls();}

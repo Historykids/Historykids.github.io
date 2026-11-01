@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js', 'assets/ui/amounts.js', 'assets/ui/wealth-rules.js', 'assets/ui/account-data.js', 'assets/ui/sengoku-rules.js', 'assets/ui/sengoku-world-rules.js', 'assets/ui/sengoku-tactics.js', 'assets/ui/sengoku-kuni-map.js', 'assets/ui/sengoku-ranking-rules.js', 'assets/ui/sengoku-chat-rules.js']
+    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js', 'assets/ui/amounts.js', 'assets/ui/wealth-rules.js', 'assets/ui/account-data.js', 'assets/ui/sengoku-rules.js', 'assets/ui/sengoku-world-rules.js', 'assets/ui/sengoku-tactics.js', 'assets/ui/sengoku-kuni-map.js', 'assets/ui/sengoku-ranking-rules.js', 'assets/ui/sengoku-chat-rules.js', 'assets/ui/tenka-season1-rules.js']
 permissions:
   contents: write
   pages: write
@@ -27,6 +27,9 @@ jobs:
         run: npm ci
       - name: Check answers, ownership, retry and durable storage
         run: |
+          node tests/tenka-map.cjs
+          node tests/tenka-season1.cjs
+          node tests/tenka-season1-ui.cjs
           node tests/world-history.cjs
           node scripts/sengoku-questions.cjs
           node tests/sengoku-worlds.cjs
@@ -193,6 +196,18 @@ jobs:
           const loginDenied=await accountLogin.json();
           if(accountLogin.status!==401||loginDenied.error!=='account-credentials')throw Error('Account password runtime check failed: '+JSON.stringify({status:accountLogin.status,error:loginDenied.error}));
           console.log('Account authentication runtime check passed; no account created');
+          let tenka;
+          for(let attempt=0;attempt<72;attempt++){
+            const response=await fetch(new URL('/wealth/tenka/season1/access',base),{headers:{Origin:'https://historykids.github.io',Authorization:'Bearer '+probeToken,'Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
+            tenka=await response.json();if(response.ok&&tenka.version==='tenka-season1-private-20261102-v1')break;
+            if(attempt<71)await new Promise(resolve=>setTimeout(resolve,5000));
+          }
+          if(tenka.version!=='tenka-season1-private-20261102-v1'||tenka.allowed!==false||tenka.ownerOnly!==true||tenka.japanTerritories!==70)throw Error('Private Tenka access configuration mismatch');
+          for(const route of ['world','worlds','world/ranking','world/alliances','chat']){
+            const response=await fetch(new URL('/wealth/tenka/season1/'+route,base),{headers:{Origin:'https://historykids.github.io',Authorization:'Bearer '+probeToken},signal:AbortSignal.timeout(15000)});
+            if(response.status!==403||(await response.json()).error!=='tenka-owner-only')throw Error('Private Tenka data must remain owner-only');
+          }
+          console.log('Private Tenka access checks passed; no season player, draw or legacy reward created');
           console.log('Ranking storage check passed');
           JS
           git config user.name 'github-actions[bot]'

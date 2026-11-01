@@ -7,6 +7,7 @@ import {WealthNotices,noticeRoutes} from './notices.mjs';
 import {Accounts,accountRoutes} from './accounts.mjs';
 import {SengokuCampaign,sengokuRoutes} from './sengoku.mjs';
 import {SengokuWorlds,worldRoutes} from './sengoku-worlds.mjs';
+import {TenkaSeason1,tenkaRoutes} from './tenka-season1.mjs';
 const W = globalThis.HKWealthRules, M=globalThis.HKAmounts;
 const decode=row=>{if(!row)return null;for(const key of ['balance','assets','score'])row[key]=M.pack(row[key]);return row;};
 const legacyColumns = 'id,name,balance,buildings,residents,buildingValue,residentValue,assets,score,timestamp,revision';
@@ -42,6 +43,7 @@ export class HistoryLeaderboard extends QuizLeaderboard {
     this.accounts=new Accounts(ctx.storage);
     this.sengoku=new SengokuCampaign(ctx.storage,this.admin,this.accounts,owner=>this.isBanned(owner));
     this.sengokuWorlds=new SengokuWorlds(ctx.storage,this.accounts,this.admin,this.sengoku,owner=>this.isBanned(owner));
+    this.tenkaSeason1=new TenkaSeason1(ctx.storage,this.sengokuWorlds);
     this.accounts.validateRename=(a,name)=>{if(this.isBanned(a.owner))throw Object.assign(Error('banned'),{status:403});if(W.blockedName(name,this.admin.words()))throw Object.assign(Error('account-name-blocked'),{status:400});};
     this.accounts.onRename=(a,name)=>{this.sengokuWorlds.renameAccount(a,name);this.sql.exec('UPDATE wealth_scores_v2 SET name=? WHERE id=?',name,a.owner);this.sql.exec('UPDATE wealth_scores SET name=? WHERE id=?',name,a.owner);this.sql.exec('UPDATE wealth_moderation SET nameBlocked=0 WHERE id=? AND banned=0',a.owner);};
   }
@@ -68,6 +70,7 @@ export class HistoryLeaderboard extends QuizLeaderboard {
     if(noticeRoutes.has(path))return this.notices.fetch(path,data);
     if(sengokuRoutes.has(path))return this.sengoku.fetch(path,data);
     if(worldRoutes.has(path))return this.sengokuWorlds.fetch(path,data);
+    if(tenkaRoutes.has(path))return this.tenkaSeason1.fetch(path,data);
     if (path === '/wealth') return Response.json(this.board(owner));
     if (path !== '/wealth/register') return fail('not-found', 404);
     if (!/^[a-f0-9]{64}$/.test(owner)) return fail('identity-required', 401);
@@ -89,13 +92,13 @@ export class HistoryLeaderboard extends QuizLeaderboard {
 }
 export async function wealthRequest(request, env, reply) {
   const path = new URL(request.url).pathname;
-  if (!['/wealth', '/wealth/register'].includes(path)&&!adminRoutes.has(path)&&!pokerRoutes.has(path)&&!noticeRoutes.has(path)&&!accountRoutes.has(path)&&!sengokuRoutes.has(path)&&!worldRoutes.has(path)) return reply({error: 'not-found'}, 404);
+  if (!['/wealth', '/wealth/register'].includes(path)&&!adminRoutes.has(path)&&!pokerRoutes.has(path)&&!noticeRoutes.has(path)&&!accountRoutes.has(path)&&!sengokuRoutes.has(path)&&!worldRoutes.has(path)&&!tenkaRoutes.has(path)) return reply({error: 'not-found'}, 404);
   if (request.method === 'OPTIONS') return reply({ok: true});
-  const read=['/wealth/account/session','/wealth/account/load','/wealth/account/capabilities'].includes(path)||path==='/wealth'||path==='/wealth/admin/session'||path==='/wealth/admin/board'||path==='/wealth/poker'||path==='/wealth/notices'||path==='/wealth/admin/recipients'||path==='/wealth/admin/notice-history'||path==='/wealth/sengoku'||path==='/wealth/sengoku/board'||path==='/wealth/sengoku/world'||path==='/wealth/sengoku/worlds'||path==='/wealth/sengoku/world/ranking'||path==='/wealth/sengoku/world/alliances'||path==='/wealth/sengoku/chat'||path==='/wealth/sengoku/world/timeline'||path==='/wealth/sengoku/world/admin';
+  const read=tenkaRoutes.has(path)&&!path.endsWith('/action')&&!path.endsWith('/send')||['/wealth/account/session','/wealth/account/load','/wealth/account/capabilities'].includes(path)||path==='/wealth'||path==='/wealth/admin/session'||path==='/wealth/admin/board'||path==='/wealth/poker'||path==='/wealth/notices'||path==='/wealth/admin/recipients'||path==='/wealth/admin/notice-history'||path==='/wealth/sengoku'||path==='/wealth/sengoku/board'||path==='/wealth/sengoku/world'||path==='/wealth/sengoku/worlds'||path==='/wealth/sengoku/world/ranking'||path==='/wealth/sengoku/world/alliances'||path==='/wealth/sengoku/chat'||path==='/wealth/sengoku/world/timeline'||path==='/wealth/sengoku/world/admin';
   if (request.method !== (read ? 'GET' : 'POST')) return reply({error: 'method-not-allowed'}, 405);
   if (!env.LEADERBOARD || !env.RANK_READ_LIMITER || !env.RANK_WRITE_LIMITER || !env.RANK_GLOBAL_LIMITER) return reply({error: 'not-configured'}, 503);
   if(pokerRoutes.has(path)&&!env.POKER_ROOM_LIMITER)return reply({error:'not-configured'},503);
-  if((sengokuRoutes.has(path)||worldRoutes.has(path))&&!env.SENGOKU_ACTIVITY_LIMITER)return reply({error:'not-configured'},503);
+  if((sengokuRoutes.has(path)||worldRoutes.has(path)||tenkaRoutes.has(path))&&!env.SENGOKU_ACTIVITY_LIMITER)return reply({error:'not-configured'},503);
   const token = request.headers.get('Authorization')?.replace(/^Bearer /, '') || '';
   if ((token && !/^[a-f0-9]{64}$/.test(token)) || ((request.method === 'POST'&&path!=='/wealth/account/login'||adminRoutes.has(path)||path.startsWith('/wealth/admin/')||pokerRoutes.has(path)||sengokuRoutes.has(path)&&path!=='/wealth/sengoku/board') && !token)) return reply({error: 'identity-required'}, 401);
   const digest = token ? await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)) : null;
@@ -109,12 +112,13 @@ export async function wealthRequest(request, env, reply) {
     if(!env.ADMIN_CLAIM_LIMITER)return reply({error:'not-configured'},503);
     if(!(await env.ADMIN_CLAIM_LIMITER.limit({key:ip})).success)return reply({error:'rate-limited'},429);
   }
-  const rate = await (read ? env.RANK_READ_LIMITER : env.RANK_WRITE_LIMITER).limit({key:pokerRoutes.has(path)?'poker:'+owner:(sengokuRoutes.has(path)||worldRoutes.has(path))&&owner?'sengoku:'+owner:ip});
-  const globalRate = await (pokerRoutes.has(path)?env.POKER_ROOM_LIMITER:(sengokuRoutes.has(path)||worldRoutes.has(path))?env.SENGOKU_ACTIVITY_LIMITER:env.RANK_GLOBAL_LIMITER).limit({key: 'site'});
+  const rate = await (read ? env.RANK_READ_LIMITER : env.RANK_WRITE_LIMITER).limit({key:pokerRoutes.has(path)?'poker:'+owner:(sengokuRoutes.has(path)||worldRoutes.has(path)||tenkaRoutes.has(path))&&owner?'sengoku:'+owner:ip});
+  const globalRate = await (pokerRoutes.has(path)?env.POKER_ROOM_LIMITER:(sengokuRoutes.has(path)||worldRoutes.has(path)||tenkaRoutes.has(path))?env.SENGOKU_ACTIVITY_LIMITER:env.RANK_GLOBAL_LIMITER).limit({key: 'site'});
   if (!rate.success || !globalRate.success) return reply({error: 'rate-limited'}, 429);
   let data = {};
   if(path==='/wealth/poker'&&request.method==='GET'){data.room=new URL(request.url).searchParams.get('room')||undefined;const ticket=new URL(request.url).searchParams.get('ticket');if(ticket)data.id=ticket;}
-  if(path==='/wealth/sengoku/chat'){const id=new URL(request.url).searchParams.get('world');if(id!==null){const channel=Number(id);if(!Number.isSafeInteger(channel)||channel<1||channel>globalThis.HKSengokuWorldRules.WORLD_COUNT)return reply({error:'chat-channel'},400);data.channelWorldId=channel;}}
+  if(path==='/wealth/sengoku/chat'||path==='/wealth/tenka/season1/chat'){const id=new URL(request.url).searchParams.get('world');if(id!==null){const channel=Number(id);if(!Number.isSafeInteger(channel)||channel<1||channel>globalThis.HKSengokuWorldRules.WORLD_COUNT)return reply({error:'chat-channel'},400);data.channelWorldId=channel;}}
+  if(tenkaRoutes.has(path)&&path!=='/wealth/tenka/season1/chat'){const id=new URL(request.url).searchParams.get('world');if(id!==null){const world=Number(id);if(world!==1)return reply({error:'world-input'},400);data.worldId=world;}const region=new URL(request.url).searchParams.get('region');if(region!==null)data.region=region;const before=new URL(request.url).searchParams.get('before');if(before!==null)data.before=Number(before);}
   if(path==='/wealth/sengoku/world'||path==='/wealth/sengoku/world/ranking'||path==='/wealth/sengoku/world/alliances'||path==='/wealth/sengoku/world/timeline'){const id=new URL(request.url).searchParams.get('world');if(id!==null)data.worldId=Number(id);}
   if(path==='/wealth/sengoku/world/timeline'){const before=new URL(request.url).searchParams.get('before');if(before!==null)data.before=Number(before);}
   if(path==='/wealth/sengoku/world/ranking'){const region=new URL(request.url).searchParams.get('region');if(region!==null)data.region=region;}

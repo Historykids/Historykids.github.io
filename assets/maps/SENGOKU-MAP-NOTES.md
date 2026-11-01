@@ -33,3 +33,12 @@ Source: https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_5
 Terms (public domain): https://www.naturalearthdata.com/about/terms-of-use/
 
 `modern-country-assignments.json` に元データのSHA-256と旧40領地への割り当てを記録。再生成は `python3 scripts/build-modern-world.py /path/to/ne_50m_admin_0_countries.geojson`。提供された参考画像自体は公開ファイルに含めない。
+
+
+## 2D / 3D 共通アトラス（2026-11-02）
+
+通常版311地域と、管理者限定版の日本70地域で同じ表示エンジンを使用。領地ID・進軍路・領有権・兵士・武将獲得・ランキング・クイズのルールは変更しない。既存SVGの輪郭とラベル位置を2D、3Dの両方で使用し、切替は表示設定だけを保存する。
+
+`sengoku-relief.json` は `scripts/build-sengoku-relief.py` で既存海岸線から作るゲーム用の連続高度場。実測の標高データではない。大きな尾根の帯、細かい地形、海岸への減衰を組み合わせ、旧国間の線幅による隙間は日本全体の地面で補間。世界用と日本拡大用の高度場を用意し、連続した法線と土・岩・高地の色を生成する。木・城・集落の模型は配置しない。
+
+WebGL対応端末ではThree.jsで陰影・水面・地形の影を表示。非対応時は同じ高度場からCanvasで軽量3Dを描き、2Dへいつでも切り替えられる。初期表示は2D、表示設定はブラウザに保存。3D準備失敗時や読み込み中に2Dへ戻したときも、2Dの操作を続けられる。

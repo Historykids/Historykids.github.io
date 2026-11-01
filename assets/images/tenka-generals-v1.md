@@ -1,0 +1,11 @@
+# 天下統一・武将画像の制作記録
+
+2026-11-02。画像生成の組み込みツール（imagegen）を使用して新規作成。ユーザーの参考画像は画面構成の参考に使い、ゲーム画面や武将画像の切り抜きは使用していません。
+
+使用画像：`assets/images/tenka-generals-v1.webp`。3×3の正方形アトラス。左上から織田信長、武田信玄、徳川家康／上杉謙信、伊達政宗、真田幸村／毛利元就、島津義弘、豊臣秀吉。鎧・表情・台詞はゲーム用の創作表現です。
+
+生成プロンプト：
+
+> Use case: historical-scene. Asset type: original portrait atlas for a Japanese Sengoku strategy browser game, NOT a UI screenshot. Create exactly a seamless 3 by 3 grid of nine equally sized portrait illustrations, square canvas, full bleed no gutters or frames. Every cell is a dramatic waist-up individual samurai lord portrait, face at upper center of its own cell, entirely contained in its cell. Realistic premium hand-painted AAA historical strategy game concept art with tactile metal armor, silk, cinematic chiaroscuro, atmospheric dark olive/charcoal backdrop. Row 1 left: Oda Nobunaga, sharp Japanese man age 40, thin moustache, black and gold armor, red cape, elegant samurai topknot. Row 1 center: Takeda Shingen, imposing older Japanese warlord, red and gold armor, distinctive red helmet with white fur mane, thick moustache. Row 1 right: Tokugawa Ieyasu, mature stocky Japanese warlord age 60, golden and bronze armor, restrained expression. Row 2 left: Uesugi Kenshin, Japanese warrior monk lord, ivory head covering and blue armor. Row 2 center: Date Masamune, young one-eyed Japanese warlord, black helmet with crescent moon crest, navy armor. Row 2 right: Sanada Yukimura, intense Japanese samurai in red armor, red helmet with deer antlers. Row 3 left: Mori Motonari, wise elderly Japanese lord in green silk and dark armor. Row 3 center: Shimazu Yoshihiro, rugged muscular older Japanese samurai in iron grey armor, fierce expression. Row 3 right: Toyotomi Hideyoshi, wiry middle aged Japanese lord in ornate gold armor, exuberant golden sunray helmet. Cohesive art direction, neutral historical character interpretation, realistic faces, individually distinctive silhouettes and helmet details. All 9 cells same camera distance and visual quality. No text, no lettering, no symbols that look like writing, no logos, no UI, no watermark. This is newly created original artwork, not copied from any game.
+
+描画確認画像はテストデータを使った内部プレビューです。通常サーバー1〜5と本番の管理者の進行を変更せずに検証しています。

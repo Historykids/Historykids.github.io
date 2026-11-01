@@ -1,6 +1,6 @@
 (function(){
  'use strict';const A=window.HKCommunity,baseRequest=A.request,gate=document.getElementById('tkAccess'),main=document.getElementById('worldMain');
- window.HKSengokuWorldRules=Object.freeze({...window.HKSengokuWorldRules,WORLD_COUNT:1});const S=window.HKSengokuRankingRules;window.HKSengokuRankingRules=Object.freeze({...S,zones:S.zones.filter(z=>z.regions.length)});
+ window.HKSengokuWorldRules=Object.freeze({...window.HKSengokuWorldRules,WORLD_COUNT:1});const S=window.HKSengokuRankingRules;window.HKSengokuRankingRules=Object.freeze({...S,zones:S.zones.filter(z=>z.regions.length),titles:S.titles.filter(t=>t.id==='japan')});
  let allowed=false,identity=A.identity(false),sequence=0;
  const ready=baseRequest('/wealth/tenka/season1/access',undefined,false).then(result=>{if(identity!==A.identity(false))throw Error('account-changed');allowed=result.allowed===true;if(allowed){gate.hidden=true;main.hidden=false;document.body.classList.add('tenka-authorized');}else{main.hidden=true;document.getElementById('tkAccessText').textContent='この試作サーバーは、現在の管理者アカウントだけが利用できます。管理者のアカウントでログインしてから開いてください。';}return allowed;}).catch(()=>{main.hidden=true;document.getElementById('tkAccessText').textContent='利用権限を確認できませんでした。接続を確認して、再読み込みしてください。';return false;});
  window.HKTenkaAccess=ready;

@@ -10,7 +10,7 @@ const assert=require('node:assert/strict'),{setup,join}=require('./sengoku-world
  assert.equal(transferAccountData(h.board),true);
  const moved=h.board.accounts.byName('sironagasu7777'),empty=h.board.accounts.byName('sironagasu');
  assert.equal(moved.owner,old);assert.equal(moved.rankOwner,source.rankOwner);assert.deepEqual(JSON.parse(moved.progress),progress);
- assert.equal(moved.passwordHash,target.passwordHash);assert.equal(empty.passwordHash,source.passwordHash);assert.notEqual(empty.owner,old);assert.deepEqual(JSON.parse(empty.progress).values,{});
+ assert.equal(moved.passwordHash,target.passwordHash);assert.equal(empty.passwordHash,source.passwordHash);assert.notEqual(empty.owner,old);assert.equal(JSON.parse(JSON.parse(empty.progress).values.hk_wallet_v2).balance,'0');const {progress:validate}=await import('../server/ranking-api/accounts.mjs');assert.doesNotThrow(()=>validate(JSON.parse(empty.progress)));
  assert.equal(h.board.admin.isAdmin(moved.owner),true);assert.equal(h.board.admin.isAdmin(empty.owner),false);
  assert.deepEqual(h.board.accounts.row(third),other);
  for(const token of h.tokens.slice(0,2))assert.throws(()=>h.board.accounts.resolve(require('node:crypto').createHash('sha256').update(token).digest('hex')),/account-session-expired/);

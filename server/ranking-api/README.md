@@ -237,3 +237,13 @@ Worlds 4 and 5 are new, empty worlds with 311 modern-map regions. `five-worlds-n
 The `profile` world action registers a name-only guest against the existing cryptographically random browser identity. Guest names are normalized, validated, moderated and unique among guests; currently registered account names are reserved. A name does not authenticate its owner or retrieve another browser's progress. Guests create no password account or account session and gain no wallet/admin permissions. Existing signed-in sessions and account owners keep their data. All world actions, alliances, server-verified quiz rewards, rankings, permanent rewards and emoji-only chat support these named guest identities. Clearing or losing the browser's participation token loses guest access; optional login remains available for account-based play. Guest and signed-in progress are separate and are never silently merged.
 
 `sengoku-worlds.html` is the dedicated world-change page. Its private list adds only the caller's saved territory, army and general counts in each world. The page shows all five populations and offers valid starting lands for first entry or resuming saved membership. It uses the existing transactional switch action, revision checks, active-world guard, persistent request journal and retry receipts. Pending quizzes and incoming sieges block switching. Existing quick map selection remains available, with clear links to the dedicated page. Deployment verifies five worlds and `guestEntry: name-first-v1` without creating live players.
+
+
+### NEON SNAKE online arena
+
+`/snake/status?room=1` と `/snake/socket?room=1` は、専用の `SNAKE_ARENA` Durable Objectへ接続します。部屋は1〜5、各部屋は人間60人までとCPU3匹です。アカウントや戦国の保存領域は変更しません。
+
+- `neon-online-keyboard-20261103-v1`。ブラウザはWASD・矢印キーの方向意図とSpaceの加速だけを送信し、座標・長さ・勝敗はサーバーが計算します。30Hzで進行、15Hzで状態配信。光は差分更新、体の点列は整数差分で配信します。
+- 接続時に `join`、移動は連番付き `input`、退出は `leave`。非公開の再接続トークンは最初のメッセージで渡し、URL・ランキング・アカウントのクラウド保存には含めません。切断後8秒は同じ蛇へ復帰でき、その間も対戦は進みます。終了結果は15分保存し、同じラウンドの報酬をクライアントで重複受領しません。
+- Escはメニューです。オンライン対戦を一時停止しません。画面を離れたときは押しっぱなし状態と加速を解除します。
+- 本番公開後は `scripts/neon-snake-probe.cjs` が2本の実WebSocketで相互参加とキーボード方向への移動を確認し、確認用プレイヤーを退出させます。

@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js', 'assets/ui/amounts.js', 'assets/ui/wealth-rules.js', 'assets/ui/account-data.js', 'assets/ui/sengoku-rules.js', 'assets/ui/sengoku-world-rules.js', 'assets/ui/sengoku-tactics.js', 'assets/ui/sengoku-kuni-map.js', 'assets/ui/sengoku-ranking-rules.js', 'assets/ui/sengoku-chat-rules.js', 'assets/ui/tenka-season1-rules.js']
+    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js', 'assets/ui/amounts.js', 'assets/ui/wealth-rules.js', 'assets/ui/account-data.js', 'assets/ui/sengoku-rules.js', 'assets/ui/sengoku-world-rules.js', 'assets/ui/sengoku-tactics.js', 'assets/ui/sengoku-kuni-map.js', 'assets/ui/sengoku-ranking-rules.js', 'assets/ui/sengoku-chat-rules.js', 'assets/ui/tenka-season1-rules.js', 'assets/ui/neon-snake-engine.js', 'scripts/neon-snake-probe.cjs']
 permissions:
   contents: write
   pages: write
@@ -30,6 +30,9 @@ jobs:
           node tests/tenka-map.cjs
           node tests/tenka-season1.cjs
           node tests/tenka-season1-ui.cjs
+          node tests/neon-snake.cjs
+          node tests/neon-snake-online.cjs
+          node tests/neon-snake-ui.cjs
           node tests/sengoku-quality.cjs
           node tests/world-history.cjs
           node scripts/sengoku-questions.cjs
@@ -101,6 +104,8 @@ jobs:
             if(attempt<12)await new Promise(resolve=>setTimeout(resolve,10000));
           }
           if(!ready)throw Error('Ranking storage did not become available');
+          const {verifySnake}=await import('./scripts/neon-snake-probe.cjs');
+          await verifySnake(base.href);
           // A rejected claim verifies the deployed authentication runtime without assigning an owner.
           let passwordReady=false;
           for(let attempt=0;attempt<72;attempt++){

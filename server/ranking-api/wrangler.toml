@@ -61,3 +61,19 @@ namespace_id = "1009"
 [ratelimits.simple]
 limit = 3000
 period = 60
+
+# A separate arena keeps real-time simulation isolated from saved game accounts.
+[[durable_objects.bindings]]
+name = "SNAKE_ARENA"
+class_name = "NeonSnakeArena"
+
+[[migrations]]
+tag = "neon-snake-v1"
+new_sqlite_classes = ["NeonSnakeArena"]
+
+[[ratelimits]]
+name = "SNAKE_CONNECT_LIMITER"
+namespace_id = "1010"
+[ratelimits.simple]
+limit = 240
+period = 60

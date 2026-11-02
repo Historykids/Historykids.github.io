@@ -94,7 +94,7 @@ export async function wealthRequest(request, env, reply) {
   const path = new URL(request.url).pathname;
   if (!['/wealth', '/wealth/register'].includes(path)&&!adminRoutes.has(path)&&!pokerRoutes.has(path)&&!noticeRoutes.has(path)&&!accountRoutes.has(path)&&!sengokuRoutes.has(path)&&!worldRoutes.has(path)&&!tenkaRoutes.has(path)) return reply({error: 'not-found'}, 404);
   if (request.method === 'OPTIONS') return reply({ok: true});
-  const read=tenkaRoutes.has(path)&&!path.endsWith('/action')&&!path.endsWith('/send')||['/wealth/account/session','/wealth/account/load','/wealth/account/capabilities'].includes(path)||path==='/wealth'||path==='/wealth/admin/session'||path==='/wealth/admin/board'||path==='/wealth/poker'||path==='/wealth/notices'||path==='/wealth/admin/recipients'||path==='/wealth/admin/notice-history'||path==='/wealth/sengoku'||path==='/wealth/sengoku/board'||path==='/wealth/sengoku/world'||path==='/wealth/sengoku/worlds'||path==='/wealth/sengoku/world/ranking'||path==='/wealth/sengoku/world/alliances'||path==='/wealth/sengoku/chat'||path==='/wealth/sengoku/world/timeline'||path==='/wealth/sengoku/world/admin'||path==='/wealth/sengoku/world/weekly';
+  const read=tenkaRoutes.has(path)&&!path.endsWith('/action')&&!path.endsWith('/send')||['/wealth/account/session','/wealth/account/load','/wealth/account/capabilities'].includes(path)||path==='/wealth'||path==='/wealth/admin/session'||path==='/wealth/admin/board'||path==='/wealth/poker'||path==='/wealth/notices'||path==='/wealth/admin/recipients'||path==='/wealth/admin/notice-history'||path==='/wealth/sengoku'||path==='/wealth/sengoku/board'||path==='/wealth/sengoku/world'||path==='/wealth/sengoku/worlds'||path==='/wealth/sengoku/world/ranking'||path==='/wealth/sengoku/world/alliances'||path==='/wealth/sengoku/chat'||path==='/wealth/sengoku/world/timeline'||path==='/wealth/sengoku/world/admin/pin/status'||path==='/wealth/sengoku/world/weekly';
   if (request.method !== (read ? 'GET' : 'POST')) return reply({error: 'method-not-allowed'}, 405);
   if (!env.LEADERBOARD || !env.RANK_READ_LIMITER || !env.RANK_WRITE_LIMITER || !env.RANK_GLOBAL_LIMITER) return reply({error: 'not-configured'}, 503);
   if(pokerRoutes.has(path)&&!env.POKER_ROOM_LIMITER)return reply({error:'not-configured'},503);
@@ -108,7 +108,7 @@ export async function wealthRequest(request, env, reply) {
     if(!env.ACCOUNT_AUTH_LIMITER)return reply({error:'not-configured'},503);
     if(!(await env.ACCOUNT_AUTH_LIMITER.limit({key:ip})).success)return reply({error:'account-try-later'},429);
   }
-  if(path==='/wealth/admin/claim'){
+  if(path==='/wealth/admin/claim'||path==='/wealth/sengoku/world/admin/pin/setup'){
     if(!env.ADMIN_CLAIM_LIMITER)return reply({error:'not-configured'},503);
     if(!(await env.ADMIN_CLAIM_LIMITER.limit({key:ip})).success)return reply({error:'rate-limited'},429);
   }

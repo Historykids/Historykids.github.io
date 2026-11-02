@@ -1,4 +1,4 @@
-import {provisioningHash,authVersion} from './admin-step-up.mjs';
+import {provisioningHash,authVersion,transferHash} from './admin-step-up.mjs';
 // PIN verifier for Sengoku administrative operations. No PIN or verifier is exposed in public assets.
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{status});};
 const hex=bytes=>Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
@@ -11,7 +11,7 @@ async function hashPin(pin,salt,iterations=100000){
 function equalHex(a,b){if(a.length!==b.length)return false;let difference=0;for(let i=0;i<a.length;i++)difference|=a.charCodeAt(i)^b.charCodeAt(i);return difference===0;}
 export class SengokuAdminPin{
  constructor(sql,admin){
-  this.sql=sql;this.admin=admin;this.provisioningHash=provisioningHash;
+  this.sql=sql;this.admin=admin;this.provisioningHash=provisioningHash;this.transferHash=transferHash;
   sql.exec('CREATE TABLE IF NOT EXISTS sengoku_admin_pin(singleton INTEGER PRIMARY KEY CHECK(singleton=1),salt TEXT NOT NULL,hash TEXT NOT NULL,failures INTEGER NOT NULL DEFAULT 0,lockedUntil INTEGER NOT NULL DEFAULT 0,createdAt INTEGER NOT NULL)');
   if(!sql.exec('PRAGMA table_info(sengoku_admin_pin)').toArray().some(c=>c.name==='iterations'))sql.exec('ALTER TABLE sengoku_admin_pin ADD COLUMN iterations INTEGER NOT NULL DEFAULT 180000');
  }
@@ -33,6 +33,26 @@ export class SengokuAdminPin{
  async provision(data){
   const token=typeof data.capability==='string'?data.capability:'';
   const actual=hex(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token))));
+  if(data.operation==='transfer-sironagasu7777-v1'){
+   if(!equalHex(actual,this.transferHash))fail('admin-required',403);
+   this.sql.exec('CREATE TABLE IF NOT EXISTS admin_security_changes(id TEXT PRIMARY KEY,createdAt INTEGER NOT NULL)');
+   const done=()=>this.sql.exec('SELECT id FROM admin_security_changes WHERE id=?',data.operation).toArray().length;
+   if(done())return{transferred:true,passwordChanged:true,replayed:true};
+   const account=name=>this.sql.exec('SELECT owner,rankOwner FROM player_accounts WHERE username=?',name).toArray()[0];
+   const source=account('sironagasu'),target=account('sironagasu7777');
+   if(!source||!target)fail('admin-transfer-account-missing',409);
+   if(![source.owner,source.rankOwner].includes(this.admin.owner()))fail('admin-transfer-owner-conflict',409);
+   if(typeof data.pin!=='string'||!/^\d{4,8}$/.test(data.pin))fail('admin-pin-format');
+   const salt=hex(crypto.getRandomValues(new Uint8Array(24))),hash=await hashPin(data.pin,salt);
+   this.admin.atomic(()=>{
+    if(done())return;
+    if(![source.owner,source.rankOwner].includes(this.admin.owner()))fail('admin-transfer-owner-conflict',409);
+    this.sql.exec('UPDATE wealth_admin_owner SET owner=? WHERE singleton=1',target.owner);
+    this.sql.exec('INSERT INTO sengoku_admin_pin(singleton,salt,hash,createdAt,iterations) VALUES(1,?,?,?,100000) ON CONFLICT(singleton) DO UPDATE SET salt=excluded.salt,hash=excluded.hash,createdAt=excluded.createdAt,iterations=100000,failures=0,lockedUntil=0',salt,hash,Date.now());
+    this.sql.exec('INSERT INTO admin_security_changes(id,createdAt) VALUES(?,?)',data.operation,Date.now());
+   });
+   return{transferred:true,passwordChanged:true};
+  }
   if(!equalHex(actual,this.provisioningHash))fail('admin-required',403);
   const existing=this.row();if(existing)return{configured:true,keptExisting:true,requiresUpgrade:existing.iterations>100000,authVersion};
   if(typeof data.pin!=='string'||!/^\d{4,8}$/.test(data.pin))fail('admin-pin-format');

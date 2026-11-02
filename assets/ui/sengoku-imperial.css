@@ -53,3 +53,6 @@
 @media(max-width:760px){.bw-hero{grid-template-columns:100px 1fr;gap:12px;padding:12px}.bw-takauji{min-height:200px}.bw-hero h3{font-size:18px}.bw-general-name{font-size:26px}.bw-hero p{font-size:11px}.bw-hero small{font-size:10px}.bw-hero .eyebrow{font-size:7px}.bw-alliance-reward{padding:12px;font-size:11px}.tenka-season-page .tk-sheet .force-table .rank-player-name{font-size:15px}.bw-board .force-controls label{width:100%}}
 
 .tenka-season-page #swZoomIn,.tenka-season-page #swZoomOut,.tenka-season-page #swZoomSelected,.tenka-season-page .sw-legend{display:none!important}
+
+/* System notifications belong to the bottom-bar sheet, never a floating box. */
+.tenka-season-page #sxNotificationBar{display:none!important}.tenka-season-page #siNotificationContent #sxNotificationBar{display:block!important}

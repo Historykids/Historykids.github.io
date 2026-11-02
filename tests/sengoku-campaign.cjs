@@ -6,7 +6,7 @@ w.HKSengokuUI={get:()=>view};w.HKSengokuColors={hiddenSummary:text=>text.include
 assert.equal(w.document.querySelector('.si-war-ticker'),null);assert.equal(w.document.getElementById('siNoticeBadge').textContent,'1');assert.equal(w.document.getElementById('siNotificationsOpen').hidden,false);
 const legacy=w.document.createElement('section');legacy.className='si-war-ticker';w.document.getElementById('worldMain').append(legacy);w.dispatchEvent(new w.Event('hk-sengoku-view'));assert.equal(w.document.querySelector('.si-war-ticker'),null);
 view={world:{id:2,events:[]},own:null,strategy:{notifications:[]}};w.dispatchEvent(new w.Event('hk-sengoku-view'));assert(w.document.getElementById('siNoticeBadge').hidden);assert(w.document.getElementById('siNotificationsOpen').hidden);assert.equal(w.document.querySelector('.si-war-ticker'),null);
-w.dispatchEvent(new w.Event('hk-sengoku-invalidate'));assert.equal(w.document.querySelector('.si-war-ticker'),null);w.close();
-console.log('PASS home stays free of floating war notices, including restored legacy DOM');
+view={world:{id:2,events:[{id:'fresh',text:'新しい合戦が発生',at:Date.now()}]},own:{},strategy:{notifications:[]}};w.dispatchEvent(new w.Event('hk-sengoku-view'));assert.equal(w.document.querySelectorAll('.si-war-ticker').length,1);assert.equal(w.document.querySelector('.si-war-ticker button'),null);w.dispatchEvent(new w.Event('hk-sengoku-view'));assert.equal(w.document.querySelectorAll('.si-war-ticker').length,1);w.dispatchEvent(new w.Event('hk-sengoku-invalidate'));assert.equal(w.document.querySelector('.si-war-ticker'),null);assert.equal(w.document.querySelector('.si-war-ticker'),null);w.close();
+console.log('PASS historical events and restored boxes stay hidden, while a new battle scrolls once without controls');
 console.log('PASS private notifications remain in the dedicated panel with a filtered unread badge');
 console.log('2 notification presentation checks passed.');

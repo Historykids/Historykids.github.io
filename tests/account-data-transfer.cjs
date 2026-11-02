@@ -1,0 +1,22 @@
+const assert=require('node:assert/strict'),{setup,join}=require('./sengoku-worlds.cjs');
+(async()=>{const h=await setup(3);try{
+ const {transferAccountData}=await import('../server/ranking-api/account-data-transfer.mjs');
+ await join(h,'owari');const old=h.playerOwner(0),prior=h.playerOwner(1),third=h.playerOwner(2);
+ const progress={version:1,values:{city_v1:JSON.stringify([{id:'castle',type:'castle',x:4,y:5}]),hk_wallet_v2:JSON.stringify({balance:'500000',rebirths:7,pending:null,history:[],redeemedCodes:['2026']}),cards_edo_complete_v1:'{"幕府":true}'}};
+ h.db.prepare('UPDATE player_accounts SET username=?,name=?,progress=? WHERE owner=?').run('sironagasu','sironagasu',JSON.stringify(progress),old);
+ h.db.prepare('UPDATE player_accounts SET username=?,name=? WHERE owner=?').run('sironagasu7777','sironagasu7777',prior);
+ h.db.prepare('INSERT INTO wealth_admin_owner(singleton,owner,createdAt) VALUES(1,?,1)').run(prior);
+ const source=h.board.accounts.row(old),target=h.board.accounts.row(prior),other=h.board.accounts.row(third),world=JSON.parse(h.db.prepare('SELECT state FROM sengoku_worlds WHERE id=1').get().state),originalPlayer=world.players[0];
+ assert.equal(transferAccountData(h.board),true);
+ const moved=h.board.accounts.byName('sironagasu7777'),empty=h.board.accounts.byName('sironagasu');
+ assert.equal(moved.owner,old);assert.equal(moved.rankOwner,source.rankOwner);assert.deepEqual(JSON.parse(moved.progress),progress);
+ assert.equal(moved.passwordHash,target.passwordHash);assert.equal(empty.passwordHash,source.passwordHash);assert.notEqual(empty.owner,old);assert.deepEqual(JSON.parse(empty.progress).values,{});
+ assert.equal(h.board.admin.isAdmin(moved.owner),true);assert.equal(h.board.admin.isAdmin(empty.owner),false);
+ assert.deepEqual(h.board.accounts.row(third),other);
+ for(const token of h.tokens.slice(0,2))assert.throws(()=>h.board.accounts.resolve(require('node:crypto').createHash('sha256').update(token).digest('hex')),/account-session-expired/);
+ assert.throws(()=>h.board.accounts.resolve(prior),/account-session-expired/);
+ const after=JSON.parse(h.db.prepare('SELECT state FROM sengoku_worlds WHERE id=1').get().state).players.find(p=>p.id===originalPlayer.id);assert.equal(after.owner,old);assert.deepEqual(after.s,originalPlayer.s);assert.equal(after.name,'sironagasu7777');
+ assert.equal(h.db.prepare('SELECT COUNT(*) n FROM account_data_transfers').get().n,1);
+ const revision=moved.revision;h.restart();assert.equal(h.board.accounts.byName('sironagasu7777').revision,revision);assert.equal(h.board.dataTransferComplete,true);
+ console.log('PASS whole data identity moves once with town, money, quizzes, world player IDs and pending game state intact; logins are revoked and target credentials stay unchanged');
+ }finally{h.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

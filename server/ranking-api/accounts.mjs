@@ -45,6 +45,7 @@ export class Accounts{
  constructor(storage){
   this.storage=storage;this.sql=storage.sql;this.now=()=>Date.now();
   this.sql.exec('CREATE TABLE IF NOT EXISTS player_accounts(username TEXT PRIMARY KEY,name TEXT NOT NULL,owner TEXT NOT NULL UNIQUE,rankOwner TEXT NOT NULL UNIQUE,salt TEXT NOT NULL,passwordHash TEXT NOT NULL,passwordVersion INTEGER NOT NULL DEFAULT 1,progress TEXT NOT NULL,revision INTEGER NOT NULL,createdAt INTEGER NOT NULL,updatedAt INTEGER NOT NULL)');
+  this.sql.exec('CREATE TABLE IF NOT EXISTS retired_account_owners(owner TEXT PRIMARY KEY)');
   this.sql.exec('CREATE TABLE IF NOT EXISTS player_sessions(tokenHash TEXT PRIMARY KEY,owner TEXT NOT NULL,expiresAt INTEGER NOT NULL,createdAt INTEGER NOT NULL)');
   this.sql.exec('CREATE INDEX IF NOT EXISTS player_sessions_owner ON player_sessions(owner,expiresAt)');
   this.sql.exec('CREATE TABLE IF NOT EXISTS player_name_changes(owner TEXT NOT NULL,requestId TEXT NOT NULL,name TEXT NOT NULL,PRIMARY KEY(owner,requestId))');
@@ -52,11 +53,12 @@ export class Accounts{
  }
  row(owner){return this.sql.exec('SELECT * FROM player_accounts WHERE owner=?',owner).toArray()[0];}
  byName(key){return this.sql.exec('SELECT * FROM player_accounts WHERE username=?',key).toArray()[0];}
- bound(hash){return this.sql.exec('SELECT owner FROM player_accounts WHERE owner=? OR rankOwner=?',hash,hash).toArray()[0];}
+ bound(hash){return this.sql.exec('SELECT owner FROM player_accounts WHERE owner=? OR rankOwner=?',hash,hash).toArray()[0]||this.sql.exec('SELECT owner FROM retired_account_owners WHERE owner=?',hash).toArray()[0];}
  resolve(hash,ranking=false){
   if(!hash)return '';
   const session=this.sql.exec('SELECT owner,expiresAt FROM player_sessions WHERE tokenHash=?',hash).toArray()[0];
   if(session){if(session.expiresAt<=this.now())fail('account-session-expired',401);const account=this.row(session.owner);if(!account)fail('account-session-expired',401);return ranking?account.rankOwner:account.owner;}
+  if(this.sql.exec('SELECT owner FROM retired_account_owners WHERE owner=?',hash).toArray().length)fail('account-session-expired',401);
   if(this.bound(hash))fail('account-session-expired',401);
   return hash;
  }

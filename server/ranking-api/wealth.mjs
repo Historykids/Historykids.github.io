@@ -1,3 +1,4 @@
+import {transferAccountData} from './account-data-transfer.mjs';
 import {protectedAdminPath} from './admin-step-up.mjs';
 import {HistoryLeaderboard as QuizLeaderboard} from '../figure-api/ranking.mjs';
 import '../../assets/ui/amounts.js';
@@ -47,6 +48,8 @@ export class HistoryLeaderboard extends QuizLeaderboard {
     this.tenkaSeason1=new TenkaSeason1(ctx.storage,this.sengokuWorlds);
     this.accounts.validateRename=(a,name)=>{if(this.isBanned(a.owner))throw Object.assign(Error('banned'),{status:403});if(W.blockedName(name,this.admin.words()))throw Object.assign(Error('account-name-blocked'),{status:400});};
     this.accounts.onRename=(a,name)=>{this.sengokuWorlds.renameAccount(a,name);this.sql.exec('UPDATE wealth_scores_v2 SET name=? WHERE id=?',name,a.owner);this.sql.exec('UPDATE wealth_scores SET name=? WHERE id=?',name,a.owner);this.sql.exec('UPDATE wealth_moderation SET nameBlocked=0 WHERE id=? AND banned=0',a.owner);};
+    this.dataTransferComplete=transferAccountData(this);
+    this.admin.dataTransferComplete=this.dataTransferComplete;
   }
   isBanned(owner) { return !!owner && !!this.sql.exec('SELECT banned FROM wealth_moderation WHERE id=?',owner).toArray()[0]?.banned; }
   board(owner) {

@@ -26,7 +26,7 @@ export class WealthAdmin {
   try{
    const owner=data.owner||'';if(!/^[a-f0-9]{64}$/.test(owner))fail('identity-required',401);
    if(path==='/wealth/admin/password/check')return Response.json({verified:true});
-   if(path==='/wealth/admin/session')return Response.json({admin:this.isAdmin(owner),claimed:!!this.owner(),passwordRequired:true,authVersion});
+   if(path==='/wealth/admin/session')return Response.json({admin:this.isAdmin(owner),claimed:!!this.owner(),passwordRequired:true,dataTransferVersion:'sironagasu-data-transfer-20261102-v1',dataTransferComplete:!!this.dataTransferComplete,authVersion});
    if(path==='/wealth/admin/claim'){
     const previous=this.owner();if(previous&&previous!==owner)fail('admin-claimed',403);
     if(previous===owner)return Response.json({admin:true});

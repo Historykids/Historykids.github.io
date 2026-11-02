@@ -32,6 +32,7 @@ jobs:
           node tests/tenka-season1-ui.cjs
           node tests/world-history.cjs
           node scripts/sengoku-questions.cjs
+          node tests/account-data-transfer.cjs
           node tests/admin-transfer.cjs
           node tests/admin-step-up.cjs
           node tests/sengoku-weekly.cjs
@@ -102,10 +103,11 @@ jobs:
           let passwordReady=false;
           for(let attempt=0;attempt<72;attempt++){
             const response=await fetch(new URL('/wealth/admin/session',base),{headers:{Origin:'https://historykids.github.io',Authorization:'Bearer '+probeToken,'Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)}),session=await response.json();
-            if(response.ok&&session.authVersion==='admin-step-up-20261102-v2'&&session.passwordRequired===true){passwordReady=true;break;}
+            if(response.ok&&session.authVersion==='admin-step-up-20261102-v2'&&session.passwordRequired===true&&session.dataTransferVersion==='sironagasu-data-transfer-20261102-v1'&&session.dataTransferComplete===true){passwordReady=true;break;}
             if(attempt<71)await new Promise(resolve=>setTimeout(resolve,5000));
           }
-          if(!passwordReady)throw Error('Administrator password enforcement did not become ready');
+          if(!passwordReady)throw Error('Administrator protection and authorized account data transfer did not become ready');
+          console.log('Authorized account data transfer completed; target credentials retained and old sessions revoked');
           const probe=await fetch(new URL('/wealth/admin/claim',base),{method:'POST',headers:{Origin:'https://historykids.github.io','Content-Type':'application/json',Authorization:'Bearer '+probeToken},body:JSON.stringify({code:'00000000'}),signal:AbortSignal.timeout(15000)});
           const denied=await probe.json();
           if(probe.status!==403||!['admin-code-invalid','admin-claimed'].includes(denied.error))throw Error('Administrator authentication runtime check failed: '+JSON.stringify({status:probe.status,error:denied.error}));

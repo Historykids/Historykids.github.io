@@ -18,7 +18,7 @@ const assert=require('node:assert/strict'),{createHash}=require('node:crypto'),{
   assert.equal((await h.board.admin.fetch('/wealth/admin/board',{owner:target})).status,200);
   assert.deepEqual(h.db.prepare('SELECT * FROM player_accounts ORDER BY username').all(),before);
   const verifier=pin.row().hash;assert.equal((await pin.provision({...payload,pin:'8642'})).replayed,true);assert.equal(pin.row().hash,verifier);
-  h.restart();assert.equal(h.board.admin.owner(),target);
+  h.restart();assert.equal(h.board.admin.owner(),h.board.accounts.byName('sironagasu7777').owner);
   console.log('PASS exact-account transfer revokes the old global role and rotates the PIN atomically without changing account data; retries cannot change it again');
  }finally{h.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

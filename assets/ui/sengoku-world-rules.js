@@ -15,9 +15,11 @@
   yoshihiro:{name:'島津義弘',mark:'島',attack:3,recruit:1,description:'Lvごとに攻撃兵力＋3%・兵士獲得クイズの兵士＋1人'},
   hideyoshi:{name:'豊臣秀吉',mark:'豊',recruit:1,description:'Lvごとに兵士獲得クイズの兵士＋1人'}
  };
+ const limitedGenerals={takauji:{name:'足利尊氏',mark:'尊',attack:8,recruit:5,experience:1,limited:true,description:'週間個人1位限定。Lvごとに攻撃兵力＋8%・兵士獲得＋5人・育成経験値＋1'}};
+ const general=id=>generals[id]||limitedGenerals[id]||null,allStandardOwned=s=>Object.keys(generals).every(id=>s.generals.some(g=>g.id===id));
  const active=s=>s.generals.find(g=>g.id===s.activeGeneral)||null;
  const deployed=s=>{const ids=Array.isArray(s.deployedGenerals)?s.deployedGenerals:[s.activeGeneral];return s.generals.filter(g=>ids.includes(g.id));};
- function buffs(s){return deployed(s).reduce((total,g)=>{const m=generals[g.id];for(const key of ['attack','recruit','experience'])total[key]+=(m?.[key]||0)*g.level;return total;},{attack:0,recruit:0,experience:0});}
+ function buffs(s){return deployed(s).reduce((total,g)=>{const m=general(g.id);for(const key of ['attack','recruit','experience'])total[key]+=(m?.[key]||0)*g.level;return total;},{attack:0,recruit:0,experience:0});}
  const attack=s=>Number(BigInt(s.soldiers)*BigInt(100+buffs(s).attack)/100n);
  const snapshot=s=>({soldiers:s.soldiers,force:attack(s)});
  const damage=q=>Number((BigInt(q.force)+9n)/10n);
@@ -36,6 +38,6 @@
   return{added,allianceAdded,recruitment,experience,levels,generalProgress:mode==='general'?1:0};
  }
  function initial(region,now){return{version:6,attackUnit:'infantry',attackFraction:0,heldRegions:[region],homeEstablished:true,soldiers:0,generals:[],activeGeneral:null,generalClaims:0,totalCorrect:0,correctByMode:{general:0,soldiers:0,level:0,battle:0},attackCooldownUntil:0,battleCooldownUntil:0,failedAttackCooldownUntil:0,learnedCards:[],claimedRewards:[],ownedRegions:[region],capital:region,bestTerritories:1,defeatedRegions:[],battlesWon:0,battlesLost:0,unifications:0,port:true,pending:null,lastResult:null,startedAt:now};}
- const api={canSpawn,LIMIT,WORLD_COUNT,INITIAL_GARRISON,PROTECTION,BATTLE_TIME,CAPTURE_COOLDOWN,ATTACK_COOLDOWN,WRONG_COOLDOWN,SOLDIERS_PER_CORRECT,DEFENSE_PER_CORRECT,GENERAL_INTERVAL,MAX_LEVEL,MAX_SOLDIERS,modes,generals,active,deployed,buffs,attack,snapshot,damage,available,reachable,reclaim,homeReclaim,rewardCorrect,initial};
+ const api={canSpawn,LIMIT,WORLD_COUNT,INITIAL_GARRISON,PROTECTION,BATTLE_TIME,CAPTURE_COOLDOWN,ATTACK_COOLDOWN,WRONG_COOLDOWN,SOLDIERS_PER_CORRECT,DEFENSE_PER_CORRECT,GENERAL_INTERVAL,MAX_LEVEL,MAX_SOLDIERS,modes,generals,limitedGenerals,general,allStandardOwned,active,deployed,buffs,attack,snapshot,damage,available,reachable,reclaim,homeReclaim,rewardCorrect,initial};
  root.HKSengokuWorldRules=Object.freeze(api);if(typeof module!=='undefined')module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

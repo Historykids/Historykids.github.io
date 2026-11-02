@@ -5,3 +5,5 @@
 @media(max-width:650px){.rank-breakdown{grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.force-controls select{width:100%}.rank-method{padding:15px}.rank-method ul{padding-left:20px}.sw-lineup-summary{font-size:12px;padding:15px}}
 
 .sg-title{display:inline-flex;align-items:center;margin-inline-start:.55rem;padding:.2em .65em;border:1px solid #b58a39;border-radius:99px;background:#f5eacb;color:#6d4b13;font-size:.72em;font-weight:700;line-height:1.5;vertical-align:middle;white-space:nowrap}
+
+.force-table .rank-player-name{display:block;font:700 16px/1.65 sans-serif;color:#234334;overflow-wrap:anywhere;letter-spacing:.02em}.force-table .rank-member-name{font:700 13px/1.7 sans-serif;color:#294a39}.force-table .force-name{min-width:155px}.force-table .alliance-roster li{line-height:1.9}

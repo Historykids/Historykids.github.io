@@ -36,7 +36,7 @@
   const unread=(v?.strategy?.notifications||[]).filter(n=>!n.readAt&&!C.hiddenSummary(n.text)).length;
   if(count){count.textContent=unread>99?'99+':String(unread);count.hidden=!unread;}
   if(!w||document.hidden){clear();return;}
-  const events=(w.events||[]).filter(e=>Number.isFinite(e.at)&&e.text&&!C.hiddenSummary(e.text)&&!(/^(旧国70地域の地図に移行|更新により全領地の守備兵|領地調整により|世界マップへ拡張|海外を現在の国・地域に更新)/).test(e.text)).sort((a,b)=>a.at-b.at);
+  const events=(w.events||[]).filter(e=>Number.isFinite(e.at)&&e.text&&!C.hiddenSummary(e.text)&&/(を攻撃：|を占領|天下統一を達成)/.test(e.text)).sort((a,b)=>a.at-b.at);
   const at=Number.isFinite(v.at)?v.at:Date.now();
   if(w.id!==worldId){
    clear();worldId=w.id;checkpoint=clockAt=at;clockLocal=performance.now();

@@ -65,3 +65,6 @@
 .tenka-season-page .tk-sheet .force-table :is(.force-rank,small,.rank-member-name,.alliance-roster li){color:#42553c}.tenka-season-page .tk-sheet .force-table .rank-player-name{text-shadow:none}.tenka-season-page .tk-sheet .force-board>.muted{color:#53604a}@media(max-width:760px){.tk-site-head>a span{display:none}}
 
 .tenka-season-page .tk-sheet .force-board{background:transparent;color:#e3dbbd}.tenka-season-page .tk-sheet .force-board>.muted{color:#b9c4ad}
+
+/* Membership switching is back in the map toolbar. */
+.tenka-season-page .tk-province-picker .si-world-field select{border-color:#c7a45d;background:#49462d;color:#f8e3ad}

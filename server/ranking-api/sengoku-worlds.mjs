@@ -403,14 +403,16 @@ export class SengokuWorlds{
    this.sql.exec('INSERT INTO sengoku_world_receipts(owner,requestId,payload) VALUES(?,?,?)',owner,data.requestId,payload);
   });return{...this.view(owner),replayed};
  }
- fetch(path,data){
+ async fetch(path,data){
   try{
    this.weekly.settleDue();
    if(path==='/wealth/sengoku/chat')return Response.json(this.chat.view(data.owner,data.channelWorldId));
    if(path==='/wealth/sengoku/chat/send')return Response.json(this.chat.send(data.owner,data));
    this.ensureWorlds();this.ensureGlobalWorlds();this.migrateBatch();this.ensureRankings();this.ensureOverseasGarrisons();this.ensureModernWorlds();this.ensureAntarctica();this.ensureFiveWorlds();this.ensureGarrisonRanking();this.ensureManualCooldown();this.expansion.ensure();
-   if(path==='/wealth/sengoku/world/admin')return Response.json(this.expansion.adminBoard(data.owner));
-   if(path==='/wealth/sengoku/world/admin/action')return Response.json(this.expansion.adminAction(data.owner,data));
+   if(path==='/wealth/sengoku/world/admin/pin/status')return Response.json(this.expansion.adminPinStatus(data.owner));
+   if(path==='/wealth/sengoku/world/admin/pin/setup')return Response.json(await this.expansion.adminPinSetup(data.owner,data));
+   if(path==='/wealth/sengoku/world/admin')return Response.json(await this.expansion.adminBoard(data.owner,data.pin));
+   if(path==='/wealth/sengoku/world/admin/action')return Response.json(await this.expansion.adminAction(data.owner,data));
    if(path==='/wealth/sengoku/world/timeline')return Response.json(this.expansion.timeline(data.worldId===undefined?this.member(data.owner)?.worldId||1:data.worldId,data.before));
    if(path==='/wealth/sengoku/world/weekly')return Response.json(this.weekly.view(data.owner,data.worldId??this.member(data.owner)?.worldId??1));
    if(path==='/wealth/sengoku/world/alliances')return Response.json(this.alliances.ranking(data.owner,data.worldId));

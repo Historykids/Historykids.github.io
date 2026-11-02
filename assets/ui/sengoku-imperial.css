@@ -15,3 +15,5 @@
 @media(max-width:760px){.tenka-season-page .tk-world-stage .sw-legend{left:12px;right:12px;max-width:none;bottom:112px;z-index:7;gap:5px 9px;padding:7px 9px;font-size:8px;grid-template-columns:none}.tenka-season-page .tk-world-stage .sw-legend span:before{width:10px;height:10px}.tenka-season-page .tk-world-stage .sw-legend .fighting:before{font-size:11px}}
 
 @media(max-width:760px){.tenka-season-page .tk-world-stage #swRegionInfo{bottom:153px}}
+
+.tenka-season-page #worldMain #swCampGeneralQuiz{display:block;min-height:42px;width:100%;font-size:12px}.sengoku-imperial-page .si-general-hall #swCampGeneralQuiz{grid-column:1/-1;grid-row:auto;max-width:310px}.sengoku-imperial-page .si-general-hall #swAcquire{grid-row:auto}.tenka-season-page #swCampGeneralQuiz:disabled{cursor:default}

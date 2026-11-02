@@ -9,7 +9,7 @@ export class SengokuAlliances{
  }
  now(){return this.game.now();}
  eligible(p){return p&&!p.retired&&!this.game.isBanned(p.owner)&&!W.blockedName(p.name,this.game.admin.words());}
- visible(p){return this.eligible(p)?p.name:'参加者';}
+ visible(p){return p?this.game.playerName(p):'不明の領主';}
  group(w,p){return p?.allianceId?w.alliances.find(a=>a.id===p.allianceId)||null:null;}
  members(w,a){return a?w.players.filter(p=>!p.retired&&p.allianceId===a.id):[];}
  validMembers(w,a){return this.members(w,a).filter(p=>this.eligible(p));}

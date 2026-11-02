@@ -133,7 +133,7 @@ export class Accounts{
    if(action==='save'){
     const old=JSON.parse(a.progress);let posted=data.progress;
     // Older open tabs do not send world-history keys. Preserve them unless the client explicitly clears them.
-    if(object(posted)&&object(posted.values))posted={...posted,values:{...Object.fromEntries(D.keys.filter(key=>key.startsWith('cards_world_')&&!Object.hasOwn(posted.values,key)).map(key=>[key,old.values[key]??null])),...posted.values}};
+    if(object(posted)&&object(posted.values))posted={...posted,values:{...Object.fromEntries(D.keys.filter(key=>(key.startsWith('cards_world_')||key==='hk_neon_snake_v1')&&!Object.hasOwn(posted.values,key)).map(key=>[key,old.values[key]??null])),...posted.values}};
     const save=progress(posted),wallet=JSON.parse(save.values.hk_wallet_v2),oldWallet=JSON.parse(old.values.hk_wallet_v2);
     wallet.redeemedCodes=[...new Set([...(wallet.redeemedCodes||[]),...(oldWallet.redeemedCodes||[])])];save.values.hk_wallet_v2=JSON.stringify(wallet);
     const serialized=JSON.stringify(save);

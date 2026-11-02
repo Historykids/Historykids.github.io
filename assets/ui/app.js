@@ -623,6 +623,7 @@
   function setView(v, updateHash = true) {
     if (!labels[v]) v = "learn";
     const previousView = view;
+    if(previousView === "learn" && v !== "learn") { cardPractice = null; answered = false; rebuildQueue(); }
     view = v;
     document
       .querySelectorAll(".view")

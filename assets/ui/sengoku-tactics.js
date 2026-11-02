@@ -2,6 +2,7 @@
 (function(root){
  'use strict';
  const R=root.HKSengokuKuniMap,G=root.HKSengokuWorldRules,SCALE=10000,MAX_MEMBERS=5,MAX_DEPUTIES=3;
+ const castleDefense=Object.freeze({base:30,wall:12,moat:6,barracks:10});
  const units=Object.freeze({infantry:{name:'兵士',mark:'兵'}});
  const terrainNames={plain:'平野',mountain:'山岳',forest:'森林',coast:'海岸'},weatherNames={sunny:'晴れ',rain:'雨',fog:'霧'};
  const mountain=new Set(['kai','shinano','hida','mutsu','country_npl','country_btn','country_che','afghanistan']);
@@ -20,9 +21,9 @@
   let attack=10000,defense=10000,notes=[];
   if(t.terrain==='mountain'){defense=Math.floor(defense*120/100);notes.push('山岳：守備＋20%');}
   if(t.terrain==='forest'){defense=Math.floor(defense*110/100);notes.push('森林：守備＋10%');}
-  if(t.castleLevel){defense=Math.floor(defense*(100+t.castleLevel*10)/100);notes.push('城Lv.'+t.castleLevel+'：守備＋'+t.castleLevel*10+'%');}
-  if(t.castleWall){defense=Math.floor(defense*(100+t.castleWall*5)/100);notes.push('城壁：守備＋'+t.castleWall*5+'%');}
-  if(t.castleMoat){defense=Math.ceil(defense*100/(100-t.castleMoat*3));notes.push('堀：被害−'+t.castleMoat*3+'%');}
+  if(t.castleLevel){defense=Math.floor(defense*(100+t.castleLevel*castleDefense.base)/100);notes.push('城Lv.'+t.castleLevel+'：守備＋'+t.castleLevel*castleDefense.base+'%');}
+  if(t.castleWall){defense=Math.floor(defense*(100+t.castleWall*castleDefense.wall)/100);notes.push('城壁：守備＋'+t.castleWall*castleDefense.wall+'%');}
+  if(t.castleMoat){defense=Math.ceil(defense*100/(100-t.castleMoat*castleDefense.moat));notes.push('堀：被害−'+t.castleMoat*castleDefense.moat+'%');}
   if(t.allianceAttack){attack=Math.floor(attack*(100+t.allianceAttack)/100);notes.push('同盟：攻撃＋'+t.allianceAttack+'%');}
   if(t.allianceDefense){defense=Math.floor(defense*(100+t.allianceDefense)/100);notes.push('同盟：守備＋'+t.allianceDefense+'%');}
   return{attack,defense,notes};
@@ -33,6 +34,6 @@
  function combatBuffs(view,region){const owner=view?.world?.players.find(p=>p.id===region.owner),defender=view?.world?.alliances.find(a=>a.id===owner?.allianceId);return{attack:view?.strategy?.alliance?.buffs?.effects.attack||0,defense:defender?.buffs?.effects.defense||0};}
  const messages=Object.freeze({attack:'この領土を攻めよう！',help:'援軍お願い！',defend:'守備兵を増やそう！',thanks:'ありがとう！',congrats:'おめでとう！'});
  const honorNames=Object.freeze({hundred:'天下の同盟',joint:'不敗の軍団',japan:'日本統一同盟',world:'世界征服同盟',upset:'下克上同盟'});
- root.HKSengokuTactics=Object.freeze({version:'strategy-alliance-20261031-v1',SCALE,MAX_MEMBERS,MAX_DEPUTIES,allianceBuffs,buffCosts,combatBuffs,units,terrainNames,weatherNames,major,terrain,weather,week,count,troopCount,guardCount,canRecover,overseasRecovery,snapshot,modifiers,damage,messages,honorNames});
+ root.HKSengokuTactics=Object.freeze({version:'strategy-alliance-20261031-v1',SCALE,MAX_MEMBERS,MAX_DEPUTIES,castleDefense,allianceBuffs,buffCosts,combatBuffs,units,terrainNames,weatherNames,major,terrain,weather,week,count,troopCount,guardCount,canRecover,overseasRecovery,snapshot,modifiers,damage,messages,honorNames});
  if(typeof module!=='undefined')module.exports=root.HKSengokuTactics;
 })(typeof window!=='undefined'?window:globalThis);

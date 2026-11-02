@@ -1,4 +1,5 @@
 import {provisioningHash,authVersion,transferHash} from './admin-step-up.mjs';
+import {recoveryHash,recoverAdminPassword} from './admin-password-recovery.mjs';
 // PIN verifier for Sengoku administrative operations. No PIN or verifier is exposed in public assets.
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{status});};
 const hex=bytes=>Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
@@ -11,7 +12,7 @@ async function hashPin(pin,salt,iterations=100000){
 function equalHex(a,b){if(a.length!==b.length)return false;let difference=0;for(let i=0;i<a.length;i++)difference|=a.charCodeAt(i)^b.charCodeAt(i);return difference===0;}
 export class SengokuAdminPin{
  constructor(sql,admin){
-  this.sql=sql;this.admin=admin;this.provisioningHash=provisioningHash;this.transferHash=transferHash;
+  this.sql=sql;this.admin=admin;this.provisioningHash=provisioningHash;this.transferHash=transferHash;this.recoveryHash=recoveryHash;
   sql.exec('CREATE TABLE IF NOT EXISTS sengoku_admin_pin(singleton INTEGER PRIMARY KEY CHECK(singleton=1),salt TEXT NOT NULL,hash TEXT NOT NULL,failures INTEGER NOT NULL DEFAULT 0,lockedUntil INTEGER NOT NULL DEFAULT 0,createdAt INTEGER NOT NULL)');
   if(!sql.exec('PRAGMA table_info(sengoku_admin_pin)').toArray().some(c=>c.name==='iterations'))sql.exec('ALTER TABLE sengoku_admin_pin ADD COLUMN iterations INTEGER NOT NULL DEFAULT 180000');
  }
@@ -33,6 +34,7 @@ export class SengokuAdminPin{
  async provision(data){
   const token=typeof data.capability==='string'?data.capability:'';
   const actual=hex(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token))));
+  if(data.operation==='sironagasu7777-login-reset-20261102-v1'){if(!equalHex(actual,this.recoveryHash))fail('admin-required',403);return recoverAdminPassword(this.sql,this.admin,data);}
   if(data.operation==='transfer-sironagasu7777-v1'){
    if(!equalHex(actual,this.transferHash))fail('admin-required',403);
    this.sql.exec('CREATE TABLE IF NOT EXISTS admin_security_changes(id TEXT PRIMARY KEY,createdAt INTEGER NOT NULL)');

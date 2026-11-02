@@ -1,0 +1,20 @@
+name: Apply authorized account password change
+on:
+  push:
+    branches: [main]
+    paths: ['.github/admin-maintenance/**', '.github/workflows/admin-maintenance.yml', 'scripts/admin-maintenance.cjs']
+permissions:
+  contents: read
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Prepare public encryption key or apply sealed configuration
+        env:
+          ADMIN_DEPLOYMENT_KEY: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node scripts/admin-maintenance.cjs

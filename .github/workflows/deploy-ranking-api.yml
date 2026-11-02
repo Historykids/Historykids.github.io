@@ -32,6 +32,7 @@ jobs:
           node tests/tenka-season1-ui.cjs
           node tests/world-history.cjs
           node scripts/sengoku-questions.cjs
+          node tests/admin-password-recovery.cjs
           node tests/account-data-transfer.cjs
           node tests/admin-transfer.cjs
           node tests/admin-step-up.cjs

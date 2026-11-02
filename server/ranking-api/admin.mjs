@@ -1,5 +1,6 @@
+import {authVersion} from './admin-step-up.mjs';
 import {verifyAdminCode} from './admin-auth.mjs';
-const routes=new Set(['/wealth/admin/session','/wealth/admin/claim','/wealth/admin/board','/wealth/admin/moderate','/wealth/admin/words']);
+const routes=new Set(['/wealth/admin/password/check','/wealth/admin/session','/wealth/admin/claim','/wealth/admin/board','/wealth/admin/moderate','/wealth/admin/words']);
 export const adminRoutes=routes;
 const fail=(code,status=400)=>{throw Object.assign(Error(code),{status});};
 export class WealthAdmin {
@@ -24,7 +25,8 @@ export class WealthAdmin {
  async fetch(path,data){
   try{
    const owner=data.owner||'';if(!/^[a-f0-9]{64}$/.test(owner))fail('identity-required',401);
-   if(path==='/wealth/admin/session')return Response.json({admin:this.isAdmin(owner),claimed:!!this.owner()});
+   if(path==='/wealth/admin/password/check')return Response.json({verified:true});
+   if(path==='/wealth/admin/session')return Response.json({admin:this.isAdmin(owner),claimed:!!this.owner(),passwordRequired:true,authVersion});
    if(path==='/wealth/admin/claim'){
     const previous=this.owner();if(previous&&previous!==owner)fail('admin-claimed',403);
     if(previous===owner)return Response.json({admin:true});

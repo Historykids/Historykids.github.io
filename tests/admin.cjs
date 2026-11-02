@@ -1,3 +1,4 @@
+const adminPasswordFixture=require('./admin-password-fixture.cjs');
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{DatabaseSync}=require('node:sqlite'),{pbkdf2Sync}=require('node:crypto'),{JSDOM}=require('jsdom');
 const root=path.resolve(__dirname,'..'),read=file=>fs.readFileSync(path.join(root,file),'utf8'),tick=()=>new Promise(r=>setImmediate(r));let checks=0;
 async function test(name,fn){await fn();checks++;console.log('PASS',name);}
@@ -8,7 +9,7 @@ async function test(name,fn){await fn();checks++;console.log('PASS',name);}
  let board=new HistoryLeaderboard({storage}),limited=false;const limiter={limit:async()=>({success:true})},claimLimiter={limit:async()=>({success:!limited})};
  const env={LEADERBOARD:{idFromName:n=>n,get:()=>({fetch:r=>board.fetch(r)})},RANK_READ_LIMITER:limiter,RANK_WRITE_LIMITER:limiter,RANK_GLOBAL_LIMITER:limiter,ADMIN_CLAIM_LIMITER:claimLimiter};
  const empty={balance:0,buildings:{},residents:{}};
- async function req(route,body,token='a'.repeat(64),custom={}){const response=await worker.fetch(new Request('https://api.example'+route,{method:body===undefined?'GET':'POST',headers:{Origin:'https://historykids.github.io','Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{}),...custom.headers},...(body===undefined?{}:{body:JSON.stringify(body)}),...custom}),env);return{status:response.status,body:await response.json()};}
+ async function req(route,body,token='a'.repeat(64),custom={}){const response=await worker.fetch(new Request('https://api.example'+route,{method:body===undefined?'GET':'POST',headers:{...(board.sengokuWorlds.expansion.adminPin.row()?{'X-Admin-Password':adminPasswordFixture.password}:{}),Origin:'https://historykids.github.io','Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{}),...custom.headers},...(body===undefined?{}:{body:JSON.stringify(body)}),...custom}),env);return{status:response.status,body:await response.json()};}
  await test('the server verifier derives a salted key and accepts normalized input without a client-side PIN',async()=>{
   const salt='0123456789abcdef0123456789abcdef',config={salt,iterations:1000,hash:pbkdf2Sync('12345678',Buffer.from(salt,'hex'),1000,32,'sha256').toString('hex')};
   assert(await verifyAdminCode('１２３４５６７８',config));assert(!await verifyAdminCode('12345679',config));assert(!await verifyAdminCode('123',config));assert(!read('assets/ui/admin.js').includes(config.hash));
@@ -22,7 +23,7 @@ async function test(name,fn){await fn();checks++;console.log('PASS',name);}
  let adminToken,otherToken;
  await test('simultaneous valid claims assign exactly one persistent administrator',async()=>{
   let arrive=0,release;const gate=new Promise(r=>release=r);board.admin.verify=async()=>{if(++arrive===2)release();await gate;return true;};
-  const tokens=['a'.repeat(64),'b'.repeat(64)],results=await Promise.all(tokens.map(token=>req('/wealth/admin/claim',{code:'12345678'},token)));assert.equal(results.filter(r=>r.status===200).length,1);assert.equal(results.filter(r=>r.body.error==='admin-claimed').length,1);adminToken=tokens[results.findIndex(r=>r.status===200)];otherToken=tokens.find(t=>t!==adminToken);
+  const tokens=['a'.repeat(64),'b'.repeat(64)],results=await Promise.all(tokens.map(token=>req('/wealth/admin/claim',{code:'12345678'},token)));assert.equal(results.filter(r=>r.status===200).length,1);assert.equal(results.filter(r=>r.body.error==='admin-claimed').length,1);adminToken=tokens[results.findIndex(r=>r.status===200)];otherToken=tokens.find(t=>t!==adminToken);await adminPasswordFixture.configure(board);
   board=new HistoryLeaderboard({storage});assert((await req('/wealth/admin/session',undefined,adminToken)).body.admin);assert(!(await req('/wealth/admin/session',undefined,otherToken)).body.admin);assert.equal((await req('/wealth/admin/claim',{code:'12345678'},otherToken)).status,403);assert.equal((await req('/wealth/admin/claim',{code:'12345678'},adminToken)).status,200);assert.equal(db.prepare('SELECT COUNT(*) AS n FROM wealth_admin_owner').get().n,1);
  });
  let playerId;

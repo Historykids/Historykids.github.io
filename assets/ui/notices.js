@@ -117,6 +117,7 @@
  $('noticeRefresh').onclick=()=>{load();if(visible())checkRole();};
  window.addEventListener('hk-view-change',e=>{if(e.detail==='notifications'){load();checkRole();}});
  function identityChanged(){epoch++;notices=[];draft=null;sending=false;clearAdmin();$('noticeForm').reset();$('noticePreview').hidden=true;render();load();if(visible())checkRole();}
+ window.addEventListener('hk-admin-lock',()=>{epoch++;clearAdmin();});
  window.addEventListener('hk-admin-change',identityChanged);
  window.addEventListener('storage',e=>{if(e.key===readKey())render();if(e.key==='hk_wealth_identity_v1'||e.key===null)identityChanged();});
  try{const saved=JSON.parse(localStorage.getItem(draftKey)||'null');if(saved&&typeof saved.title==='string'&&typeof saved.body==='string'&&/^[A-Za-z0-9_-]{16,64}$/.test(saved.requestId)){draft=saved;$('noticeTitle').value=saved.title;$('noticeBody').value=saved.body;$('noticeAudience').value=saved.recipient?'personal':'all';audienceChanged();}}catch{}

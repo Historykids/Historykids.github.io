@@ -2,7 +2,7 @@
  'use strict';
  const $=id=>document.getElementById(id),T=window.HKSengokuTactics,R=window.HKSengokuKuniMap,G=window.HKSengokuWorldRules,A=window.HKCommunity,U=window.HKSengokuUI;
  if(!T||!U||!A||!$('sxToolbar'))return;
- let active=null,signature='',allianceSignature='',adminData=null,adminBusy=false,adminPending=null,adminKey='',adminTarget='',adminPin='',adminPinConfigured=null,epoch=0,diplomacyOpen=false,notificationFilter='all',castleQuizId='',castleChoice='',castleOwner='',buffTab='overview',buffAlliance='',supportFeedback=new Map(),diplomacyDraft={scope:'',target:'',kind:'ceasefire',duration:24,give:'',receive:'',note:''};
+ let active=null,signature='',allianceSignature='',adminData=null,adminBusy=false,adminPending=null,adminKey='',adminTarget='',adminPin='',adminPinConfigured=null,adminPinTimer=null,epoch=0,diplomacyOpen=false,notificationFilter='all',castleQuizId='',castleChoice='',castleOwner='',buffTab='overview',buffAlliance='',supportFeedback=new Map(),diplomacyDraft={scope:'',target:'',kind:'ceasefire',duration:24,give:'',receive:'',note:''};
  const fmt=n=>Number(n||0).toLocaleString('ja-JP',{maximumFractionDigits:4}),date=n=>new Date(n).toLocaleString('ja-JP'),node=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
  const view=()=>U.get(),world=()=>view()?.world,own=()=>view()?.own,now=()=>U.now(),blocked=()=>U.locked()||view()?.strategy?.controls?.banned||(view()?.strategy?.controls?.accessUntil||0)>now();
  const note=t=>node('p','sx-note',t),title=(t,k='h3')=>node(k,'',t),regionName=id=>R.region(id)?.name||id;
@@ -70,12 +70,12 @@
    if(adminPinConfigured===null){
     const status=await A.request('/wealth/sengoku/world/admin/pin/status',undefined,false);
     if(run!==epoch||token!==A.identity(false))return;
-    adminPinConfigured=!!status.configured;
+    adminPinConfigured=!!status.configured&&!status.requiresUpgrade;
    }
    if(!adminPinConfigured||!pin){adminData=null;signature='';renderPanel();return;}
    const r=await A.request('/wealth/sengoku/world/admin',{pin},false);
    if(run!==epoch||token!==A.identity(false))return;
-   adminPin=pin;adminData=r;adminKey=adminStorageKey();
+   adminPin=pin;clearTimeout(adminPinTimer);adminPinTimer=setTimeout(lockAdminPanel,300000);adminData=r;adminKey=adminStorageKey();
    const cached=localStorage.getItem(adminKey);adminPending=cached?JSON.parse(cached):null;
    signature='';renderPanel();message('管理者認証に成功しました。');
   }catch(e){
@@ -122,14 +122,16 @@
    const form=node('form','sx-admin-form'),bootstrap=node('input'),pin=node('input');
    bootstrap.type='password';bootstrap.autocomplete='off';bootstrap.inputMode='numeric';bootstrap.maxLength=8;bootstrap.required=true;
    pin.type='password';pin.autocomplete='new-password';pin.inputMode='numeric';pin.minLength=4;pin.maxLength=8;pin.required=true;
-   form.append(note('初回設定：元の8桁の管理者コードを確認してから、新しい4～8桁の管理者用パスワードをサーバーへ登録します。コード自体は公開サイトに保存しません。'),field('元の管理者コード（8桁）',bootstrap),field('新しい管理者パスワード（4～8桁）',pin),button('管理者パスワードを登録',()=>setupAdminPin(bootstrap.value.trim(),pin.value.trim()),adminBusy,'primary'));
-   form.onsubmit=e=>{e.preventDefault();setupAdminPin(bootstrap.value.trim(),pin.value.trim());};box.append(form);return;
+   const register=()=>{const code=bootstrap.value.trim(),value=pin.value.trim();bootstrap.value=pin.value='';bootstrap.blur();pin.blur();setupAdminPin(code,value);};
+   form.append(note('初回設定：元の8桁の管理者コードを確認してから、新しい4～8桁の管理者用パスワードをサーバーへ登録します。コード自体は公開サイトに保存しません。'),field('元の管理者コード（8桁）',bootstrap),field('新しい管理者パスワード（4～8桁）',pin),button('管理者パスワードを登録',register,adminBusy,'primary'));
+   form.onsubmit=e=>{e.preventDefault();register();};box.append(form);return;
   }
   if(!adminData){
    const form=node('form','sx-admin-form'),pin=node('input');
    pin.type='password';pin.autocomplete='off';pin.inputMode='numeric';pin.minLength=4;pin.maxLength=8;pin.required=true;
-   form.append(note('管理者操作にはパスワードが必要です。'),field('管理者パスワード',pin),button('管理画面を開く',()=>loadAdmin(pin.value.trim()),adminBusy,'primary'));
-   form.onsubmit=e=>{e.preventDefault();loadAdmin(pin.value.trim());};box.append(form);return;
+   const authenticate=()=>{const value=pin.value.trim();pin.value='';pin.blur();loadAdmin(value);};
+   form.append(note('管理者操作にはパスワードが必要です。'),field('管理者パスワード',pin),button('管理画面を開く',authenticate,adminBusy,'primary'));
+   form.onsubmit=e=>{e.preventDefault();authenticate();};box.append(form);return;
   }
   box.append(note('攻撃兵数の変更と領土没収は指定したワールドだけに適用します。その他の制限はアカウントの全ワールドに適用されます。'),button('管理情報を更新',()=>loadAdmin(),adminBusy));
   if(adminPending){const targetName=adminData.entries.find(e=>e.targetId===adminPending.targetId)?.name||'対象アカウント';box.append(note('結果未確認：'+targetName+' / '+adminPending.kind),button('保存した操作を再試行',()=>sendAdmin(adminPending),adminBusy,'primary'));}
@@ -165,7 +167,8 @@
    try{
     const entry=adminData.entries.find(e=>e.targetId===target.value);if(!entry)throw Error('対象を選んでください。');
     const [k,mode]=kind.value.split(':');let value=0;
-    if((k==='recruit'&&mode==='set')||k==='set_attack_soldiers'){
+    if(k==='ban')value=mode==='on'?1:0;
+    else if((k==='recruit'&&mode==='set')||k==='set_attack_soldiers'){
      if(!/^(0|[1-9]\d*)(?:\.\d{1,4})?$/.test(reward.value))throw Error('人数は小数4桁までで入力してね。');
      const parts=reward.value.split('.'),v=BigInt(parts[0])*10000n+BigInt((parts[1]||'').padEnd(4,'0'));
      if(v<0n||v>BigInt(Number.MAX_SAFE_INTEGER)||(k==='recruit'&&v===0n)||v>BigInt(G.MAX_SOLDIERS)*10000n)throw Error('有効な人数を入力してね。');
@@ -195,6 +198,8 @@
  }
  document.querySelectorAll('[data-sx-open]').forEach(b=>b.onclick=()=>open(b.dataset.sxOpen));$('sxBack').onclick=()=>{open(null);U.goMap(U.selected());};document.querySelectorAll('[data-tab],[data-go]').forEach(b=>b.addEventListener('click',()=>{active=null;adminPin='';adminData=null;adminPinConfigured=null;$('swExpansionSection').hidden=true;document.querySelectorAll('[data-sx-open]').forEach(b=>b.removeAttribute('aria-current'));}));
  window.addEventListener('hk-sengoku-view',render);window.addEventListener('hk-sengoku-ready',()=>{signature='';allianceSignature='';render();});window.addEventListener('hk-sengoku-selection',()=>{renderRegion();});window.addEventListener('hk-sengoku-invalidate',()=>{epoch++;castleQuizId='';castleChoice='';castleOwner='';buffAlliance='';buffTab='overview';supportFeedback.clear();active=null;signature='';allianceSignature='';adminData=null;adminPending=null;adminTarget='';adminPin='';adminPinConfigured=null;$('swExpansionSection').hidden=true;$('sxContent').replaceChildren();$('sxMessage').textContent='';$('sxAccess').hidden=true;$('sxAlliance').replaceChildren();diplomacyOpen=false;diplomacyDraft={scope:'',target:'',kind:'ceasefire',duration:24,give:'',receive:'',note:''};notificationFilter='all';$('sxNotificationBar').hidden=true;$('sxNotifications').replaceChildren();$('sxNotificationCount').textContent='0';$('sxNotificationPreview').textContent='';$('sxAdminOpen').hidden=true;$('sxConfirm')?.remove();$('sxBackdrop')?.remove();});
+ function lockAdminPanel(){epoch++;clearTimeout(adminPinTimer);adminPin='';adminData=null;adminPending=null;adminBusy=false;signature='';if(active==='admin'){$('sxContent').replaceChildren();$('sxConfirm')?.remove();$('sxBackdrop')?.remove();renderPanel();}}
+ window.addEventListener('hk-admin-lock',lockAdminPanel);document.addEventListener('visibilitychange',()=>{if(document.hidden)lockAdminPanel();});
  window.addEventListener('hashchange',()=>{if(location.hash==='#strategy-admin')open('admin');});render();if(location.hash==='#strategy-admin')open('admin');
  $('sxNotificationReadAll').onclick=()=>act('notification_read',{notificationId:'all'});$('sxNotificationAll').onclick=()=>{notificationFilter='all';renderNotifications();};$('sxNotificationUnread').onclick=()=>{notificationFilter='unread';renderNotifications();};
  window.HKSengokuExpansionUI=Object.freeze({open,render});

@@ -1,3 +1,4 @@
+const adminPasswordFixture=require('./admin-password-fixture.cjs');
 // Regression fixtures for in-flight draw hands created before Hold'em deployment.
 function legacyPoker(board){
  board.poker.empty=()=>({...board.poker.legacyEmpty(),rules:'draw-v1'});
@@ -17,7 +18,7 @@ let checks=0;async function test(name,fn){await fn();checks++;console.log('PASS'
  let board=new HistoryLeaderboard({storage});board.poker.now=()=>now;legacyPoker(board);
  const limiter={limit:async()=>({success:true})},env={LEADERBOARD:{idFromName:n=>n,get:()=>({fetch:r=>board.fetch(r)})},RANK_READ_LIMITER:limiter,RANK_WRITE_LIMITER:limiter,RANK_GLOBAL_LIMITER:limiter,ADMIN_CLAIM_LIMITER:limiter,POKER_ROOM_LIMITER:limiter};
  const tokens=Array.from({length:8},(_,i)=>(i+1).toString(16).repeat(64)),id=i=>'poker_ticket_'+String(i).padStart(20,'0'),owner=i=>createHash('sha256').update(tokens[i]).digest('hex');
- async function req(path,body,index=0){const response=await worker.fetch(new Request('https://api.example'+path,{method:body===undefined?'GET':'POST',headers:{Origin:'https://historykids.github.io',...(index===null?{}:{Authorization:'Bearer '+tokens[index]}),...(body===undefined?{}:{'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})}),env);return{status:response.status,body:await response.json()};}
+ async function req(path,body,index=0){const response=await worker.fetch(new Request('https://api.example'+path,{method:body===undefined?'GET':'POST',headers:{...(board.sengokuWorlds.expansion.adminPin.row()?{'X-Admin-Password':adminPasswordFixture.password}:{}),Origin:'https://historykids.github.io',...(index===null?{}:{Authorization:'Bearer '+tokens[index]}),...(body===undefined?{}:{'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})}),env);return{status:response.status,body:await response.json()};}
  async function register(i,rebirths=10,balance=1000){const old=(await req('/wealth',undefined,i)).body;return req('/wealth/register',{name:'王者'+i,snapshot:{rebirths,balance,buildings:{},residents:{}},expectedRevision:old.ownRevision||0},i);}
  async function join(i,stake=10,number=i){assert.equal((await req('/wealth/poker/reserve',{id:id(number),stake:M.full(stake)},i)).status,200);return req('/wealth/poker/commit',{id:id(number)},i);}
  await test('one public room rejects unregistered and under-ten participants and spoofed owners',async()=>{
@@ -89,7 +90,7 @@ let checks=0;async function test(name,fn){await fn();checks++;console.log('PASS'
  await test('ordinary callers cannot publish notices, including forged client administrator flags',async()=>{
   const body={requestId:id(80),title:'お知らせ',body:'テストの本文',admin:true,owner:owner(0)};
   assert.equal((await req('/wealth/admin/notices',body,1)).status,403);assert.deepEqual((await req('/wealth/notices',undefined,null)).body.notices,[]);
-  board.admin.verify=async code=>code==='12345678';assert.equal((await req('/wealth/admin/claim',{code:'12345678'})).status,200);
+  board.admin.verify=async code=>code==='12345678';assert.equal((await req('/wealth/admin/claim',{code:'12345678'})).status,200);await adminPasswordFixture.configure(board);
  });
  await test('administrator notices reach anonymous recipients, preserve plain text and publish once on retries',async()=>{
   const body={requestId:id(80),title:'新しい遊びのお知らせ',body:'一行目\n<img src=x onerror=alert(1)>'};const sent=await req('/wealth/admin/notices',body);assert.equal(sent.status,200);assert.equal(sent.body.notices.length,1);

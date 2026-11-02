@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict'),{harness}=require('./holdem-harness.cjs');
 let checks=0;const test=async(name,work)=>{await work();checks++;console.log('PASS',name);};
 (async()=>{
- const h=await harness(),req=h.req;h.db.prepare('INSERT INTO wealth_admin_owner(singleton,owner,createdAt) VALUES(1,?,?)').run(h.owner(0),h.now);
+ const h=await harness(),req=h.req;h.db.prepare('INSERT INTO wealth_admin_owner(singleton,owner,createdAt) VALUES(1,?,?)').run(h.owner(0),h.now);await h.authorizeAdmin();
  const publish=(key,personal=false)=>req('/wealth/admin/'+(personal?'personal-notices':'notices'),{requestId:key,title:'元の件名',body:'元の本文',...(personal?{recipient:h.owner(1)}:{})});
  try{
  await h.register(1);await h.register(2);
@@ -78,7 +78,7 @@ let checks=0;const test=async(name,work)=>{await work();checks++;console.log('PA
   const progress={version:1,values:{hk_wallet_v2:JSON.stringify({version:2,balance:'10000',rebirths:0,pending:null,history:[]})}};
   const registered=await req('/wealth/account/register',{username:'notice_admin',password:'testing password 1234',progress});assert.equal(registered.status,200);
   const token=registered.body.token;
-  const fetch=async(path,body)=>{const r=await h.fetch('https://api.example'+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});return{status:r.status,body:await r.json()};};
+  const fetch=async(path,body)=>{const r=await h.fetch('https://api.example'+path,{method:body?'POST':'GET',headers:{'X-Admin-Password':'2468',Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});return{status:r.status,body:await r.json()};};
   const history=await fetch('/wealth/admin/notice-history');assert.equal(history.status,200);const n=history.body.notices[0];
   assert.equal((await req('/wealth/admin/notice-history')).status,401);
   assert.equal((await fetch('/wealth/admin/notice-edit',{requestId:crypto.randomUUID(),id:n.id,expectedRevision:n.revision,title:'ログイン後の修正',body:'本文'})).status,200);

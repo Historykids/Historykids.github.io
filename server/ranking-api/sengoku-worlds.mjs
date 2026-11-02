@@ -409,6 +409,7 @@ export class SengokuWorlds{
    if(path==='/wealth/sengoku/chat')return Response.json(this.chat.view(data.owner,data.channelWorldId));
    if(path==='/wealth/sengoku/chat/send')return Response.json(this.chat.send(data.owner,data));
    this.ensureWorlds();this.ensureGlobalWorlds();this.migrateBatch();this.ensureRankings();this.ensureOverseasGarrisons();this.ensureModernWorlds();this.ensureAntarctica();this.ensureFiveWorlds();this.ensureGarrisonRanking();this.ensureManualCooldown();this.expansion.ensure();
+   if(path==='/wealth/sengoku/world/admin/pin/provision')return Response.json(await this.expansion.adminPin.provision(data));
    if(path==='/wealth/sengoku/world/admin/pin/status')return Response.json(this.expansion.adminPinStatus(data.owner));
    if(path==='/wealth/sengoku/world/admin/pin/setup')return Response.json(await this.expansion.adminPinSetup(data.owner,data));
    if(path==='/wealth/sengoku/world/admin')return Response.json(await this.expansion.adminBoard(data.owner,data.pin));

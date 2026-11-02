@@ -19,18 +19,19 @@ let checks=0;async function test(name,fn){await fn();checks++;console.log('PASS'
   let now=100000,board=new HistoryLeaderboard({storage});board.poker.now=()=>now;legacyPoker(board);
   const tokens=Array.from({length:16},(_,i)=>(i+1).toString(16).padStart(64,'0')),hash=i=>createHash('sha256').update(tokens[i]).digest('hex'),limiter={limit:async()=>({success:true})};
   const env={LEADERBOARD:{idFromName:n=>n,get:()=>({fetch:r=>board.fetch(r)})},RANK_READ_LIMITER:limiter,RANK_WRITE_LIMITER:limiter,RANK_GLOBAL_LIMITER:limiter,ADMIN_CLAIM_LIMITER:limiter,POKER_ROOM_LIMITER:limiter};
-  async function req(route,body,index=0,tokenOverride=null){const r=await worker.fetch(new Request('https://api.example'+route,{method:body===undefined?'GET':'POST',headers:{Origin:'https://historykids.github.io',...(index===null?{}:{Authorization:'Bearer '+(tokenOverride||tokens[index])}),...(body===undefined?{}:{'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})}),env);return{status:r.status,body:await r.json()};}
+  const authorizedAdminTokens=new Set();
+  async function req(route,body,index=0,tokenOverride=null){const token=tokenOverride||tokens[index];const r=await worker.fetch(new Request('https://api.example'+route,{method:body===undefined?'GET':'POST',headers:{Origin:'https://historykids.github.io',...(index===null?{}:{Authorization:'Bearer '+token}),...(/^\/wealth\/admin\//.test(route)&&authorizedAdminTokens.has(token)?{'X-Admin-Password':require('./admin-password-fixture.cjs').password}:{}),...(body===undefined?{}:{'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})}),env);return{status:r.status,body:await r.json()};}
   async function register(i,name='参加者'+i){const own=(await req('/wealth',undefined,i)).body;const r=await req('/wealth/register',{name,expectedRevision:own.ownRevision||0,snapshot:{balance:1000,rebirths:10,buildings:{},residents:{}}},i);assert.equal(r.status,200);}
   const id=i=>'expansion_ticket_'+String(i).padStart(10,'0');
   async function join(i,room='royal-one',stake=10){assert.equal((await req('/wealth/poker/reserve',{id:id(i),stake,room},i)).status,200);assert.equal((await req('/wealth/poker/commit',{id:id(i),room},i)).status,200);}
-  return{db,storage,tokens,hash,req,register,join,id,get board(){return board;},advance(ms){now+=ms;},restart(){board=new HistoryLeaderboard({storage});board.poker.now=()=>now;legacyPoker(board);}};
+  return{db,storage,tokens,hash,req,register,join,id,async authorizeAdmin(i=0){await require('./admin-password-fixture.cjs').configure(board);authorizedAdminTokens.add(tokens[i]);},get board(){return board;},advance(ms){now+=ms;},restart(){board=new HistoryLeaderboard({storage});board.poker.now=()=>now;legacyPoker(board);}};
  }
  const h=harness(true),{req,register,hash}=h;
  await test('existing broadcast notices migrate as public without changing titles, bodies or identifiers',async()=>{
   const notice=(await req('/wealth/notices',undefined,null)).body.notices[0];assert.equal(notice.id,1);assert.equal(notice.audience,'all');assert.equal(notice.title,'従来のお知らせ');h.restart();assert.equal((await req('/wealth/notices',undefined,null)).body.notices.length,1);
  });
  await test('only an authenticated administrator can inspect recipient choices',async()=>{
-  await register(0);await register(1,'同じ名前');await register(2,'同じ名前');h.board.admin.verify=async c=>c==='12345678';assert.equal((await req('/wealth/admin/claim',{code:'12345678'})).status,200);
+  await register(0);await register(1,'同じ名前');await register(2,'同じ名前');h.board.admin.verify=async c=>c==='12345678';assert.equal((await req('/wealth/admin/claim',{code:'12345678'})).status,200);await h.authorizeAdmin();
   assert.equal((await req('/wealth/admin/recipients',undefined,null)).status,401);assert.equal((await req('/wealth/admin/recipients?owner='+hash(0),undefined,1)).status,403);
   const people=(await req('/wealth/admin/recipients')).body.recipients;assert.equal(people.filter(p=>p.name==='同じ名前').length,2);assert.equal(new Set(people.map(p=>p.id)).size,3);assert(!JSON.stringify(people).includes(h.tokens[1]));
  });

@@ -2,7 +2,7 @@ import {rankingRequest} from '../figure-api/ranking.mjs';
 import {wealthRequest} from './wealth.mjs';
 export {HistoryLeaderboard} from './wealth.mjs';
 const origin='https://historykids.github.io';
-function reply(body,status=200,allow=origin){return Response.json(body,{status,headers:{'Access-Control-Allow-Origin':allow,'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization','Cache-Control':'no-store','Vary':'Origin','X-Content-Type-Options':'nosniff'}});}
+function reply(body,status=200,allow=origin){return Response.json(body,{status,headers:{'Access-Control-Allow-Origin':allow,'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization, X-Admin-Password','Cache-Control':'no-store','Vary':'Origin','X-Content-Type-Options':'nosniff'}});}
 export default {async fetch(request,env){
  const url=new URL(request.url),incoming=request.headers.get('Origin');
  if(incoming&&incoming!==origin)return reply({error:'origin-not-allowed'},403,'');

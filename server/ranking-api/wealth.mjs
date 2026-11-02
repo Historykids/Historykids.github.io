@@ -1,3 +1,4 @@
+import {protectedAdminPath} from './admin-step-up.mjs';
 import {HistoryLeaderboard as QuizLeaderboard} from '../figure-api/ranking.mjs';
 import '../../assets/ui/amounts.js';
 import '../../assets/ui/wealth-rules.js';
@@ -65,6 +66,7 @@ export class HistoryLeaderboard extends QuizLeaderboard {
     try{data.owner=this.accounts.resolve(data.owner||'',path.startsWith('/ranking'));}catch(error){if(error.status)return fail(error.message,error.status);throw error;}
     if (!path.startsWith('/wealth')) return super.fetch(new Request(request.url,{method:'POST',body:JSON.stringify(data)}));
     const owner=data.owner;
+    if(protectedAdminPath(path)){try{await this.sengokuWorlds.expansion.adminPin.verify(owner,request.headers.get('X-Admin-Password'));}catch(error){if(error.status)return fail(error.message,error.status);throw error;}}
     if(adminRoutes.has(path))return this.admin.fetch(path,data);
     if(pokerRoutes.has(path))return this.poker.fetch(path,data);
     if(noticeRoutes.has(path))return this.notices.fetch(path,data);
@@ -132,7 +134,7 @@ export async function wealthRequest(request, env, reply) {
   }
   try {
     const stub = env.LEADERBOARD.get(env.LEADERBOARD.idFromName('alltime-v1'));
-    const result = await stub.fetch(new Request('https://internal'+path, {method: 'POST', body: JSON.stringify({...data, owner})}));
+    const result = await stub.fetch(new Request('https://internal'+path, {method: 'POST',headers:{'X-Admin-Password':request.headers.get('X-Admin-Password')||''},body: JSON.stringify({...data, owner})}));
     return reply(await result.json(), result.status);
   } catch { return reply({error: 'ranking-unavailable'}, 503); }
 }

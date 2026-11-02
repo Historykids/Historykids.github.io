@@ -4,7 +4,7 @@ const T=globalThis.HKSengokuTactics,G=globalThis.HKSengokuWorldRules,R=globalThi
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{status});};
 const safeId=s=>typeof s==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(s);
 export const expansionFields={buff_upgrade:['kind'],castle_upgrade:['region'],attack_unit:['unit'],defense_unit:['region','unit'],support_create:['region'],support_cancel:['supportId'],alliance_post:['message','region'],alliance_dissolve:[],treaty_offer:['targetId','kind','giveRegion','receiveRegion','scope','durationHours','note'],notification_read:['notificationId'],treaty_respond:['offerId','accept'],treaty_cancel:['offerId']};
-export const expansionRoutes=new Set(['/wealth/sengoku/world/timeline','/wealth/sengoku/world/admin','/wealth/sengoku/world/admin/action','/wealth/sengoku/world/admin/pin/status','/wealth/sengoku/world/admin/pin/setup']);
+export const expansionRoutes=new Set(['/wealth/sengoku/world/timeline','/wealth/sengoku/world/admin','/wealth/sengoku/world/admin/action','/wealth/sengoku/world/admin/pin/status','/wealth/sengoku/world/admin/pin/provision','/wealth/sengoku/world/admin/pin/setup']);
 export class SengokuExpansion{
  constructor(game){
   this.g=game;this.sql=game.sql;this.adminPin=new SengokuAdminPin(this.sql,this.g.admin);

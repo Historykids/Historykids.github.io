@@ -7,7 +7,7 @@ function page(h,i=0,{visible=true,map=null}={}){
  const $=id=>w.document.getElementById(id);$('view-notifications').hidden=!visible;w.eval(read('assets/ui/community.js'));w.HKAdmin={session:()=>w.HKCommunity.request('/wealth/admin/session',undefined,false)};w.eval(read('assets/ui/notices.js'));
  return{w,$,map:store,click:(action,id)=>$('noticeHistoryList').querySelector('[data-notice-action="'+action+'"][data-notice-id="'+id+'"]').click(),submit:()=> $('noticeUpdateForm').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true})),close:()=>w.close()};
 }
-async function setup(){const h=await harness();h.db.prepare('INSERT INTO wealth_admin_owner(singleton,owner,createdAt) VALUES(1,?,?)').run(h.owner(0),1);await h.register(1);await h.register(2);return h;}
+async function setup(){const h=await harness();h.db.prepare('INSERT INTO wealth_admin_owner(singleton,owner,createdAt) VALUES(1,?,?)').run(h.owner(0),1);await h.authorizeAdmin();await h.register(1);await h.register(2);return h;}
 async function send(h,personal=false){return(await h.req('/wealth/admin/'+(personal?'personal-notices':'notices'),{requestId:crypto.randomUUID(),title:personal?'個人の件名':'全員の件名',body:personal?'秘密の本文':'全体本文',...(personal?{recipient:h.owner(1)}:{})})).body.sent.id;}
 (async()=>{
  await test('administrator history lists both delivery types safely; visitors cannot see management or trigger its actions',async()=>{

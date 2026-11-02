@@ -159,13 +159,14 @@
   target.onchange=()=>{adminTarget=target.value;update();};
   kind.onchange=()=>{if(kind.value.startsWith('set_attack_soldiers:'))reward.value=String(adminData.entries.find(e=>e.targetId===target.value)?.worlds.find(w=>w.id===Number(worldChoice.value))?.soldiers??0);update();};
   worldChoice.onchange=()=>{if(kind.value.startsWith('set_attack_soldiers:'))reward.value=String(adminData.entries.find(e=>e.targetId===target.value)?.worlds.find(w=>w.id===Number(worldChoice.value))?.soldiers??0);update();};
+  reward.value=String(adminData.entries.find(e=>e.targetId===target.value)?.worlds.find(w=>w.id===Number(worldChoice.value))?.soldiers??0);
   update();
   function prepare(){
    try{
     const entry=adminData.entries.find(e=>e.targetId===target.value);if(!entry)throw Error('対象を選んでください。');
     const [k,mode]=kind.value.split(':');let value=0;
     if((k==='recruit'&&mode==='set')||k==='set_attack_soldiers'){
-     if(!/^(0|[1-9]\\d*)(?:\\.\\d{1,4})?$/.test(reward.value))throw Error('人数は小数4桁までで入力してね。');
+     if(!/^(0|[1-9]\d*)(?:\.\d{1,4})?$/.test(reward.value))throw Error('人数は小数4桁までで入力してね。');
      const parts=reward.value.split('.'),v=BigInt(parts[0])*10000n+BigInt((parts[1]||'').padEnd(4,'0'));
      if(v<0n||v>BigInt(Number.MAX_SAFE_INTEGER)||(k==='recruit'&&v===0n)||v>BigInt(G.MAX_SOLDIERS)*10000n)throw Error('有効な人数を入力してね。');
      value=Number(v);

@@ -19,7 +19,7 @@ export class SengokuAdminPin{
  async setup(owner,data){
   this.requireOwner(owner);
   if(this.row())fail('admin-pin-configured',409);
-  if(!/^\\d{4,8}$/.test(data.pin||''))fail('admin-pin-format');
+  if(!/^\d{4,8}$/.test(data.pin||''))fail('admin-pin-format');
   // Setup requires the original administrator bootstrap secret, not just a claimed account.
   if(!await this.admin.verify(data.bootstrapCode))fail('admin-bootstrap-invalid',403);
   if(this.row())fail('admin-pin-configured',409);
@@ -32,7 +32,7 @@ export class SengokuAdminPin{
   this.requireOwner(owner);
   const row=this.row();if(!row)fail('admin-pin-setup-required',403);
   if(row.lockedUntil>Date.now())fail('admin-pin-locked',429);
-  if(typeof pin!=='string'||!/^\\d{4,8}$/.test(pin))fail('admin-pin-required',403);
+  if(typeof pin!=='string'||!/^\d{4,8}$/.test(pin))fail('admin-pin-required',403);
   const actual=await hashPin(pin,row.salt);
   if(!equalHex(actual,row.hash)){
    const failures=row.failures+1,lockedUntil=failures>=5?Date.now()+30*60*1000:0;

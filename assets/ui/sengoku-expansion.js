@@ -117,7 +117,7 @@
  const adminKinds=[['ban:on','戦国の利用をBAN'],['ban:off','BANを解除'],['access:set','戦国の利用を一時制限'],['access:clear','利用制限を解除'],['attack:set','攻撃のクールタイムを設定'],['attack:clear','攻撃制限を解除'],['learning:set','クイズを一時制限'],['learning:clear','クイズ制限を解除'],['chat:set','チャットを一時制限'],['chat:clear','チャット制限を解除'],['recruit:set','正解1問あたりの兵士数を設定'],['recruit:clear','兵士数を通常に戻す'],['reset_attack:reset','攻撃兵を0人にリセット'],['set_attack_soldiers:set','攻撃兵数を指定'],['confiscate_territory:remove','領土を没収']];
  function renderAdmin(box){
   if(!view()?.permissions?.admin){box.append(note('この画面は管理者だけが利用できます。'));return;}
-  if(adminPinConfigured===null){box.append(note('管理者の認証状態を確認します。'),button('認証状態を確認',loadAdmin,adminBusy,'primary'));return;}
+  if(adminPinConfigured===null){box.append(note('管理者の認証状態を確認します。'),button('認証状態を確認',()=>loadAdmin(),adminBusy,'primary'));return;}
   if(!adminPinConfigured){
    const form=node('form','sx-admin-form'),bootstrap=node('input'),pin=node('input');
    bootstrap.type='password';bootstrap.autocomplete='off';bootstrap.inputMode='numeric';bootstrap.maxLength=8;bootstrap.required=true;

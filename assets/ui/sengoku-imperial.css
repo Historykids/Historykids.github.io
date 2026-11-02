@@ -63,3 +63,5 @@
 @media(max-width:760px){.tk-site-head{padding:0 8px}.tk-site-head>div{gap:8px}.tk-site-head .tk-world-watch{font-size:0;gap:0}.tk-site-head #swMapWorldSelect{max-width:115px;font-size:10px}.tk-site-head .tk-world-change{padding:4px 7px;font-size:9px}.tk-site-head>div>a[href*="guide"]{display:none}}
 
 .tenka-season-page .tk-sheet .force-table :is(.force-rank,small,.rank-member-name,.alliance-roster li){color:#42553c}.tenka-season-page .tk-sheet .force-table .rank-player-name{text-shadow:none}.tenka-season-page .tk-sheet .force-board>.muted{color:#53604a}@media(max-width:760px){.tk-site-head>a span{display:none}}
+
+.tenka-season-page .tk-sheet .force-board{background:transparent;color:#e3dbbd}.tenka-season-page .tk-sheet .force-board>.muted{color:#b9c4ad}

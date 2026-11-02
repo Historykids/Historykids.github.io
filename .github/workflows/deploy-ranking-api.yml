@@ -25,7 +25,7 @@ jobs:
           check-latest: true
       - name: Install test dependencies
         run: npm ci
-      - name: Check answers, ownership, retry and durable storage
+      - name: Check answers, account transfers, ownership and durable storage
         run: |
           node tests/tenka-map.cjs
           node tests/tenka-season1.cjs

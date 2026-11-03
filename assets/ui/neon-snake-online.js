@@ -1,6 +1,6 @@
 /* Real WebSocket clients send movement intent only. World state and round results come from the room. */
 (function(root){
- 'use strict';const E=root.HKNeonSnake,PROTOCOL='neon-online-mobile-20261103-v2';
+ 'use strict';const E=root.HKNeonSnake,PROTOCOL='neon-smooth-small-20261103-v3';
  function decode(s){const body=[];let x=0,y=0;for(let i=0;i<s.body.length;i+=2){x=s.bodyEncoding==='delta'&&i?x+s.body[i]:s.body[i];y=s.bodyEncoding==='delta'&&i?y+s.body[i+1]:s.body[i+1];body.push({x,y});}return{...s,body,alive:true,speed:s.boost?265:155};}
  function dense(body){const out=[];for(let i=0;i<body.length-1;i++){const a=body[i],b=body[i+1],d=Math.hypot(a.x-b.x,a.y-b.y),steps=Math.max(1,Math.round(d/E.BODY_STEP));for(let j=0;j<steps;j++)out.push({x:a.x+(b.x-a.x)*j/steps,y:a.y+(b.y-a.y)*j/steps});}if(body.length)out.push({...body.at(-1)});return out;}
  class OnlineClient{

@@ -1,6 +1,6 @@
 import '../../assets/ui/neon-snake-engine.js';
 const E=globalThis.HKNeonSnake;
-export const SNAKE_VERSION='neon-online-mobile-20261103-v2';
+export const SNAKE_VERSION='neon-smooth-small-20261103-v3';
 const ORIGIN='https://historykids.github.io',MAX_PLAYERS=60,GRACE=8000,RESULT_TTL=15*60000;
 const cleanName=value=>typeof value==='string'?value.normalize('NFKC').replace(/[\p{C}<>]/gu,'').trim().slice(0,16):'';
 const finite=n=>Number.isFinite(n),round=n=>Math.round(n*10)/10;

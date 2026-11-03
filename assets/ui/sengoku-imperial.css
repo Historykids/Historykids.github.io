@@ -68,3 +68,5 @@
 
 /* Membership switching is back in the map toolbar. */
 .tenka-season-page .tk-province-picker .si-world-field select{border-color:#c7a45d;background:#49462d;color:#f8e3ad}
+
+.si-scenery-caption{position:absolute;left:20px;bottom:20px;z-index:4;max-width:calc(100% - 40px);margin:0;padding:9px 14px;border:1px solid #d7c89866;border-radius:4px;background:#192c29dc;color:#ecdbad;font:11px/1.5 serif;letter-spacing:.06em;pointer-events:none;box-shadow:0 4px 18px #0003}.si-mode-switch #siSceneryQuality{font-size:10px;min-width:76px;border-left:1px solid #bca87755}@media(max-width:600px){.si-scenery-caption{left:10px;bottom:10px;max-width:calc(100% - 20px);font-size:9px;padding:6px 9px}.si-mode-switch #siSceneryQuality{min-width:62px}}

@@ -116,7 +116,7 @@
    signature='';renderPanel();
   }finally{adminBusy=false;signature='';if(active==='admin')renderPanel();}
  }
- const adminKinds=[['ban:on','戦国の利用をBAN'],['ban:off','BANを解除'],['access:set','戦国の利用を一時制限'],['access:clear','利用制限を解除'],['attack:set','攻撃のクールタイムを設定'],['attack:clear','攻撃制限を解除'],['learning:set','クイズを一時制限'],['learning:clear','クイズ制限を解除'],['chat:set','チャットを一時制限'],['chat:clear','チャット制限を解除'],['recruit:set','正解1問あたりの兵士数を設定'],['recruit:clear','兵士数を通常に戻す'],['reset_attack:reset','攻撃兵を0人にリセット'],['set_attack_soldiers:set','攻撃兵数を指定'],['confiscate_territory:remove','領土を没収']];
+ const adminKinds=[['ban:on','戦国の利用をBAN'],['ban:off','BANを解除'],['access:set','戦国の利用を一時制限'],['access:clear','利用制限を解除'],['attack:set','攻撃のクールタイムを設定'],['attack:clear','攻撃制限を解除'],['learning:set','クイズを一時制限'],['learning:clear','クイズ制限を解除'],['chat:set','チャットを一時制限'],['chat:clear','チャット制限を解除'],['recruit:set','正解1問あたりの兵士数を設定'],['recruit:clear','兵士数を通常に戻す'],['reset_attack:reset','攻撃兵力を0人にリセット'],['set_attack_soldiers:set','攻撃兵力数を指定'],['confiscate_territory:remove','領土を没収']];
  function renderAdmin(box){
   if(!view()?.permissions?.admin){box.append(note('この画面は管理者だけが利用できます。'));return;}
   if(adminPinConfigured===null){box.append(note('管理者の認証状態を確認します。'),button('認証状態を確認',()=>loadAdmin(),adminBusy,'primary'));return;}
@@ -135,7 +135,7 @@
    form.append(note('管理者操作にはパスワードが必要です。'),field('管理者パスワード',pin),button('管理画面を開く',authenticate,adminBusy,'primary'));
    form.onsubmit=e=>{e.preventDefault();authenticate();};box.append(form);return;
   }
-  box.append(note('攻撃兵数の変更と領土没収は指定したワールドだけに適用します。その他の制限はアカウントの全ワールドに適用されます。'),button('管理情報を更新',()=>loadAdmin(),adminBusy));
+  box.append(note('攻撃兵力数の変更と領土没収は指定したワールドだけに適用します。その他の制限はアカウントの全ワールドに適用されます。'),button('管理情報を更新',()=>loadAdmin(),adminBusy));
   if(adminPending){const targetName=adminData.entries.find(e=>e.targetId===adminPending.targetId)?.name||'対象アカウント';box.append(note('結果未確認：'+targetName+' / '+adminPending.kind),button('保存した操作を再試行',()=>sendAdmin(adminPending),adminBusy,'primary'));}
   const form=node('form','sx-admin-form');
   const target=select(adminData.entries.map(e=>[e.targetId,e.name]),adminTarget||adminData.entries[0]?.targetId,'管理するアカウント');
@@ -158,7 +158,7 @@
    if(regions.some(r=>r.id===previous))regionChoice.value=previous;
    regionChoice.disabled=!regions.length;
    details.replaceChildren();
-   if(e){details.append(title(e.name,'h4'),note(e.control.banned?'戦国の利用：BAN中':'戦国の利用：通常'),note(e.attackUntil>now()?'攻撃再開：'+date(e.attackUntil):'攻撃の特別な制限なし'),note(e.worlds.map(w=>'ワールド'+w.id+'：攻撃兵 '+fmt(w.soldiers)+'人 / 領土 '+w.territories).join(' · ')));}
+   if(e){details.append(title(e.name,'h4'),note(e.control.banned?'戦国の利用：BAN中':'戦国の利用：通常'),note(e.attackUntil>now()?'攻撃再開：'+date(e.attackUntil):'攻撃の特別な制限なし'),note(e.worlds.map(w=>'ワールド'+w.id+'：攻撃兵力 '+fmt(w.soldiers)+'人 / 領土 '+w.territories).join(' · ')));}
   }
   target.onchange=()=>{adminTarget=target.value;update();};
   kind.onchange=()=>{if(kind.value.startsWith('set_attack_soldiers:'))reward.value=String(adminData.entries.find(e=>e.targetId===target.value)?.worlds.find(w=>w.id===Number(worldChoice.value))?.soldiers??0);update();};
@@ -181,7 +181,7 @@
      const d=new Date(now());if(unit.value==='years')d.setFullYear(d.getFullYear()+n);else d.setTime(d.getTime()+n*({minutes:60000,hours:3600000,days:86400000}[unit.value]));value=d.getTime();
     }
     const payload={requestId:crypto.randomUUID?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,'0')).join(''),targetId:entry.targetId,kind:k,value,expectedRevision:entry.control.revision,...(['set_attack_soldiers','confiscate_territory'].includes(k)?{worldId:Number(worldChoice.value)}:{}),...(k==='confiscate_territory'?{regionId:regionChoice.value}:{})};
-    const label=adminKinds.find(o=>o[0]===kind.value)[1],detail=k==='confiscate_territory'?'ワールド'+worldChoice.value+'の「'+regionChoice.selectedOptions[0]?.textContent+'」だけを中立に戻し、守備兵と城を削除します。':k==='set_attack_soldiers'?'ワールド'+worldChoice.value+'の攻撃兵数だけを'+reward.value+'人に変更します。守備兵・武将・領土は変更しません。':k==='reset_attack'?'攻撃兵を0人にします。':k==='recruit'&&mode==='set'?'1問正解で攻撃兵・守備兵それぞれ '+reward.value+'人に設定します。':mode==='set'?'期限：'+date(value):label;
+    const label=adminKinds.find(o=>o[0]===kind.value)[1],detail=k==='confiscate_territory'?'ワールド'+worldChoice.value+'の「'+regionChoice.selectedOptions[0]?.textContent+'」だけを中立に戻し、守備兵と城を削除します。':k==='set_attack_soldiers'?'ワールド'+worldChoice.value+'の攻撃兵力数だけを'+reward.value+'人に変更します。守備兵・武将・領土は変更しません。':k==='reset_attack'?'攻撃兵力を0人にします。':k==='recruit'&&mode==='set'?'1問正解で攻撃兵力・守備兵それぞれ '+reward.value+'人に設定します。':mode==='set'?'期限：'+date(value):label;
     confirmAction(entry.name+'：'+label,detail,()=>sendAdmin(payload));
    }catch(e){message(e.message,true);}
   }

@@ -241,7 +241,7 @@ The `profile` world action registers a name-only guest against the existing cryp
 
 ### NEON SNAKE online arena
 
-`/snake/status?room=1` と `/snake/socket?room=1` は、専用の `SNAKE_ARENA` Durable Objectへ接続します。部屋は1〜5、各部屋は人間60人までとCPU3匹です。アカウントや戦国の保存領域は変更しません。
+`/snake/status?room=1` と `/snake/socket?room=1` は、専用の `SNAKE_ARENA` Durable Objectへ接続します。部屋は1〜3、各部屋は人間60人までとCPU3匹です。4・5への接続は受け付けません。アカウントや戦国の保存領域は変更しません。
 
 - `neon-smooth-small-20261103-v3`。全員が長さ10から開始し、CPUはエサの目標を保ちながら緩やかに旋回します。PCはWASD・矢印キーとSpace、スマホは360度のスティックと加速ボタンを使います。ブラウザは正規化した方向意図と加速だけを送信し、座標・長さ・勝敗はサーバーが計算します。30Hzで進行、15Hzで状態配信。光は差分更新、体の点列は整数差分で配信します。
 - 接続時に `join`、移動は連番付き `input`、退出は `leave`。非公開の再接続トークンは最初のメッセージで渡し、URL・ランキング・アカウントのクラウド保存には含めません。切断後8秒は同じ蛇へ復帰でき、その間も対戦は進みます。終了結果は15分保存し、同じラウンドの報酬をクライアントで重複受領しません。

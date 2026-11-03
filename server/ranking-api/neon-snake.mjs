@@ -8,7 +8,7 @@ export async function snakeRequest(request,env,reply){
  const url=new URL(request.url);if(!env.SNAKE_ARENA)return reply({error:'snake-unavailable'},503);
  if(!/^\/snake\/(?:socket|status)$/.test(url.pathname))return reply({error:'not-found'},404);
  if(request.method==='OPTIONS')return reply({ok:true});if(request.method!=='GET')return reply({error:'method-not-allowed'},405);
- const room=url.searchParams.get('room')||'1';if(!/^[1-5]$/.test(room))return reply({error:'snake-room'},400);
+ const room=url.searchParams.get('room')||'1';if(!/^[1-3]$/.test(room))return reply({error:'snake-room'},400);
  if(url.pathname.endsWith('socket')&&request.headers.get('Upgrade')?.toLowerCase()!=='websocket')return reply({error:'websocket-required'},426);
  const limiter=env.SNAKE_CONNECT_LIMITER||env.RANK_READ_LIMITER;if(limiter&&!(await limiter.limit({key:request.headers.get('CF-Connecting-IP')||'anonymous'})).success)return reply({error:'rate-limited'},429);
  return env.SNAKE_ARENA.get(env.SNAKE_ARENA.idFromName('neon-arena-'+room)).fetch(request);
@@ -16,7 +16,7 @@ export async function snakeRequest(request,env,reply){
 /* The transport-independent room is also used by the two-client integration tests. */
 export class SnakeRoom{
  constructor(ctx,{clock=()=>Date.now(),autoRun=true,room='1'}={}){this.ctx=ctx;this.storage=ctx?.storage;this.clock=clock;this.autoRun=autoRun;this.room=room;this.peers=new Set();this.sessions=new Map();this.arena=new E.Arena({multiplayer:true,bots:3,seed:this.clock()});this.timer=null;this.lastTick=this.clock();this.accumulator=0;this.sequence=0;this.steps=0;}
- status(){return{protocol:SNAKE_VERSION,room:this.room,humans:this.arena.snakes.filter(s=>!s.bot&&s.alive).length,cpu:3,capacity:MAX_PLAYERS,tickRate:30,snapshotRate:15,keyboardOnly:false,controls:['keyboard','stick']};}
+ status(){return{protocol:SNAKE_VERSION,arenaCount:3,room:this.room,humans:this.arena.snakes.filter(s=>!s.bot&&s.alive).length,cpu:3,capacity:MAX_PLAYERS,tickRate:30,snapshotRate:15,keyboardOnly:false,controls:['keyboard','stick']};}
  send(peer,data){if(!peer||peer.closed)return;try{peer.socket.send(JSON.stringify(data));}catch{this.detach(peer);}}
  attach(socket){if(this.peers.size>=MAX_PLAYERS+10){socket.close(1013,'Arena busy');return null;}const peer={socket,record:null,closed:false,joined:false,joining:false,food:new Set(),messages:0,window:this.clock(),lastHeard:this.clock(),connectedAt:this.clock(),viewRadius:1050};this.peers.add(peer);socket.addEventListener('message',e=>{Promise.resolve(this.message(peer,e.data)).catch(()=>this.reject(peer,'snake-input'));});socket.addEventListener('close',()=>this.detach(peer));socket.addEventListener('error',()=>this.detach(peer));this.send(peer,{type:'hello',...this.status()});this.start();return peer;}
  start(){if(this.timer||!this.autoRun)return;this.lastTick=this.clock();this.timer=setInterval(()=>{try{this.tick();}catch{for(const peer of this.peers)this.reject(peer,'snake-server');this.stop();}},1000/30);}

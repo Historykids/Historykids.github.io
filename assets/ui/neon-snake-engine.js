@@ -22,7 +22,7 @@
   add(x,y,value){const key=Math.floor(x/this.size)+':'+Math.floor(y/this.size);let a=this.cells.get(key);if(!a)this.cells.set(key,a=[]);a.push(value);}
   near(x,y,r){const a=[],s=this.size;for(let i=Math.floor((x-r)/s);i<=Math.floor((x+r)/s);i++)for(let j=Math.floor((y-r)/s);j<=Math.floor((y+r)/s);j++){const list=this.cells.get(i+':'+j);if(list)a.push(...list);}return a;}
  }
- const BODY_STEP=4;
+ const BODY_STEP=4,CPU_COUNT=5;
  function advance(s,dt,control={}){
   if(control.x||control.y)s.targetAngle=Math.atan2(control.y,control.x);else if(Number.isFinite(control.angle))s.targetAngle=control.angle;const wanted=Number.isFinite(s.targetAngle)?s.targetAngle:s.angle;
   const turn=s.bot?2.2:8.8,delta=angleDiff(wanted,s.angle);s.angle+=clamp(delta,-turn*dt,turn*dt);
@@ -34,7 +34,7 @@
  }
  function curve(s,index,time){const p=s.body[index],before=index?s.body[index-1]:s,after=s.body[Math.min(s.body.length-1,index+1)],dx=before.x-after.x,dy=before.y-after.y,d=Math.hypot(dx,dy)||1,step=s.bodyStep||BODY_STEP,headFade=Math.min(1,index*step/65),tailFade=Math.min(1,(s.body.length-index)*step/50),wave=Math.sin(index*step/45-time*(s.bot?2.4:6)+s.id*.73)*(s.bot?2:7.5)*headFade*tailFade;return{x:p.x-dy/d*wave,y:p.y+dx/d*wave};}
  class Arena{
-  constructor({seed=Date.now(),bots=3,name='YOU',skinId='mint',multiplayer=false,radius=1800,foodTarget=1000}={}){this.seed=seed>>>0||1;this.radius=radius;this.foodTarget=foodTarget;this.time=0;this.food=[];this.nextFood=1;this.snakes=[];this.nextId=1;this.multiplayer=multiplayer;this.ended=false;this.events=[];this.player=multiplayer?null:this.spawn(false,name,skinId);for(let i=0;i<bots;i++)this.spawn(true,['LUNA','MOMO','ORBIT'][i%3],skins[i%skins.length].id);for(let i=0;i<foodTarget;i++)this.addFood();this.stats=this.player?.stats||null;this.rebuild();}
+  constructor({seed=Date.now(),bots=CPU_COUNT,name='YOU',skinId='mint',multiplayer=false,radius=1800,foodTarget=1000}={}){this.seed=seed>>>0||1;this.radius=radius;this.foodTarget=foodTarget;this.time=0;this.food=[];this.nextFood=1;this.snakes=[];this.nextId=1;this.multiplayer=multiplayer;this.ended=false;this.events=[];this.player=multiplayer?null:this.spawn(false,name,skinId);for(let i=0;i<bots;i++)this.spawn(true,['LUNA','MOMO','ORBIT','NOVA','SORA'][i%CPU_COUNT],skins[i%skins.length].id);for(let i=0;i<foodTarget;i++)this.addFood();this.stats=this.player?.stats||null;this.rebuild();}
   random(){let x=this.seed;x^=x<<13;x^=x>>>17;x^=x<<5;this.seed=x>>>0;return this.seed/4294967296;}
   point(limit=this.radius-130){const a=this.random()*TAU,r=Math.sqrt(this.random())*limit;return{x:Math.cos(a)*r,y:Math.sin(a)*r};}
   spawn(bot,name,skinId){let p=bot?this.point():{x:0,y:0};for(let n=0;n<60&&this.snakes.some(s=>s.alive&&(distance(s,p)<320||s.body.some((b,i)=>i%12===0&&distance(b,p)<100)));n++)p=this.point(bot?this.radius-130:this.radius*.4);const a=bot?this.random()*TAU:-Math.PI/2,mass=10,length=30+mass*.75,body=[];for(let n=0;n<length;n+=BODY_STEP)body.push({x:p.x-Math.cos(a)*n,y:p.y-Math.sin(a)*n});const s={id:this.nextId++,bot,name,skin:skinId,x:p.x,y:p.y,angle:a,mass,radius:8+Math.sqrt(mass)/5,body,alive:true,boost:false,age:0,thinkAt:0,target:null,respawnAt:0,input:{x:0,y:0,boost:false},stats:null};if(!bot)s.stats={id:String(this.seed)+'-'+s.id+'-'+this.random(),food:0,kills:0,seconds:0,best:10,peakRank:99,rank:99};this.snakes.push(s);return s;}
@@ -73,5 +73,5 @@
  const missions=Object.freeze([{id:'food',title:'光を集めよう',goal:120,reward:60,unit:'個'},{id:'seconds',title:'のびのび、3分',goal:180,reward:80,unit:'秒'},{id:'kills',title:'ハンターの一歩',goal:3,reward:100,unit:'匹'}]);
  function claim(p,id){const m=missions.find(m=>m.id===id);if(!m||p.daily[id]<m.goal||p.daily.claimed.includes(id))return false;p.daily.claimed.push(id);p.coins+=m.reward;return true;}
  function equip(p,id){const s=skins.find(s=>s.id===id);if(!s)return false;if(!p.owned.includes(id)){if(!s.cost||p.coins<s.cost)return false;p.coins-=s.cost;p.owned.push(id);}p.selected=id;return true;}
- const api=Object.freeze({Arena,Grid,skins,skin,profile,level,settle,missions,claim,equip,unlock,angleDiff,clamp,advance,curve,BODY_STEP});root.HKNeonSnake=api;if(typeof module!=='undefined')module.exports=api;
+ const api=Object.freeze({Arena,Grid,skins,skin,profile,level,settle,missions,claim,equip,unlock,angleDiff,clamp,advance,curve,BODY_STEP,CPU_COUNT});root.HKNeonSnake=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

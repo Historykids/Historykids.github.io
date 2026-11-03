@@ -33,6 +33,7 @@ jobs:
           node tests/neon-snake.cjs
           node tests/neon-snake-online.cjs
           node tests/neon-snake-ui.cjs
+          node tests/neon-snake-touch.cjs
           node tests/sengoku-quality.cjs
           node tests/world-history.cjs
           node scripts/sengoku-questions.cjs

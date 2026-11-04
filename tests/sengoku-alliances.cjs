@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),{setup,get,act,join,raw,answer,finish,train,begin,seed,store,grant}=require('./sengoku-worlds.cjs'),R=require('../assets/ui/sengoku-kuni-map.js');let checks=0;
 const test=async(name,fn)=>{await fn();checks++;console.log('PASS',name);};
-async function roster(regions=['musashi','sagami','owari','kai','suruga','ryukyu','ezo']){const h=await setup();for(let i=0;i<regions.length;i++)await join(h,regions[i],i);return h;}
+async function roster(regions=['musashi','sagami','owari','kai','suruga','ryukyu','ezo']){const h=await setup();for(let i=0;i<regions.length;i++)await join(h,regions[i],i);for(let i=0;i<regions.length;i++)seed(h,i,{guards:2000});return h;}
 async function create(h,i=0,name='天下布武同盟'){const r=await act(h,'alliance_create',{name},i);assert.equal(r.status,200,JSON.stringify(r));return r.body.own.alliance;}
 async function invite(h,target,leader=0){const r=await act(h,'alliance_invite',{playerId:raw(h,target).p.id},leader);assert.equal(r.status,200,JSON.stringify(r));return(await get(h,target)).own.allianceInvites.find(i=>i.allianceId===r.body.own.alliance.id);}
 async function accept(h,target,leader=0){const i=await invite(h,target,leader),r=await act(h,'alliance_respond',{inviteId:i.id,accept:true},target);assert.equal(r.status,200,JSON.stringify(r));return r.body;}

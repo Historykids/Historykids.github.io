@@ -247,3 +247,12 @@ The `profile` world action registers a name-only guest against the existing cryp
 - 接続時に `join`、移動は連番付き `input`、退出は `leave`。非公開の再接続トークンは最初のメッセージで渡し、URL・ランキング・アカウントのクラウド保存には含めません。切断後8秒は同じ蛇へ復帰でき、その間も対戦は進みます。終了結果は15分保存し、同じラウンドの報酬をクライアントで重複受領しません。
 - Escはメニューです。オンライン対戦を一時停止しません。画面を離れたときは押しっぱなし状態と加速を解除します。
 - 本番公開後は `scripts/neon-snake-probe.cjs` が2本の実WebSocketで相互参加とキーボードとスティック方向への移動を確認し、確認用プレイヤーを退出させます。
+
+
+## Current spawn and recovery rule (2026-11-05)
+
+`spawnProtectionVersion: japan-permanent-base-20261105-v1` replaces the earlier worldwide and zero-garrison entry rules. Initial placement and landless recovery allow Japanese territory regardless of guard count or temporary protection. Overseas land and another player's permanent base are excluded. Choosing ordinary occupied land cancels its siege and transfers the holding atomically. Progress belonging to its former owner remains intact.
+
+The region records `spawnBaseOwner`; it protects the territory only while that player remains its owner. Direct attacks, finish-time damage, support attacks and diplomacy exchanges check this protection on the server. Outgoing attacks do not lift it. Ordinary conquest still uses the existing timed shield. Explicit departure releases a base; switching worlds preserves it. Existing Japanese original homes still owned by their player receive the flag idempotently on world read, and old attacks on those bases are cancelled without combat rewards. Overseas holdings already owned are not moved or confiscated.
+
+Combat test fixtures seeded through `seed()` or `grant()` represent ordinary conquered territory; `seed({protectedBase:true})` retains the protected-base flag. `tests/sengoku-spawn-bases.cjs` exercises the production join, recovery, migration, siege cancellation and retry contracts without converting protected bases into ordinary land.

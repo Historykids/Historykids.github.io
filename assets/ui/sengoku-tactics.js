@@ -14,8 +14,8 @@
  const week=now=>{const d=new Date(now+32400000),day=(d.getUTCDay()+6)%7;return Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()-day)-32400000;};
  const count=(whole,fraction=0)=>Number(whole||0)+Number(fraction||0)/SCALE;
  const troopCount=s=>count(s.soldiers,s.attackFraction),guardCount=r=>count(r.garrison,r.garrisonFraction);
- const overseasRecovery=(r,now)=>!!r&&!r.owner&&!!R.region(r.id)?.overseas&&!major.has(r.id)&&!r.battle&&(r.protectedUntil||0)<=now;
- const canRecover=(r,now)=>G.canSpawn(r,now)||overseasRecovery(r,now);
+ const overseasRecovery=()=>false;
+ const canRecover=(r,now)=>G.canSpawn(r,now);
  function snapshot(s,region,now,alliance={}){return{allianceAttack:Math.max(0,Math.min(10,alliance.attack||0)),allianceDefense:Math.max(0,Math.min(10,alliance.defense||0)),attackUnit:units[s.attackUnit]?s.attackUnit:'infantry',defenseUnit:units[region.defenseUnit]?region.defenseUnit:'infantry',castleWall:Math.min(5,region.castleEffects?.wall||0),castleMoat:Math.min(5,region.castleEffects?.moat||0),castleLevel:Math.max(0,Math.min(10,region.castleLevel||0)),terrain:terrain(region.id),weather:weather(region.id,now)};}
  function modifiers(t){
   let attack=10000,defense=10000,notes=[];

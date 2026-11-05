@@ -38,7 +38,17 @@
   random(){let x=this.seed;x^=x<<13;x^=x>>>17;x^=x<<5;this.seed=x>>>0;return this.seed/4294967296;}
   point(limit=this.radius-130){const a=this.random()*TAU,r=Math.sqrt(this.random())*limit;return{x:Math.cos(a)*r,y:Math.sin(a)*r};}
   spawn(bot,name,skinId){let p=bot?this.point():{x:0,y:0};for(let n=0;n<60&&this.snakes.some(s=>s.alive&&(distance(s,p)<320||s.body.some((b,i)=>i%12===0&&distance(b,p)<100)));n++)p=this.point(bot?this.radius-130:this.radius*.4);const a=bot?this.random()*TAU:-Math.PI/2,mass=10,length=30+mass*.75,body=[];for(let n=0;n<length;n+=BODY_STEP)body.push({x:p.x-Math.cos(a)*n,y:p.y-Math.sin(a)*n});const s={id:this.nextId++,bot,name,skin:skinId,x:p.x,y:p.y,angle:a,mass,radius:8+Math.sqrt(mass)/5,body,alive:true,boost:false,age:0,thinkAt:0,target:null,respawnAt:0,input:{x:0,y:0,boost:false},stats:null};if(!bot)s.stats={id:String(this.seed)+'-'+s.id+'-'+this.random(),food:0,kills:0,seconds:0,best:10,peakRank:99,rank:99};this.snakes.push(s);return s;}
-  addFood(p){if(this.food.length>=2100)return;const v=p||this.point();this.food.push({id:this.nextFood++,x:v.x,y:v.y,value:v.value||2+this.random()*4,color:v.color??Math.floor(this.random()*6),born:this.time,rich:!!p,dead:false});}
+  addFood(drop){
+   if(this.food.length>=2100)return;
+   const position=drop||this.point();
+   const bonus=!drop&&this.random()<1/50;
+   this.food.push({
+    id:this.nextFood++,x:position.x,y:position.y,
+    value:position.value||(bonus?9:2+this.random()*4),
+    color:position.color??(bonus?2:Math.floor(this.random()*6)),
+    rich:!!drop||bonus,expiresAt:drop?this.time+85:null,dead:false
+   });
+  }
   rebuild(){this.foodGrid=new Grid(110);for(const f of this.food)if(!f.dead)this.foodGrid.add(f.x,f.y,f);this.bodyGrid=new Grid(85);for(const s of this.snakes)if(s.alive&&s.age>=3)for(let i=0;i<s.body.length;i+=2){const p=curve(s,i,this.time);this.bodyGrid.add(p.x,p.y,{snake:s,x:p.x,y:p.y,index:i});}}
   aim(s){
    // Keep a destination instead of chasing a different nearby pellet on every turn.
@@ -63,7 +73,7 @@
   remove(s){this.snakes=this.snakes.filter(other=>other!==s);}
   step(dt,control={}){if(this.ended)return;dt=clamp(dt,0,1/30);this.time+=dt;this.rebuild();for(const s of [...this.snakes]){if(!s.alive){if(s.bot&&this.time>s.respawnAt){const n=this.spawn(true,s.name,s.skin);this.snakes.pop();Object.assign(s,n);}continue;}s.age+=dt;if(s.stats)s.stats.seconds+=dt;s.radius=8+Math.min(12,Math.sqrt(s.mass)/5);const input=s.bot?{angle:this.aim(s)}:this.multiplayer?s.input:control;advance(s,dt,input);if(s.boost){s.mass=Math.max(85,s.mass-20*dt);if(this.random()<dt*12){const tail=s.body.at(-1);this.addFood({x:tail.x,y:tail.y,value:2,color:1});}}if(Math.hypot(s.x,s.y)>this.radius-s.radius){this.kill(s,null);continue;}for(const f of this.foodGrid.near(s.x,s.y,s.radius+12)){if(!f.dead&&distance(s,f)<s.radius+7){f.dead=true;s.mass+=f.value;if(s.stats){s.stats.food++;if(s.stats.food%8===0)this.events.push({type:'eat',playerId:s.id});}}}}
    const deaths=new Map();for(const s of this.snakes){if(!s.alive||s.age<3)continue;for(const hit of this.bodyGrid.near(s.x,s.y,s.radius+24)){const other=hit.snake;if(other===s||!other.alive||other.age<3)continue;if(distance(s,hit)<s.radius+other.radius-4){deaths.set(s,other);break;}}}for(const [s,k]of deaths)this.kill(s,k);
-   this.food=this.food.filter(f=>!f.dead&&(!f.rich||this.time-f.born<85));while(this.food.length<this.foodTarget)this.addFood();for(const s of this.snakes)if(s.stats){s.stats.best=Math.max(s.stats.best,Math.floor(s.mass));if(s.alive)s.stats.rank=this.rankOf(s);s.stats.peakRank=Math.min(s.stats.peakRank,s.stats.rank);}}
+   this.food=this.food.filter(f=>!f.dead&&(f.expiresAt==null||f.expiresAt>this.time));while(this.food.length<this.foodTarget)this.addFood();for(const s of this.snakes)if(s.stats){s.stats.best=Math.max(s.stats.best,Math.floor(s.mass));if(s.alive)s.stats.rank=this.rankOf(s);s.stats.peakRank=Math.min(s.stats.peakRank,s.stats.rank);}}
  }
  const day=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Tokyo'}),integer=v=>Number.isFinite(v)?clamp(Math.floor(v),0,1e9):0;
  function profile(raw){let p={};try{p=typeof raw==='string'?JSON.parse(raw):raw||{};}catch{}if(!p||typeof p!=='object')p={};const valid=Array.isArray(p.owned)?p.owned.filter(id=>skins.some(s=>s.id===id)):[],owned=[...new Set([...skins.filter(s=>s.free).map(s=>s.id),...valid])];return{version:1,name:typeof p.name==='string'?p.name.slice(0,16):'',coins:integer(p.coins),xp:integer(p.xp),best:integer(p.best),games:integer(p.games),totalFood:integer(p.totalFood),totalKills:integer(p.totalKills),totalSeconds:integer(p.totalSeconds),firsts:integer(p.firsts),owned,selected:owned.includes(p.selected)?p.selected:'mint',runs:Array.isArray(p.runs)?p.runs.filter(s=>typeof s==='string').slice(-20):[],daily:p.daily?.day===day()?{day:day(),food:integer(p.daily.food),kills:integer(p.daily.kills),seconds:integer(p.daily.seconds),claimed:Array.isArray(p.daily.claimed)?p.daily.claimed.filter(k=>['food','kills','seconds'].includes(k)):[]}:{day:day(),food:0,kills:0,seconds:0,claimed:[]}};}

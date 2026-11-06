@@ -249,10 +249,8 @@ The `profile` world action registers a name-only guest against the existing cryp
 - 本番公開後は `scripts/neon-snake-probe.cjs` が2本の実WebSocketで相互参加とキーボードとスティック方向への移動を確認し、確認用プレイヤーを退出させます。
 
 
-## Current spawn and recovery rule (2026-11-05)
+## Starting garrisons and administrator notices (2026-11-06)
 
-`spawnProtectionVersion: japan-permanent-base-20261105-v1` replaces the earlier worldwide and zero-garrison entry rules. Initial placement and landless recovery allow Japanese territory regardless of guard count or temporary protection. Overseas land and another player's permanent base are excluded. Choosing ordinary occupied land cancels its siege and transfers the holding atomically. Progress belonging to its former owner remains intact.
+Each account's first placement in a world grants 100,000 unranked defenders. Recovery, rejoining after departure and captures grant 2,000. Japanese territory remains available for placement regardless of current guards. Acquired territory uses the normal two-hour shield. The world read migration removes old permanent protection and tops up still-owned original protected holdings to 100,000 once, without removing earned guards or moving any territory.
 
-The region records `spawnBaseOwner`; it protects the territory only while that player remains its owner. Direct attacks, finish-time damage, support attacks and diplomacy exchanges check this protection on the server. Outgoing attacks do not lift it. Ordinary conquest still uses the existing timed shield. Explicit departure releases a base; switching worlds preserves it. Existing Japanese original homes still owned by their player receive the flag idempotently on world read, and old attacks on those bases are cancelled without combat rewards. Overseas holdings already owned are not moved or confiscated.
-
-Combat test fixtures seeded through `seed()` or `grant()` represent ordinary conquered territory; `seed({protectedBase:true})` retains the protected-base flag. `tests/sengoku-spawn-bases.cjs` exercises the production join, recovery, migration, siege cancellation and retry contracts without converting protected bases into ordinary land.
+The Sengoku administrator panel sends plain-text notices to all current participants across the five worlds or to one participant. The existing owner and PIN check applies. The notice, audit and retry receipt are committed together. Recipients see these messages in the in-game notification list.

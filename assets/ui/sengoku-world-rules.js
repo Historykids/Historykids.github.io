@@ -2,9 +2,11 @@
 (function(root){
  'use strict';
  const LIMIT=null,WORLD_COUNT=5,INITIAL_GARRISON=2000,PROTECTION=7200000,BATTLE_TIME=300000,CAPTURE_COOLDOWN=300000,ATTACK_COOLDOWN=300000,WRONG_COOLDOWN=300000,SOLDIERS_PER_CORRECT=20,DEFENSE_PER_CORRECT=50,GENERAL_INTERVAL=50,MAX_LEVEL=100,MAX_SOLDIERS=1000000000000;
- const spawnVersion='japan-permanent-base-20261105-v1';
- const spawnProtected=region=>!!region?.owner&&region.spawnBaseOwner===region.owner;
- const canSpawn=(region,now)=>!!region&&!!root.HKSengokuKuniMap.region(region.id)&&!root.HKSengokuKuniMap.region(region.id).overseas&&!spawnProtected(region);
+ const STARTING_GARRISON=100000,spawnVersion='japan-starting-garrison-20261106-v1';
+ function canSpawn(region){
+  const land=region&&root.HKSengokuKuniMap.region(region.id);
+  return !!land&&!land.overseas;
+ }
  const modes={general:{title:'武将獲得クイズ',reward:'正解50問ごとに武将1人'},soldiers:{title:'兵士獲得クイズ',reward:'正解1問で攻撃兵力20人・守備兵50人＋武将の効果'},level:{title:'武将育成クイズ',reward:'選んだ武将だけに経験値'},battle:{title:'合戦クイズ',reward:'5問連続正解で10分の1の攻撃・攻撃後は5分待ち'}};
  const generals={
   nobunaga:{name:'織田信長',mark:'織',attack:4,description:'Lvごとに攻撃兵力＋4%'},
@@ -40,6 +42,6 @@
   return{added,allianceAdded,recruitment,experience,levels,generalProgress:mode==='general'?1:0};
  }
  function initial(region,now){return{version:6,attackUnit:'infantry',attackFraction:0,heldRegions:[region],homeEstablished:true,soldiers:0,generals:[],activeGeneral:null,generalClaims:0,totalCorrect:0,correctByMode:{general:0,soldiers:0,level:0,battle:0},attackCooldownUntil:0,battleCooldownUntil:0,failedAttackCooldownUntil:0,learnedCards:[],claimedRewards:[],ownedRegions:[region],capital:region,bestTerritories:1,defeatedRegions:[],battlesWon:0,battlesLost:0,unifications:0,port:true,pending:null,lastResult:null,startedAt:now};}
- const api={canSpawn,spawnProtected,spawnVersion,LIMIT,WORLD_COUNT,INITIAL_GARRISON,PROTECTION,BATTLE_TIME,CAPTURE_COOLDOWN,ATTACK_COOLDOWN,WRONG_COOLDOWN,SOLDIERS_PER_CORRECT,DEFENSE_PER_CORRECT,GENERAL_INTERVAL,MAX_LEVEL,MAX_SOLDIERS,modes,generals,limitedGenerals,general,allStandardOwned,active,deployed,buffs,attack,snapshot,damage,available,reachable,reclaim,homeReclaim,rewardCorrect,initial};
+ const api={canSpawn,STARTING_GARRISON,spawnVersion,LIMIT,WORLD_COUNT,INITIAL_GARRISON,PROTECTION,BATTLE_TIME,CAPTURE_COOLDOWN,ATTACK_COOLDOWN,WRONG_COOLDOWN,SOLDIERS_PER_CORRECT,DEFENSE_PER_CORRECT,GENERAL_INTERVAL,MAX_LEVEL,MAX_SOLDIERS,modes,generals,limitedGenerals,general,allStandardOwned,active,deployed,buffs,attack,snapshot,damage,available,reachable,reclaim,homeReclaim,rewardCorrect,initial};
  root.HKSengokuWorldRules=Object.freeze(api);if(typeof module!=='undefined')module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

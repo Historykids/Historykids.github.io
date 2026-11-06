@@ -19,7 +19,7 @@
   for(const old of document.querySelectorAll('.si-war-ticker'))if(old!==bar)old.remove();
   const v=U.get(),world=v?.world,count=$('siNoticeBadge'),open=$('siNotificationsOpen');
   if(open)open.hidden=!v?.own;
-  const unread=(v?.strategy?.notifications||[]).filter(n=>!n.readAt&&!C.hiddenSummary(n.text)).length;
+  const unread=(v?.strategy?.notifications||[]).filter(n=>!n.readAt&&(n.kind==='admin'||!C.hiddenSummary(n.text))).length;
   if(count){count.textContent=unread>99?'99+':String(unread);count.hidden=!unread;}
   if(!world){clear();worldId=null;return;}
   const events=world.events||[];

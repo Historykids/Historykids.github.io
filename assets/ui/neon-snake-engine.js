@@ -23,21 +23,24 @@
   near(x,y,r){const a=[],s=this.size;for(let i=Math.floor((x-r)/s);i<=Math.floor((x+r)/s);i++)for(let j=Math.floor((y-r)/s);j<=Math.floor((y+r)/s);j++){const list=this.cells.get(i+':'+j);if(list)a.push(...list);}return a;}
  }
  const BODY_STEP=4,CPU_COUNT=5;
+ const BASE_BODY_MASS=10,BOOST_MIN_MASS=1;
+ const bodyLength=score=>30+(BASE_BODY_MASS+score)*.75;
+ const bodyRadius=score=>8+Math.min(12,Math.sqrt(BASE_BODY_MASS+score)/5);
  function advance(s,dt,control={}){
   if(control.x||control.y)s.targetAngle=Math.atan2(control.y,control.x);else if(Number.isFinite(control.angle))s.targetAngle=control.angle;const wanted=Number.isFinite(s.targetAngle)?s.targetAngle:s.angle;
   const turn=s.bot?2.2:8.8,delta=angleDiff(wanted,s.angle);s.angle+=clamp(delta,-turn*dt,turn*dt);
-  s.boost=!!control.boost&&s.mass>85;const speed=s.boost?265:155;s.speed=speed;
+  s.boost=!!control.boost&&s.mass>=BOOST_MIN_MASS;const speed=s.boost?265:155;s.speed=speed;
   s.x+=Math.cos(s.angle)*speed*dt;s.y+=Math.sin(s.angle)*speed*dt;
   const anchor=s.body[0],dx=s.x-anchor.x,dy=s.y-anchor.y,d=Math.hypot(dx,dy);
   if(d>=BODY_STEP){for(let n=BODY_STEP;n<=d;n+=BODY_STEP)s.body.unshift({x:anchor.x+dx*n/d,y:anchor.y+dy*n/d});}
-  const max=Math.min(700,Math.ceil((30+s.mass*.75)/BODY_STEP));if(s.body.length>max)s.body.length=max;
+  const max=Math.min(700,Math.ceil(bodyLength(s.mass)/BODY_STEP));if(s.body.length>max)s.body.length=max;
  }
  function curve(s,index,time){const p=s.body[index],before=index?s.body[index-1]:s,after=s.body[Math.min(s.body.length-1,index+1)],dx=before.x-after.x,dy=before.y-after.y,d=Math.hypot(dx,dy)||1,step=s.bodyStep||BODY_STEP,headFade=Math.min(1,index*step/65),tailFade=Math.min(1,(s.body.length-index)*step/50),wave=Math.sin(index*step/45-time*(s.bot?2.4:6)+s.id*.73)*(s.bot?2:7.5)*headFade*tailFade;return{x:p.x-dy/d*wave,y:p.y+dx/d*wave};}
  class Arena{
   constructor({seed=Date.now(),bots=CPU_COUNT,name='YOU',skinId='mint',multiplayer=false,radius=1800,foodTarget=1000}={}){this.seed=seed>>>0||1;this.radius=radius;this.foodTarget=foodTarget;this.time=0;this.food=[];this.nextFood=1;this.snakes=[];this.nextId=1;this.multiplayer=multiplayer;this.ended=false;this.events=[];this.player=multiplayer?null:this.spawn(false,name,skinId);for(let i=0;i<bots;i++)this.spawn(true,['LUNA','MOMO','ORBIT','NOVA','SORA'][i%CPU_COUNT],skins[i%skins.length].id);for(let i=0;i<foodTarget;i++)this.addFood();this.stats=this.player?.stats||null;this.rebuild();}
   random(){let x=this.seed;x^=x<<13;x^=x>>>17;x^=x<<5;this.seed=x>>>0;return this.seed/4294967296;}
   point(limit=this.radius-130){const a=this.random()*TAU,r=Math.sqrt(this.random())*limit;return{x:Math.cos(a)*r,y:Math.sin(a)*r};}
-  spawn(bot,name,skinId){let p=bot?this.point():{x:0,y:0};for(let n=0;n<60&&this.snakes.some(s=>s.alive&&(distance(s,p)<320||s.body.some((b,i)=>i%12===0&&distance(b,p)<100)));n++)p=this.point(bot?this.radius-130:this.radius*.4);const a=bot?this.random()*TAU:-Math.PI/2,mass=10,length=30+mass*.75,body=[];for(let n=0;n<length;n+=BODY_STEP)body.push({x:p.x-Math.cos(a)*n,y:p.y-Math.sin(a)*n});const s={id:this.nextId++,bot,name,skin:skinId,x:p.x,y:p.y,angle:a,mass,radius:8+Math.sqrt(mass)/5,body,alive:true,boost:false,age:0,thinkAt:0,target:null,respawnAt:0,input:{x:0,y:0,boost:false},stats:null};if(!bot)s.stats={id:String(this.seed)+'-'+s.id+'-'+this.random(),food:0,kills:0,seconds:0,best:10,peakRank:99,rank:99};this.snakes.push(s);return s;}
+  spawn(bot,name,skinId){let p=bot?this.point():{x:0,y:0};for(let n=0;n<60&&this.snakes.some(s=>s.alive&&(distance(s,p)<320||s.body.some((b,i)=>i%12===0&&distance(b,p)<100)));n++)p=this.point(bot?this.radius-130:this.radius*.4);const a=bot?this.random()*TAU:-Math.PI/2,mass=0,length=bodyLength(mass),body=[];for(let n=0;n<length;n+=BODY_STEP)body.push({x:p.x-Math.cos(a)*n,y:p.y-Math.sin(a)*n});const s={id:this.nextId++,bot,name,skin:skinId,x:p.x,y:p.y,angle:a,mass,radius:bodyRadius(mass),body,alive:true,boost:false,age:0,thinkAt:0,target:null,respawnAt:0,input:{x:0,y:0,boost:false},stats:null};if(!bot)s.stats={id:String(this.seed)+'-'+s.id+'-'+this.random(),food:0,kills:0,seconds:0,best:mass,peakRank:99,rank:99};this.snakes.push(s);return s;}
   addFood(drop){
    if(this.food.length>=2100)return;
    const position=drop||this.point();
@@ -71,7 +74,7 @@
   ranking(){return this.snakes.filter(s=>s.alive||!this.multiplayer&&s===this.player).sort((a,b)=>b.mass-a.mass||a.id-b.id);}
   rankOf(s){return 1+this.snakes.filter(other=>other!==s&&other.alive&&(other.mass>s.mass||other.mass===s.mass&&other.id<s.id)).length;}
   remove(s){this.snakes=this.snakes.filter(other=>other!==s);}
-  step(dt,control={}){if(this.ended)return;dt=clamp(dt,0,1/30);this.time+=dt;this.rebuild();for(const s of [...this.snakes]){if(!s.alive){if(s.bot&&this.time>s.respawnAt){const n=this.spawn(true,s.name,s.skin);this.snakes.pop();Object.assign(s,n);}continue;}s.age+=dt;if(s.stats)s.stats.seconds+=dt;s.radius=8+Math.min(12,Math.sqrt(s.mass)/5);const input=s.bot?{angle:this.aim(s)}:this.multiplayer?s.input:control;advance(s,dt,input);if(s.boost){s.mass=Math.max(85,s.mass-20*dt);if(this.random()<dt*12){const tail=s.body.at(-1);this.addFood({x:tail.x,y:tail.y,value:2,color:1});}}if(Math.hypot(s.x,s.y)>this.radius-s.radius){this.kill(s,null);continue;}for(const f of this.foodGrid.near(s.x,s.y,s.radius+12)){if(!f.dead&&distance(s,f)<s.radius+7){f.dead=true;s.mass+=f.value;if(s.stats){s.stats.food++;if(s.stats.food%8===0)this.events.push({type:'eat',playerId:s.id});}}}}
+  step(dt,control={}){if(this.ended)return;dt=clamp(dt,0,1/30);this.time+=dt;this.rebuild();for(const s of [...this.snakes]){if(!s.alive){if(s.bot&&this.time>s.respawnAt){const n=this.spawn(true,s.name,s.skin);this.snakes.pop();Object.assign(s,n);}continue;}s.age+=dt;if(s.stats)s.stats.seconds+=dt;s.radius=bodyRadius(s.mass);const input=s.bot?{angle:this.aim(s)}:this.multiplayer?s.input:control;advance(s,dt,input);if(s.boost){s.mass=Math.max(0,s.mass-20*dt);if(this.random()<dt*12){const tail=s.body.at(-1);this.addFood({x:tail.x,y:tail.y,value:2,color:1});}}if(Math.hypot(s.x,s.y)>this.radius-s.radius){this.kill(s,null);continue;}for(const f of this.foodGrid.near(s.x,s.y,s.radius+12)){if(!f.dead&&distance(s,f)<s.radius+7){f.dead=true;s.mass+=f.value;if(s.stats){s.stats.food++;if(s.stats.food%8===0)this.events.push({type:'eat',playerId:s.id});}}}}
    const deaths=new Map();for(const s of this.snakes){if(!s.alive||s.age<3)continue;for(const hit of this.bodyGrid.near(s.x,s.y,s.radius+24)){const other=hit.snake;if(other===s||!other.alive||other.age<3)continue;if(distance(s,hit)<s.radius+other.radius-4){deaths.set(s,other);break;}}}for(const [s,k]of deaths)this.kill(s,k);
    this.food=this.food.filter(f=>!f.dead&&(f.expiresAt==null||f.expiresAt>this.time));while(this.food.length<this.foodTarget)this.addFood();for(const s of this.snakes)if(s.stats){s.stats.best=Math.max(s.stats.best,Math.floor(s.mass));if(s.alive)s.stats.rank=this.rankOf(s);s.stats.peakRank=Math.min(s.stats.peakRank,s.stats.rank);}}
  }
@@ -83,5 +86,5 @@
  const missions=Object.freeze([{id:'food',title:'光を集めよう',goal:120,reward:60,unit:'個'},{id:'seconds',title:'のびのび、3分',goal:180,reward:80,unit:'秒'},{id:'kills',title:'ハンターの一歩',goal:3,reward:100,unit:'匹'}]);
  function claim(p,id){const m=missions.find(m=>m.id===id);if(!m||p.daily[id]<m.goal||p.daily.claimed.includes(id))return false;p.daily.claimed.push(id);p.coins+=m.reward;return true;}
  function equip(p,id){const s=skins.find(s=>s.id===id);if(!s)return false;if(!p.owned.includes(id)){if(!s.cost||p.coins<s.cost)return false;p.coins-=s.cost;p.owned.push(id);}p.selected=id;return true;}
- const api=Object.freeze({Arena,Grid,skins,skin,profile,level,settle,missions,claim,equip,unlock,angleDiff,clamp,advance,curve,BODY_STEP,CPU_COUNT});root.HKNeonSnake=api;if(typeof module!=='undefined')module.exports=api;
+ const api=Object.freeze({Arena,Grid,skins,skin,profile,level,settle,missions,claim,equip,unlock,angleDiff,clamp,advance,curve,BODY_STEP,CPU_COUNT,BOOST_MIN_MASS});root.HKNeonSnake=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -174,6 +174,7 @@ jobs:
           if(worlds.antarcticaInitialGarrison!==50000||worlds.antarcticaVersion!=='antarctica-50000-20261029-v1'||worlds.defenseSoldiersPerCorrect!==50||worlds.attackSoldiersPerCorrect!==20||!worlds.titleCatalog?.some(t=>t.id==='antarctica'&&t.name==='南極の覇者'))throw Error('Antarctica and defense recruitment configuration mismatch');
           const mapResponse=await fetch(new URL('/wealth/sengoku/world?world=1',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
           const map=await mapResponse.json();
+          if(map.world?.regions?.some(r=>Object.hasOwn(r,'spawnBaseOwner')))throw Error('Legacy permanent base flags are still present');
           if(!mapResponse.ok||map.protocol!=='sengoku-world-v6'||map.own!==null||map.world?.regions?.length!==311||!map.world.regions.some(r=>r.id==='owari')||map.world.legacyPrefectureMap||map.world.players.some(p=>'owner' in p||'state' in p))throw Error('World public map check failed');
           await import('./assets/ui/sengoku-kuni-map.js');
           if(worlds.worlds.some(w=>[...w.startingRegions,...w.available].some(id=>!globalThis.HKSengokuKuniMap.region(id)||globalThis.HKSengokuKuniMap.region(id).overseas)))throw Error('Starting homes and respawn choices must be Japanese regions');

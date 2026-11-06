@@ -37,6 +37,24 @@ await test('the unlocked admin form sends, edits and deletes a private game noti
   assert(!find(p.$('sxContent'),'編集'));
  }finally{p.close();q.close();h.close();}
 });
+await test('an administrator can review and edit or remove matching legacy notices with one action',async()=>{
+ const h=await setup(2);await join(h,'owari');await join(h,'kai',1);await moderator(h);
+ const row=h.db.prepare('INSERT INTO sengoku_notifications(id,owner,worldId,kind,text,at) VALUES(?,?,?,?,?,?)');
+ for(const i of [0,1])row.run(crypto.randomUUID(),h.playerOwner(i),0,'admin','同じ旧通知',h.board.sengokuWorlds.now());
+ const p=page(h);
+ try{
+  await flush();p.$('sxAdminOpen').click();await flush();await flush();await authenticate(p);
+  const edit=find(p.$('sxContent'),'同じ本文を一括編集（2件）');assert(edit);edit.click();
+  const card=edit.closest('article');card.querySelector('textarea').value='まとめて訂正した通知';
+  find(card,'変更内容を確認').click();assert(p.$('sxConfirm').textContent.includes('2件を一括更新'));
+  find(p.$('sxConfirm'),'実行する').click();await flush();await flush();
+  for(const i of [0,1])assert.equal((await get(h,i)).strategy.notifications[0].text,'まとめて訂正した通知');
+  find(p.$('sxContent'),'同じ本文を一括削除（2件）').click();
+  assert(p.$('sxConfirm').textContent.includes('2件を一括削除'));
+  find(p.$('sxConfirm'),'実行する').click();await flush();await flush();
+  for(const i of [0,1])assert.deepEqual((await get(h,i)).strategy.notifications,[]);
+ }finally{p.close();h.close();}
+});
 await test('non-administrators get no moderation controls and switching accounts clears all private administration content',async()=>{const h=await setup(2);await join(h,'owari');await join(h,'kai',1);await moderator(h);const p=page(h),q=page(h,{i:1});try{await flush();assert(q.$('sxAdminOpen').hidden);q.w.HKSengokuExpansionUI.open('admin');assert(q.$('sxContent').textContent.includes('管理者だけ'));p.$('sxAdminOpen').click();await flush();await flush();await authenticate(p);assert(p.$('sxContent').textContent.includes('world_player_00'));p.map.set('hk_wealth_identity_v1',h.tokens[1]);p.w.dispatchEvent(new p.w.StorageEvent('storage',{key:'hk_wealth_identity_v1'}));assert(p.$('swExpansionSection').hidden);assert.equal(p.$('sxContent').textContent,'');assert(p.$('sxAdminOpen').hidden);}finally{p.close();q.close();h.close();}});
 await test('diplomacy lives inside the alliance screen and removed controls stay absent',async()=>{const h=await setup(2);await join(h,'musashi');await join(h,'sagami',1);await create(h,0,'東軍');await create(h,1,'西軍');const p=page(h),q=page(h,{i:1});try{await flush();assert.equal(p.w.document.querySelector('[data-sx-open=diplomacy]'),null);assert.equal(p.w.document.querySelector('[data-sx-open=chronicle]'),null);assert.equal(p.w.document.querySelector('script[src*=sengoku-map-upload]'),null);const target=p.$('sxAlliance').querySelector('select[aria-label="外交相手"]');target.value=raw(h,1).p.id;find(p.$('sxAlliance'),'この内容で提案する').click();find(p.$('sxConfirm'),'実行する').click();await flush();q.$('swRefresh').click();await flush();find(q.$('sxAlliance'),'承諾する').click();find(q.$('sxConfirm'),'実行する').click();await flush();assert.equal((await get(h)).strategy.diplomacy[0].status,'active');}finally{p.close();q.close();h.close();}});
 await test('a player without an alliance can send a detailed individual proposal and read incoming notifications',async()=>{const h=await setup(2);await join(h,'musashi');await join(h,'sagami',1);const p=page(h),q=page(h,{i:1});try{await flush();p.w.document.querySelector('[data-tab=alliance]').click();const form=p.$('sxAlliance').querySelector('.sx-diplomacy-form'),scope=form.querySelector('[aria-label="外交の対象"]'),duration=form.querySelector('[aria-label="協定の期間"]'),memo=form.querySelector('[aria-label="提案の理由"]');assert.equal(scope.value,'player');duration.value='12';duration.dispatchEvent(new p.w.Event('change'));memo.value='<b>育成したい</b>';memo.dispatchEvent(new p.w.Event('input'));find(form,'この内容で提案する').click();assert(p.$('sxConfirm').textContent.includes('12時間'));find(p.$('sxConfirm'),'実行する').click();await flush();q.$('swRefresh').click();await flush();assert(!q.$('sxNotificationBar').hidden);assert(Number(q.$('sxNotificationCount').textContent)>0);assert(q.$('sxNotifications').textContent.includes('提案が届きました'));assert.equal(q.$('sxAlliance').querySelector('.sx-treaty').querySelectorAll('b').length,0);assert(q.$('sxAlliance').textContent.includes('<b>育成したい</b>'));find(q.$('sxAlliance'),'承諾する').click();find(q.$('sxConfirm'),'実行する').click();await flush();q.$('sxNotificationReadAll').click();await flush();assert.equal(q.$('sxNotificationCount').textContent,'0');assert.equal((await get(h,1)).strategy.diplomacy.at(-1).durationHours,12);q.w.localStorage.setItem('hk_wealth_identity_v1',h.tokens[0]);q.w.dispatchEvent(new q.w.StorageEvent('storage',{key:'hk_wealth_identity_v1'}));assert(q.$('sxNotificationBar').hidden);assert.equal(q.$('sxNotifications').children.length,0);}finally{p.close();q.close();h.close();}});

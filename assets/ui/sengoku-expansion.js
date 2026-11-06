@@ -107,7 +107,7 @@
    const r=await A.request('/wealth/sengoku/world/admin/action',{...payload,pin:adminPin},false);
    if(run!==epoch||token!==A.identity(false))return;
    localStorage.removeItem(adminStorageKey());adminPending=null;adminData=r;
-   const saved={notice:'通知を送信しました。',notice_edit:'通知を更新しました。',notice_delete:'通知を削除しました。'};
+   const saved={notice:'通知を送信しました。',notice_edit:'通知を更新しました。',notice_delete:'通知を削除しました。',notice_bulk_edit:'通知を一括更新しました。',notice_bulk_delete:'通知を一括削除しました。'};
    message(saved[payload.kind]||'管理設定を保存しました。');signature='';renderPanel();U.refresh();
   }catch(e){
    if(run!==epoch||token!==A.identity(false))return;
@@ -129,23 +129,33 @@
   return text;
  }
  function renderAdminNoticeHistory(box){
-  const list=node('div','sx-offers'),disabled=adminBusy||!!adminPending;
+  const list=node('div','sx-offers'),disabled=adminBusy||!!adminPending,noticeRevision=adminData.noticeRevision;
   for(const notice of adminData.notices||[]){
    const card=node('article','sw-card'),editor=node('form','sx-admin-form'),input=noticeEditor(notice.text);
-   const apply=(kind,text)=>sendAdmin({requestId:adminRequestId(),kind,noticeId:notice.id,expectedRevision:notice.revision,...(text===undefined?{}:{text})});
+   const matching=notice.matchingCount>1,groupLabel='同じ本文の通知 '+notice.matchingCount+'件';
+   let editAll=false;
+   const apply=(kind,text)=>{
+    const bulk=kind.startsWith('notice_bulk_');
+    const match=bulk?{matchingCount:notice.matchingCount,expectedNoticeRevision:noticeRevision}:{};
+    sendAdmin({requestId:adminRequestId(),kind,noticeId:notice.id,expectedRevision:notice.revision,...(text===undefined?{}:{text}),...match});
+   };
+   const openEditor=bulk=>{editAll=bulk;editor.hidden=false;input.focus();};
    const edit=()=>{
     const text=noticeDraft(input);if(!text)return;
-    confirmAction(notice.recipientName+'宛ての通知を更新',text,()=>apply('notice_edit',text));
+    const kind=editAll?'notice_bulk_edit':'notice_edit';
+    confirmAction(editAll?groupLabel+'を一括更新':notice.recipientName+'宛ての通知を更新',text,()=>apply(kind,text));
    };
    card.append(title(notice.recipientName,'h4'),note(date(notice.at)+(notice.legacy?' · 旧形式の個別配信':'')+(notice.revision>1?' · 編集済み':'')),note(notice.text));
    editor.hidden=true;
    editor.onsubmit=e=>{e.preventDefault();edit();};
    editor.append(field('変更する本文',input),button('変更内容を確認',edit,disabled,'primary'),button('編集を閉じる',()=>{editor.hidden=true;},false));
-   card.append(button('編集',()=>{editor.hidden=false;input.focus();},disabled),button('削除',()=>confirmAction(notice.recipientName+'宛ての通知を削除',notice.text,()=>apply('notice_delete')),disabled,'sx-danger'),editor);
+   card.append(button('編集',()=>openEditor(false),disabled),button('削除',()=>confirmAction(notice.recipientName+'宛ての通知を削除',notice.text,()=>apply('notice_delete')),disabled,'sx-danger'));
+   if(matching)card.append(button('同じ本文を一括編集（'+notice.matchingCount+'件）',()=>openEditor(true),disabled),button('同じ本文を一括削除（'+notice.matchingCount+'件）',()=>confirmAction(groupLabel+'を一括削除',notice.text,()=>apply('notice_bulk_delete')),disabled,'sx-danger'));
+   card.append(editor);
    list.append(card);
   }
   if(!list.children.length)list.append(note('このページに送信済みの通知はありません。'));
-  box.append(title('送信済みの通知'),list);
+  box.append(title('送信済みの通知'),note('一括操作では、全ページにある本文が同じ通知をまとめて変更できます。'),list);
   if(adminData.noticeOffset>0)box.append(button('前の通知を見る',()=>loadAdmin(adminPin,adminData.noticeOffset-30),disabled));
   if(adminData.noticeNextOffset!=null)box.append(button('次の通知を見る',()=>loadAdmin(adminPin,adminData.noticeNextOffset),disabled));
  }
@@ -168,7 +178,7 @@
    form.onsubmit=e=>{e.preventDefault();authenticate();};box.append(form);return;
   }
   box.append(note('攻撃兵力数の変更と領土没収は指定したワールドだけに適用します。その他の制限はアカウントの全ワールドに適用されます。'),button('管理情報を更新',()=>loadAdmin(),adminBusy));
-  if(adminPending){const operations={notice:'通知送信',notice_edit:'通知編集',notice_delete:'通知削除'};const label=operations[adminPending.kind]||(adminData.entries.find(e=>e.targetId===adminPending.targetId)?.name||'対象アカウント')+' / '+adminPending.kind;box.append(note('結果未確認：'+label),button('保存した操作を再試行',()=>sendAdmin(adminPending),adminBusy,'primary'));}
+  if(adminPending){const operations={notice:'通知送信',notice_edit:'通知編集',notice_delete:'通知削除',notice_bulk_edit:'通知一括編集',notice_bulk_delete:'通知一括削除'};const label=operations[adminPending.kind]||(adminData.entries.find(e=>e.targetId===adminPending.targetId)?.name||'対象アカウント')+' / '+adminPending.kind;box.append(note('結果未確認：'+label),button('保存した操作を再試行',()=>sendAdmin(adminPending),adminBusy,'primary'));}
   const form=node('form','sx-admin-form');
   const target=select(adminData.entries.map(e=>[e.targetId,e.name]),adminTarget||adminData.entries[0]?.targetId,'管理するアカウント');
   const kind=select(adminKinds,'set_attack_soldiers:set','管理操作');

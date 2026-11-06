@@ -14,6 +14,7 @@ export class SengokuExpansion{
   this.sql.exec('CREATE INDEX IF NOT EXISTS sengoku_notifications_admin ON sengoku_notifications(adminNoticeId) WHERE adminNoticeId IS NOT NULL');
   this.sql.exec('CREATE TABLE IF NOT EXISTS sengoku_admin_notices(id TEXT PRIMARY KEY,target TEXT NOT NULL,text TEXT NOT NULL,at INTEGER NOT NULL,revision INTEGER NOT NULL DEFAULT 1,legacy INTEGER NOT NULL DEFAULT 0)');
   this.sql.exec('CREATE INDEX IF NOT EXISTS sengoku_admin_notices_time ON sengoku_admin_notices(at DESC,id DESC)');
+  this.sql.exec('CREATE INDEX IF NOT EXISTS sengoku_admin_notices_text ON sengoku_admin_notices(text)');
   this.sql.exec('CREATE TABLE IF NOT EXISTS sengoku_alliance_buffs(allianceId TEXT NOT NULL,kind TEXT NOT NULL,level INTEGER NOT NULL DEFAULT 0,spent INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(allianceId,kind))');
   this.sql.exec('CREATE TABLE IF NOT EXISTS sengoku_user_controls(owner TEXT PRIMARY KEY,banned INTEGER NOT NULL DEFAULT 0,accessUntil INTEGER NOT NULL DEFAULT 0,learningUntil INTEGER NOT NULL DEFAULT 0,chatUntil INTEGER NOT NULL DEFAULT 0,recruitMicros INTEGER,revision INTEGER NOT NULL DEFAULT 0)');
   this.sql.exec('CREATE TABLE IF NOT EXISTS sengoku_admin_receipts(actor TEXT NOT NULL,requestId TEXT NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(actor,requestId))');
@@ -166,6 +167,9 @@ export class SengokuExpansion{
  }
  adminPinStatus(owner){return this.adminPin.status(owner);}
  async adminPinSetup(owner,data){return this.adminPin.setup(owner,data);}
+ adminNoticeRevision(){
+  return this.sql.exec("SELECT COALESCE(MAX(id),0) AS revision FROM sengoku_admin_audit WHERE kind IN ('notice','notice_edit','notice_delete','notice_bulk_edit','notice_bulk_delete')").toArray()[0].revision;
+ }
  adminNoticeHistory(offset){
   if(!Number.isSafeInteger(offset)||offset<0||offset>10000000)fail('admin-input');
   // Old delivery rows have no shared broadcast ID. Manage each existing copy separately.
@@ -173,17 +177,17 @@ export class SengokuExpansion{
    this.sql.exec("INSERT OR IGNORE INTO sengoku_admin_notices(id,target,text,at,legacy) SELECT id,owner,text,at,1 FROM sengoku_notifications WHERE kind='admin' AND adminNoticeId IS NULL");
    this.sql.exec("UPDATE sengoku_notifications SET adminNoticeId=id WHERE kind='admin' AND adminNoticeId IS NULL");
   });
-  const notices=this.sql.exec("SELECT n.id,n.text,n.at,n.revision,n.legacy,CASE WHEN n.target='' THEN '全員（全ワールド）' ELSE COALESCE(a.name,g.name,'参加者') END recipientName FROM sengoku_admin_notices n LEFT JOIN player_accounts a ON a.owner=n.target LEFT JOIN sengoku_guest_profiles g ON g.owner=n.target ORDER BY n.at DESC,n.id DESC LIMIT 31 OFFSET ?",offset).toArray();
-  return{notices:notices.slice(0,30),noticeOffset:offset,noticeNextOffset:notices.length>30?offset+30:null};
+  const notices=this.sql.exec("SELECT n.id,n.text,n.at,n.revision,n.legacy,(SELECT COUNT(*) FROM sengoku_admin_notices m WHERE m.text=n.text) AS matchingCount,CASE WHEN n.target='' THEN '全員（全ワールド）' ELSE COALESCE(a.name,g.name,'参加者') END recipientName FROM sengoku_admin_notices n LEFT JOIN player_accounts a ON a.owner=n.target LEFT JOIN sengoku_guest_profiles g ON g.owner=n.target ORDER BY n.at DESC,n.id DESC LIMIT 31 OFFSET ?",offset).toArray();
+  return{notices:notices.slice(0,30),noticeOffset:offset,noticeNextOffset:notices.length>30?offset+30:null,noticeRevision:this.adminNoticeRevision()};
  }
  async adminBoard(owner,pin,verified=false,noticeOffset=0){
   if(!verified)await this.adminPin.verify(owner,pin);const map=new Map();for(let id=1;id<=G.WORLD_COUNT;id++){const w=this.g.read(id);for(const p of w.players){let item=map.get(p.owner);if(!item){item={targetId:p.id,name:this.g.profile(p.owner)?.name||p.name,worlds:[],control:this.control(p.owner),attackUntil:this.g.penalty(p.owner).until};delete item.control.owner;map.set(p.owner,item);}item.worlds.push({id,soldiers:T.troopCount(p.s),territories:p.s.ownedRegions.length,retired:!!p.retired,regions:w.regions.filter(r=>r.owner===p.id).map(r=>({id:r.id,name:R.region(r.id)?.name||r.id}))});}}
-  return{admin:true,entries:[...map.values()].sort((a,b)=>a.name.localeCompare(b.name,'ja-JP')),...this.adminNoticeHistory(noticeOffset),audit:this.sql.exec("SELECT d.kind,d.value,d.at,CASE WHEN d.kind IN ('notice','notice_edit','notice_delete') AND d.target='' THEN '全員' ELSE COALESCE(a.name,g.name,'参加者') END name FROM sengoku_admin_audit d LEFT JOIN player_accounts a ON a.owner=d.target LEFT JOIN sengoku_guest_profiles g ON g.owner=d.target ORDER BY d.id DESC LIMIT 30").toArray()};
+  return{admin:true,entries:[...map.values()].sort((a,b)=>a.name.localeCompare(b.name,'ja-JP')),...this.adminNoticeHistory(noticeOffset),audit:this.sql.exec("SELECT d.kind,d.value,d.at,CASE WHEN d.kind IN ('notice_bulk_edit','notice_bulk_delete') THEN '一括通知' WHEN d.kind IN ('notice','notice_edit','notice_delete') AND d.target='' THEN '全員' ELSE COALESCE(a.name,g.name,'参加者') END name FROM sengoku_admin_audit d LEFT JOIN player_accounts a ON a.owner=d.target LEFT JOIN sengoku_guest_profiles g ON g.owner=d.target ORDER BY d.id DESC LIMIT 30").toArray()};
  }
  async adminAction(owner,data){
   await this.adminPin.verify(owner,data.pin);
   if(data.kind==='notice')return this.adminNotice(owner,data);
-  if(data.kind==='notice_edit'||data.kind==='notice_delete')return this.changeAdminNotice(owner,data);
+  if(['notice_edit','notice_delete','notice_bulk_edit','notice_bulk_delete'].includes(data.kind))return this.changeAdminNotice(owner,data);
   const allowed=['owner','requestId','targetId','kind','value','expectedRevision','worldId','regionId','pin'];if(Object.keys(data).some(k=>!allowed.includes(k))||!safeId(data.targetId)||typeof data.requestId!=='string'||!/^[A-Za-z0-9_-]{16,64}$/.test(data.requestId)||!Number.isSafeInteger(data.expectedRevision)||data.expectedRevision<0)fail('admin-input');
   const kinds=['ban','access','learning','chat','attack','recruit','reset_attack','set_attack_soldiers','confiscate_territory'];if(!kinds.includes(data.kind)||!Number.isSafeInteger(data.value)||data.value<0||data.kind==='ban'&&data.value>1||['recruit','set_attack_soldiers'].includes(data.kind)&&data.value>G.MAX_SOLDIERS*T.SCALE||['access','learning','chat','attack'].includes(data.kind)&&data.value>this.now()+10*366*86400000)fail('admin-input');
   if(['set_attack_soldiers','confiscate_territory'].includes(data.kind)&&(!Number.isInteger(data.worldId)||data.worldId<1||data.worldId>G.WORLD_COUNT))fail('admin-world');
@@ -261,21 +265,31 @@ export class SengokuExpansion{
   });
  }
  changeAdminNotice(owner,data){
-  const editing=data.kind==='notice_edit',allowed=['owner','pin','kind','requestId','noticeId','expectedRevision',...(editing?['text']:[])];
+  const bulk=data.kind.startsWith('notice_bulk_'),editing=data.kind.endsWith('_edit');
+  const allowed=['owner','pin','kind','requestId','noticeId','expectedRevision',...(editing?['text']:[]),...(bulk?['matchingCount','expectedNoticeRevision']:[])];
   if(Object.keys(data).some(key=>!allowed.includes(key))||!safeId(data.noticeId)||!Number.isSafeInteger(data.expectedRevision)||data.expectedRevision<1)fail('admin-input');
+  if(bulk&&(!Number.isSafeInteger(data.matchingCount)||data.matchingCount<2||!Number.isSafeInteger(data.expectedNoticeRevision)||data.expectedNoticeRevision<0))fail('admin-input');
   const text=editing?this.adminNoticeText(data.text):null;
-  return this.commitAdminNotice(owner,data,{kind:data.kind,noticeId:data.noticeId,expectedRevision:data.expectedRevision,text},()=>{
+  const match=bulk?{matchingCount:data.matchingCount,expectedNoticeRevision:data.expectedNoticeRevision}:{};
+  return this.commitAdminNotice(owner,data,{kind:data.kind,noticeId:data.noticeId,expectedRevision:data.expectedRevision,text,...match},()=>{
    const row=this.sql.exec('SELECT target,text,revision FROM sengoku_admin_notices WHERE id=?',data.noticeId).toArray()[0];
    if(!row)fail('admin-notice-gone',404);
    if(row.revision!==data.expectedRevision)fail('admin-notice-conflict',409);
-   if(editing){
-    this.sql.exec('UPDATE sengoku_admin_notices SET text=?,revision=revision+1 WHERE id=?',text,data.noticeId);
-    this.sql.exec("UPDATE sengoku_notifications SET text=? WHERE kind='admin' AND adminNoticeId=?",text,data.noticeId);
-   }else{
-    this.sql.exec("DELETE FROM sengoku_notifications WHERE kind='admin' AND adminNoticeId=?",data.noticeId);
-    this.sql.exec('DELETE FROM sengoku_admin_notices WHERE id=?',data.noticeId);
+   if(bulk){
+    const count=this.sql.exec('SELECT COUNT(*) AS count FROM sengoku_admin_notices WHERE text=?',row.text).toArray()[0].count;
+    if(count!==data.matchingCount||this.adminNoticeRevision()!==data.expectedNoticeRevision)fail('admin-notice-conflict',409);
    }
-   return{target:row.target,text:text??row.text};
+   const where=bulk?'text=?':'id=?',key=bulk?row.text:data.noticeId;
+   const deliveries="kind='admin' AND adminNoticeId IN (SELECT id FROM sengoku_admin_notices WHERE "+where+')';
+   if(editing){
+    this.sql.exec('UPDATE sengoku_notifications SET text=? WHERE '+deliveries,text,key);
+    this.sql.exec('UPDATE sengoku_admin_notices SET text=?,revision=revision+1 WHERE '+where,text,key);
+   }else{
+    this.sql.exec('DELETE FROM sengoku_notifications WHERE '+deliveries,key);
+    this.sql.exec('DELETE FROM sengoku_admin_notices WHERE '+where,key);
+   }
+   const auditText=bulk?data.matchingCount+'件：'+(text??row.text):text??row.text;
+   return{target:bulk?'':row.target,text:auditText};
   });
  }
 }

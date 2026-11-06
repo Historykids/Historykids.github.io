@@ -1,6 +1,6 @@
 (function(){
  'use strict';
- const $=id=>document.getElementById(id),A=window.HKCommunity,R=window.HKSengokuKuniMap;if(!$('wtCards')||!A||!R)return;
+ const $=id=>document.getElementById(id),A=window.HKCommunity,R=window.HKSengokuKuniMap,G=window.HKSengokuWorldRules;if(!$('wtCards')||!A||!R||!G)return;
  const fmt=n=>Number(n||0).toLocaleString('ja-JP'),el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
  const errors={'world-account':'最初にアカウント名を入力してね。ログインは不要です。','world-name':'名前は1〜24文字の文字・数字・空白・ハイフン・下線で入力してね。','world-name-used':'その名前は使用されています。別の名前を入力してね。','world-name-fixed':'保存済みの名前で続けてね。','nickname-blocked':'その名前は使えません。別の名前を入力してね。','world-spawn-unavailable':'その土地の戦況が変わりました。別の出発地点を選んでね。','world-pending':'途中のクイズを終えてから変更してね。','world-incoming':'攻撃を受けています。防衛が終わってから変更してね。','world-active-changed':'別の画面でワールドが変更されました。最新の戦況を確認してください。','world-conflict':'戦況が更新されました。内容を確認してもう一度選んでね。','world-client-update':'ページを読み直して最新のルールで参加してください。','account-session-expired':'ログイン期限が切れました。アカウント画面でログイン・ログアウトを確認してね。','account-changed':'アカウントが切り替わりました。このページを読み直してください。','banned':'この参加情報では利用できません。','storage':'このブラウザに参加情報を保存できません。保存設定を確認してください。'};
  let spawnManual=false;let listing=null,active=null,selected=0,busy=false,online=false,reading=false,changed=false,key='',token='',journal=null,epoch=0;
@@ -19,7 +19,7 @@
    const old=$('wtRegion').value,ids=w.own?[w.own.home]:w.startingRegions;$('wtRegion').replaceChildren(...ids.map(id=>{const o=el('option','',R.region(id).name);o.value=id;return o;}));if(ids.includes(old))$('wtRegion').value=old;
    $('wtDetailTitle').textContent='ワールド '+w.id+(w.own?'へ、ふたたび。':'で、新たな旗を。');$('wtDetailText').textContent=w.own?'あなたの領土 '+fmt(w.own.territories)+'地域・攻撃兵力 '+fmt(w.own.force??w.own.soldiers)+'人・武将 '+fmt(w.own.generals)+'人を保存しています。':current?'現在のワールドの進行を残して、この世界では新しく出発します。':'出発地点を選んで、天下統一への一歩を踏み出そう。';
    const blocked=!named?'最初に上の入力欄でアカウント名を決めてください。ログインは不要です。':source?.state.pending?'途中のクイズを保存しています。ゲームに戻って終えてから変更してください。':source?.incoming?'現在のワールドで攻撃を受けています。防衛が終わってから変更できます。':'';
-   $('wtBlock').hidden=!blocked;$('wtBlock').textContent=blocked;$('wtRegionLabel').hidden=!!w.own;$('wtRegion').disabled=busy||!!journal||changed;$('wtSpawnHint').textContent=w.own?'保存した領地・兵士・武将・同盟をそのまま再開します。':ids.length?'日本国内の領地を選べます。初参加時だけ、出発地点に守備兵10万人を配置します。':'現在この世界には開始できる土地がありません。';
+   $('wtBlock').hidden=!blocked;$('wtBlock').textContent=blocked;$('wtRegionLabel').hidden=!!w.own;$('wtRegion').disabled=busy||!!journal||changed;$('wtSpawnHint').textContent=w.own?'保存した領地・兵士・武将・同盟をそのまま再開します。':ids.length?'日本国内の領地を選べます。初参加時だけ、出発地点に守備兵'+(w.startingGarrison??G.startingGarrison(w.id))/10000+'万人を配置します。':'現在この世界には開始できる土地がありません。';
    $('wtEnter').textContent=!named?'先にアカウント名を入力してください':current===selected?'現在のワールド':w.own?'保存した続きに戻る':'この国でワールド '+selected+'へ';$('wtEnter').disabled=busy||!online||!named||!!journal||changed||!!blocked||current===selected||!ids.length;
    $('wtPlay').hidden=!current;$('wtPlay').textContent=current===selected?'このワールドで遊ぶ →':'現在のゲームへ戻る →';
   }

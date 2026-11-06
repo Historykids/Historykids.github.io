@@ -2,7 +2,8 @@
 (function(root){
  'use strict';
  const LIMIT=null,WORLD_COUNT=5,INITIAL_GARRISON=2000,PROTECTION=7200000,BATTLE_TIME=300000,CAPTURE_COOLDOWN=300000,ATTACK_COOLDOWN=300000,WRONG_COOLDOWN=300000,SOLDIERS_PER_CORRECT=20,DEFENSE_PER_CORRECT=50,GENERAL_INTERVAL=50,MAX_LEVEL=100,MAX_SOLDIERS=1000000000000;
- const STARTING_GARRISON=100000,spawnVersion='japan-starting-garrison-20261106-v1';
+ const spawnVersion='japan-starting-garrison-by-world-20261107-v1';
+ const startingGarrison=worldId=>worldId===4||worldId===5?10000:100000;
  function canSpawn(region){
   const land=region&&root.HKSengokuKuniMap.region(region.id);
   return !!land&&!land.overseas;
@@ -42,6 +43,6 @@
   return{added,allianceAdded,recruitment,experience,levels,generalProgress:mode==='general'?1:0};
  }
  function initial(region,now){return{version:6,attackUnit:'infantry',attackFraction:0,heldRegions:[region],homeEstablished:true,soldiers:0,generals:[],activeGeneral:null,generalClaims:0,totalCorrect:0,correctByMode:{general:0,soldiers:0,level:0,battle:0},attackCooldownUntil:0,battleCooldownUntil:0,failedAttackCooldownUntil:0,learnedCards:[],claimedRewards:[],ownedRegions:[region],capital:region,bestTerritories:1,defeatedRegions:[],battlesWon:0,battlesLost:0,unifications:0,port:true,pending:null,lastResult:null,startedAt:now};}
- const api={canSpawn,STARTING_GARRISON,spawnVersion,LIMIT,WORLD_COUNT,INITIAL_GARRISON,PROTECTION,BATTLE_TIME,CAPTURE_COOLDOWN,ATTACK_COOLDOWN,WRONG_COOLDOWN,SOLDIERS_PER_CORRECT,DEFENSE_PER_CORRECT,GENERAL_INTERVAL,MAX_LEVEL,MAX_SOLDIERS,modes,generals,limitedGenerals,general,allStandardOwned,active,deployed,buffs,attack,snapshot,damage,available,reachable,reclaim,homeReclaim,rewardCorrect,initial};
+ const api={canSpawn,startingGarrison,spawnVersion,LIMIT,WORLD_COUNT,INITIAL_GARRISON,PROTECTION,BATTLE_TIME,CAPTURE_COOLDOWN,ATTACK_COOLDOWN,WRONG_COOLDOWN,SOLDIERS_PER_CORRECT,DEFENSE_PER_CORRECT,GENERAL_INTERVAL,MAX_LEVEL,MAX_SOLDIERS,modes,generals,limitedGenerals,general,allStandardOwned,active,deployed,buffs,attack,snapshot,damage,available,reachable,reclaim,homeReclaim,rewardCorrect,initial};
  root.HKSengokuWorldRules=Object.freeze(api);if(typeof module!=='undefined')module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

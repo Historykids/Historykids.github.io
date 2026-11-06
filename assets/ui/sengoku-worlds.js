@@ -52,11 +52,15 @@
  function showTabs(){for(const key of ['map','battle','camp','alliance','players','chat']){$('sw'+({map:'Map',battle:'Battle',camp:'Camp',alliance:'Alliance',players:'Players',chat:'Chat'}[key])+'Section').hidden=own()?tab!==key:['players','chat'].includes(tab)?key!==tab:key!=='map';}document.querySelectorAll('[data-tab]').forEach(b=>{if(b.dataset.tab===tab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});}
  function renderWorldChoices(){renderMapWorlds();const sel=$('swWorldSelect');sel.replaceChildren();const auto=node('option','','おまかせ・人数の少ないワールドへ');auto.value='auto';sel.append(auto);for(const world of [...worlds].sort((a,b)=>a.id-b.id)){const o=node('option','', 'ワールド '+world.id+' · '+world.players+'人・上限なし'+(!world.joinable?' · 募集終了':''));o.value=world.id;sel.append(o);}sel.value=watched;if(sel.value!==watched){watched='auto';sel.value='auto';}joinHint();}
  function renderMapWorlds(){const sel=$('swMapWorldSelect'),choices=(worlds.length?worlds:Array.from({length:G.WORLD_COUNT},(_,i)=>({id:i+1}))).map(world=>({...world,players:w()?.id===world.id?w().players.length:world.players})),key=JSON.stringify(choices.map(world=>[world.id,world.players]));if(sel.dataset.choices!==key){sel.replaceChildren(...choices.map(world=>{const o=node('option','','ワールド '+world.id+(world.players!==undefined?' · '+world.players+'人':''));o.value=world.id;return o;}));sel.dataset.choices=key;}sel.value=String(w()?.id||data?.activeWorldId||1);$('swMapWorldHint').textContent='地図の閲覧先だけを変更します。再起・出陣は「ワールドを変更」で参加先を変更してから行えます。';}
+ function startingGuardText(){
+  const worldId=window.HKSeason1Config?1:Number(watched);
+  return worldId?'初参加時の守備兵は'+G.startingGarrison(worldId)/10000+'万人です。':'初参加時の守備兵はワールド1〜3が10万人、4・5が1万人です。';
+ }
  function joinHint(){
   if(!own()&&w()&&!spawnManual){const free=w().regions.filter(r=>G.canSpawn(r,now())).sort((a,b)=>Number(!!a.owner)-Number(!!b.owner));if(free.length){start=selected=free[0].id;$('swStartSelect').value=start;$('swRegionSelect').value=start;}}
   $('swNameForm').hidden=!!data?.account?.name;$('swIdentityLabel').hidden=!data?.account?.name;$('swIdentityLabel').textContent=data?.account?.name?'参加名：'+data.account.name+(data.account.signedIn?' · ログイン済み':' · ゲスト参加'):'';
   const available=worlds.filter(world=>world.id===w()?.id?G.canSpawn(regionData(start),now()):(world.startingRegions||[]).includes(start)),chosen=available.find(world=>String(world.id)===watched),canJoin=worlds.length&&(watched==='auto'?available.length>0:!!chosen);
-  $('swJoinHint').textContent=R.region(start).name+'から出発。'+(canJoin?'開始できます。':'この土地では今は開始できません。')+' 初期スポーン・再起は日本国内だけ。守備兵数に関係なく選べます。各ワールドの初参加では守備兵10万人を配置します。';
+  $('swJoinHint').textContent=R.region(start).name+'から出発。'+(canJoin?'開始できます。':'この土地では今は開始できません。')+' 初期スポーン・再起は日本国内だけ。守備兵数に関係なく選べます。'+startingGuardText();
   $('swJoin').dataset.unavailable=String(!data?.account?.name||!canJoin);$('swJoin').hidden=!data?.account?.name;$('swLogin').hidden=!online||!!data?.account?.signedIn;controls();
  }
  function renderTitles(){
@@ -85,7 +89,7 @@
   if(player?.title)panel.querySelector('.sw-region-owner').append(node('span','sg-title',player.title.name));
   if(viewingOther()){panel.append(node('p','sw-note','ワールド '+w().id+'を閲覧しています。再起・出陣には「ワールドを変更」から参加先を変更してください。'));const link=node('a','primary','このワールドへ変更');link.href='./sengoku-worlds.html';panel.append(link);return;}
   if(!own()){
-   const eligible=G.canSpawn(region,now());panel.append(node('p','sw-watch','守備兵 '+fmt(T?T.guardCount(region):region.garrison)+'人'),node('p','sw-note',eligible?'この土地から開始できます。このワールドに初めて参加すると、守備兵10万人を配置します。':'海外では開始できません。日本の別の領地を選んでください。'),node('p','sw-join-state',selected===start?'開始する国に選択中':'地図の国を選んで出発しよう。'));
+   const eligible=G.canSpawn(region,now());panel.append(node('p','sw-watch','守備兵 '+fmt(T?T.guardCount(region):region.garrison)+'人'),node('p','sw-note',eligible?'この土地から開始できます。'+startingGuardText():'海外では開始できません。日本の別の領地を選んでください。'),node('p','sw-join-state',selected===start?'開始する国に選択中':'地図の国を選んで出発しよう。'));
    if(region.protectedUntil>now())panel.append(node('p','sw-note','保護中：'+new Date(region.protectedUntil).toLocaleTimeString('ja-JP')+'まで'));return;
   }
   const mine=region.owner===own().id,allied=!!own().alliance&&player?.allianceId===own().alliance.id,can=G.reachable(s(),selected,own().home,own().alliance?.frontier||[]),foe=enemy(selected),protectedNow=region.protectedUntil>now(),locked=!!region.battle;

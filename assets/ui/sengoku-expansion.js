@@ -66,7 +66,7 @@
  function renderNotifications(){queueMicrotask(readOpenedNotifications);const bar=$('sxNotificationBar');if(!bar)return;const p=own(),all=(view()?.strategy?.notifications||[]).filter(n=>n.kind==='admin'||!window.HKSengokuColors?.hiddenSummary(n.text)),unread=all.filter(n=>!n.readAt);bar.hidden=!p;if(!p)return;$('sxNotificationCount').textContent=String(unread.length);$('sxNotificationPreview').textContent=unread[0]?.text||'新しい通知はありません';const list=$('sxNotifications');list.replaceChildren();for(const n of all.filter(n=>notificationFilter!=='unread'||!n.readAt)){const li=node('li',n.readAt?'':'unread');li.append(node('div','sx-notification-meta',(n.kind==='admin'?'運営からのお知らせ':'ワールド '+n.worldId+' · '+({battle:'防衛',conquest:'占領',alliance:'同盟',chat:'同盟チャット',support:'援軍',diplomacy:'外交',castle:'城',weekly:'週間報酬'}[n.kind]||'お知らせ'))+' · '+date(n.at)),node('p','',n.text));if(!n.readAt)li.append(button('既読にする',()=>act('notification_read',{notificationId:n.id}),blocked(),'text-button'));if(n.region&&n.worldId===world()?.id)li.append(button('領地を見る',()=>go(n.region),false,'text-button'));if(['diplomacy','alliance','support','chat'].includes(n.kind)&&n.worldId===world()?.id)li.append(button('同盟画面へ',()=>{document.querySelector('[data-tab=alliance]').click();if(n.kind==='diplomacy'){diplomacyOpen=true;const details=$('sxAlliance').querySelector('details');if(details)details.open=true;}},false,'text-button'));list.append(li);}if(!list.children.length)list.append(node('li','muted','表示する通知はありません。'));$('sxNotificationReadAll').disabled=blocked()||!unread.length;$('sxNotificationAll').setAttribute('aria-pressed',String(notificationFilter==='all'));$('sxNotificationUnread').setAttribute('aria-pressed',String(notificationFilter==='unread'));}
  function adminStorageKey(){return'hk_sengoku_admin_action_v1_'+A.identity(false);}
  function adminRequestId(){return crypto.randomUUID?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,'0')).join('');}
- async function loadAdmin(pin=adminPin){
+ async function loadAdmin(pin=adminPin,noticeOffset=0){
   if(adminBusy)return;adminBusy=true;
   const token=A.identity(false),run=epoch;
   try{
@@ -76,7 +76,7 @@
     adminPinConfigured=!!status.configured&&!status.requiresUpgrade;
    }
    if(!adminPinConfigured||!pin){adminData=null;signature='';renderPanel();return;}
-   const r=await A.request('/wealth/sengoku/world/admin',{pin},false);
+   const r=await A.request('/wealth/sengoku/world/admin',{pin,noticeOffset},false);
    if(run!==epoch||token!==A.identity(false))return;
    adminPin=pin;clearTimeout(adminPinTimer);adminPinTimer=setTimeout(lockAdminPanel,300000);adminData=r;adminKey=adminStorageKey();
    const cached=localStorage.getItem(adminKey);adminPending=cached?JSON.parse(cached):null;
@@ -107,18 +107,48 @@
    const r=await A.request('/wealth/sengoku/world/admin/action',{...payload,pin:adminPin},false);
    if(run!==epoch||token!==A.identity(false))return;
    localStorage.removeItem(adminStorageKey());adminPending=null;adminData=r;
-   message(payload.kind==='notice'?'通知を送信しました。':'管理設定を保存しました。');signature='';renderPanel();U.refresh();
+   const saved={notice:'通知を送信しました。',notice_edit:'通知を更新しました。',notice_delete:'通知を削除しました。'};
+   message(saved[payload.kind]||'管理設定を保存しました。');signature='';renderPanel();U.refresh();
   }catch(e){
    if(run!==epoch||token!==A.identity(false))return;
    const definite=/^(admin-|world-|record-|identity-|account-)/.test(e.message);
    if(definite){localStorage.removeItem(adminStorageKey());adminPending=null;}
    if(e.message.startsWith('admin-pin')){adminPin='';adminData=null;}
-   const errors={'admin-pin-invalid':'管理者パスワードが違います。','admin-pin-locked':'入力回数が多すぎます。30分後に再試行してください。','admin-notice-text':'通知本文を1〜500文字で入力してください。','admin-notice-recipient':'通知を受け取れる参加者がいません。'};
+   const errors={'admin-pin-invalid':'管理者パスワードが違います。','admin-pin-locked':'入力回数が多すぎます。30分後に再試行してください。','admin-notice-text':'通知本文を1〜500文字で入力してください。','admin-notice-recipient':'通知を受け取れる参加者がいません。','admin-notice-gone':'この通知は削除されています。管理情報を更新してください。','admin-notice-conflict':'通知が更新されました。管理情報を更新して最新の本文を確認してください。'};
    message(errors[e.message]||(definite?A.errorText(e):'結果を確認できません。同じ操作を「保存した操作を再試行」で確認できます。'),true);
    signature='';renderPanel();
   }finally{adminBusy=false;signature='';if(active==='admin')renderPanel();}
  }
  const adminKinds=[['ban:on','戦国の利用をBAN'],['ban:off','BANを解除'],['access:set','戦国の利用を一時制限'],['access:clear','利用制限を解除'],['attack:set','攻撃のクールタイムを設定'],['attack:clear','攻撃制限を解除'],['learning:set','クイズを一時制限'],['learning:clear','クイズ制限を解除'],['chat:set','チャットを一時制限'],['chat:clear','チャット制限を解除'],['recruit:set','正解1問あたりの兵士数を設定'],['recruit:clear','兵士数を通常に戻す'],['reset_attack:reset','攻撃兵力を0人にリセット'],['set_attack_soldiers:set','攻撃兵力数を指定'],['confiscate_territory:remove','領土を没収']];
+ function noticeEditor(text=''){
+  const input=node('textarea');input.maxLength=500;input.rows=4;input.required=true;input.value=text;return input;
+ }
+ function noticeDraft(input){
+  const text=input.value.trim();
+  if(!text||text.length>500){message('通知本文を1〜500文字で入力してください。',true);return '';}
+  return text;
+ }
+ function renderAdminNoticeHistory(box){
+  const list=node('div','sx-offers'),disabled=adminBusy||!!adminPending;
+  for(const notice of adminData.notices||[]){
+   const card=node('article','sw-card'),editor=node('form','sx-admin-form'),input=noticeEditor(notice.text);
+   const apply=(kind,text)=>sendAdmin({requestId:adminRequestId(),kind,noticeId:notice.id,expectedRevision:notice.revision,...(text===undefined?{}:{text})});
+   const edit=()=>{
+    const text=noticeDraft(input);if(!text)return;
+    confirmAction(notice.recipientName+'宛ての通知を更新',text,()=>apply('notice_edit',text));
+   };
+   card.append(title(notice.recipientName,'h4'),note(date(notice.at)+(notice.legacy?' · 旧形式の個別配信':'')+(notice.revision>1?' · 編集済み':'')),note(notice.text));
+   editor.hidden=true;
+   editor.onsubmit=e=>{e.preventDefault();edit();};
+   editor.append(field('変更する本文',input),button('変更内容を確認',edit,disabled,'primary'),button('編集を閉じる',()=>{editor.hidden=true;},false));
+   card.append(button('編集',()=>{editor.hidden=false;input.focus();},disabled),button('削除',()=>confirmAction(notice.recipientName+'宛ての通知を削除',notice.text,()=>apply('notice_delete')),disabled,'sx-danger'),editor);
+   list.append(card);
+  }
+  if(!list.children.length)list.append(note('このページに送信済みの通知はありません。'));
+  box.append(title('送信済みの通知'),list);
+  if(adminData.noticeOffset>0)box.append(button('前の通知を見る',()=>loadAdmin(adminPin,adminData.noticeOffset-30),disabled));
+  if(adminData.noticeNextOffset!=null)box.append(button('次の通知を見る',()=>loadAdmin(adminPin,adminData.noticeNextOffset),disabled));
+ }
  function renderAdmin(box){
   if(!view()?.permissions?.admin){box.append(note('この画面は管理者だけが利用できます。'));return;}
   if(adminPinConfigured===null){box.append(note('管理者の認証状態を確認します。'),button('認証状態を確認',()=>loadAdmin(),adminBusy,'primary'));return;}
@@ -138,7 +168,7 @@
    form.onsubmit=e=>{e.preventDefault();authenticate();};box.append(form);return;
   }
   box.append(note('攻撃兵力数の変更と領土没収は指定したワールドだけに適用します。その他の制限はアカウントの全ワールドに適用されます。'),button('管理情報を更新',()=>loadAdmin(),adminBusy));
-  if(adminPending){const targetName=adminData.entries.find(e=>e.targetId===adminPending.targetId)?.name||(adminPending.kind==='notice'?'全員':'対象アカウント');box.append(note('結果未確認：'+targetName+' / '+(adminPending.kind==='notice'?'通知送信':adminPending.kind)),button('保存した操作を再試行',()=>sendAdmin(adminPending),adminBusy,'primary'));}
+  if(adminPending){const operations={notice:'通知送信',notice_edit:'通知編集',notice_delete:'通知削除'};const label=operations[adminPending.kind]||(adminData.entries.find(e=>e.targetId===adminPending.targetId)?.name||'対象アカウント')+' / '+adminPending.kind;box.append(note('結果未確認：'+label),button('保存した操作を再試行',()=>sendAdmin(adminPending),adminBusy,'primary'));}
   const form=node('form','sx-admin-form');
   const target=select(adminData.entries.map(e=>[e.targetId,e.name]),adminTarget||adminData.entries[0]?.targetId,'管理するアカウント');
   const kind=select(adminKinds,'set_attack_soldiers:set','管理操作');
@@ -189,20 +219,20 @@
   }
   form.onsubmit=e=>{e.preventDefault();prepare();};
   form.append(field('対象アカウント',target),details,field('操作',kind),duration,worldLabel,regionLabel,rewardLabel,button('対象と内容を確認',prepare,adminBusy||!adminData.entries.length,'primary'));box.append(form);
-  const noticeForm=node('form','sx-admin-form'),noticeText=node('textarea');
+  const noticeForm=node('form','sx-admin-form'),noticeText=noticeEditor();
   const participants=adminData.entries.filter(e=>e.worlds.some(w=>!w.retired));
   const noticeTarget=select([['','全員（全ワールド）'],...participants.map(e=>[e.targetId,e.name])],'','通知先');
-  noticeText.id='sxAdminNoticeText';noticeText.maxLength=500;noticeText.rows=4;noticeText.required=true;
+  noticeText.id='sxAdminNoticeText';
   noticeTarget.id='sxAdminNoticeTarget';
   function prepareNotice(){
-   const text=noticeText.value.trim();
-   if(!text||text.length>500){message('通知本文を1〜500文字で入力してください。',true);return;}
+   const text=noticeDraft(noticeText);if(!text)return;
    const payload={requestId:adminRequestId(),kind:'notice',targetId:noticeTarget.value||null,text};
    confirmAction(noticeTarget.selectedOptions[0].textContent+'へ通知を送信',text,()=>sendAdmin(payload));
   }
   noticeForm.onsubmit=e=>{e.preventDefault();prepareNotice();};
   noticeForm.append(field('通知先',noticeTarget),field('通知本文（500文字まで）',noticeText),button('通知の内容を確認',prepareNotice,adminBusy||!!adminPending||!participants.length,'primary'));
   box.append(title('戦国天下統一の通知を送る'),noticeForm);
+  renderAdminNoticeHistory(box);
   const audit=node('ol','sx-admin-audit');for(const e of adminData.audit||[])audit.append(node('li','',date(e.at)+' · '+(e.name||'')+' · '+e.kind+' · '+e.value));box.append(title('管理操作の記録'),audit);
  }
  function renderPanel(){

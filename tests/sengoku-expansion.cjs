@@ -47,6 +47,58 @@ await test('admin notices require the owner and PIN, reach the chosen recipients
   assert((await get(h,2)).strategy.notifications.find(n=>n.id===received.id).readAt);
  }finally{h.close();}
 });
+await test('sent notices update and retract all original deliveries with authorization, revisions and replay safety',async()=>{
+ const h=await setup(3);
+ try{
+  await join(h,'owari');await join(h,'mino',1);await join(h,'kai',2,5);await admin(h);
+  const sent={requestId:crypto.randomUUID(),kind:'notice',targetId:null,text:'同じ通知本文'};
+  const published=success(await adminRequest(h,sent)).notices[0];
+  const personal={...sent,requestId:crypto.randomUUID(),targetId:raw(h,2).p.id};
+  success(await adminRequest(h,personal));
+  const notices=async i=>(await get(h,i)).strategy.notifications.filter(n=>n.kind==='admin');
+  const original=(await notices(1))[0];
+  success(await act(h,'notification_read',{notificationId:original.id},1));
+  const edit={requestId:crypto.randomUUID(),kind:'notice_edit',noticeId:published.id,expectedRevision:1,text:'訂正した通知'};
+  assert.equal((await adminRequest(h,edit,1)).status,403);
+  assert.equal((await h.req('/wealth/sengoku/world/admin/action',edit)).status,403);
+  assert.equal((await adminRequest(h,{...edit,targetId:raw(h,2).p.id})).status,400);
+  h.failSql('INSERT INTO sengoku_admin_receipts');assert.equal((await adminRequest(h,edit)).status,503);h.failSql('');
+  assert.equal((await notices(1))[0].text,sent.text);
+  success(await adminRequest(h,edit));
+  assert((await notices(1))[0].readAt);
+  assert.equal((await notices(1))[0].id,original.id);
+  assert.equal((await notices(1))[0].text,edit.text);
+  assert.deepEqual((await notices(2)).map(n=>n.text).sort(),[edit.text,personal.text].sort());
+  const remove={requestId:crypto.randomUUID(),kind:'notice_delete',noticeId:published.id,expectedRevision:2};
+  assert.equal((await adminRequest(h,{...remove,expectedRevision:1})).status,409);
+  h.failSql('INSERT INTO sengoku_admin_receipts');assert.equal((await adminRequest(h,remove)).status,503);h.failSql('');
+  assert.equal((await notices(1))[0].text,edit.text);
+  success(await adminRequest(h,remove));h.restart();
+  assert(success(await adminRequest(h,remove)).replayed);
+  assert(success(await adminRequest(h,edit)).replayed);
+  assert(success(await adminRequest(h,sent)).replayed);
+  assert.deepEqual(await notices(0),[]);assert.deepEqual(await notices(1),[]);
+  assert.deepEqual((await notices(2)).map(n=>n.text),[personal.text]);
+ }finally{h.close();}
+});
+await test('legacy notice copies can be edited without affecting identical notices or battle alerts',async()=>{
+ const h=await setup(2);
+ try{
+  await join(h,'owari');await join(h,'mino',1);await admin(h);
+  const row=h.db.prepare('INSERT INTO sengoku_notifications(id,owner,worldId,kind,text,at) VALUES(?,?,?,?,?,?)');
+  const id=crypto.randomUUID(),at=h.board.sengokuWorlds.now();
+  row.run(id,h.playerOwner(0),0,'admin','旧通知',at);
+  row.run(crypto.randomUUID(),h.playerOwner(1),0,'admin','旧通知',at);
+  row.run(crypto.randomUUID(),h.playerOwner(0),1,'battle','旧通知',at);
+  const board=success(await h.req('/wealth/sengoku/world/admin',{pin:TEST_PIN}));
+  assert.equal(board.notices.length,2);assert(board.notices.every(n=>n.legacy===1));
+  success(await adminRequest(h,{requestId:crypto.randomUUID(),kind:'notice_edit',noticeId:id,expectedRevision:1,text:'旧通知の訂正'}));
+  const received=(await get(h)).strategy.notifications;
+  assert.equal(received.find(n=>n.kind==='admin').text,'旧通知の訂正');
+  assert.equal(received.find(n=>n.kind==='battle').text,'旧通知');
+  assert.equal((await get(h,1)).strategy.notifications.find(n=>n.kind==='admin').text,'旧通知');
+ }finally{h.close();}
+});
 await test('administrator updates and army resets reject stale revisions and roll back completely if receipt storage fails',async()=>{const h=await pair();try{await admin(h);const b=success(await h.req('/wealth/sengoku/world/admin',{pin:TEST_PIN})),entry=b.entries.find(e=>e.targetId===raw(h,1).p.id),payload={requestId:crypto.randomUUID(),targetId:entry.targetId,kind:'reset_attack',value:0,expectedRevision:entry.control.revision};h.failSql('INSERT INTO sengoku_admin_receipts');assert.equal((await adminRequest(h,payload)).status,503);h.failSql('');assert.equal((await get(h,1)).own.state.soldiers,120);success(await adminRequest(h,payload));assert.equal((await get(h,1)).own.state.soldiers,0);assert((await adminRequest(h,payload)).body.replayed);assert.equal((await adminRequest(h,{...payload,requestId:crypto.randomUUID()})).body.error,'admin-changed');assert.equal((await adminRequest(h,{...payload,owner:h.playerOwner(0)},1)).status,403);}finally{h.close();}});
 await test('the named personal reset applies once across worlds and recruitment saves exactly one ten-thousandth per correct answer',async()=>{const h=await setup(1);try{await join(h,'owari');seed(h,0,{soldiers:12345,guards:999});await act(h,'switch',{worldId:4,region:'kai'});seed(h,0,{soldiers:54321,guards:777});h.db.prepare('UPDATE player_accounts SET username=?,name=? WHERE owner=?').run('appy0127','appy0127',h.playerOwner(0));h.db.prepare('DELETE FROM sengoku_manual_cooldowns').run();h.db.prepare('DELETE FROM sengoku_expansion_ops').run();let d=await get(h);assert.equal(d.own.state.soldiers,0);assert.equal(d.world.regions.find(r=>r.id==='kai').garrison,777);const until=d.own.state.manualAttackCooldownUntil;assert(until>h.board.sengokuWorlds.now());await act(h,'quiz',{mode:'soldiers'});await act(h,'answer',answer(h));d=await get(h);assert.equal(d.own.state.soldiers,0);assert.equal(d.own.state.attackFraction,1);assert.equal(d.own.state.pending.feedback.added,0.0001);await act(h,'retreat',{battleId:d.own.state.pending.id});await act(h,'quiz',{mode:'soldiers',role:'defense',region:'kai'});await act(h,'answer',answer(h));d=await get(h);assert.equal(d.world.regions.find(r=>r.id==='kai').garrisonFraction,1);assert.equal(d.world.regions.find(r=>r.id==='kai').garrison,777);await act(h,'retreat',{battleId:d.own.state.pending.id});h.restart();assert.equal((await get(h)).own.state.attackFraction,1);assert.equal((await get(h)).own.state.manualAttackCooldownUntil,until);await act(h,'switch',{worldId:1,region:'owari'});assert.equal((await get(h)).own.state.soldiers,0);assert.equal(region(h,'owari').garrison,999);const state=G.initial('owari',0);state.recruitMicros=1;for(let i=0;i<10000;i++)G.rewardCorrect(state,'same','soldiers');assert.equal(state.soldiers,1);assert.equal(state.attackFraction,0);}finally{h.close();}});
 await test('leaving an alliance cannot evade an accepted alliance treaty, and support plans are hidden from outsiders',async()=>{const h=await team();try{success(await act(h,'support_create',{region:'sagami'}));assert.equal((await get(h,1)).strategy.publicSupports.length,0);const anonymous=await(await h.fetch('https://api.example/wealth/sengoku/world?world=1')).json();assert.equal(anonymous.strategy.publicSupports.length,0);assert.equal(anonymous.strategy.supportRequests.length,0);success(await act(h,'treaty_offer',{targetId:raw(h,1).p.id,kind:'pact'}));const offer=(await get(h,1)).strategy.diplomacy.find(t=>t.status==='offered');success(await act(h,'treaty_respond',{offerId:offer.id,accept:true},1));success(await act(h,'alliance_leave',{},2));assert.equal((await begin(h,'sagami',2)).body.error,'sengoku-treaty-active');}finally{h.close();}});

@@ -103,17 +103,26 @@ export class SengokuWorlds{
  read(id){const row=this.row(id);if(!row)return null;const w=JSON.parse(row.state);let changed=false;if(w.rulesVersion!==3){this.upgradeFourQuizzes(w);changed=true;}if(w.garrisonVersion!==1){this.initializeGarrisons(w);changed=true;}if(this.upgradeMap(w))changed=true;if(this.alliances.init(w))changed=true;if(this.expansion.init(w))changed=true;if(this.upgradeStartingGarrisons(w))changed=true;if(changed)this.save(w);return w;}
  upgradeStartingGarrisons(w){
   if(w.spawnProtectionVersion===G.spawnVersion)return false;
+  const allowance=G.startingGarrison(w.id);
   const firstHomes=new Map(w.players.filter(p=>!p.retired).map(p=>[p.id,p.home]));
   for(const region of w.regions){
-   if(!Object.hasOwn(region,'spawnBaseOwner'))continue;
-   // Replace the old shield only on a player's original holding. Preserve earned defenders.
-   if(region.owner&&region.spawnBaseOwner===region.owner&&firstHomes.get(region.owner)===region.id&&region.garrison<G.STARTING_GARRISON){
-    const added=G.STARTING_GARRISON-region.garrison;
-    region.garrison+=added;
-    region.initialGarrisonRemaining=(region.initialGarrisonRemaining||0)+added;
+   let changed=false;
+   if(Object.hasOwn(region,'spawnBaseOwner')){
+    if(region.owner&&region.spawnBaseOwner===region.owner&&firstHomes.get(region.owner)===region.id&&region.garrison<allowance){
+     const added=allowance-region.garrison;
+     region.garrison+=added;
+     region.initialGarrisonRemaining=(region.initialGarrisonRemaining||0)+added;
+    }
+    delete region.spawnBaseOwner;
+    changed=true;
    }
-   delete region.spawnBaseOwner;
-   region.revision++;
+   // Cap only the remaining free troops. Earned and fractional defenders stay intact.
+   if(region.initialGarrisonRemaining>allowance){
+    region.garrison-=region.initialGarrisonRemaining-allowance;
+    region.initialGarrisonRemaining=allowance;
+    changed=true;
+   }
+   if(changed)region.revision++;
   }
   for(const p of w.players)delete p.spawnRegion;
   w.spawnProtectionVersion=G.spawnVersion;
@@ -282,7 +291,7 @@ export class SengokuWorlds{
   if(region.battle){const attacker=w.players.find(d=>d.s.pending?.id===region.battle.id);if(attacker){this.cancel(w,attacker,'spawned');attacker.revision++;}delete region.battle;}
   const defender=w.players.find(d=>d.id===region.owner&&d.id!==p.id);
   for(const req of w.supportRequests||[])if(req.region===region.id&&!req.closedAt)req.closedAt=this.now();
-  const garrison=first?G.STARTING_GARRISON:G.INITIAL_GARRISON;
+  const garrison=first?G.startingGarrison(w.id):G.INITIAL_GARRISON;
   region.owner=p.id;region.castleWork=0;region.garrison=garrison;region.initialGarrisonRemaining=garrison;region.garrisonFraction=0;region.revision++;region.protectedUntil=this.now()+G.PROTECTION;
   p.s.heldRegions=[...new Set([...(p.s.heldRegions||[]),region.id])];p.s.capital=region.id;if(region.id===p.home)p.s.homeEstablished=true;this.sync(w,p);
   if(defender){if(defender.incoming?.region===region.id)defender.incoming=null;if(['defense','castle'].includes(defender.s.pending?.role)&&defender.s.pending.reinforceRegion===region.id)this.cancel(w,defender,'territory-lost');this.sync(w,defender);if(defender.s.capital===region.id)defender.s.capital=defender.s.ownedRegions[0]||defender.home;defender.lastDefense={attacker:p.name,region:region.id,won:false,damage:0,remaining:0,captured:true,eliminated:!defender.s.ownedRegions.length,at:this.now()};defender.revision++;this.rank(w,defender);}
@@ -297,7 +306,7 @@ export class SengokuWorlds{
   else{this.sql.exec('DELETE FROM sengoku_world_members WHERE owner=?',owner);this.join(owner,{...data,revision:0});}
  }
 
- summary(w){const available=w.regions.filter(r=>G.canSpawn(r,this.now())).sort((a,b)=>Number(!!a.owner)-Number(!!b.owner)).map(r=>r.id);return{id:w.id,players:w.players.length,capacity:G.LIMIT,status:w.status,joinable:this.recruitable(w)&&available.length>0,startingRegions:available,available,winner:w.winner,createdAt:w.createdAt};}
+ summary(w){const available=w.regions.filter(r=>G.canSpawn(r,this.now())).sort((a,b)=>Number(!!a.owner)-Number(!!b.owner)).map(r=>r.id);return{id:w.id,players:w.players.length,capacity:G.LIMIT,status:w.status,joinable:this.recruitable(w)&&available.length>0,startingGarrison:G.startingGarrison(w.id),startingRegions:available,available,winner:w.winner,createdAt:w.createdAt};}
  save(w){this.sql.exec('INSERT OR REPLACE INTO sengoku_world_rule_versions(worldId,version) VALUES(?,4)',w.id);w.revision++;w.updatedAt=this.now();this.sql.exec('INSERT INTO sengoku_worlds(id,state,revision,updatedAt,summary,recruiting) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state,revision=excluded.revision,updatedAt=excluded.updatedAt,summary=excluded.summary,recruiting=excluded.recruiting',w.id,JSON.stringify(w),w.revision,w.updatedAt,JSON.stringify(this.summary(w)),Number(this.recruitable(w)));}
  latest(){const row=this.sql.exec('SELECT state FROM sengoku_worlds ORDER BY id DESC LIMIT 1').toArray()[0];return row?JSON.parse(row.state):null;}
  create(id){if(!Number.isSafeInteger(id)||id<1||id>G.WORLD_COUNT||this.row(id))fail('world-input');const w={id,protectionMs:G.PROTECTION,mapVersion:R.mapVersion,armyVersion:2,rulesVersion:3,garrisonVersion:1,revision:0,createdAt:this.now(),updatedAt:this.now(),status:'open',players:[],regions:R.regions.map(r=>({id:r.id,owner:null,revision:0,protectedUntil:0,garrison:neutralGarrison(r.id),initialGarrisonRemaining:0})),events:[],winner:null,alliances:[],allianceInvites:[]};this.save(w);return w;}
@@ -320,7 +329,7 @@ export class SengokuWorlds{
  }
  list(owner){
   const member=this.member(owner),ids=Array.from({length:G.WORLD_COUNT},(_,i)=>i+1);
-  return{protocol:'sengoku-world-v6',supportVersion:'member-support-20261101-v1',allianceBuffsVersion:'alliance-buffs-20261101-v1',socialVersion:'social-20261101-v1',castleSystem:{version:'castle-quiz-20261101-v1',defenseVersion:'castle-defense-20261103-v2',defense:globalThis.HKSengokuTactics.castleDefense,buildCorrect:10,effectCorrect:10,maxEffectLevel:5},capacity:null,worldCount:G.WORLD_COUNT,mapVersion:R.mapVersion,clientRules:7,modernMapVersion:'modern-borders-20261029-v1',titlesVersion:'unification-antarctica-v2',titleCatalog:S.titles.map(t=>({id:t.id,name:t.name,regions:t.regions.length})),antarcticaInitialGarrison:ANTARCTICA_GARRISON,antarcticaVersion,defenseSoldiersPerCorrect:G.DEFENSE_PER_CORRECT,attackSoldiersPerCorrect:G.SOLDIERS_PER_CORRECT,territoryCount:R.regions.length,japanTerritoryCount:R.japanRegions.length,overseasTerritoryCount:R.overseasRegions.length,overseasInitialState:'neutral-5000',overseasInitialGarrison:OVERSEAS_NEUTRAL_GARRISON,overseasGarrisonVersion,mapExpansionVersion:'global-map-neutral-20261028',armyModel:'split-attack-defense-v2',garrisonReinforcement:'selected-land-quiz',initialOwnedGarrison:G.INITIAL_GARRISON,initialGarrisonCountsForRanking:false,rankingVersion:S.version,manualAttackCooldown:this.manualCooldownStatus(),strategyVersion:globalThis.HKSengokuTactics.version,personalRecruitment:this.expansion.personalStatus(),alliances:{protocol:'sengoku-alliance-v1',maxMembers:5,bonusPerAlly:2,maxSoldierBonus:8},startingProvince:'japan',respawnProvince:'japan',startingRegionScope:'japan',respawnRegionScope:'japan',spawnProtectionVersion:G.spawnVersion,spawnProtection:'timed',startingGarrison:G.STARTING_GARRISON,worldCreation:'fixed-five',worldsVersion:'five-worlds-name-first-20261030-v1',guestEntry:'name-first-v1',defenseResetVersion:'three-worlds-defense-zero-20261025',allianceFeatures:'command-center-v2',combat:'five-correct-tenth-force',damageDivisor:10,wrongAnswerCooldownMs:G.WRONG_COOLDOWN,territoryResetVersion:'quarter-force-neutral-half-20261025',worldSwitch:'preserve-world-progress',captureCooldownMs:G.CAPTURE_COOLDOWN,attackCooldownMs:G.ATTACK_COOLDOWN,protectionMs:G.PROTECTION,startingProtectionMs:G.PROTECTION,respawnProtectionMs:G.PROTECTION,reclaimCooldownMs:G.ATTACK_COOLDOWN,reclaimProtectionMs:G.PROTECTION,reclaimIgnoresProtection:false,quizModes:Object.keys(G.modes),quiz:{eras:[...new Set(historyQuestions.map(q=>q.era))],questions:historyQuestions.length},activeWorldId:member?.worldId||null,account:{signedIn:!!this.accounts.row(owner),name:this.profile(owner)?.name||null},worlds:ids.map(id=>{const w=this.read(id),p=w.players.find(p=>p.owner===owner&&!p.retired);return{...this.summary(w),own:p?{name:p.name,home:p.home,territories:p.s.ownedRegions.length,force:G.attack(p.s),soldiers:p.s.soldiers,generals:p.s.generals.length,pending:!!p.s.pending,incoming:!!p.incoming}:null};})};
+  return{protocol:'sengoku-world-v6',supportVersion:'member-support-20261101-v1',allianceBuffsVersion:'alliance-buffs-20261101-v1',socialVersion:'social-20261101-v1',castleSystem:{version:'castle-quiz-20261101-v1',defenseVersion:'castle-defense-20261103-v2',defense:globalThis.HKSengokuTactics.castleDefense,buildCorrect:10,effectCorrect:10,maxEffectLevel:5},capacity:null,worldCount:G.WORLD_COUNT,mapVersion:R.mapVersion,clientRules:7,modernMapVersion:'modern-borders-20261029-v1',titlesVersion:'unification-antarctica-v2',titleCatalog:S.titles.map(t=>({id:t.id,name:t.name,regions:t.regions.length})),antarcticaInitialGarrison:ANTARCTICA_GARRISON,antarcticaVersion,defenseSoldiersPerCorrect:G.DEFENSE_PER_CORRECT,attackSoldiersPerCorrect:G.SOLDIERS_PER_CORRECT,territoryCount:R.regions.length,japanTerritoryCount:R.japanRegions.length,overseasTerritoryCount:R.overseasRegions.length,overseasInitialState:'neutral-5000',overseasInitialGarrison:OVERSEAS_NEUTRAL_GARRISON,overseasGarrisonVersion,mapExpansionVersion:'global-map-neutral-20261028',armyModel:'split-attack-defense-v2',garrisonReinforcement:'selected-land-quiz',initialOwnedGarrison:G.INITIAL_GARRISON,initialGarrisonCountsForRanking:false,rankingVersion:S.version,manualAttackCooldown:this.manualCooldownStatus(),strategyVersion:globalThis.HKSengokuTactics.version,personalRecruitment:this.expansion.personalStatus(),alliances:{protocol:'sengoku-alliance-v1',maxMembers:5,bonusPerAlly:2,maxSoldierBonus:8},startingProvince:'japan',respawnProvince:'japan',startingRegionScope:'japan',respawnRegionScope:'japan',spawnProtectionVersion:G.spawnVersion,spawnProtection:'timed',startingGarrison:G.startingGarrison(1),worldCreation:'fixed-five',worldsVersion:'five-worlds-name-first-20261030-v1',guestEntry:'name-first-v1',defenseResetVersion:'three-worlds-defense-zero-20261025',allianceFeatures:'command-center-v2',combat:'five-correct-tenth-force',damageDivisor:10,wrongAnswerCooldownMs:G.WRONG_COOLDOWN,territoryResetVersion:'quarter-force-neutral-half-20261025',worldSwitch:'preserve-world-progress',captureCooldownMs:G.CAPTURE_COOLDOWN,attackCooldownMs:G.ATTACK_COOLDOWN,protectionMs:G.PROTECTION,startingProtectionMs:G.PROTECTION,respawnProtectionMs:G.PROTECTION,reclaimCooldownMs:G.ATTACK_COOLDOWN,reclaimProtectionMs:G.PROTECTION,reclaimIgnoresProtection:false,quizModes:Object.keys(G.modes),quiz:{eras:[...new Set(historyQuestions.map(q=>q.era))],questions:historyQuestions.length},activeWorldId:member?.worldId||null,account:{signedIn:!!this.accounts.row(owner),name:this.profile(owner)?.name||null},worlds:ids.map(id=>{const w=this.read(id),p=w.players.find(p=>p.owner===owner&&!p.retired);return{...this.summary(w),own:p?{name:p.name,home:p.home,territories:p.s.ownedRegions.length,force:G.attack(p.s),soldiers:p.s.soldiers,generals:p.s.generals.length,pending:!!p.s.pending,incoming:!!p.incoming}:null};})};
  }
  tick(w){
   let changed=this.alliances.expire(w)||false;changed=this.expansion.expire(w)||changed;
@@ -439,7 +448,7 @@ export class SengokuWorlds{
    if(path==='/wealth/sengoku/world/admin/pin/provision')return Response.json(await this.expansion.adminPin.provision(data));
    if(path==='/wealth/sengoku/world/admin/pin/status')return Response.json(this.expansion.adminPinStatus(data.owner));
    if(path==='/wealth/sengoku/world/admin/pin/setup')return Response.json(await this.expansion.adminPinSetup(data.owner,data));
-   if(path==='/wealth/sengoku/world/admin')return Response.json(await this.expansion.adminBoard(data.owner,data.pin));
+   if(path==='/wealth/sengoku/world/admin')return Response.json(await this.expansion.adminBoard(data.owner,data.pin,false,data.noticeOffset));
    if(path==='/wealth/sengoku/world/admin/action')return Response.json(await this.expansion.adminAction(data.owner,data));
    if(path==='/wealth/sengoku/world/timeline')return Response.json(this.expansion.timeline(data.worldId===undefined?this.member(data.owner)?.worldId||1:data.worldId,data.before));
    if(path==='/wealth/sengoku/world/weekly')return Response.json(this.weekly.view(data.owner,data.worldId??this.member(data.owner)?.worldId??1));

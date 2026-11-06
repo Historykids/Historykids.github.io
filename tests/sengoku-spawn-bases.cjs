@@ -14,7 +14,7 @@ await test('the first holding can be attacked after its timed shield and conquer
   assert.equal(region.garrison,G.INITIAL_GARRISON);
  }finally{h.close();}
 });
-await test('guarded Japanese ordinary land can be used immediately and stale attacks are cancelled atomically',async()=>{const h=await setup(3);try{await join(h,'owari');await join(h,'mino',1);seed(h,0,{soldiers:777,general:'nobunaga',guards:9000});seed(h,1,{soldiers:10000});h.advance(G.PROTECTION);assert.equal((await begin(h,'owari',1)).status,200);let v=raw(h);v.world.regions.find(r=>r.id==='owari').protectedUntil=h.board.sengokuWorlds.now()+864000000;store(h,v.world);const d=await join(h,'owari',2);assert.equal(d.world.regions.find(r=>r.id==='owari').garrison,G.STARTING_GARRISON);assert.equal((await get(h,1)).own.state.pending,null);assert.equal((await get(h)).own.incoming,null);assert.equal((await get(h)).own.state.soldiers,777);assert.equal((await get(h)).own.state.generals[0].id,'nobunaga');const retry=await act(h,'respawn',{region:'kai'});assert.equal(retry.status,200);assert.equal(retry.body.world.regions.find(r=>r.id==='kai').garrison,G.INITIAL_GARRISON);}finally{h.close();}});
+await test('guarded Japanese ordinary land can be used immediately and stale attacks are cancelled atomically',async()=>{const h=await setup(3);try{await join(h,'owari');await join(h,'mino',1);seed(h,0,{soldiers:777,general:'nobunaga',guards:9000});seed(h,1,{soldiers:10000});h.advance(G.PROTECTION);assert.equal((await begin(h,'owari',1)).status,200);let v=raw(h);v.world.regions.find(r=>r.id==='owari').protectedUntil=h.board.sengokuWorlds.now()+864000000;store(h,v.world);const d=await join(h,'owari',2);assert.equal(d.world.regions.find(r=>r.id==='owari').garrison,G.startingGarrison(1));assert.equal((await get(h,1)).own.state.pending,null);assert.equal((await get(h)).own.incoming,null);assert.equal((await get(h)).own.state.soldiers,777);assert.equal((await get(h)).own.state.generals[0].id,'nobunaga');const retry=await act(h,'respawn',{region:'kai'});assert.equal(retry.status,200);assert.equal(retry.body.world.regions.find(r=>r.id==='kai').garrison,G.INITIAL_GARRISON);}finally{h.close();}});
 await test('former permanent homes receive a one-time unranked top-up while former recovery holdings keep their guards',async()=>{
  const h=await setup(2);
  try{
@@ -32,6 +32,30 @@ await test('former permanent homes receive a one-time unranked top-up while form
   assert.equal((await h.req('/wealth/sengoku/world/ranking')).body.own.garrison,350);
   const current=raw(h);current.world.regions.find(r=>r.id==='owari').garrison=90000;store(h,current.world);
   h.restart();assert.equal((await get(h)).world.regions.find(r=>r.id==='owari').garrison,90000);
+ }finally{h.close();}
+});
+await test('worlds four and five cap previously issued free guards once and preserve earned or already depleted guards',async()=>{
+ const h=await setup(2);
+ try{
+  for(const [i,worldId] of [4,5].entries()){
+   const joined=await join(h,'owari',i,worldId);
+   assert.equal(joined.world.regions.find(r=>r.id==='owari').garrison,10000);
+   const {world,p}=raw(h,i),home=world.regions.find(r=>r.id==='owari');
+   world.spawnProtectionVersion='japan-starting-garrison-20261106-v1';
+   home.initialGarrisonRemaining=i?7000:100000;
+   home.garrison=home.initialGarrisonRemaining+250;home.garrisonFraction=1234;
+   h.board.sengokuWorlds.rank(world,p);store(h,world);
+  }
+  for(const [i,worldId] of [4,5].entries()){
+   const home=(await get(h,i)).world.regions.find(r=>r.id==='owari');
+   assert.equal(home.garrison,i?7250:10250);
+   assert.equal(home.initialGarrisonRemaining,i?7000:10000);
+   assert.equal(home.garrisonFraction,1234);
+   assert.equal((await h.req('/wealth/sengoku/world/ranking?world='+worldId,undefined,i)).body.own.garrison,250);
+  }
+  const persisted=h.db.prepare('SELECT state FROM sengoku_worlds WHERE id IN (4,5) ORDER BY id').all();
+  h.restart();await get(h);await get(h,1);
+  assert.deepEqual(h.db.prepare('SELECT state FROM sengoku_worlds WHERE id IN (4,5) ORDER BY id').all(),persisted);
  }finally{h.close();}
 });
 await test('a lost spawn response replays once without resetting guards and voluntary departure releases the base',async()=>{const h=await setup(1);try{await get(h);const payload={rules:7,type:'join',worldId:1,region:'owari',revision:0,requestId:crypto.randomUUID()},r=await h.req('/wealth/sengoku/world/action',payload);assert.equal(r.status,200);let v=raw(h);v.world.regions.find(r=>r.id==='owari').garrison=123;store(h,v.world);assert.equal((await h.req('/wealth/sengoku/world/action',payload)).body.replayed,true);assert.equal((await get(h)).world.regions.find(r=>r.id==='owari').garrison,123);assert.equal((await act(h,'leave')).status,200);const d=await get(h,0,1);assert.equal(d.world.regions.find(r=>r.id==='owari').owner,null);const rejoined=await join(h,'mino');assert.equal(rejoined.world.regions.find(r=>r.id==='mino').garrison,G.INITIAL_GARRISON);}finally{h.close();}});

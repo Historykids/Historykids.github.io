@@ -203,11 +203,11 @@ jobs:
           for(let attempt=0;attempt<72;attempt++){
             const response=await fetch(new URL('/wealth/sengoku/world/weekly?world=1',base),{headers:{Origin:'https://historykids.github.io','Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
             weeklyStatus=response.status;weekly=await response.json();
-            weeklyReady=response.ok&&weekly.protocol==='sengoku-weekly-battle-v1'&&weekly.worldId===1&&weekly.rewards?.distribution==='each-member';
+            weeklyReady=response.ok&&weekly.protocol==='sengoku-weekly-battle-v1'&&weekly.worldId===1&&weekly.rewards?.individual?.generalId==='takauji'&&!Object.hasOwn(weekly.rewards,'alliance')&&Array.isArray(weekly.alliances)&&weekly.alliances.length===0;
             if(weeklyReady)break;if(attempt<71)await new Promise(resolve=>setTimeout(resolve,5000));
           }
           if(!weeklyReady)throw Error('Weekly battle ranking unavailable: '+JSON.stringify({status:weeklyStatus,error:weekly?.error,protocol:weekly?.protocol}));
-          console.log('Per-world weekly battle ranking and per-member rewards are available; no battle or reward created by the check');
+          console.log('Per-world individual weekly battle ranking and Takauji rewards are available; no battle or reward created by the check');
           const regionalResponse=await fetch(new URL('/wealth/sengoku/world/ranking?world=1&region=europe',base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
           const regional=await regionalResponse.json();
           if(!regionalResponse.ok||regional.protocol!=='sengoku-force-v2'||regional.region!=='europe'||regional.territoryCount!==50||regional.entries.some(r=>r.territories<1))throw Error('Regional force ranking runtime check failed');

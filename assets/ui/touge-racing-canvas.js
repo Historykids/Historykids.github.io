@@ -10,7 +10,8 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false) {
   const coastal = ["coast", "sakura", "harbor"].includes(theme);
   const [skyTop, skyHorizon, groundColor, waterColor, treeColor, mountainColor, gateColor] = colors;
   const terrain = [];
-  const road = [];
+  const road = new Map([["#bc4e47", []], ["#e0d1b1", []]]);
+  const markings = [];
   const scenery = [];
   const crates = [];
   const worldScale = track.layoutScale ?? 1;
@@ -32,6 +33,11 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false) {
 
   function strip(to, a, b, left, right, y, color) {
     to.push({ color, corners: [point(a, left, y), point(a, right, y), point(b, right, y), point(b, left, y)] });
+  }
+
+  function roadStrip(a, b, left, right, y, color) {
+    if (!road.has(color)) road.set(color, []);
+    strip(road.get(color), a, b, left, right, y, color);
   }
 
   function trackStrip(surfaces, start, end, left, right, y, color) {
@@ -89,12 +95,12 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false) {
     const a = sample(from);
     const b = sample(to);
     const kerb = index % 2 ? "#bc4e47" : "#e0d1b1";
-    strip(road, a, b, -halfWidth - .7, -halfWidth + .08, .09, kerb);
-    strip(road, a, b, halfWidth - .08, halfWidth + .7, .09, kerb);
-    strip(road, a, sample(to + .025), -halfWidth, halfWidth, .13, "#353641");
-    strip(road, a, b, -halfWidth + .22, -halfWidth + .37, .16, "#e3dfd3");
-    strip(road, a, b, halfWidth - .37, halfWidth - .22, .16, "#e3dfd3");
-    if (index % 2 === 0) strip(road, a, b, -.08, .08, .16, "#c9b388");
+    roadStrip(a, b, -halfWidth - .7, -halfWidth + .08, .09, kerb);
+    roadStrip(a, b, halfWidth - .08, halfWidth + .7, .09, kerb);
+    roadStrip(a, sample(to + .025), -halfWidth, halfWidth, .13, "#353641");
+    roadStrip(a, b, -halfWidth + .22, -halfWidth + .37, .16, "#e3dfd3");
+    roadStrip(a, b, halfWidth - .37, halfWidth - .22, .16, "#e3dfd3");
+    if (index % 2 === 0) roadStrip(a, b, -.08, .08, .16, "#c9b388");
     if (index % (theme === "desert" ? 21 : 4) === 0) {
       const side = index % 12 === 0 && from > length * .37 ? 1 : -1;
       const offset = side * (12 + 4 * Math.sin(index * .8) ** 2);
@@ -119,17 +125,17 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false) {
   }
   for (let cell = 0; cell < 14; cell++) {
     for (let row = 0; row < 2; row++) {
-      trackStrip(road, -.8 + row * .8, row * .8, cell - 7, cell - 6, .19,
+      trackStrip(markings, -.8 + row * .8, row * .8, cell - 7, cell - 6, .19,
         (cell + row) % 2 ? "#eee8dd" : "#222b37");
     }
   }
   for (const pad of pads) {
-    trackStrip(road, pad.distance, pad.distance + padLength, pad.lane - padHalfWidth, pad.lane + padHalfWidth, .19, "#137cae");
+    trackStrip(markings, pad.distance, pad.distance + padLength, pad.lane - padHalfWidth, pad.lane + padHalfWidth, .19, "#137cae");
     for (let i = 0; i < 3; i++) {
       const tip = sample(pad.distance + 2 + i * 2.6);
       const front = sample(pad.distance + 1.4 + i * 2.6);
       const back = sample(pad.distance + .6 + i * 2.6);
-      road.push({ color: "#a5efff", corners: [point(back, pad.lane - 1.45, .2), point(tip, pad.lane, .2),
+      markings.push({ color: "#a5efff", corners: [point(back, pad.lane - 1.45, .2), point(tip, pad.lane, .2),
         point(back, pad.lane + 1.45, .2), point(front, pad.lane, .2)] });
     }
   }
@@ -181,7 +187,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false) {
   }
   if (showItems) {
     for (const distance of track.itemLines) {
-      trackStrip(road, distance - ITEM_ZONE_BEFORE, distance + ITEM_ZONE_AFTER, -halfWidth + .3, halfWidth - .3, .19, "#694e9e");
+      trackStrip(markings, distance - ITEM_ZONE_BEFORE, distance + ITEM_ZONE_AFTER, -halfWidth + .3, halfWidth - .3, .19, "#694e9e");
       for (const fraction of ITEM_LANES) {
         const p = sample(distance), lane = halfWidth * fraction;
         const faces = [];
@@ -243,11 +249,16 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false) {
       return { color, screen, depth: clipped.reduce((sum, p) => sum + p[2], 0) / clipped.length };
     }
 
+    function trace(screen) {
+      ctx.moveTo(screen[0][0], screen[0][1]);
+      for (let i = 1; i < screen.length; i++) ctx.lineTo(screen[i][0], screen[i][1]);
+      ctx.closePath();
+    }
+
     function paint(polygon) {
       if (!polygon) return;
       ctx.beginPath();
-      polygon.screen.forEach(([x, y], index) => index ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
-      ctx.closePath();
+      trace(polygon.screen);
       ctx.fillStyle = polygon.color;
       ctx.fill();
     }
@@ -279,8 +290,18 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false) {
     ctx.fillRect(0, horizon, width, height - horizon);
     terrain.forEach(surface => paint(project(surface)));
     const { x: eyeX, z: eyeZ } = camera.position;
-    const nearby = ({ corners: [[x, , z]] }) => Math.abs(x - eyeX) < 390 && Math.abs(z - eyeZ) < 390;
-    for (const surface of road) if (nearby(surface)) paint(project(surface));
+    const nearby = ({ corners: [[x, , z]] }) => Math.abs(x - eyeX) < 345 && Math.abs(z - eyeZ) < 345;
+    for (const [color, strips] of road) {
+      ctx.beginPath();
+      for (const surface of strips) {
+        if (!nearby(surface)) continue;
+        const polygon = project(surface);
+        if (polygon) trace(polygon.screen);
+      }
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+    for (const surface of markings) if (nearby(surface)) paint(project(surface));
 
     const faces = [...scenery];
     crates.forEach((crate, index) => {

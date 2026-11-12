@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { createCanvasRenderer } from "./touge-racing-canvas.js?v=7";
+import { createCanvasRenderer } from "./touge-racing-canvas.js?v=7.1";
 import { worldScenery } from "./touge-racing-world.mjs?v=7";
 import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE } from "./touge-racing-tracks.mjs?v=7";
 import { smoothRacerPose } from "./touge-racing-motion.mjs?v=6";

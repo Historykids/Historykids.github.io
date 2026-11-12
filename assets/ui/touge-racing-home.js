@@ -48,7 +48,7 @@ if (existing) showProfile(existing);
 
 const canvas = document.getElementById("portal-course");
 try {
-  const { createScene } = await import("./touge-racing-scene.js?v=7");
+  const { createScene } = await import("./touge-racing-scene.js?v=7.1");
   const track = getTrack("fuji");
   const preview = createScene(canvas, [createRacer(0), createRacer(1)], track);
   new ResizeObserver(() => {

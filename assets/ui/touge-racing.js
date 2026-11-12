@@ -1,4 +1,4 @@
-import { createScene } from "./touge-racing-scene.js?v=7";
+import { createScene } from "./touge-racing-scene.js?v=7.1";
 import { getTrack, LAPS, TRACKS } from "./touge-racing-tracks.mjs?v=7";
 import {
   EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS, TRIAL_PROTOCOL,
@@ -422,10 +422,11 @@ function initialize(profile) {
   function frame(stamp) {
     frameId = 0;
     if (!race || !isActive()) return;
-    const dt = lastFrame ? Math.min(.1, (stamp - lastFrame) / 1000) : 0;
+    const elapsed = lastFrame ? (stamp - lastFrame) / 1000 : 0;
+    const dt = Math.min(.1, elapsed);
     lastFrame = stamp;
     if (race.isOnline) tickOnline(dt, stamp);
-    else if (dt) tickLocal(dt);
+    else if (elapsed) tickLocal(Math.min(2, elapsed));
     refreshHud();
     renderScene(dt, false);
     race.drawMap();

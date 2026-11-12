@@ -1,4 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
+import { createCanvasRenderer } from "./touge-racing-canvas.js";
 
 export const ROAD_HALF = 7.2;
 export const LAPS = 3;
@@ -339,16 +340,27 @@ function car(scene, paint) {
 }
 
 export function createScene(canvas, racers) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+  const attributes = { antialias: true, alpha: false };
+  const context = canvas.getContext("webgl2", attributes) || canvas.getContext("webgl", attributes);
+  const renderer = context
+    ? new THREE.WebGLRenderer({ canvas, context })
+    : createCanvasRenderer(canvas, racers, {
+        sample: trackSample, length: TRACK_LENGTH, halfWidth: ROAD_HALF,
+        pads: BOOST_PADS, padLength: PAD_LENGTH, padHalfWidth: PAD_HALF_WIDTH
+      });
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0xc99982, .0036);
-  const sky = makeSky(scene);
-  landscape(scene);
-  buildRoad(scene);
-  roadside(scene);
+  let sky;
+  let cars = [];
+  if (context) {
+    scene.fog = new THREE.FogExp2(0xc99982, .0036);
+    sky = makeSky(scene);
+    landscape(scene);
+    buildRoad(scene);
+    roadside(scene);
+    cars = racers.map(racer => car(scene, racer.color));
+  }
 
   const camera = new THREE.PerspectiveCamera(61, 1, .12, 720);
-  const cars = racers.map(racer => car(scene, racer.color));
   const frame = {};
   const next = {};
   const eye = new THREE.Vector3();
@@ -366,26 +378,25 @@ export function createScene(canvas, racers) {
   }
 
   function render(state, dt, resetCamera) {
-    racers.forEach((racer, index) => {
+    cars.forEach((model, index) => {
+      const racer = racers[index];
       const p = trackSample(racer.distance, frame);
-      const model = cars[index];
       model.position.set(p.x + p.rx * racer.lane, .18, p.z + p.rz * racer.lane);
       model.rotation.y = Math.atan2(p.fx, p.fz) - racer.steer * .17;
     });
 
     const player = racers[0];
-    const pos = cars[0].position;
     const p = trackSample(player.distance, frame);
     const lookingAhead = trackSample(player.distance + 27, next);
     const intro = state === "ready";
     const back = intro ? (portrait ? 14 : 16) : (portrait ? 11.4 : 10.6);
-    const side = intro && !portrait ? -11.4 : 0;
-    eye.set(pos.x - p.fx * back + p.rx * side, intro ? 6.7 : 4.65, pos.z - p.fz * back + p.rz * side);
+    const lane = player.lane + (intro && !portrait ? -11.4 : 0);
+    eye.set(p.x - p.fx * back + p.rx * lane, intro ? 6.7 : 4.65, p.z - p.fz * back + p.rz * lane);
     target.set(lookingAhead.x + p.rx * (intro ? -1 : player.lane * .36),
       intro ? 2.75 : 2.65, lookingAhead.z + p.rz * (intro ? -1 : player.lane * .36));
     const ease = resetCamera ? 1 : 1 - Math.exp(-10 * dt);
     camera.position.lerp(eye, ease);
-    sky.position.copy(camera.position);
+    if (sky) sky.position.copy(camera.position);
     aim.lerp(target, ease);
     camera.lookAt(aim);
     renderer.render(scene, camera);

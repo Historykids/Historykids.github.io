@@ -1,6 +1,6 @@
 import {
   BOOST_PADS, LAPS, PAD_HALF_WIDTH, PAD_LENGTH, ROAD_HALF, TRACK_LENGTH, createScene, trackSample
-} from "./touge-racing-scene.js";
+} from "./touge-racing-scene.js?v=2";
 
 const byId = id => document.getElementById(id);
 const game = byId("game");
@@ -391,5 +391,5 @@ try {
   start.disabled = false;
 } catch (error) {
   console.error(error);
-  unavailable("3Dを表示できなかったよ。WebGL対応のブラウザで開いてね。");
+  unavailable("3Dを表示できなかったよ。別のブラウザで開いてね。");
 }

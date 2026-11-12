@@ -205,7 +205,7 @@ function initialize(profile) {
     window.scrollTo(0, 0);
   }
 
-  function prepareRace(track, racers, isOnline, isTrial = false) {
+  function prepareRace(track, racers, isOnline, isTrial = false, snapshot = null) {
     cleanupRace();
     menuOpen = false;
     clearInput();
@@ -242,7 +242,7 @@ function initialize(profile) {
     try {
       race = {
         track, racers, player: racers[0], isOnline, isTrial, elapsed: 0, remaining: isOnline ? 5 : 3,
-        laps: isTrial ? 1 : LAPS, ticks: 0, accumulator: 0, tape: isTrial ? [] : null, drawMap, canvas
+        laps: isTrial ? 1 : LAPS, ticks: 0, accumulator: 0, tape: isTrial ? [] : null, drawMap, canvas, snapshot
       };
       race.scene = createScene(canvas, racers, track, { showItems: !isTrial && !!track.region });
       canvas.addEventListener("webglcontextlost", event => {
@@ -589,10 +589,13 @@ function initialize(profile) {
       const track = getTrack(snapshot.trackId);
       const own = snapshot.racers.find(racer => racer.id === id);
       if (!track || !own) return;
-      const racers = [Object.assign(createRacer(own.slot, { grid: true }), own),
-        ...Array.from({ length: VISIBLE_RIVALS }, (_, index) =>
-          Object.assign(createRacer(index, { id: "empty-" + index, grid: true }), { dnf: true }))];
-      if (!prepareRace(track, racers, true)) return;
+      const initial = [own, ...snapshot.racers.filter(racer => racer.id !== id).slice(0, VISIBLE_RIVALS)];
+      const racers = initial.map(racer => Object.assign(createRacer(racer.slot, { grid: true }), racer));
+      while (racers.length <= VISIBLE_RIVALS) {
+        const index = racers.length;
+        racers.push(Object.assign(createRacer(index, { id: "empty-" + index, grid: true }), { dnf: true }));
+      }
+      if (!prepareRace(track, racers, true, false, snapshot)) return;
     }
     mergeNearby(snapshot, id);
     race.snapshot = snapshot;

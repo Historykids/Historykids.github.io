@@ -1,6 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { createCanvasRenderer } from "./touge-racing-canvas.js?v=6";
-import { worldScenery } from "./touge-racing-world.mjs?v=6";
+import { createCanvasRenderer } from "./touge-racing-canvas.js?v=7";
+import { worldScenery } from "./touge-racing-world.mjs?v=7";
+import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE } from "./touge-racing-tracks.mjs?v=7";
 import { smoothRacerPose } from "./touge-racing-motion.mjs?v=6";
 
 function ribbon(track, scene, material, left, right, y, from = 0, to = track.length) {
@@ -163,9 +164,10 @@ function instances(scene, geometry, material, transforms) {
 }
 
 function landscape(scene, track) {
+  const worldScale = track.layoutScale ?? 1;
   const coastal = ["coast", "harbor", "sakura"].includes(track.theme);
-  box(scene, flat(track.colors[2]), 0, -.69, -105, 530, 1.37, coastal ? 402 : 700);
-  box(scene, flat(coastal ? track.colors[3] : track.colors[2]), 0, -1.8, 0, 1000, .45, 1000);
+  box(scene, flat(track.colors[2]), 0, -.69, -105 * worldScale, 530 * worldScale, 1.37, (coastal ? 402 : 700) * worldScale);
+  box(scene, flat(coastal ? track.colors[3] : track.colors[2]), 0, -1.8, 0, 1000 * worldScale, .45, 1000 * worldScale);
 
   let seed = 1347;
   function random() {
@@ -181,7 +183,7 @@ function landscape(scene, track) {
   const peak = new THREE.ConeGeometry(1, 1, 5);
   ranges.forEach(range => {
     instances(scene, peak, flat(track.colors[5]), range.map(([x, z, height]) =>
-      [x, height * .5 - 1.5, z, height * (.75 + random() * .45), height, height, random() * Math.PI]));
+      [x * worldScale, height * .5 * worldScale - 1.5, z * worldScale, height * (.75 + random() * .45) * worldScale, height * worldScale, height * worldScale, random() * Math.PI]));
   });
 
   const trees = [];
@@ -189,8 +191,8 @@ function landscape(scene, track) {
   const rocks = [];
   const bounds = track.outline;
   for (let i = 0; i < (track.theme === "desert" ? 45 : 360); i++) {
-    const x = random() * 290 - 155;
-    const z = random() * 220 - 132;
+    const x = (random() * 290 - 155) * worldScale;
+    const z = (random() * 220 - 132) * worldScale;
     const scale = .65 + random() * 1.05;
     if (bounds.some(p => Math.hypot(p.x - x, p.z - z) < track.halfWidth + 5 + scale)) continue;
     const yaw = random() * Math.PI;
@@ -202,12 +204,12 @@ function landscape(scene, track) {
 
   const swells = [];
   for (let i = 0; i < 145; i++) {
-    const x = random() * 430 - 215;
-    const z = 98 + random() * 155;
+    const x = (random() * 430 - 215) * worldScale;
+    const z = (98 + random() * 155) * worldScale;
     swells.push([x, -1.55, z, 1.7 + random() * 11, .025, .12 + random() * .38, -.15]);
     if (i < 75) {
       const size = .7 + random() * 2;
-      rocks.push([random() * 298 - 158, -.6, 90 + random() * 9, size * 1.55, size, size, random() * 4]);
+      rocks.push([(random() * 298 - 158) * worldScale, -.6, (90 + random() * 9) * worldScale, size * 1.55, size, size, random() * 4]);
     }
   }
   instances(scene, new THREE.DodecahedronGeometry(1), flat(0x655c57), rocks);
@@ -216,7 +218,7 @@ function landscape(scene, track) {
     const buildings = Array.from({ length: 30 }, (_, i) => {
       const x = -160 + (i % 10) * 34, z = -112 - Math.floor(i / 10) * 25;
       const h = track.theme === "night" ? 14 + random() * 34 : 4 + random() * 8;
-      return [x, h / 2, z, 11 + random() * 7, h, 10, 0];
+      return [x * worldScale, h / 2, z * worldScale, 11 + random() * 7, h, 10, 0];
     });
     instances(scene, new THREE.BoxGeometry(1, 1, 1), flat(track.theme === "night" ? "#445078" : "#8c6261"), buildings);
     if (track.theme === "night") {
@@ -250,8 +252,8 @@ function itemGates(scene, track) {
   const core = bright("#e1d4ff");
   const geometry = new THREE.BoxGeometry(1.34, 1.34, 1.34);
   for (const distance of track.itemLines) {
-    ribbon(track, scene, bright("#b088f6"), -track.halfWidth + .3, track.halfWidth - .3, .195, distance - .3, distance + .3);
-    for (const fraction of [-.67, -.22, .22, .67]) {
+    ribbon(track, scene, flat("#694e9e"), -track.halfWidth + .3, track.halfWidth - .3, .195, distance - ITEM_ZONE_BEFORE, distance + ITEM_ZONE_AFTER);
+    for (const fraction of ITEM_LANES) {
       const group = new THREE.Group();
       const gem = new THREE.Mesh(geometry, material);
       gem.rotation.z = Math.PI / 4;
@@ -405,7 +407,7 @@ export function createScene(canvas, racers, track, { showItems = false } = {}) {
     renderer.setSize(width, height, false);
   }
 
-  function render(state, dt, resetCamera) {
+  function render(state, dt, resetCamera, itemRespawns = null, elapsed = 0) {
     racers.forEach((racer, index) => {
       const pose = smoothRacerPose(track, racer, poses[index], dt, resetCamera);
       const visible = !racer.dnf && (index === 0 || racer.finishedAt === null);
@@ -418,7 +420,10 @@ export function createScene(canvas, racers, track, { showItems = false } = {}) {
       model.rotation.y = pose.yaw;
       model.userData.paint.color.setHex(pose.color);
     });
-    for (const crate of crates) crate.children[0].rotation.y += dt * 1.7;
+    crates.forEach((crate, index) => {
+      crate.visible = !itemRespawns || itemRespawns[index] <= elapsed;
+      if (crate.visible) crate.children[0].rotation.y += dt * 1.7;
+    });
     const player = poses[0];
     const p = track.sample(player.distance, frame);
     const lookingAhead = track.sample(player.distance + 24, next);
@@ -433,7 +438,8 @@ export function createScene(canvas, racers, track, { showItems = false } = {}) {
     if (sky) sky.position.copy(camera.position);
     aim.lerp(target, ease);
     camera.lookAt(aim);
-    renderer.render(scene, camera);
+    if (context) renderer.render(scene, camera);
+    else renderer.render(scene, camera, itemRespawns, elapsed);
   }
 
   function dispose() {

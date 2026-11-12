@@ -1,4 +1,8 @@
-export function mountRaceUI(root, showRankings) {
+export function mountRaceUI(root, showRankings, difficulties, laps) {
+  const lapRows = showRankings ? Array.from({ length: laps }, (_, index) =>
+    `<div><dt>LAP ${index + 1}</dt><dd>—</dd></div>`).join("") : "";
+  const difficultyOptions = difficulties ? Object.entries(difficulties).map(([value, level]) =>
+    `<option value="${value}">${level.label}</option>`).join("") : "";
   root.innerHTML = `
     <section class="setup" id="setup" aria-labelledby="game-title">
         <div class="race-heading">
@@ -23,13 +27,14 @@ export function mountRaceUI(root, showRankings) {
           <div class="course-heading">
             <div><h2 id="courses-title">コースを選ぶ</h2><p id="selected-info"></p></div>
             <div class="course-actions">
+              ${difficulties ? `<label class="cpu-setting" for="cpu-difficulty"><span>CPUの強さ</span><select id="cpu-difficulty">${difficultyOptions}</select></label>` : ""}
               ${showRankings ? '<a class="secondary" id="open-ranking" href="./touge-racing-ranking.html">ランキング</a>' : ""}
               <button class="primary" id="start" type="button" disabled>CPUと対戦する →</button>
             </div>
           </div>
           <div id="course-grid" class="course-grid" aria-label="全10コース"></div>
         </section>
-        <p class="control-tip" id="race-tip">カーブでドリフトを続けて、離すと加速。紫の箱を通るとアイテムが手に入るよ。</p>
+        <p class="control-tip" id="race-tip">カーブでドリフトを続けて、離すと加速。紫の箱でアイテムをゲット。取られた箱は1秒で復活するよ。</p>
       </section>
 
       <section class="lobby" id="lobby" aria-labelledby="lobby-title" hidden>
@@ -58,10 +63,10 @@ export function mountRaceUI(root, showRankings) {
         </aside>
         <div class="hud" id="hud">
           <div class="race-stats">
-            
             <div class="stat"><span>周回</span><strong id="lap">1<small id="lap-total"> / 3</small></strong></div>
-            <div class="stat"><span>タイム</span><strong id="time">0:00.00</strong></div>
+            <div class="stat"><span>${showRankings ? "合計タイム" : "タイム"}</span><strong id="time">0:00.00</strong></div>
           </div>
+          ${showRankings ? `<dl class="lap-times" id="lap-hud" aria-label="ラップタイム">${lapRows}</dl>` : ""}
           <div class="rank-plate" id="place-stat" aria-label="現在の順位">
             <strong id="place">4<small>位</small></strong><span id="field-size"></span>
           </div>
@@ -105,9 +110,10 @@ export function mountRaceUI(root, showRankings) {
             <h2 id="result-title">レース終了</h2>
             <p class="result-place" id="result-place-line"><strong id="result-place"></strong> 位 / 4台</p>
             <dl class="result-stats" id="result-stats">
-              <div><dt>タイム</dt><dd id="result-time"></dd></div>
+              <div><dt>${showRankings ? "3周の合計タイム" : "タイム"}</dt><dd id="result-time"></dd></div>
               <div><dt>コース自己ベスト</dt><dd id="best-time"></dd></div>
             </dl>
+            ${showRankings ? `<dl class="lap-times" id="result-laps" aria-label="ラップタイム" hidden>${lapRows}</dl>` : ""}
             <p class="record" id="record" role="status" hidden>自己ベスト更新！</p>
             <ol id="race-order" class="race-order" hidden></ol>
             <p id="result-note" class="result-note" role="status"></p>

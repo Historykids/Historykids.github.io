@@ -22,7 +22,7 @@ for (const { id } of TRACKS) {
   const player = createRacer(0);
   const racers = [player, ...[1, 2, 3].map(slot => createRacer(slot, { cpu: true }))];
   let boosted = false;
-  for (let elapsed = 0; elapsed < 150 && player.finishedAt === null; elapsed += STEP) {
+  for (let elapsed = 0; elapsed < 360 && player.finishedAt === null; elapsed += STEP) {
     player.input = steering(track, player);
     stepRace(track, racers, STEP, elapsed);
     boosted ||= player.boost > 0;
@@ -106,21 +106,33 @@ console.log("Five seats accepted, shared start and results, reconnect, rematch, 
 
 const { DatabaseSync } = await import("node:sqlite");
 const { TougeRaceHub } = await import("../server/ranking-api/touge-racing-hub.mjs");
-const { createTrialRacer, recordTrialInput, replayTrial, TRIAL_PROTOCOL } = await import("../assets/ui/touge-racing-rules.mjs");
+const { CPU_DIFFICULTIES, createItemRespawns, createTrialRacer, lapTime, recordTrialInput, replayTrial, TRIAL_MAX_TICKS, TRIAL_PROTOCOL } = await import("../assets/ui/touge-racing-rules.mjs");
 const track = getTrack("yunagi");
 
-function trial(track, idleTicks = 0) {
+function trial(track, idleTicks = 0, laps = LAPS) {
   const player = createTrialRacer();
   const racers = [player], tape = [];
   let tick = 0;
-  while (player.finishedAt === null && tick < 3600) {
+  while (player.finishedAt === null && tick < TRIAL_MAX_TICKS) {
     player.input = tick < idleTicks ? { gas: false, brake: false, turn: 0 } : steering(track, player);
     recordTrialInput(tape, player.input);
-    stepRace(track, racers, STEP, tick++ * STEP, 1);
+    stepRace(track, racers, STEP, tick++ * STEP, laps);
   }
-  assert.equal(player.distance, track.length);
-  assert.equal(replayTrial(track, tape), player.finishedAt);
-  assert.equal(replayTrial(track, [...tape, [5, 1]]), null);
+  assert.equal(player.distance, track.length * laps);
+  assert.equal(player.lapEnds.length, laps);
+  assert.equal(player.lapEnds.at(-1), player.finishedAt);
+  assert.equal(Math.round(player.lapEnds.reduce((sum, _, index) => sum + lapTime(player.lapEnds, index), 0) * 100),
+    Math.round(player.finishedAt * 100));
+  const protocol = laps === 1 ? "touge-time-attack-2" : TRIAL_PROTOCOL;
+  assert.equal(replayTrial(track, tape, protocol), player.finishedAt);
+  assert.equal(replayTrial(track, [...tape, [5, 1]], protocol), null);
+  assert.equal(player.item, null);
+  if (track.layoutScale > 1 && !idleTicks) {
+    assert(player.lapEnds.every((_, index) => {
+      const seconds = lapTime(player.lapEnds, index);
+      return seconds >= 50 && seconds <= 70;
+    }), track.id + " laps take around a minute");
+  }
   return tape;
 }
 for (const { id } of TRACKS) trial(getTrack(id));
@@ -166,8 +178,14 @@ assert.deepEqual(listing.rooms, []);
 const record = { protocol: TRIAL_PROTOCOL, track: "yunagi", player: crypto.randomUUID(), name: "レーサーA", tape: trial(track, 10) };
 const submit = run => hub.fetch(request("/race/leaderboard", run));
 assert.equal((await submit({ ...record, tape: [[5, 1]], seconds: .01 })).status, 400);
-assert.equal((await submit({ ...record, tape: [[5, 3601]] })).status, 400);
-const first = await (await submit(record)).json();
+assert.equal((await submit({ ...record, tape: [[5, TRIAL_MAX_TICKS + 1]] })).status, 400);
+const prior = await (await submit({ ...record, protocol: "touge-time-attack-2", tape: trial(track, 0, 1) })).json();
+assert(prior.updated);
+assert.deepEqual((await (await hub.fetch(request("/race/leaderboard?track=yunagi"))).json()).entries, []);
+assert.equal((await submit({ ...record, tape: trial(track, 0, 1) })).status, 400);
+const first = await (await submit({ ...record, laps: [.01,.02,.03], seconds: .06 })).json();
+assert(first.seconds > prior.seconds);
+assert.deepEqual(Object.keys(first.entries[0]).sort(), ["name","rank","seconds"]);
 const slower = await (await submit({ ...record, tape: trial(track, 20) })).json();
 assert.equal(slower.updated, false);
 assert.equal(slower.seconds, first.seconds);
@@ -182,7 +200,7 @@ assert(!JSON.stringify(better).includes(record.player));
 const other = await (await hub.fetch(request("/race/leaderboard?track=night"))).json();
 assert.deepEqual(other.entries, []);
 database.close();
-console.log("All ten time trials, front/side impacts, live directory lifecycle, replay validation, and per-track ranking passed.");
+console.log("All ten three-lap trials, exact splits, collision physics, live rooms, replay validation and total-only ranking passed.");
 
 const { EMPTY_INPUT, MIN_ROOM_PLAYERS, VISIBLE_RIVALS } = await import("../assets/ui/touge-racing-rules.mjs");
 const world = getTrack("fuji");
@@ -194,12 +212,13 @@ assert(drifting.drifting && drifting.driftCharge >= .55);
 drifting.input = { ...EMPTY_INPUT, gas: true };
 stepRace(world, [drifting], STEP, 20 * STEP, 1);
 assert(!drifting.drifting && drifting.boost > .6);
+const boxes = createItemRespawns(world);
 const itemDriver = createRacer(0);
 Object.assign(itemDriver, { distance: world.itemLines[0] - .3, lane: 0, speed: 32, input: { ...EMPTY_INPUT, gas: true } });
-stepRace(world, [itemDriver], STEP, 1);
+stepRace(world, [itemDriver], STEP, 1, LAPS, boxes);
 assert.equal(itemDriver.item, "turbo");
 itemDriver.input = { ...EMPTY_INPUT, gas: true, item: true };
-stepRace(world, [itemDriver], STEP, 1 + STEP);
+stepRace(world, [itemDriver], STEP, 1 + STEP, LAPS, boxes);
 assert.equal(itemDriver.item, null);
 assert(itemDriver.boost > 2);
 
@@ -255,3 +274,70 @@ for (let i = 0; i < 60; i++) {
 }
 assert(largestJump < .11, "Steering or network corrections do not jump the rendered car sideways");
 console.log("All ten scenic models and smoothed position/yaw verified.");
+
+for (const { id } of TRACKS) {
+  const expanded = getTrack(id);
+  assert(expanded.length >= 2500 && expanded.length <= 2750.01);
+  assert.equal(expanded.halfWidth, getTrack(id, { classic: true }).halfWidth);
+  assert.equal(expanded.itemLines.length, 7);
+}
+const edgeBoxes = createItemRespawns(world);
+const edgeDriver = createRacer(0);
+Object.assign(edgeDriver, {
+  distance: world.itemLines[0] - 4, lane: world.halfWidth + .2, speed: 30,
+  input: { ...EMPTY_INPUT, gas: true }
+});
+stepRace(world, [edgeDriver], STEP, 2, LAPS, edgeBoxes);
+assert.equal(edgeDriver.item, "turbo");
+assert(edgeDriver.pickup > 0);
+edgeDriver.input = { ...EMPTY_INPUT, gas: true, item: true };
+stepRace(world, [edgeDriver], STEP, 2 + STEP, LAPS, edgeBoxes);
+edgeDriver.input = { ...EMPTY_INPUT, gas: true };
+stepRace(world, [edgeDriver], STEP, 2 + STEP * 2, LAPS, edgeBoxes);
+assert.equal(edgeDriver.item, null, "A gate does not grant the same item twice");
+edgeDriver.item = "grip";
+edgeDriver.input = { ...EMPTY_INPUT, gas: true, item: true };
+stepRace(world, [edgeDriver], STEP, 3, LAPS, edgeBoxes);
+assert(edgeDriver.grip > 0);
+edgeDriver.item = "recovery";
+edgeDriver.itemHeld = false;
+edgeDriver.slow = 1;
+edgeDriver.speed = 17;
+stepRace(world, [edgeDriver], STEP, 4, LAPS, edgeBoxes);
+assert(edgeDriver.speed >= 38 && !edgeDriver.slow);
+const leader = createRacer(0), follower = createRacer(1);
+Object.assign(leader, { distance: 50, lane: 3, item: "backPulse", input: { ...EMPTY_INPUT, gas: true, item: true } });
+Object.assign(follower, { distance: 34, lane: -3, speed: 40 });
+stepRace(world, [leader, follower], STEP, 5, LAPS, edgeBoxes);
+assert.equal(leader.item, null);
+assert(follower.slow > 0 && follower.speed < 30);
+
+const times = Object.keys(CPU_DIFFICULTIES).map(difficulty => {
+  const driver = createRacer(1, { cpu: true, difficulty });
+  for (let tick = 0; tick < TRIAL_MAX_TICKS && driver.finishedAt === null; tick++) {
+    stepRace(track, [driver], STEP, tick * STEP);
+  }
+  return driver.finishedAt;
+});
+assert(times.every(Number.isFinite));
+assert(times[0] > times[1] && times[1] > times[2]);
+const respawn = createItemRespawns(world);
+const edgeAtGate = () => Object.assign(createRacer(0), {
+  distance: world.itemLines[0] - 3, lane: world.halfWidth + .2, speed: 30,
+  input: { ...EMPTY_INPUT, gas: true }
+});
+const picker = edgeAtGate(), tooEarly = edgeAtGate(), inTime = edgeAtGate();
+stepRace(world, [picker], STEP, 2, LAPS, respawn);
+assert.equal(picker.item, "turbo");
+assert.equal(respawn.filter(time => time > 0).length, 1);
+assert(respawn.includes(3));
+stepRace(world, [tooEarly], STEP, 2.999, LAPS, respawn);
+assert.equal(tooEarly.item, null);
+stepRace(world, [inTime], STEP, 3, LAPS, respawn);
+assert.equal(inTime.item, "turbo");
+assert(respawn.includes(4));
+const solo = createTrialRacer();
+Object.assign(solo, { distance: world.itemLines[0], speed: 30, input: { ...EMPTY_INPUT, gas: true } });
+stepRace(world, [solo], STEP, 8, LAPS, respawn);
+assert.equal(solo.item, null);
+console.log("Minute-long circuits, shoulder pickup, one-second shared respawns and three CPU difficulty levels passed.");

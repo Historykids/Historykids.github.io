@@ -1,5 +1,5 @@
-import { getTrack } from "./touge-racing-tracks.mjs?v=6";
-import { createRacer, ROOM_CODE } from "./touge-racing-rules.mjs?v=6";
+import { getTrack } from "./touge-racing-tracks.mjs?v=7";
+import { createRacer, ROOM_CODE } from "./touge-racing-rules.mjs?v=7";
 import { raceName, safeRacePage, saveRaceName, suggestedName } from "./touge-racing-profile.mjs?v=6";
 
 const dialog = document.getElementById("name-dialog");
@@ -48,7 +48,7 @@ if (existing) showProfile(existing);
 
 const canvas = document.getElementById("portal-course");
 try {
-  const { createScene } = await import("./touge-racing-scene.js?v=6");
+  const { createScene } = await import("./touge-racing-scene.js?v=7");
   const track = getTrack("fuji");
   const preview = createScene(canvas, [createRacer(0), createRacer(1)], track);
   new ResizeObserver(() => {

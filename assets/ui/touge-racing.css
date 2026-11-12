@@ -450,6 +450,23 @@ body { background: radial-gradient(ellipse at 78% 0%, #20394a 0%, #101c27 53%); 
 .course-actions, .rank-actions { display: flex; align-items: center; gap: .45rem; }
 .course-actions { flex-shrink: 0; }
 .course-actions .secondary { white-space: nowrap; }
+.cpu-setting {
+  display: grid;
+  gap: .18rem;
+  color: var(--muted);
+  font-size: .75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cpu-setting select {
+  padding: .45rem .5rem;
+  border: 1px solid #81bcfa75;
+  border-radius: 6px;
+  background: #17263b;
+  color: #edf7ff;
+  font: inherit;
+  font-size: .86rem;
+}
 .room-header { display: flex; justify-content: space-between; align-items: center; gap: .65rem; }
 .room-header p { color: var(--muted); margin: 0; font-size: .79rem; }
 .room-header button { min-height: 38px; padding: .4rem .7rem; flex-shrink: 0; }
@@ -621,6 +638,25 @@ body { background: radial-gradient(ellipse at 82% -5%, #293c61 0%, #101827 58%);
 #seats, #race-order { max-height: min(44dvh, 360px); overflow-y: auto; }
 .game .race-stats { top: .65rem; left: 50%; transform: translateX(-50%); }
 .game .race-stats .stat:first-child { border-left: 0; }
+.lap-times {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .25rem;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.lap-times div {
+  min-width: 3.65rem;
+  padding: .25rem .4rem;
+  border: 1px solid #d0eeff39;
+  border-radius: 6px;
+  background: #111e2bea;
+}
+.lap-times div[data-active="true"] { border-color: #e4b66d; }
+.lap-times dt { color: var(--muted); font-size: .65rem; font-weight: 700; }
+.lap-times dd { margin: .12rem 0 0; color: #edf7ff; font-size: .83rem; font-weight: 800; }
+#lap-hud { position: absolute; top: 4.1rem; left: 50%; transform: translateX(-50%); }
+#result-laps { margin: 0 0 .45rem; }
 .rank-plate {
   position: absolute;
   right: max(1.2rem, env(safe-area-inset-right));
@@ -702,6 +738,7 @@ body { background: radial-gradient(ellipse at 82% -5%, #293c61 0%, #101827 58%);
   .portal-copy > p:last-child { font-size: .84rem; }
   .game .race-stats .stat { min-width: 3.35rem; padding-inline: .44rem; }
   .game .race-stats .stat strong { font-size: .96rem; }
+  #lap-hud { top: 3.65rem; left: .65rem; transform: none; }
   .item-hud { padding: .22rem; }
   .item-hud > span { width: 38px; height: 38px; }
   .item-hud > div { position: absolute; top: calc(100% + .3rem); left: 0; width: max-content; }

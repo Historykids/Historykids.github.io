@@ -1,5 +1,5 @@
-import { getTrack } from "./touge-racing-tracks.mjs?v=6";
-import { formatTime, ROOM_CODE } from "./touge-racing-rules.mjs?v=6";
+import { getTrack } from "./touge-racing-tracks.mjs?v=7";
+import { formatTime, ROOM_CODE } from "./touge-racing-rules.mjs?v=7";
 
 const byId = id => document.getElementById(id);
 
@@ -107,7 +107,7 @@ export function createRankingPanel() {
         return row;
       }));
       table.hidden = !result.entries.length;
-      status.textContent = result.entries.length ? "" : "まだ記録がないよ。タイムアタックで1周して登録しよう。";
+      status.textContent = result.entries.length ? "" : "まだ記録がないよ。タイムアタックで3周して登録しよう。";
     } catch {
       if (version === request) status.textContent = "ランキングを読み込めなかったよ。「更新」でもう一度試せるよ。";
     }

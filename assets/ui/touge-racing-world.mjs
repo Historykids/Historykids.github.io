@@ -1,7 +1,10 @@
 // Geometric scenery used by both the WebGL and Canvas renderers.
 export function worldScenery(track) {
   const shapes = [];
-  const mesh = (color, vertices, faces) => shapes.push({ color, vertices, faces });
+  const scale = track.layoutScale ?? 1;
+  const mesh = (color, vertices, faces) => shapes.push({
+    color, vertices: vertices.map(point => point.map(value => value * scale)), faces
+  });
   const ring = (x, y, z, w, d, n, rotation) => Array.from({ length: n }, (_, i) => {
     const a = (i + .5) * Math.PI * 2 / n + rotation;
     return [x + Math.cos(a) * w / 2, y, z + Math.sin(a) * d / 2];

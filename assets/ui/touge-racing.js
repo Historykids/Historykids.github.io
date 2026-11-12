@@ -1,13 +1,13 @@
-import { createScene } from "./touge-racing-scene.js?v=6";
-import { getTrack, LAPS, TRACKS } from "./touge-racing-tracks.mjs?v=6";
+import { createScene } from "./touge-racing-scene.js?v=7";
+import { getTrack, LAPS, TRACKS } from "./touge-racing-tracks.mjs?v=7";
 import {
-  EMPTY_INPUT, ROOM_CODE, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, STEP, TRIAL_MAX_TICKS, TRIAL_PROTOCOL,
-  applyDrive, createRacer, createTrialRacer, formatTime, isDriving, rankRacers, recordTrialInput, stepRace
-} from "./touge-racing-rules.mjs?v=6";
+  EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS, TRIAL_PROTOCOL,
+  applyDrive, createItemRespawns, createRacer, createTrialRacer, formatTime, isDriving, lapTime, rankRacers, recordTrialInput, stepRace
+} from "./touge-racing-rules.mjs?v=7";
 import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=6";
-import { createRoomDirectory, raceRequest } from "./touge-racing-menu.js?v=6";
+import { createRoomDirectory, raceRequest } from "./touge-racing-menu.js?v=7";
 
-import { mountRaceUI } from "./touge-racing-ui.js?v=6.2";
+import { mountRaceUI } from "./touge-racing-ui.js?v=7";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();
@@ -16,7 +16,7 @@ if (profile) initialize(profile);
 function initialize(profile) {
   const params = new URL(location.href).searchParams;
   const mode = document.body.dataset.racePage === "rooms" ? "online" : params.get("mode") === "trial" ? "trial" : "cpu";
-  mountRaceUI(document.getElementById("race-app"), mode === "trial");
+  mountRaceUI(document.getElementById("race-app"), mode === "trial", mode === "cpu" ? CPU_DIFFICULTIES : null, LAPS);
   const byId = id => document.getElementById(id);
   const setup = byId("setup"), lobby = byId("lobby"), game = byId("game");
   const start = byId("start"), pause = byId("pause"), resume = byId("resume"), retry = byId("retry");
@@ -33,15 +33,20 @@ function initialize(profile) {
     ["ShiftLeft", "drift"], ["ShiftRight", "drift"], ["Space", "item"]
   ]);
 
-  const BEST_PREFIX = "historykids.tougeRacing.best.v2.";
-  const TRIAL_BEST_PREFIX = "historykids.tougeRacing.trial.best.";
+  const BEST_PREFIX = "historykids.tougeRacing.best.long.";
+  const TRIAL_BEST_PREFIX = "historykids.tougeRacing.trial.best.3laps.";
+  const CPU_DIFFICULTY_KEY = "historykids.tougeRacing.cpuDifficulty";
+  const cpuDifficulty = byId("cpu-difficulty");
+  const itemHint = matchMedia("(any-pointer: coarse)").matches ? "アイテムボタンで使う" : "Spaceで使う";
+  const lapHud = [...document.querySelectorAll("#lap-hud dd")];
+  const lapResult = [...document.querySelectorAll("#result-laps dd")];
   const PLAYER_KEY = "historykids.tougeRacing.trial.player";
   const defaultTrack = TRACKS[0].id;
   const chosen = params.get("track");
   let selected = TRACKS.some(course => course.id === chosen) ? chosen : defaultTrack;
   let state = "setup";
   let race, online, onlinePhase, previousState, menuOpen = false;
-  let frameId = 0, lastFrame = 0;
+  let frameId = 0, lastFrame = 0, itemTap = false;
   const setDirectoryActive = createRoomDirectory(code => joinOnline(code, { type: "join" }));
   const modes = {
     cpu: "CPUと対戦する →", online: "このコースで部屋を作る →", trial: "タイムアタック開始 →"
@@ -49,7 +54,7 @@ function initialize(profile) {
 
   function bestTime(id, trial = false) {
     const key = (trial ? TRIAL_BEST_PREFIX : BEST_PREFIX) + id;
-    const saved = Number(load(key) || (!trial && id === "yunagi" ? load("historykids.tougeRacing.best.v1") : null));
+    const saved = Number(load(key));
     return Number.isFinite(saved) && saved > 0 ? saved : Infinity;
   }
 
@@ -132,7 +137,7 @@ function initialize(profile) {
     for (const card of courseGrid.children) card.setAttribute("aria-pressed", String(card.dataset.course === id));
     const course = getTrack(id);
     const best = bestTime(id, mode === "trial");
-    byId("selected-info").textContent = course.region + " · " + course.description +
+    byId("selected-info").textContent = course.region + " · 1周 " + (course.length / 1000).toFixed(2) + " km · " + course.description +
       (mode !== "online" && Number.isFinite(best) ? " 自己ベスト " + formatTime(best) : "");
     if (mode === "trial") byId("open-ranking").href = "./touge-racing-ranking.html?track=" + encodeURIComponent(id);
   }
@@ -145,7 +150,7 @@ function initialize(profile) {
     if (mode === "online") byId("courses-title").textContent = "コースを選んで部屋を作る";
     if (mode === "trial") {
       keyboardHelp.textContent = "↑↓←→ / WASD　Shiftでドリフト";
-      byId("race-tip").textContent = "1人で1周。カーブでドリフトを続けて、離すと加速するよ。";
+      byId("race-tip").textContent = "1人で3周。周回ごとのラップを計測し、3周の合計タイムで競うよ。";
     }
     const label = byId("profile-link");
     label.textContent = profile + " · 名前を変更";
@@ -173,6 +178,7 @@ function initialize(profile) {
 
   function clearInput() {
     held.clear();
+    itemTap = false;
     buttons.forEach(button => button.classList.remove("pressed"));
     if (online) online.control(EMPTY_INPUT, true);
   }
@@ -183,7 +189,7 @@ function initialize(profile) {
       gas: actions.includes("gas"),
       brake: actions.includes("brake"),
       turn: Number(actions.includes("right")) - Number(actions.includes("left")),
-      drift: actions.includes("drift"), item: actions.includes("item")
+      drift: actions.includes("drift"), item: itemTap || actions.includes("item")
     };
   }
 
@@ -229,9 +235,9 @@ function initialize(profile) {
     byId("map-title").textContent = track.name;
     byId("place-stat").hidden = isTrial;
     byId("item-hud").hidden = isTrial;
-    byId("item-hint").textContent = matchMedia("(any-pointer: coarse)").matches ? "アイテムボタンで使う" : "Spaceで使う";
+    byId("lap-total").textContent = " / " + LAPS;
+    if (isTrial) byId("result-laps").hidden = true;
     for (const button of buttons) if (button.dataset.input === "item") button.hidden = isTrial;
-    byId("lap-total").textContent = " / " + (isTrial ? 1 : LAPS);
     game.dataset.contact = "false";
     byId("race-message").textContent = "";
     pause.textContent = isOnline ? "↩" : "Ⅱ";
@@ -242,7 +248,8 @@ function initialize(profile) {
     try {
       race = {
         track, racers, player: racers[0], isOnline, isTrial, elapsed: 0, remaining: isOnline ? 5 : 3,
-        laps: isTrial ? 1 : LAPS, ticks: 0, accumulator: 0, tape: isTrial ? [] : null, drawMap, canvas, snapshot
+        ticks: 0, accumulator: 0, tape: isTrial ? [] : null, drawMap, canvas, snapshot,
+        itemRespawns: !isOnline && !isTrial ? createItemRespawns(track) : null
       };
       race.scene = createScene(canvas, racers, track, { showItems: !isTrial && !!track.region });
       canvas.addEventListener("webglcontextlost", event => {
@@ -269,7 +276,7 @@ function initialize(profile) {
   function startCPU() {
     const racers = [
       createRacer(0, { name: profile }),
-      ...Array.from({ length: CPU_FIELD_SIZE - 1 }, (_, i) => createRacer(i + 1, { name: "CPU " + (i + 1), cpu: true }))
+      ...Array.from({ length: CPU_FIELD_SIZE - 1 }, (_, i) => createRacer(i + 1, { name: "CPU " + (i + 1), cpu: true, difficulty: cpuDifficulty.value }))
     ];
     prepareRace(getTrack(selected), racers, false);
   }
@@ -283,20 +290,35 @@ function initialize(profile) {
     else startCPU();
   }
 
+  function showLapTimes(fields, elapsed = null) {
+    const ends = race.player.lapEnds;
+    fields.forEach((field, index) => {
+      const split = lapTime(ends, index);
+      const active = elapsed !== null && index === ends.length;
+      const value = Number.isFinite(split) ? split : active ? elapsed - (ends.at(-1) ?? 0) : null;
+      const text = value === null ? "—" : formatTime(value);
+      if (field.textContent !== text) field.textContent = text;
+      field.parentElement.dataset.active = String(active);
+    });
+  }
+
   function refreshHud() {
-    const { player, racers, track, elapsed, remaining, laps } = race;
+    const { player, racers, track, elapsed, remaining } = race;
     const place = race.snapshot?.rank ?? rankRacers(racers).indexOf(player) + 1;
     placeNumber.nodeValue = place;
     game.dataset.rank = String(place);
     byId("field-size").textContent = (race.snapshot?.fieldSize ?? racers.length) + "台中";
     const item = ITEMS[player.item];
     byId("item-icon").textContent = item?.icon ?? "◇";
-    byId("item-name").textContent = item?.label ?? (player.shield > 0 ? "ガード中" : player.slow > 0 ? "パルス被弾" : "アイテムなし");
+    byId("item-name").textContent = item?.label ?? (player.shield > 0 ? "ガード中" : player.grip > 0 ? "グリップ中" : player.slow > 0 ? "パルス被弾" : "アイテムなし");
     byId("item-hud").style.setProperty("--item-color", item?.color ?? "#a7bcdb");
     byId("item-hud").dataset.ready = String(!!item);
+    byId("item-hint").textContent = item ? (player.pickup > 0 ? "アイテムをゲット！" : itemHint) : "紫の箱を通過";
     byId("drift-label").hidden = !player.drifting;
     byId("drift-meter").value = player.driftCharge;
-    lapNumber.nodeValue = Math.min(laps, Math.floor(Math.max(0, player.distance) / track.length) + 1);
+    lapNumber.nodeValue = race.isTrial ? Math.min(LAPS, player.lapEnds.length + 1)
+      : Math.min(LAPS, Math.floor(Math.max(0, player.distance) / track.length) + 1);
+    if (race.isTrial) showLapTimes(lapHud, elapsed);
     time.textContent = formatTime(player.finishedAt ?? elapsed);
     const kph = Math.round(player.speed * 3.6);
     speed.textContent = kph;
@@ -317,13 +339,14 @@ function initialize(profile) {
       dt = -race.remaining;
       showState("racing");
     }
-    race.player.input = input();
     const { track, racers, player } = race;
     race.accumulator += dt;
     while (race.accumulator + 1e-9 >= STEP) {
       race.accumulator -= STEP;
+      player.input = input();
+      itemTap = false;
       if (race.isTrial) recordTrialInput(race.tape, player.input);
-      stepRace(track, racers, STEP, race.ticks * STEP, race.laps);
+      stepRace(track, racers, STEP, race.ticks * STEP, LAPS, race.itemRespawns);
       race.ticks++;
       race.elapsed = race.ticks * STEP;
       if (race.isTrial && (player.finishedAt !== null || race.ticks >= TRIAL_MAX_TICKS)) {
@@ -344,7 +367,8 @@ function initialize(profile) {
     race.remaining = Math.max(0, snapshot.countdown - age);
     if (snapshot.phase === "racing") race.elapsed = snapshot.elapsed + Math.min(.16, age);
     const drive = menuOpen ? EMPTY_INPUT : input();
-    online.control(drive);
+    online.control(drive, itemTap);
+    itemTap = false;
     if (snapshot.phase !== "racing") return;
     for (const racer of race.racers) {
       const target = race.targets?.get(racer.id);
@@ -355,6 +379,8 @@ function initialize(profile) {
       racer.contact = Math.max(0, target.contact - age);
       racer.item = target.item;
       racer.shield = target.shield;
+      racer.grip = Math.max(0, (target.grip ?? 0) - age);
+      racer.pickup = Math.max(0, (target.pickup ?? 0) - age);
       racer.slow = target.slow;
       if (own && isDriving(racer) && online.joined && age < .55) {
         applyDrive(race.track, racer, drive, dt);
@@ -379,10 +405,15 @@ function initialize(profile) {
     }
   }
 
+  function renderScene(dt, resetCamera) {
+    const boxes = race.isOnline ? race.snapshot?.itemRespawns : race.itemRespawns;
+    race.scene.render(state, dt, resetCamera, boxes, race.elapsed);
+  }
+
   function resize() {
     if (!race?.scene || game.hidden) return;
     race.scene.resize(game.clientWidth, game.clientHeight);
-    race.scene.render(state, 0, true);
+    renderScene(0, true);
     race.drawMap();
   }
   function schedule() {
@@ -396,7 +427,7 @@ function initialize(profile) {
     if (race.isOnline) tickOnline(dt, stamp);
     else if (dt) tickLocal(dt);
     refreshHud();
-    race.scene.render(state, dt, false);
+    renderScene(dt, false);
     race.drawMap();
     if (isActive()) schedule();
   }
@@ -458,7 +489,9 @@ function initialize(profile) {
     byId("record").hidden = !improved;
     byId("result-time").textContent = finished ? formatTime(player.finishedAt) : "未完走";
     byId("best-time").textContent = formatTime(improved ? player.finishedAt : prior);
-    byId("result-note").textContent = finished ? "" : "2分以内に1周するとランキングに登録できるよ。";
+    byId("result-laps").hidden = false;
+    showLapTimes(lapResult);
+    byId("result-note").textContent = finished ? "" : (TRIAL_LIMIT / 60) + "分以内に3周するとランキングに登録できるよ。";
     byId("trial-submit").hidden = !finished;
     byId("submit-time").disabled = false;
     byId("trial-status").textContent = "";
@@ -584,7 +617,7 @@ function initialize(profile) {
       return;
     }
     if (!race || (snapshot.phase === "countdown" && formerPhase === "finished")) {
-      const track = getTrack(snapshot.trackId);
+      const track = getTrack(snapshot.trackId, { classic: snapshot.layout !== "long" });
       const own = snapshot.racers.find(racer => racer.id === id);
       if (!track || !own) return;
       const initial = [own, ...snapshot.racers.filter(racer => racer.id !== id).slice(0, VISIBLE_RIVALS)];
@@ -656,8 +689,13 @@ function initialize(profile) {
     rememberRoom(null);
   }
 
+  if (cpuDifficulty) {
+    const preferred = load(CPU_DIFFICULTY_KEY);
+    cpuDifficulty.value = Object.hasOwn(CPU_DIFFICULTIES, preferred) ? preferred : "normal";
+    cpuDifficulty.addEventListener("change", () => save(CPU_DIFFICULTY_KEY, cpuDifficulty.value));
+  }
   start.addEventListener("click", () => {
-    if (mode === "online") joinOnline(makeRoomCode(), { type: "create", trackId: selected });
+    if (mode === "online") joinOnline(makeRoomCode(), { type: "create", trackId: selected, layout: "long" });
     else startLocalRace();
   });
   byId("trial-submit").addEventListener("submit", submitTrial);
@@ -689,6 +727,7 @@ function initialize(profile) {
     if (!isActive() || menuOpen || !keys.has(event.code) || event.altKey || event.ctrlKey || event.metaKey) return;
     event.preventDefault();
     held.set(event.code, keys.get(event.code));
+    if (event.code === "Space" && !event.repeat) itemTap = true;
   });
   window.addEventListener("keyup", event => held.delete(event.code));
   window.addEventListener("blur", () => {
@@ -706,6 +745,7 @@ function initialize(profile) {
       event.preventDefault();
       button.setPointerCapture(event.pointerId);
       held.set(event.pointerId, button.dataset.input);
+      if (button.dataset.input === "item") itemTap = true;
       button.classList.add("pressed");
     });
     for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {

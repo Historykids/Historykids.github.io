@@ -3,7 +3,8 @@ import { replayTrial, ROOM_CODE, TRIAL_PROTOCOL } from "../../assets/ui/touge-ra
 
 const ROOM_TTL = 40000;
 const RECORD_LIMIT = 20;
-const MAX_PAYLOAD = 30000;
+const MAX_PAYLOAD = 85000;
+const totalBoard = track => track + ":3laps";
 const PLAYER_KEY = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 
 export const cleanRacerName = value => typeof value === "string"
@@ -91,26 +92,26 @@ export class TougeRaceHub {
   }
 
   submit(run) {
-    const track = getTrack(run?.track);
+    const track = getTrack(run?.track, { classic: run?.protocol !== TRIAL_PROTOCOL });
     const name = cleanRacerName(run?.name);
-    const legacy = track && !track.region && run?.protocol === "touge-time-attack-1";
-    if (!track || !name || !PLAYER_KEY.test(run?.player ?? "") || (!legacy && run.protocol !== TRIAL_PROTOCOL)) {
+    if (!track || !name || !PLAYER_KEY.test(run?.player ?? "") || typeof run.protocol !== "string") {
       return reply({ error: "invalid-record" }, 400);
     }
-    const seconds = replayTrial(track, run.tape, legacy);
+    const seconds = replayTrial(track, run.tape, run.protocol);
     if (seconds === null) return reply({ error: "invalid-replay" }, 400);
     const centis = Math.round(seconds * 100);
-    const old = this.rows("SELECT centis FROM trial_records WHERE track = ? AND player = ?", track.id, run.player)[0];
+    const board = run.protocol === TRIAL_PROTOCOL ? totalBoard(track.id) : track.id;
+    const old = this.rows("SELECT centis FROM trial_records WHERE track = ? AND player = ?", board, run.player)[0];
     const updated = !old || centis < old.centis;
     if (updated) {
       this.sql.exec(`INSERT INTO trial_records (track, player, name, centis, recorded) VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(track, player) DO UPDATE SET name=excluded.name, centis=excluded.centis, recorded=excluded.recorded`,
-        track.id, run.player, name, centis, Date.now());
+        board, run.player, name, centis, Date.now());
     }
     this.sql.exec("UPDATE trial_records SET name = ? WHERE player = ? AND name != ?", name, run.player, name);
     const best = updated ? centis : old.centis;
-    const { place } = this.rows("SELECT COUNT(*) + 1 AS place FROM trial_records WHERE track = ? AND centis < ?", track.id, best)[0];
-    return reply({ track: track.id, rank: place, seconds: best / 100, updated, entries: this.board(track.id) });
+    const { place } = this.rows("SELECT COUNT(*) + 1 AS place FROM trial_records WHERE track = ? AND centis < ?", board, best)[0];
+    return reply({ track: track.id, rank: place, seconds: best / 100, updated, entries: this.board(board) });
   }
 
   async fetch(request) {
@@ -120,6 +121,6 @@ export class TougeRaceHub {
     if (url.pathname !== "/race/leaderboard") return reply({ error: "not-found" }, 404);
     if (request.method === "POST") return this.submit(await readRun(request));
     const track = getTrack(url.searchParams.get("track"));
-    return track ? reply({ track: track.id, entries: this.board(track.id) }) : reply({ error: "invalid-track" }, 400);
+    return track ? reply({ track: track.id, entries: this.board(totalBoard(track.id)) }) : reply({ error: "invalid-track" }, 400);
   }
 }

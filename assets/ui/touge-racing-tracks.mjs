@@ -1,6 +1,9 @@
 export const LAPS = 3;
 export const PAD_LENGTH = 9;
 export const PAD_HALF_WIDTH = 2.35;
+export const ITEM_ZONE_BEFORE = 3.5;
+export const ITEM_ZONE_AFTER = 5;
+export const ITEM_LANES = [-.85, -.51, -.17, .17, .51, .85];
 
 const palettes = {
   coast: ["#395c80", "#f0aa79", "#496650", "#487d8c", "#335447", "#566658", "#d76a48"],
@@ -66,12 +69,17 @@ const worldCourses = [
 export const TRACKS = worldCourses.map(([id, name, region, description, difficulty, theme, halfWidth, points, boostFractions]) =>
   ({ id, name, region, description, difficulty, theme, colors: palettes[theme], halfWidth, points, boostFractions }));
 
+const circuitLengths = {
+  fuji: 2650, amalfi: 2500, paris: 2600, iceland: 2600, giza: 2750,
+  monument: 2700, rio: 2600, singapore: 2500, sydney: 2700, alpine: 2550
+};
 const mix = (a, b, t) => a + (b - a) * t;
 const cached = new Map();
-export function getTrack(id) {
+export function getTrack(id, { classic = false } = {}) {
   const spec = TRACKS.find(track => track.id === id) ?? LEGACY_TRACKS.find(track => track.id === id);
   if (!spec) return null;
-  if (cached.has(id)) return cached.get(id);
+  const key = id + (classic ? ":classic" : "");
+  if (cached.has(key)) return cached.get(key);
 
   const { points } = spec;
   const subdiv = 26;
@@ -90,6 +98,14 @@ export function getTrack(id) {
     const p = [spline(a[0], b[0], c[0], d[0], t), spline(a[1], b[1], c[1], d[1], t)];
     if (i) marks.push(marks[i - 1] + Math.hypot(p[0] - raw[i - 1][0], p[1] - raw[i - 1][1]));
     raw.push(p);
+  }
+  const layoutScale = !classic && circuitLengths[id] ? circuitLengths[id] / marks.at(-1) : 1;
+  if (layoutScale !== 1) {
+    for (const point of raw) {
+      point[0] *= layoutScale;
+      point[1] *= layoutScale;
+    }
+    for (let i = 1; i < marks.length; i++) marks[i] *= layoutScale;
   }
   const length = marks.at(-1);
   const count = Math.ceil(length / 1.1);
@@ -124,8 +140,8 @@ export function getTrack(id) {
   const pads = (spec.boostFractions ?? [.065, .485, .83]).map((portion, i) =>
     ({ distance: length * portion, lane: [0, -2.5, 2.5][i] }));
   const outline = Array.from({ length: 100 }, (_, i) => sample(length * i / 100));
-  const itemLines = [.22, .58, .93].map(portion => length * portion);
-  const track = { ...spec, length, sample, samples, pads, outline, itemLines, padLength: PAD_LENGTH, padHalfWidth: PAD_HALF_WIDTH };
-  cached.set(id, track);
+  const itemLines = (layoutScale > 1 ? [.065, .20, .335, .47, .61, .75, .885] : [.22, .58, .93]).map(portion => length * portion);
+  const track = { ...spec, length, layoutScale, sample, samples, pads, outline, itemLines, padLength: PAD_LENGTH, padHalfWidth: PAD_HALF_WIDTH };
+  cached.set(key, track);
   return track;
 }

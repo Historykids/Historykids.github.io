@@ -1,13 +1,13 @@
-import { getTrack, TRACKS } from "../../assets/ui/touge-racing-tracks.mjs";
+import { getTrack, LAPS, TRACKS } from "../../assets/ui/touge-racing-tracks.mjs";
 import {
-  COUNTDOWN, EMPTY_INPUT, RACE_LIMIT, RACE_PROTOCOL, ROOM_CODE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, STEP, createRacer, isDriving, rankRacers, stepRace
+  COUNTDOWN, EMPTY_INPUT, ITEM_RESPAWN_SECONDS, RACE_LIMIT, RACE_PROTOCOL, ROOM_CODE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, STEP, createItemRespawns, createRacer, isDriving, rankRacers, stepRace
 } from "../../assets/ui/touge-racing-rules.mjs";
 
 import { cleanRacerName, raceHub } from "./touge-racing-hub.mjs";
 
 const ORIGIN = "https://historykids.github.io";
 const RECONNECT_MS = 12000;
-const TIME_AFTER_WIN = 70;
+const TIME_AFTER_WIN = 120;
 const ROOM_IDLE = 20 * 60 * 1000;
 export async function racingRequest(request, env, reply) {
   const url = new URL(request.url);
@@ -31,7 +31,10 @@ export async function racingRequest(request, env, reply) {
   }
   if (!env.RACING_ROOM) return reply({ error: "unavailable" }, 503);
   if (path === "/race/status") {
-    return reply({ protocol: RACE_PROTOCOL, capacity: null, minimumPlayers: MIN_ROOM_PLAYERS, tracks: TRACKS.map(track => track.id) });
+    return reply({
+      protocol: RACE_PROTOCOL, capacity: null, minimumPlayers: MIN_ROOM_PLAYERS,
+      trialLaps: LAPS, itemRespawnSeconds: ITEM_RESPAWN_SECONDS, tracks: TRACKS.map(track => track.id)
+    });
   }
   const code = url.searchParams.get("room");
   if (!ROOM_CODE.test(code ?? "")) return reply({ error: "invalid-room" }, 400);
@@ -53,6 +56,7 @@ export class RaceRoom {
     this.host = null;
     this.track = null;
     this.racers = [];
+    this.itemRespawns = null;
     this.startAt = 0;
     this.elapsed = 0;
     this.tickNumber = 0;
@@ -166,7 +170,7 @@ export class RaceRoom {
     } else {
       if (message.type === "create") {
         if (this.track) return this.reject(peer, "code-used");
-        this.track = getTrack(message.trackId);
+        this.track = getTrack(message.trackId, { classic: message.layout !== "long" });
         if (!this.track) return this.reject(peer, "invalid-track");
       } else if (!this.track) return this.reject(peer, "room-missing");
       if (this.phase !== "lobby") return this.reject(peer, "in-progress");
@@ -193,6 +197,7 @@ export class RaceRoom {
   }
 
   start(now) {
+    this.itemRespawns = this.track.region ? createItemRespawns(this.track) : null;
     this.racers = [...this.players.values()].sort((a, b) => a.slot - b.slot).map((record, gridSlot) => {
       record.racer = createRacer(gridSlot, { id: record.id, name: record.name, grid: true });
       record.inputAt = now;
@@ -240,11 +245,11 @@ export class RaceRoom {
       id: racer.id, slot: racer.slot, name: racer.name, color: racer.color,
       distance: racer.distance, lane: racer.lane, speed: racer.speed, steer: racer.steer,
       boost: racer.boost, drifting: racer.drifting, driftCharge: racer.driftCharge, slow: racer.slow,
-      item: racer.item, shield: racer.shield, contact: racer.contact, finishedAt: racer.finishedAt, dnf: racer.dnf
+      item: racer.item, shield: racer.shield, grip: racer.grip, pickup: racer.pickup, contact: racer.contact, finishedAt: racer.finishedAt, dnf: racer.dnf
     });
     const snapshot = {
       type: "state", phase: this.phase, trackId: this.track.id, host: this.host, players,
-      fieldSize: ordered.length, countdown: Math.max(0, (this.startAt - now) / 1000), elapsed: this.elapsed
+      fieldSize: ordered.length, layout: this.track.layoutScale > 1 ? "long" : "classic", itemRespawns: this.itemRespawns, countdown: Math.max(0, (this.startAt - now) / 1000), elapsed: this.elapsed
     };
     if (lobby) {
       const message = JSON.stringify({ ...snapshot, racers: ordered.map(wire) });
@@ -309,7 +314,7 @@ export class RaceRoom {
       // Use the same fixed simulation step for all four drivers.
       let steps = 0;
       while (now - this.tickedAt + .001 >= STEP * 1000 && steps++ < 8) {
-        stepRace(this.track, this.racers, STEP, this.elapsed);
+        stepRace(this.track, this.racers, STEP, this.elapsed, LAPS, this.itemRespawns);
         this.elapsed += STEP;
         this.tickedAt += STEP * 1000;
         this.tickNumber++;

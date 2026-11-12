@@ -1,4 +1,6 @@
-import { worldScenery } from "./touge-racing-world.mjs?v=6";
+import { worldScenery } from "./touge-racing-world.mjs?v=7";
+
+import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE } from "./touge-racing-tracks.mjs?v=7";
 
 // Software perspective renderer for browsers that cannot open a WebGL context.
 export function createCanvasRenderer(canvas, racers, track, showItems = false) {
@@ -10,6 +12,9 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false) {
   const terrain = [];
   const road = [];
   const scenery = [];
+  const crates = [];
+  const worldScale = track.layoutScale ?? 1;
+  const worldPoints = corners => corners.map(([x, y, z]) => [x * worldScale, y * worldScale, z * worldScale]);
   const vehicles = new Map();
   const near = .7;
   let ratio = 1;
@@ -56,13 +61,13 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false) {
     });
   }
 
-  const sea = { color: waterColor, corners: [[-1100, -.25, 94], [-1100, -.25, 1100], [1100, -.25, 1100], [1100, -.25, 94]] };
+  const sea = { color: waterColor, corners: worldPoints([[-1100, -.25, 94], [-1100, -.25, 1100], [1100, -.25, 1100], [1100, -.25, 94]]) };
   if (coastal) terrain.push(sea);
   for (let i = 0; i < (coastal ? 21 : 0); i++) {
     const x = Math.sin(i * 2.4) * 150 + i * 11 - 135;
     const z = 101 + (i * 17) % 95;
     terrain.push({ color: i % 3 ? "#578d99" : "#6a99a1",
-      corners: [[x, -.23, z], [x + 8 + i % 9, -.23, z], [x + 12 + i % 9, -.23, z + .24], [x + 2, -.23, z + .24]] });
+      corners: worldPoints([[x, -.23, z], [x + 8 + i % 9, -.23, z], [x + 12 + i % 9, -.23, z + .24], [x + 2, -.23, z + .24]]) });
   }
 
   const peaks = [
@@ -72,9 +77,9 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false) {
   ];
   for (const [x, z, h] of peaks) {
     scenery.push({ color: mountainColor,
-      corners: [[x - h, -.5, z], [x, h, z + 3], [x + h, -.5, z + 10]] });
+      corners: worldPoints([[x - h, -.5, z], [x, h, z + 3], [x + h, -.5, z + 10]]) });
     scenery.push({ color: shade(parseInt(mountainColor.slice(1), 16), 1.15),
-      corners: [[x, h, z + 3], [x + h * .35, 0, z - 7], [x + h, -.5, z + 10]] });
+      corners: worldPoints([[x, h, z + 3], [x + h * .35, 0, z - 7], [x + h, -.5, z + 10]]) });
   }
 
   const segmentCount = Math.ceil(length / 3.6);
@@ -154,7 +159,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false) {
   }
   if (theme === "night" || theme === "harbor") {
     for (let i = 0; i < 21; i++) {
-      const p = { x: -155 + (i % 10) * 34, z: -110 - Math.floor(i / 10) * 24, fx: 0, fz: 1, rx: -1, rz: 0 };
+      const p = { x: (-155 + (i % 10) * 34) * worldScale, z: (-110 - Math.floor(i / 10) * 24) * worldScale, fx: 0, fz: 1, rx: -1, rz: 0 };
       const h = theme === "night" ? 16 + (i * 13) % 29 : 4 + (i * 3) % 8;
       const colors = theme === "night"
         ? ["#3c4261", "#454c70", "#303653", "#394163", "#515b81"]
@@ -176,11 +181,13 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false) {
   }
   if (showItems) {
     for (const distance of track.itemLines) {
-      trackStrip(road, distance - .3, distance + .3, -halfWidth + .3, halfWidth - .3, .19, "#b088f6");
-      for (const fraction of [-.67, -.22, .22, .67]) {
+      trackStrip(road, distance - ITEM_ZONE_BEFORE, distance + ITEM_ZONE_AFTER, -halfWidth + .3, halfWidth - .3, .19, "#694e9e");
+      for (const fraction of ITEM_LANES) {
         const p = sample(distance), lane = halfWidth * fraction;
-        box(scenery, p, lane, 1.17, 0, 1.45, 1.45, 1.45, ["#a27bff","#9b72ee","#8369dc","#ac91ec","#d1baff"]);
-        box(scenery, p, lane, 1.17, -.75, .5, .5, .08, Array(5).fill("#efe2ff"));
+        const faces = [];
+        crates.push(faces);
+        box(faces, p, lane, 1.17, 0, 1.45, 1.45, 1.45, ["#a27bff","#9b72ee","#8369dc","#ac91ec","#d1baff"]);
+        box(faces, p, lane, 1.17, -.75, .5, .5, .08, Array(5).fill("#efe2ff"));
       }
     }
   }
@@ -194,7 +201,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false) {
     canvas.height = Math.round(h * ratio);
   }
 
-  function render(_scene, camera) {
+  function render(_scene, camera, itemRespawns, elapsed) {
     camera.updateMatrixWorld();
     const view = camera.matrixWorldInverse.elements;
     const focal = height / (2 * Math.tan(camera.fov * Math.PI / 360));
@@ -271,9 +278,14 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false) {
     ctx.fillStyle = ground;
     ctx.fillRect(0, horizon, width, height - horizon);
     terrain.forEach(surface => paint(project(surface)));
-    road.forEach(surface => paint(project(surface)));
+    const { x: eyeX, z: eyeZ } = camera.position;
+    const nearby = ({ corners: [[x, , z]] }) => Math.abs(x - eyeX) < 390 && Math.abs(z - eyeZ) < 390;
+    for (const surface of road) if (nearby(surface)) paint(project(surface));
 
     const faces = [...scenery];
+    crates.forEach((crate, index) => {
+      if ((!itemRespawns || itemRespawns[index] <= elapsed) && nearby(crate[0])) faces.push(...crate);
+    });
     racers.forEach((racer, index) => {
       if (racer.dnf || (index !== 0 && racer.finishedAt !== null)) return;
       const p = sample(racer.distance);

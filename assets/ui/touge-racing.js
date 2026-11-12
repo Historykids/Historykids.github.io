@@ -1,4 +1,4 @@
-import { createScene } from "./touge-racing-scene.js?v=7.1";
+import { createScene } from "./touge-racing-scene.js?v=8";
 import { getTrack, LAPS, TRACKS } from "./touge-racing-tracks.mjs?v=7";
 import {
   EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS, TRIAL_PROTOCOL,
@@ -7,7 +7,8 @@ import {
 import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=6";
 import { createRoomDirectory, raceRequest } from "./touge-racing-menu.js?v=7";
 
-import { mountRaceUI } from "./touge-racing-ui.js?v=7";
+import { createRaceEffects } from "./touge-racing-effects.js?v=8";
+import { mountRaceUI } from "./touge-racing-ui.js?v=8";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();
@@ -21,6 +22,14 @@ function initialize(profile) {
   const setup = byId("setup"), lobby = byId("lobby"), game = byId("game");
   const start = byId("start"), pause = byId("pause"), resume = byId("resume"), retry = byId("retry");
   const courseGrid = byId("course-grid");
+  const effects = createRaceEffects(game);
+  const soundToggle = byId("race-sound");
+  const SOUND_KEY = "historykids.tougeRacing.sound";
+  soundToggle.checked = load(SOUND_KEY) === "on";
+  soundToggle.addEventListener("change", () => {
+    save(SOUND_KEY, soundToggle.checked ? "on" : "off");
+    effects.setSound(soundToggle.checked);
+  });
   const keyboardHelp = document.querySelector(".race-heading .keyboard");
   const countdown = byId("countdown");
   const time = byId("time"), speed = byId("speed"), speedBar = byId("speed-bar");
@@ -199,6 +208,7 @@ function initialize(profile) {
     const previous = race;
     race = null;
     previous?.scene?.dispose();
+    effects.reset();
   }
 
   function setupScreen(message = "") {
@@ -251,7 +261,7 @@ function initialize(profile) {
         ticks: 0, accumulator: 0, tape: isTrial ? [] : null, drawMap, canvas, snapshot,
         itemRespawns: !isOnline && !isTrial ? createItemRespawns(track) : null
       };
-      race.scene = createScene(canvas, racers, track, { showItems: !isTrial && !!track.region });
+      race.scene = createScene(canvas, racers, track, { showItems: !isTrial && !!track.region, raceCamera: true });
       canvas.addEventListener("webglcontextlost", event => {
         event.preventDefault();
         if (race?.canvas !== canvas) return;
@@ -316,8 +326,9 @@ function initialize(profile) {
     byId("item-hint").textContent = item ? (player.pickup > 0 ? "アイテムをゲット！" : itemHint) : "紫の箱を通過";
     byId("drift-label").hidden = !player.drifting;
     byId("drift-meter").value = player.driftCharge;
-    lapNumber.nodeValue = race.isTrial ? Math.min(LAPS, player.lapEnds.length + 1)
+    const lap = race.isTrial ? Math.min(LAPS, player.lapEnds.length + 1)
       : Math.min(LAPS, Math.floor(Math.max(0, player.distance) / track.length) + 1);
+    lapNumber.nodeValue = lap;
     if (race.isTrial) showLapTimes(lapHud, elapsed);
     time.textContent = formatTime(player.finishedAt ?? elapsed);
     const kph = Math.round(player.speed * 3.6);
@@ -330,6 +341,12 @@ function initialize(profile) {
     countdown.hidden = state !== "countdown" && elapsed > .75;
     const text = state === "countdown" ? String(Math.max(1, Math.ceil(remaining))) : "GO!";
     if (countdown.textContent !== text) countdown.textContent = text;
+    if (!countdown.hidden && isActive() && !menuOpen) effects.animateCountdown(text);
+    race.effectSample = {
+      racer: player, lap, place, item, elapsed, lastLap: lap === LAPS, active: state === "racing" && !menuOpen,
+      onRoad: Math.abs(player.lane) <= track.halfWidth - .2,
+      lapSplit: race.isTrial && lap > 1 ? formatTime(lapTime(player.lapEnds, lap - 2)) : ""
+    };
   }
 
   function tickLocal(dt) {
@@ -401,6 +418,7 @@ function initialize(profile) {
       } else if (target.boost > racer.boost + .18) racer.boost = target.boost;
     }
     if (race.player.finishedAt !== null && online.joined) {
+      if (!menuOpen) effects.finish({ winner: snapshot.rank === 1 });
       setRaceMessage("ゴール！ ほかの選手のゴールを待っています。");
     }
   }
@@ -413,6 +431,7 @@ function initialize(profile) {
   function resize() {
     if (!race?.scene || game.hidden) return;
     race.scene.resize(game.clientWidth, game.clientHeight);
+    effects.resize();
     renderScene(0, true);
     race.drawMap();
   }
@@ -421,16 +440,22 @@ function initialize(profile) {
   }
   function frame(stamp) {
     frameId = 0;
-    if (!race || !isActive()) return;
+    if (!race || (!isActive() && !effects.running)) return;
     const elapsed = lastFrame ? (stamp - lastFrame) / 1000 : 0;
     const dt = Math.min(.1, elapsed);
     lastFrame = stamp;
-    if (race.isOnline) tickOnline(dt, stamp);
-    else if (elapsed) tickLocal(Math.min(2, elapsed));
+    if (isActive()) {
+      if (race.isOnline) tickOnline(dt, stamp);
+      else if (elapsed) tickLocal(Math.min(2, elapsed));
+    }
     refreshHud();
-    renderScene(dt, false);
-    race.drawMap();
-    if (isActive()) schedule();
+    if (isActive() || !race.finishDrawn) {
+      renderScene(dt, false);
+      race.drawMap();
+      race.finishDrawn = !isActive();
+    }
+    effects.render(dt, race.scene, race.effectSample);
+    if (isActive() || effects.running) schedule();
   }
 
   function togglePause() {
@@ -465,7 +490,10 @@ function initialize(profile) {
     byId("result-place-line").hidden = false;
     byId("result-stats").hidden = false;
     byId("race-order").hidden = true;
-    byId("result-place").textContent = rankRacers(racers).indexOf(player) + 1;
+    const place = rankRacers(racers).indexOf(player) + 1;
+    if (place === 1) byId("result-title").textContent = "優勝！";
+    byId("result-place").textContent = place;
+    effects.finish({ winner: place === 1 });
     byId("result-time").textContent = formatTime(player.finishedAt);
     byId("best-time").textContent = formatTime(Math.min(prior, player.finishedAt));
     byId("record").hidden = !record;
@@ -483,6 +511,7 @@ function initialize(profile) {
     const prior = bestTime(track.id, true);
     const improved = finished && player.finishedAt < prior;
     if (improved) save(TRIAL_BEST_PREFIX + track.id, String(player.finishedAt));
+    if (finished) effects.finish({ record: improved });
     byId("result-title").textContent = finished ? "タイムアタック完走" : "タイムアップ";
     byId("result-place-line").hidden = true;
     byId("result-stats").hidden = false;
@@ -566,8 +595,10 @@ function initialize(profile) {
       byId("race-order").hidden = false;
       fillList(byId("race-order"), ordered.map(racer =>
         [racer.name + (racer.id === id ? "（あなた）" : ""), racer.dnf ? "途中終了" : formatTime(racer.finishedAt), racer.id === id]));
+      if (race.player.finishedAt !== null) effects.finish({ winner: snapshot.rank === 1 });
       showState("finished");
       resize();
+      if (effects.running) schedule();
     }
     const host = snapshot.host === id;
     const count = snapshot.players.filter(player => player.connected).length;
@@ -647,6 +678,7 @@ function initialize(profile) {
   }
 
   function joinOnline(code, request) {
+    effects.setSound(soundToggle.checked);
     if (!ROOM_CODE.test(code)) {
       byId("setup-message").textContent = "部屋一覧から、参加する部屋を選び直してね。";
       return;
@@ -697,7 +729,10 @@ function initialize(profile) {
   }
   start.addEventListener("click", () => {
     if (mode === "online") joinOnline(makeRoomCode(), { type: "create", trackId: selected, layout: "long" });
-    else startLocalRace();
+    else {
+      effects.setSound(soundToggle.checked);
+      startLocalRace();
+    }
   });
   byId("trial-submit").addEventListener("submit", submitTrial);
   byId("copy-link").addEventListener("click", async () => {
@@ -711,7 +746,10 @@ function initialize(profile) {
       field.select();
     }
   });
-  byId("online-start").addEventListener("click", () => online?.start());
+  byId("online-start").addEventListener("click", () => {
+    effects.setSound(soundToggle.checked);
+    online?.start();
+  });
   byId("leave-lobby").addEventListener("click", () => { leaveOnline(); setupScreen(); });
   pause.addEventListener("click", togglePause);
   resume.addEventListener("click", togglePause);
@@ -719,6 +757,7 @@ function initialize(profile) {
   byId("exit-race").addEventListener("click", () => { leaveOnline(); setupScreen(); });
   byId("back-to-courses").addEventListener("click", () => { leaveOnline(); setupScreen(); });
   retry.addEventListener("click", () => {
+    effects.setSound(soundToggle.checked);
     if (race?.isOnline) online?.start();
     else startLocalRace();
   });

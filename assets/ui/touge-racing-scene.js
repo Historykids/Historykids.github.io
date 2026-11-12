@@ -369,7 +369,7 @@ function car(scene, paint) {
   return group;
 }
 
-export function createScene(canvas, racers, track, { showItems = false } = {}) {
+export function createScene(canvas, racers, track, { showItems = false, raceCamera = false } = {}) {
   const attributes = { antialias: true, alpha: false };
   const context = canvas.getContext("webgl2", attributes) || canvas.getContext("webgl", attributes);
   const poses = racers.map(() => ({}));
@@ -396,6 +396,8 @@ export function createScene(canvas, racers, track, { showItems = false } = {}) {
   const eye = new THREE.Vector3();
   const target = new THREE.Vector3();
   const aim = new THREE.Vector3();
+  const point = new THREE.Vector3();
+  const motion = raceCamera ? matchMedia("(prefers-reduced-motion: reduce)") : null;
   let portrait = false;
 
   function resize(width, height) {
@@ -428,6 +430,13 @@ export function createScene(canvas, racers, track, { showItems = false } = {}) {
     const p = track.sample(player.distance, frame);
     const lookingAhead = track.sample(player.distance + 24, next);
     const intro = state === "ready";
+    const boost = motion && !motion.matches && state === "racing" && racers[0].boost > 0 &&
+      Math.abs(player.lane) < track.halfWidth - .2 ? 1 : 0;
+    const fov = (portrait ? 68 : 61) + boost * 7;
+    if (Math.abs(camera.fov - fov) > .05) {
+      camera.fov += (fov - camera.fov) * (resetCamera ? 1 : 1 - Math.exp(-7 * dt));
+      camera.updateProjectionMatrix();
+    }
     const back = intro ? (portrait ? 14 : 16) : (portrait ? 11.4 : 10.6);
     const lane = player.lane + (intro && !portrait ? -11.4 : 0);
     eye.set(p.x - p.fx * back + p.rx * lane, intro ? 6.7 : 4.65, p.z - p.fz * back + p.rz * lane);
@@ -442,6 +451,18 @@ export function createScene(canvas, racers, track, { showItems = false } = {}) {
     else renderer.render(scene, camera, itemRespawns, elapsed);
   }
 
+  function tirePoint(side, output) {
+    const pose = poses[0];
+    const p = track.sample(pose.distance, frame);
+    const x = p.x + p.rx * pose.lane;
+    const z = p.z + p.rz * pose.lane;
+    const sine = Math.sin(pose.yaw), cosine = Math.cos(pose.yaw);
+    point.set(x + cosine * side - sine * 1.3, .39, z - sine * side - cosine * 1.3).project(camera);
+    output.x = (point.x + 1) * .5;
+    output.y = (1 - point.y) * .5;
+    return point.z >= -1 && point.z <= 1 && output.x > 0 && output.x < 1 && output.y > 0 && output.y < 1;
+  }
+
   function dispose() {
     if (!context) return;
     scene.traverse(object => {
@@ -452,5 +473,5 @@ export function createScene(canvas, racers, track, { showItems = false } = {}) {
     renderer.forceContextLoss();
   }
 
-  return { render, resize, dispose };
+  return { render, resize, dispose, tirePoint };
 }

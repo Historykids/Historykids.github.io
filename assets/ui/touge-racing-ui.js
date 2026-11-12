@@ -34,7 +34,10 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
           </div>
           <div id="course-grid" class="course-grid" aria-label="全10コース"></div>
         </section>
-        <p class="control-tip" id="race-tip">カーブでドリフトを続けて、離すと加速。紫の箱でアイテムをゲット。取られた箱は1秒で復活するよ。</p>
+        <div class="race-preferences">
+          <p class="control-tip" id="race-tip">カーブでドリフトを続けて、離すと加速。紫の箱でアイテムをゲット。取られた箱は1秒で復活するよ。</p>
+          <label class="race-sound"><input id="race-sound" type="checkbox"> 効果音</label>
+        </div>
       </section>
 
       <section class="lobby" id="lobby" aria-labelledby="lobby-title" hidden>
@@ -57,6 +60,10 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
 
       <section class="game" id="game" data-state="countdown" aria-label="3Dレース" hidden>
         <canvas id="track" aria-label="3Dコース"></canvas>
+        <div class="race-effects" id="race-effects" aria-hidden="true">
+          <canvas></canvas>
+          <div class="race-announce" id="race-announce" hidden><strong></strong><span></span></div>
+        </div>
         <aside class="map-panel" aria-label="コースマップ">
           <canvas id="map" width="164" height="106"></canvas>
           <span id="map-title"></span>

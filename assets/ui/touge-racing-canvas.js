@@ -1,5 +1,7 @@
+import { worldScenery } from "./touge-racing-world.mjs?v=6";
+
 // Software perspective renderer for browsers that cannot open a WebGL context.
-export function createCanvasRenderer(canvas, racers, track) {
+export function createCanvasRenderer(canvas, racers, track, showItems = false) {
   const ctx = canvas.getContext("2d", { alpha: false });
   if (!ctx) throw new Error("Canvas 2D is unavailable");
   const { sample, length, halfWidth, pads, padLength, padHalfWidth, theme, colors } = track;
@@ -8,11 +10,7 @@ export function createCanvasRenderer(canvas, racers, track) {
   const terrain = [];
   const road = [];
   const scenery = [];
-  const vehicles = racers.map(racer => ({
-    body: shade(racer.color, 1),
-    side: shade(racer.color, .75),
-    light: shade(racer.color, 1.23)
-  }));
+  const vehicles = new Map();
   const near = .7;
   let ratio = 1;
   let width = 1;
@@ -136,10 +134,18 @@ export function createCanvasRenderer(canvas, racers, track) {
   const vermilion = [gateColor, ...[.87, .77, .91, 1.12].map(value => shade(pigment, value))];
   const beam = ["#304552", "#293a45", "#293a45", "#293a45", "#5b6364"];
   for (const lane of [-halfWidth - 1.6, halfWidth + 1.6]) box(scenery, start, lane, 3.9, 0, .75, 7.8, .75, vermilion);
-  box(scenery, start, 0, 6.15, 0, 20, .62, .72, vermilion);
-  box(scenery, start, 0, 7.68, 0, 21.1, .62, .9, vermilion);
-  box(scenery, start, 0, 8.06, 0, 22, .26, 1.3, beam);
-  box(scenery, start, 0, 6.94, 0, .8, 1.2, .62, vermilion);
+  if (track.region && track.id !== "fuji") {
+    box(scenery, start, 0, 6.8, 0, halfWidth * 2 + 4, 1.7, .9, beam);
+    for (let i = -3; i <= 3; i++) {
+      box(scenery, start, i * 1.2, 6.9, -.5, .87, .45, .08,
+        Array(5).fill(i % 2 ? gateColor : "#e4f1f7"));
+    }
+  } else {
+    box(scenery, start, 0, 6.15, 0, 20, .62, .72, vermilion);
+    box(scenery, start, 0, 7.68, 0, 21.1, .62, .9, vermilion);
+    box(scenery, start, 0, 8.06, 0, 22, .26, 1.3, beam);
+    box(scenery, start, 0, 6.94, 0, .8, 1.2, .62, vermilion);
+  }
 
   if (theme === "castle") {
     box(scenery, start, 0, 8.35, 0, 17, 2.65, 2.55, ["#ded2bd", "#ded2bd", "#a9a298", "#b6ab9d", "#f0e4d1"]);
@@ -158,6 +164,23 @@ export function createCanvasRenderer(canvas, racers, track) {
         for (const level of [.3, .6, .82]) {
           box(scenery, p, 0, h * level, 5.03, 8, .45, .06, Array(5).fill("#e4c691"));
         }
+      }
+    }
+  }
+
+  for (const shape of worldScenery(track)) {
+    const pigment = parseInt(shape.color.slice(1), 16);
+    for (const [i, face] of shape.faces.entries()) {
+      scenery.push({ color: shade(pigment, [1.11,.86,.94,1.02][i % 4]), corners: face.map(j => shape.vertices[j]) });
+    }
+  }
+  if (showItems) {
+    for (const distance of track.itemLines) {
+      trackStrip(road, distance - .3, distance + .3, -halfWidth + .3, halfWidth - .3, .19, "#b088f6");
+      for (const fraction of [-.67, -.22, .22, .67]) {
+        const p = sample(distance), lane = halfWidth * fraction;
+        box(scenery, p, lane, 1.17, 0, 1.45, 1.45, 1.45, ["#a27bff","#9b72ee","#8369dc","#ac91ec","#d1baff"]);
+        box(scenery, p, lane, 1.17, -.75, .5, .5, .08, Array(5).fill("#efe2ff"));
       }
     }
   }
@@ -256,7 +279,14 @@ export function createCanvasRenderer(canvas, racers, track) {
       const p = sample(racer.distance);
       p.x += p.rx * racer.lane;
       p.z += p.rz * racer.lane;
-      const { body, side, light } = vehicles[index];
+      p.fx = Math.sin(racer.yaw);
+      p.fz = Math.cos(racer.yaw);
+      p.rx = -p.fz;
+      p.rz = p.fx;
+      if (!vehicles.has(racer.color)) {
+        vehicles.set(racer.color, { body: shade(racer.color, 1), side: shade(racer.color, .75), light: shade(racer.color, 1.23) });
+      }
+      const { body, side, light } = vehicles.get(racer.color);
       const paintwork = [body, side, side, body, light];
       const glass = ["#203746", "#294455", "#203746", "#294455", light];
       const rubber = ["#232735", "#232735", "#232735", "#232735", "#303744"];

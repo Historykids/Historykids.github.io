@@ -1,167 +1,43 @@
 <!doctype html>
 <html lang="ja">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#101c27">
-    <meta name="description" content="歴史キッズの無料3Dレーシングゲーム。10コースでタイムアタック、オンライン4人対戦、CPU対戦。パソコン・スマホ対応。">
-    <title>峠レーシング 3D｜歴史キッズ</title>
-    <link rel="canonical" href="https://historykids.github.io/touge-racing.html">
-    <link rel="icon" href="./favicon.ico">
-    <link rel="stylesheet" href="./assets/ui/touge-racing.css?v=5">
-    <script src="./assets/ui/ranking-config.js"></script>
-    <script type="module" src="./assets/ui/touge-racing.js?v=5"></script>
-  </head>
-  <body>
-    <header class="topbar">
-      <a class="back" href="./#games"><span aria-hidden="true">←</span> ゲームで遊ぶ</a>
-      <span class="brand">歴史キッズ</span>
-    </header>
-    <main>
-      <section class="setup" id="setup" aria-labelledby="game-title">
-        <div class="race-heading">
-          <div>
-            <p class="course"><span class="checker" aria-hidden="true"></span> 峠・サーキット 全10コース</p>
-            <h1 id="game-title">峠レーシング <em>3D</em></h1>
-          </div>
-          <p class="keyboard">操作　↑↓←→ / WASD</p>
-          <p class="touch-hint">操作　画面のボタン</p>
-        </div>
-        <div class="mode-picker" aria-label="対戦モード">
-          <button type="button" id="mode-cpu" aria-pressed="true">
-            <span class="mode-icon" aria-hidden="true">⏱</span>
-            <span><strong>CPU対戦</strong><small>CPU3台と、すぐに3周勝負</small></span>
-          </button>
-          <button type="button" id="mode-online" aria-pressed="false">
-            <span class="mode-icon" aria-hidden="true">◎</span>
-            <span><strong>オンライン4人対戦</strong><small>部屋一覧から4人で集まる</small></span>
-          </button>
-          <button type="button" id="mode-trial" aria-pressed="false">
-            <span class="mode-icon" aria-hidden="true">◷</span>
-            <span><strong>タイムアタック</strong><small>1人で1周、コース別ランキングに挑戦</small></span>
-          </button>
-        </div>
-        <section id="online-entry" class="online-entry" aria-labelledby="entry-title" hidden>
-          <div class="room-header">
-            <div><h2 id="entry-title">オンラインの部屋一覧</h2><p>参加できる部屋を選ぼう。</p></div>
-            <button class="secondary" id="reload-rooms" type="button">更新</button>
-          </div>
-          <label for="nickname">レースで表示する名前</label>
-          <input id="nickname" type="text" maxlength="14" placeholder="レーサー" autocomplete="off">
-          <button class="secondary" id="join-invite" type="button" hidden>招待された部屋に入る</button>
-          <p id="room-list-status" class="directory-status" role="status"></p>
-          <ul id="room-list" class="room-list"></ul>
-        </section>
-        <p id="setup-message" class="setup-message" role="status"></p>
-        <section aria-labelledby="courses-title">
-          <div class="course-heading">
-            <div><h2 id="courses-title">コースを選ぶ</h2><p id="selected-info"></p></div>
-            <div class="course-actions">
-              <button class="secondary" id="open-ranking" type="button" aria-controls="rank-panel" aria-expanded="false">ランキング</button>
-              <button class="primary" id="start" type="button" disabled>CPUと対戦する →</button>
-            </div>
-          </div>
-          <div id="course-grid" class="course-grid" aria-label="全10コース"></div>
-        </section>
-        <section id="rank-panel" class="rank-panel" aria-labelledby="rank-title" hidden>
-          <div class="room-header">
-            <div><h2 id="rank-title" tabindex="-1">コース別ランキング</h2><p>タイムアタック1周の上位20件</p></div>
-            <div class="rank-actions">
-              <button class="secondary" id="reload-ranking" type="button">更新</button>
-              <button class="secondary" id="close-ranking" type="button">閉じる</button>
-            </div>
-          </div>
-          <p id="rank-status" class="directory-status" role="status"></p>
-          <table id="rank-table" hidden>
-            <thead><tr><th scope="col">順位</th><th scope="col">レーサー</th><th scope="col">タイム</th></tr></thead>
-            <tbody id="rank-rows"></tbody>
-          </table>
-        </section>
-        <p class="control-tip">青いブーストを踏むと加速。きついカーブでは手前でブレーキ。</p>
-      </section>
-
-      <section class="lobby" id="lobby" aria-labelledby="lobby-title" hidden>
-        <div class="lobby-main">
-          <button class="secondary back-button" id="leave-lobby" type="button">← モード選択に戻る</button>
-          <h1 id="lobby-title">オンライン対戦</h1>
-          <p id="lobby-course" class="lobby-course"></p>
-          <div class="invite-box">
-            <div><span>参加者募集中</span><strong>招待リンク</strong></div>
-            <button class="secondary" id="copy-link" type="button">招待リンクをコピー</button>
-          </div>
-          <input id="invite-link" type="url" readonly aria-label="招待リンク" hidden>
-          <p class="lobby-message" id="lobby-message" role="status"></p>
-          <h2 id="lobby-count">参加者 0 / 4人</h2>
-          <ol class="seats" id="seats"></ol>
-          <button class="primary" id="online-start" type="button" disabled>4人そろうと開始できます</button>
-          <p class="lobby-guide" id="lobby-guide">4人そろったらホストがレースを始められるよ。</p>
-        </div>
-      </section>
-
-      <section class="game" id="game" data-state="countdown" aria-label="3Dレース" hidden>
-        <canvas id="track" aria-label="3Dコース"></canvas>
-        <aside class="map-panel" aria-label="コースマップ">
-          <canvas id="map" width="164" height="106"></canvas>
-          <span id="map-title"></span>
-        </aside>
-        <div class="hud" id="hud">
-          <div class="race-stats">
-            <div class="stat" id="place-stat"><span>順位</span><strong id="place">4<small> / 4</small></strong></div>
-            <div class="stat"><span>周回</span><strong id="lap">1<small id="lap-total"> / 3</small></strong></div>
-            <div class="stat"><span>タイム</span><strong id="time">0:00.00</strong></div>
-          </div>
-          <button class="pause" id="pause" type="button" aria-label="一時停止">Ⅱ</button>
-          <div class="speedometer">
-            <div><strong id="speed">0</strong> <span>km/h</span></div>
-            <progress id="speed-bar" max="230" value="0" aria-label="スピード"></progress>
-            <span id="boost" class="boost" hidden>ブースト</span>
-          </div>
-          <div class="countdown" id="countdown" role="status" hidden></div>
-          <span class="impact" id="impact" hidden>接触！</span>
-          <div class="race-message" id="race-message" role="status"></div>
-          <div class="touch-controls" aria-label="タッチ操作">
-            <div class="control-group">
-              <button type="button" data-input="left" aria-label="左に曲がる">‹</button>
-              <button type="button" data-input="right" aria-label="右に曲がる">›</button>
-            </div>
-            <div class="control-group">
-              <button type="button" data-input="brake">ブレーキ</button>
-              <button type="button" data-input="gas">アクセル</button>
-            </div>
-          </div>
-        </div>
-        <section class="overlay" id="paused" aria-labelledby="pause-title" hidden>
-          <div class="dialog">
-            <h2 id="pause-title">一時停止</h2>
-            <button class="primary" id="resume" type="button">レースに戻る</button>
-            <button class="secondary" id="restart" type="button">最初からやり直す</button>
-            <button class="secondary" id="exit-race" type="button">モード選択に戻る</button>
-          </div>
-        </section>
-        <section class="overlay" id="result" aria-labelledby="result-title" hidden>
-          <div class="dialog">
-            <h2 id="result-title">レース終了</h2>
-            <p class="result-place" id="result-place-line"><strong id="result-place"></strong> 位 / 4台</p>
-            <dl class="result-stats" id="result-stats">
-              <div><dt>タイム</dt><dd id="result-time"></dd></div>
-              <div><dt>コース自己ベスト</dt><dd id="best-time"></dd></div>
-            </dl>
-            <p class="record" id="record" role="status" hidden>自己ベスト更新！</p>
-            <ol id="race-order" class="race-order" hidden></ol>
-            <p id="result-note" class="result-note" role="status"></p>
-            <form id="trial-submit" class="trial-submit" hidden>
-              <label for="trial-name">ランキングに表示する名前</label>
-              <input id="trial-name" type="text" maxlength="14" autocomplete="off" required>
-              <button class="primary" id="submit-time" type="submit">ランキングに登録</button>
-              <p id="trial-status" role="status"></p>
-            </form>
-            <button class="secondary" id="result-ranking" type="button" hidden>このコースのランキング</button>
-            <button class="primary" id="retry" type="button">もう一度走る</button>
-            <button class="secondary" id="back-to-courses" type="button">モード選択に戻る</button>
-          </div>
-        </section>
-      </section>
-      <noscript><p class="noscript">遊ぶには、ブラウザでJavaScriptを有効にしてね。</p></noscript>
-    </main>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101827">
+  <meta name="description" content="歴史キッズの3Dレーシングゲーム。世界を舞台にした10コースで、オンライン対戦・CPU対戦・タイムアタック。">
+  <title>峠レーシング 3D｜歴史キッズ</title>
+  <link rel="canonical" href="https://historykids.github.io/touge-racing.html">
+  <link rel="icon" href="./favicon.ico">
+  <link rel="stylesheet" href="./assets/ui/touge-racing.css?v=6">
+  <script type="module" src="./assets/ui/touge-racing-home.js?v=6"></script>
+</head>
+<body>
+  <header class="topbar"><a class="back" href="./#games">← ゲームで遊ぶ</a><button type="button" id="change-name" class="profile-link" hidden>名前を変更</button></header>
+  <main class="race-portal">
+    <section class="portal-hero" aria-labelledby="portal-title">
+      <canvas id="portal-course" aria-hidden="true"></canvas>
+      <div class="portal-copy">
+        <p class="course"><span class="checker" aria-hidden="true"></span> 歴史キッズ</p>
+        <h1 id="portal-title">峠レーシング <em>3D</em></h1>
+        <p>世界を舞台にした10コースを走ろう。</p>
+      </div>
+    </section>
+    <nav class="portal-modes" aria-label="レースモード">
+      <a href="./touge-racing-rooms.html" class="portal-card portal-online"><strong>オンライン対戦</strong><span>部屋一覧から参加 · 2人以上でスタート</span><b aria-hidden="true">↗</b></a>
+      <a href="./touge-racing-play.html?mode=cpu" class="portal-card"><strong>CPU対戦</strong><span>アイテムを使って3周勝負</span><b aria-hidden="true">↗</b></a>
+      <a href="./touge-racing-play.html?mode=trial" class="portal-card"><strong>タイムアタック</strong><span>1人で1周の自己ベストに挑戦</span><b aria-hidden="true">↗</b></a>
+      <a href="./touge-racing-ranking.html" class="portal-card"><strong>ランキング</strong><span>コース別のタイムアタック記録</span><b aria-hidden="true">↗</b></a>
+    </nav>
+    <dialog id="name-dialog" class="name-dialog" aria-labelledby="name-title">
+      <form id="name-form">
+        <h2 id="name-title">レーサー名を決めよう</h2>
+        <p>この名前が対戦ルームとランキングに表示されるよ。</p>
+        <label for="racer-name">レーサー名</label>
+        <input id="racer-name" type="text" required maxlength="14" autocomplete="nickname" placeholder="名前を入力" autofocus>
+        <p id="name-error" role="status"></p>
+        <button class="primary" type="submit">この名前で始める →</button>
+      </form>
+    </dialog>
+  </main>
+</body>
 </html>

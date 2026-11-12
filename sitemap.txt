@@ -16,3 +16,6 @@ https://historykids.github.io/sengoku-worlds.html
 https://historykids.github.io/sengoku-guide.html
 https://historykids.github.io/neon-snake.html
 https://historykids.github.io/touge-racing.html
+https://historykids.github.io/touge-racing-rooms.html
+https://historykids.github.io/touge-racing-play.html
+https://historykids.github.io/touge-racing-ranking.html

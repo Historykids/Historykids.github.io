@@ -1,9 +1,8 @@
-import { RACE_PROTOCOL } from "./touge-racing-rules.mjs";
+import { RACE_PROTOCOL } from "./touge-racing-rules.mjs?v=6";
 
 const ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 const messages = {
   "room-missing": "部屋が見つからないよ。部屋一覧を更新して、入り直してね。",
-  "full": "この部屋は4人そろっているよ。",
   "in-progress": "この部屋はすでにレースが始まっているよ。",
   "expired": "再接続できる時間が過ぎたよ。",
   "code-used": "もう一度、部屋を作ってね。",
@@ -72,7 +71,7 @@ export class OnlineRace {
   }
 
   message(socket, data) {
-    if (socket !== this.socket || this.closed || typeof data !== "string" || data.length > 20000) return;
+    if (socket !== this.socket || this.closed || typeof data !== "string" || data.length > 1500000) return;
     let message;
     try { message = JSON.parse(data); } catch { return; }
     if (message.type === "hello" && message.protocol !== RACE_PROTOCOL) return this.fail("version");
@@ -109,7 +108,8 @@ export class OnlineRace {
   }
 
   control(input, force = false) {
-    const changed = input.turn !== this.input.turn || input.gas !== this.input.gas || input.brake !== this.input.brake;
+    const changed = input.turn !== this.input.turn || input.gas !== this.input.gas || input.brake !== this.input.brake ||
+      input.drift !== this.input.drift || input.item !== this.input.item;
     this.input = input;
     if (!this.joined || !["countdown", "racing"].includes(this.phase)) return;
     const now = performance.now();

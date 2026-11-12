@@ -1,5 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { createCanvasRenderer } from "./touge-racing-canvas.js?v=5";
+import { createCanvasRenderer } from "./touge-racing-canvas.js?v=6";
+import { worldScenery } from "./touge-racing-world.mjs?v=6";
+import { smoothRacerPose } from "./touge-racing-motion.mjs?v=6";
 
 function ribbon(track, scene, material, left, right, y, from = 0, to = track.length) {
   const vertices = [];
@@ -224,20 +226,67 @@ function landscape(scene, track) {
   }
 }
 
+function addWorldScenery(scene, track) {
+  const byColor = new Map();
+  for (const shape of worldScenery(track)) {
+    if (!byColor.has(shape.color)) byColor.set(shape.color, { positions: [], indices: [] });
+    const { positions, indices } = byColor.get(shape.color);
+    const start = positions.length / 3;
+    for (const position of shape.vertices) positions.push(...position);
+    for (const face of shape.faces) {
+      for (let i = 1; i + 1 < face.length; i++) indices.push(start + face[0], start + face[i], start + face[i + 1]);
+    }
+  }
+  for (const [color, mesh] of byColor) {
+    const material = flat(color);
+    material.side = THREE.DoubleSide;
+    addSurface(scene, material, mesh.positions, mesh.indices);
+  }
+}
+
+function itemGates(scene, track) {
+  const shapes = [];
+  const material = flat("#a27bff");
+  const core = bright("#e1d4ff");
+  const geometry = new THREE.BoxGeometry(1.34, 1.34, 1.34);
+  for (const distance of track.itemLines) {
+    ribbon(track, scene, bright("#b088f6"), -track.halfWidth + .3, track.halfWidth - .3, .195, distance - .3, distance + .3);
+    for (const fraction of [-.67, -.22, .22, .67]) {
+      const group = new THREE.Group();
+      const gem = new THREE.Mesh(geometry, material);
+      gem.rotation.z = Math.PI / 4;
+      group.add(gem);
+      box(group, core, 0, 0, -.71, .44, .44, .11);
+      place(track, group, distance, track.halfWidth * fraction, 1.15);
+      scene.add(group);
+      shapes.push(group);
+    }
+  }
+  return shapes;
+}
+
 function roadside(scene, track) {
   const { halfWidth: ROAD_HALF, length: TRACK_LENGTH } = track;
   const orange = flat(track.colors[6]);
   const roof = flat(0x283944);
   const concrete = flat(0xc6ab8a);
   const gate = new THREE.Group();
+  const gantry = track.region && track.id !== "fuji";
   for (const x of [-ROAD_HALF - 1.6, ROAD_HALF + 1.6]) {
     box(gate, concrete, x, .27, 0, 1.48, .54, 1.52);
     box(gate, orange, x, 4, 0, .72, 7.7, .72);
   }
-  box(gate, orange, 0, 6.17, 0, 20, .62, .72);
-  box(gate, orange, 0, 7.7, 0, 21.1, .6, .95);
-  box(gate, roof, 0, 8.07, 0, 22, .27, 1.35);
-  box(gate, orange, 0, 6.97, 0, .85, 1.26, .6);
+  if (gantry) {
+    box(gate, roof, 0, 6.8, 0, ROAD_HALF * 2 + 4, 1.7, .9);
+    for (let i = -3; i <= 3; i++) {
+      box(gate, bright(i % 2 ? track.colors[6] : "#e4f1f7"), i * 1.2, 6.9, -.49, .87, .45, .08);
+    }
+  } else {
+    box(gate, orange, 0, 6.17, 0, 20, .62, .72);
+    box(gate, orange, 0, 7.7, 0, 21.1, .6, .95);
+    box(gate, roof, 0, 8.07, 0, 22, .27, 1.35);
+    box(gate, orange, 0, 6.97, 0, .85, 1.26, .6);
+  }
   if (track.theme === "castle") {
     box(gate, flat(0xe4d6bf), 0, 8.2, 0, 17, 2.65, 2.55);
     box(gate, roof, 0, 9.65, 0, 22, .5, 3.8);
@@ -281,6 +330,7 @@ const headlight = bright(0xffe9bd);
 function car(scene, paint) {
   const group = new THREE.Group();
   const body = flat(paint);
+  group.userData.paint = body;
   box(group, carTrim, 0, .42, 0, 2.12, .27, 3.95);
   box(group, body, 0, .74, .05, 2.15, .44, 3.95);
   box(group, body, 0, .99, .94, 1.98, .16, 1.7);
@@ -317,22 +367,25 @@ function car(scene, paint) {
   return group;
 }
 
-export function createScene(canvas, racers, track) {
+export function createScene(canvas, racers, track, { showItems = false } = {}) {
   const attributes = { antialias: true, alpha: false };
   const context = canvas.getContext("webgl2", attributes) || canvas.getContext("webgl", attributes);
+  const poses = racers.map(() => ({}));
   const renderer = context
     ? new THREE.WebGLRenderer({ canvas, context })
-    : createCanvasRenderer(canvas, racers, track);
+    : createCanvasRenderer(canvas, poses, track, showItems);
   const scene = new THREE.Scene();
   let sky;
-  let cars = [];
+  const cars = [];
+  let crates = [];
   if (context) {
     scene.fog = new THREE.FogExp2(track.colors[1], .0036);
     sky = makeSky(scene, track);
     landscape(scene, track);
     buildRoad(scene, track);
     roadside(scene, track);
-    cars = racers.map(racer => car(scene, racer.color));
+    addWorldScenery(scene, track);
+    if (showItems) crates = itemGates(scene, track);
   }
 
   const camera = new THREE.PerspectiveCamera(61, 1, .12, 720);
@@ -353,24 +406,29 @@ export function createScene(canvas, racers, track) {
   }
 
   function render(state, dt, resetCamera) {
-    cars.forEach((model, index) => {
-      const racer = racers[index];
-      model.visible = !racer.dnf && (index === 0 || racer.finishedAt === null);
-      const p = track.sample(racer.distance, frame);
-      model.position.set(p.x + p.rx * racer.lane, .18, p.z + p.rz * racer.lane);
-      model.rotation.y = Math.atan2(p.fx, p.fz) - racer.steer * .17;
+    racers.forEach((racer, index) => {
+      const pose = smoothRacerPose(track, racer, poses[index], dt, resetCamera);
+      const visible = !racer.dnf && (index === 0 || racer.finishedAt === null);
+      if (!context || (!visible && !cars[index])) return;
+      const model = cars[index] ?? (cars[index] = car(scene, racer.color));
+      model.visible = visible;
+      if (!visible) return;
+      const p = track.sample(pose.distance, frame);
+      model.position.set(p.x + p.rx * pose.lane, .18, p.z + p.rz * pose.lane);
+      model.rotation.y = pose.yaw;
+      model.userData.paint.color.setHex(pose.color);
     });
-
-    const player = racers[0];
+    for (const crate of crates) crate.children[0].rotation.y += dt * 1.7;
+    const player = poses[0];
     const p = track.sample(player.distance, frame);
-    const lookingAhead = track.sample(player.distance + 27, next);
+    const lookingAhead = track.sample(player.distance + 24, next);
     const intro = state === "ready";
     const back = intro ? (portrait ? 14 : 16) : (portrait ? 11.4 : 10.6);
     const lane = player.lane + (intro && !portrait ? -11.4 : 0);
     eye.set(p.x - p.fx * back + p.rx * lane, intro ? 6.7 : 4.65, p.z - p.fz * back + p.rz * lane);
     target.set(lookingAhead.x + p.rx * (intro ? -1 : player.lane * .36),
       intro ? 2.75 : 2.65, lookingAhead.z + p.rz * (intro ? -1 : player.lane * .36));
-    const ease = resetCamera ? 1 : 1 - Math.exp(-10 * dt);
+    const ease = resetCamera ? 1 : 1 - Math.exp(-8 * dt);
     camera.position.lerp(eye, ease);
     if (sky) sky.position.copy(camera.position);
     aim.lerp(target, ease);

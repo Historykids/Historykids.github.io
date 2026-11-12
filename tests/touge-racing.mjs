@@ -230,3 +230,28 @@ for (let i = 1; i < MIN_ROOM_PLAYERS; i++) {
 small.message(smallHost, JSON.stringify({ type: "start" }));
 assert.equal(small.phase, "countdown");
 console.log("Drift boost, item pickup/use, two-player start and 35-player room snapshots passed.");
+
+const { smoothRacerPose } = await import("../assets/ui/touge-racing-motion.mjs");
+const { worldScenery } = await import("../assets/ui/touge-racing-world.mjs");
+for (const course of TRACKS) {
+  const model = getTrack(course.id);
+  const props = worldScenery(model);
+  assert(props.length >= 4);
+  assert(props.every(prop => prop.vertices.flat().every(Number.isFinite)));
+}
+const jittery = createRacer(0);
+const pose = {};
+smoothRacerPose(world, jittery, pose, STEP, true);
+let lastLane = pose.lane;
+let largestJump = 0;
+for (let i = 0; i < 60; i++) {
+  jittery.distance += 1;
+  jittery.lane = i % 2 ? -2.1 : -1.7;
+  jittery.steer = i % 2 ? -1 : 1;
+  smoothRacerPose(world, jittery, pose, 1 / 60);
+  largestJump = Math.max(largestJump, Math.abs(pose.lane - lastLane));
+  assert(Number.isFinite(pose.yaw));
+  lastLane = pose.lane;
+}
+assert(largestJump < .11, "Steering or network corrections do not jump the rendered car sideways");
+console.log("All ten scenic models and smoothed position/yaw verified.");

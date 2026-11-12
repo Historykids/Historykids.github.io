@@ -1,5 +1,5 @@
-import { getTrack } from "./touge-racing-tracks.mjs";
-import { formatTime, ROOM_CODE, ROOM_SIZE } from "./touge-racing-rules.mjs?v=5";
+import { getTrack } from "./touge-racing-tracks.mjs?v=6";
+import { formatTime, ROOM_CODE } from "./touge-racing-rules.mjs?v=6";
 
 const byId = id => document.getElementById(id);
 
@@ -28,15 +28,15 @@ export function createRoomDirectory(onJoin) {
       const title = document.createElement("strong");
       title.textContent = room.host + "の部屋";
       const subline = document.createElement("small");
-      subline.textContent = getTrack(room.track).name + " · " + room.players + " / " + ROOM_SIZE + "人";
+      subline.textContent = getTrack(room.track).name + " · " + room.players + "人参加中";
       detail.append(title, subline);
       const join = document.createElement("button");
       join.type = "button";
       join.className = "secondary";
       join.dataset.room = room.id;
-      join.disabled = room.phase !== "lobby" || room.players >= ROOM_SIZE;
+      join.disabled = room.phase !== "lobby";
       join.textContent = room.phase === "lobby"
-        ? (join.disabled ? "満員" : "参加する")
+        ? "参加する"
         : room.phase === "finished" ? "終了" : "対戦中";
       join.setAttribute("aria-label", join.textContent + " · " + title.textContent + " · " + getTrack(room.track).name);
       join.addEventListener("click", () => onJoin(room.id));
@@ -72,7 +72,7 @@ export function createRoomDirectory(onJoin) {
     active = enabled;
     if (active) {
       refresh();
-      timer = setInterval(refresh, 8000);
+      timer = setInterval(refresh, 4500);
     } else {
       request++;
       clearInterval(timer);
@@ -86,7 +86,6 @@ export function createRankingPanel() {
   const status = byId("rank-status");
   const table = byId("rank-table");
   const body = byId("rank-rows");
-  const open = byId("open-ranking");
   let request = 0;
 
   async function show(trackId) {
@@ -113,19 +112,5 @@ export function createRankingPanel() {
       if (version === request) status.textContent = "ランキングを読み込めなかったよ。「更新」でもう一度試せるよ。";
     }
   }
-  return {
-    show,
-    open(trackId) {
-      panel.hidden = false;
-      open.setAttribute("aria-expanded", "true");
-      show(trackId);
-      panel.scrollIntoView({ block: "nearest" });
-      title.focus({ preventScroll: true });
-    },
-    close() {
-      request++;
-      panel.hidden = true;
-      open.setAttribute("aria-expanded", "false");
-    }
-  };
+  return show;
 }

@@ -514,3 +514,196 @@ body { background: radial-gradient(ellipse at 78% 0%, #20394a 0%, #101c27 53%); 
   .rank-actions { gap: .2rem; }
   .rank-actions button { padding-inline: .44rem; font-size: .77rem; }
 }
+
+:root {
+  --ice: #9fe2ff;
+  --gold: #ffe578;
+  --ink: #101827;
+}
+body { background: radial-gradient(ellipse at 82% -5%, #293c61 0%, #101827 58%); }
+.topbar { background: #111b2b; }
+.primary { background: var(--gold); color: #29221a; }
+.primary:hover { background: #fff0ad; }
+.profile-link {
+  display: inline-flex;
+  max-width: min(55vw, 300px);
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: .35rem .64rem;
+  border: 1px solid #7ca1c74d;
+  border-radius: 7px;
+  background: #22334b;
+  color: #e4f4ff;
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+.race-portal { width: min(100%, 1180px); margin: 0 auto; padding: clamp(.75rem, 3vw, 2rem); }
+.portal-hero {
+  position: relative;
+  isolation: isolate;
+  min-height: clamp(220px, 34vw, 390px);
+  overflow: hidden;
+  display: flex;
+  align-items: end;
+  border-radius: 15px;
+  background: linear-gradient(135deg,#233d60,#735e7f 60%,#d29480);
+  border: 1px solid #9cbadc55;
+}
+.portal-hero::after {
+  content: "";
+  z-index: -1;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(88deg, #101a2aeb 0%, #101a2ac7 26%, #101a2a35 70%, transparent);
+}
+#portal-course { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -2; }
+.portal-copy { padding: clamp(1rem, 5vw, 3rem); }
+.portal-copy h1 {
+  max-width: none;
+  font-size: clamp(2.6rem, 7vw, 6.8rem);
+  line-height: .97;
+  text-shadow: 0 .07em .2em #07132385;
+}
+.portal-copy h1 em { color: var(--gold); }
+.portal-copy > p:last-child { margin: .75rem 0 0; color: #e6effc; font-weight: 650; }
+.portal-modes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .65rem; margin-top: .8rem; }
+.portal-card {
+  position: relative;
+  display: grid;
+  align-content: center;
+  min-height: 106px;
+  gap: .22rem;
+  padding: .8rem 1.6rem .8rem .85rem;
+  border: 1px solid #87a7d153;
+  border-radius: 10px;
+  background: #1a2a43;
+}
+.portal-card:hover { background: #284068; border-color: var(--ice); }
+.portal-card strong { color: #f5f8ff; font-size: clamp(.92rem, 2.2vw, 1.18rem); }
+.portal-card span { font-size: .73rem; color: #bacce2; line-height: 1.35; }
+.portal-card b { position: absolute; right: .55rem; top: .6rem; color: var(--ice); }
+.portal-online { background: #233751; border-color: #ffd65d8c; }
+.portal-online b { color: var(--gold); }
+.name-dialog {
+  width: min(calc(100% - 2rem), 440px);
+  border: 1px solid #a1cfff85;
+  border-radius: 14px;
+  padding: clamp(1rem, 4vw, 1.65rem);
+  background: #17243a;
+  color: var(--text);
+  box-shadow: 0 16px 75px #0009;
+}
+.name-dialog::backdrop { background: #090f1cba; backdrop-filter: blur(4px); }
+.name-dialog form { display: grid; gap: .64rem; }
+.name-dialog h2 { margin: 0; font-size: clamp(1.4rem, 5vw, 1.9rem); }
+.name-dialog p { margin: 0; font-size: .85rem; color: #c3d4e8; }
+.name-dialog label { font-size: .82rem; font-weight: 750; }
+.name-dialog input, #rank-course {
+  width: 100%;
+  min-height: 44px;
+  padding: .55rem .65rem;
+  border: 1px solid #ffffff46;
+  border-radius: 7px;
+  background: #0f1a2c;
+  color: var(--text);
+  font: inherit;
+}
+.name-dialog #name-error { color: #ffd699; }
+.name-dialog #name-error:empty { display: none; }
+#rank-panel .room-header { align-items: end; margin-bottom: .85rem; }
+#rank-panel .room-header > div { flex: 1; }
+#rank-panel .room-header label { display: block; margin-bottom: .25rem; color: var(--muted); font-size: .8rem; }
+.course-region { display: block; margin-bottom: .24rem; font-size: .66rem; font-weight: 800; color: #aee0fd; }
+.course-caption { min-height: 68px; }
+.course-card[aria-pressed="true"] { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+.online-entry { border-color: #81bcfa75; background: #1b2b42; }
+#seats, #race-order { max-height: min(44dvh, 360px); overflow-y: auto; }
+.game .race-stats { top: .65rem; left: 50%; transform: translateX(-50%); }
+.game .race-stats .stat:first-child { border-left: 0; }
+.rank-plate {
+  position: absolute;
+  right: max(1.2rem, env(safe-area-inset-right));
+  bottom: max(1.2rem, env(safe-area-inset-bottom));
+  display: grid;
+  text-align: right;
+  color: #fff9db;
+  text-shadow: 0 .05em 0 #17213d, 0 .10em .12em #02091d;
+  font-weight: 950;
+}
+.rank-plate strong {
+  font: italic 1000 clamp(3.4rem, 8vw, 7rem)/.91 system-ui, sans-serif;
+  letter-spacing: -.09em;
+  -webkit-text-stroke: 1.5px #1c2947;
+}
+.rank-plate small { font-size: .35em; letter-spacing: 0; margin-left: .2em; }
+.rank-plate > span { color: white; font-size: .82rem; margin-top: .35rem; }
+.game[data-rank="1"] .rank-plate { color: #ffe46e; }
+.game[data-rank="2"] .rank-plate { color: #aee9ff; }
+.game[data-rank="3"] .rank-plate { color: #ffb783; }
+.item-hud {
+  position: absolute;
+  top: max(.75rem, env(safe-area-inset-top));
+  left: max(.8rem, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .3rem .55rem .3rem .3rem;
+  border: 1px solid #b6c8eb74;
+  border-radius: 11px;
+  background: #15223ce8;
+}
+.item-hud > span {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--item-color,#a7bcdb);
+  border-radius: 8px;
+  background: #263954;
+  font-size: 1.4rem;
+  color: var(--item-color,#a7bcdb);
+}
+.item-hud strong, .item-hud small { display: block; }
+.item-hud strong { font-size: .77rem; color: #ecf4ff; }
+.item-hud small { margin-top: .13rem; font-size: .62rem; color: #b4c9e2; }
+.item-hud[data-ready="true"] { border-color: var(--item-color); }
+.drift-label {
+  position: absolute;
+  bottom: calc(100% + .4rem);
+  left: 0;
+  width: 100%;
+  padding: .24rem .38rem;
+  border-radius: 4px;
+  background: #46366bea;
+  color: #f6e8ff;
+  font-size: .74rem;
+  font-weight: 850;
+}
+.speedometer .drift-label progress { accent-color: #caadff; }
+@media (max-width: 740px) {
+  .portal-modes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .portal-card { min-height: 78px; }
+}
+@media (any-pointer: coarse) {
+  .rank-plate { bottom: calc(max(.65rem, env(safe-area-inset-bottom)) + clamp(48px, 13vw, 62px) + 2.7rem); }
+  .touch-controls .control-pedals { display: grid; grid-template-columns: repeat(2, auto); }
+  .touch-controls button[data-input="item"], .touch-controls button[data-input="drift"] {
+    min-height: 32px;
+    height: auto;
+    padding: .2rem .35rem;
+    background: #392e59;
+  }
+  .touch-controls button.pressed[data-input="item"], .touch-controls button.pressed[data-input="drift"] { background: #7957ad; }
+  .touch-controls .control-group { align-items: end; }
+}
+@media (max-width: 520px) {
+  .portal-hero::after { background: linear-gradient(15deg,#101a2ae9 5%,#101a2a88 47%,transparent 78%); }
+  .portal-copy > p:last-child { font-size: .84rem; }
+  .game .race-stats .stat { min-width: 3.35rem; padding-inline: .44rem; }
+  .game .race-stats .stat strong { font-size: .96rem; }
+  .item-hud { padding: .22rem; }
+  .item-hud > span { width: 38px; height: 38px; }
+  .item-hud > div { position: absolute; top: calc(100% + .3rem); left: 0; width: max-content; }
+  .item-hud small { display: none; }
+}

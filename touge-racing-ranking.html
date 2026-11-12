@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101827">
+  <meta name="description" content="峠レーシング3Dのコース別タイムアタックランキング。">
+  <title>ランキング｜峠レーシング 3D</title>
+  <link rel="canonical" href="https://historykids.github.io/touge-racing-ranking.html">
+  <link rel="icon" href="./favicon.ico">
+  <link rel="stylesheet" href="./assets/ui/touge-racing.css?v=6">
+  <script src="./assets/ui/ranking-config.js"></script>
+  <script type="module" src="./assets/ui/touge-racing-ranking.js?v=6"></script>
+</head>
+<body>
+  <header class="topbar"><a class="back" href="./touge-racing.html">← レーシングホーム</a><a id="profile-link" class="profile-link" href="./touge-racing.html?edit=1">名前の設定</a></header>
+  <main>
+    <section class="setup" id="ranking-page" hidden>
+      <div class="race-heading"><div><p class="course"><span class="checker" aria-hidden="true"></span> 峠レーシング 3D</p><h1>ランキング</h1></div></div>
+      <section id="rank-panel" class="rank-panel" aria-labelledby="rank-title">
+        <div class="room-header">
+          <div><label for="rank-course">コース</label><select id="rank-course"></select></div>
+          <button class="secondary" id="reload-ranking" type="button">更新</button>
+        </div>
+        <h2 id="rank-title">コース別ランキング</h2>
+        <p id="rank-status" class="directory-status" role="status"></p>
+        <table id="rank-table" hidden>
+          <thead><tr><th scope="col">順位</th><th scope="col">レーサー</th><th scope="col">タイム</th></tr></thead>
+          <tbody id="rank-rows"></tbody>
+        </table>
+      </section>
+      <p><a class="primary" id="try-track" href="./touge-racing-play.html?mode=trial">タイムアタックへ →</a></p>
+    </section>
+  </main>
+</body>
+</html>

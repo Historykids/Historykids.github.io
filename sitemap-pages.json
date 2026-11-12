@@ -4,7 +4,7 @@
     {
       "file": "index.html",
       "path": "/",
-      "lastmod": "2026-11-03"
+      "lastmod": "2026-11-12"
     },
     {
       "file": "figures.html",
@@ -85,6 +85,11 @@
       "file": "neon-snake.html",
       "path": "/neon-snake.html",
       "lastmod": "2026-11-03"
+    },
+    {
+      "file": "touge-racing.html",
+      "path": "/touge-racing.html",
+      "lastmod": "2026-11-12"
     }
   ],
   "aliases": [

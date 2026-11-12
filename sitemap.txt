@@ -15,3 +15,4 @@ https://historykids.github.io/sengoku-alliance-ranking.html
 https://historykids.github.io/sengoku-worlds.html
 https://historykids.github.io/sengoku-guide.html
 https://historykids.github.io/neon-snake.html
+https://historykids.github.io/touge-racing.html

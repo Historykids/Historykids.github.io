@@ -52,7 +52,7 @@ export function createCanvasRenderer(canvas, racers, track) {
       [1, 5, 6, 2], [3, 2, 6, 7]
     ];
     sides.forEach((indices, index) => {
-      faces.push({ color: colors[index], corners: indices.map(i => corners[i]) });
+      faces.push({ color: colors[index], corners: indices.map(i => corners[i]), oneSided: true });
     });
   }
 
@@ -84,8 +84,9 @@ export function createCanvasRenderer(canvas, racers, track) {
     const a = sample(from);
     const b = sample(to);
     const kerb = index % 2 ? "#bc4e47" : "#e0d1b1";
-    strip(road, a, b, -halfWidth - .7, halfWidth + .7, .09, kerb);
-    strip(road, a, b, -halfWidth, halfWidth, .13, index % 2 ? "#353641" : "#373843");
+    strip(road, a, b, -halfWidth - .7, -halfWidth + .08, .09, kerb);
+    strip(road, a, b, halfWidth - .08, halfWidth + .7, .09, kerb);
+    strip(road, a, sample(to + .025), -halfWidth, halfWidth, .13, "#353641");
     strip(road, a, b, -halfWidth + .22, -halfWidth + .37, .16, "#e3dfd3");
     strip(road, a, b, halfWidth - .37, halfWidth - .22, .16, "#e3dfd3");
     if (index % 2 === 0) strip(road, a, b, -.08, .08, .16, "#c9b388");
@@ -158,7 +159,7 @@ export function createCanvasRenderer(canvas, racers, track) {
       ];
     }
 
-    function project({ corners, color }) {
+    function project({ corners, color, oneSided }) {
       const vertices = corners.map(transform);
       const clipped = [];
       for (let i = 0; i < vertices.length; i++) {
@@ -174,6 +175,13 @@ export function createCanvasRenderer(canvas, racers, track) {
       const screen = clipped.map(([x, y, z]) => [width / 2 + x * focal / z, height / 2 - y * focal / z]);
       if (screen.every(([x]) => x < 0) || screen.every(([x]) => x > width) ||
           screen.every(([, y]) => y < 0) || screen.every(([, y]) => y > height)) return null;
+      if (oneSided) {
+        const area = screen.reduce((sum, [x, y], i) => {
+          const [nextX, nextY] = screen[(i + 1) % screen.length];
+          return sum + x * nextY - y * nextX;
+        }, 0);
+        if (area >= 0) return null;
+      }
       return { color, screen, depth: clipped.reduce((sum, p) => sum + p[2], 0) / clipped.length };
     }
 

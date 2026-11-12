@@ -1,6 +1,6 @@
 import {
   BOOST_PADS, LAPS, PAD_HALF_WIDTH, PAD_LENGTH, ROAD_HALF, TRACK_LENGTH, createScene, trackSample
-} from "./touge-racing-scene.js?v=2";
+} from "./touge-racing-scene.js?v=3";
 
 const byId = id => document.getElementById(id);
 const game = byId("game");

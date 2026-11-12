@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { createCanvasRenderer } from "./touge-racing-canvas.js";
+import { createCanvasRenderer } from "./touge-racing-canvas.js?v=3";
 
 export const ROAD_HALF = 7.2;
 export const LAPS = 3;

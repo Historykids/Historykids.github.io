@@ -1,4 +1,4 @@
-export function mountRaceUI(root) {
+export function mountRaceUI(root, showRankings) {
   root.innerHTML = `
     <section class="setup" id="setup" aria-labelledby="game-title">
         <div class="race-heading">
@@ -23,7 +23,7 @@ export function mountRaceUI(root) {
           <div class="course-heading">
             <div><h2 id="courses-title">コースを選ぶ</h2><p id="selected-info"></p></div>
             <div class="course-actions">
-              <a class="secondary" id="open-ranking" href="./touge-racing-ranking.html">ランキング</a>
+              ${showRankings ? '<a class="secondary" id="open-ranking" href="./touge-racing-ranking.html">ランキング</a>' : ""}
               <button class="primary" id="start" type="button" disabled>CPUと対戦する →</button>
             </div>
           </div>
@@ -116,7 +116,7 @@ export function mountRaceUI(root) {
               <button class="primary" id="submit-time" type="submit">ランキングに登録</button>
               <p id="trial-status" role="status"></p>
             </form>
-            <a class="secondary" id="result-ranking" href="./touge-racing-ranking.html" hidden>このコースのランキング</a>
+            ${showRankings ? '<a class="secondary" id="result-ranking" href="./touge-racing-ranking.html" hidden>このコースのランキング</a>' : ""}
             <button class="primary" id="retry" type="button">もう一度走る</button>
             <button class="secondary" id="back-to-courses" type="button">コース選択に戻る</button>
           </div>

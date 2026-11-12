@@ -567,7 +567,7 @@ body { background: radial-gradient(ellipse at 82% -5%, #293c61 0%, #101827 58%);
 }
 .portal-copy h1 em { color: var(--gold); }
 .portal-copy > p:last-child { margin: .75rem 0 0; color: #e6effc; font-weight: 650; }
-.portal-modes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .65rem; margin-top: .8rem; }
+.portal-modes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .65rem; margin-top: .8rem; }
 .portal-card {
   position: relative;
   display: grid;
@@ -706,4 +706,37 @@ body { background: radial-gradient(ellipse at 82% -5%, #293c61 0%, #101827 58%);
   .item-hud > span { width: 38px; height: 38px; }
   .item-hud > div { position: absolute; top: calc(100% + .3rem); left: 0; width: max-content; }
   .item-hud small { display: none; }
+}
+
+.portal-tutorial { border-color: #a6dbff8c; }
+.tutorial-page { max-width: 1050px; }
+.tutorial-lessons { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; margin-top: .8rem; }
+.tutorial-card {
+  padding: clamp(.85rem, 3vw, 1.25rem);
+  border: 1px solid #87a7d153;
+  border-radius: 10px;
+  background: #1a2a43;
+}
+.tutorial-card h2 { margin-bottom: .6rem; color: var(--gold); }
+.tutorial-card p, .tutorial-card li, .tutorial-card dd { color: #c3d4e8; font-size: .88rem; line-height: 1.6; }
+.tutorial-card ol { padding-inline-start: 1.35rem; }
+.tutorial-card dl > div { display: flex; align-items: baseline; gap: .65rem; margin: .45rem 0; }
+.tutorial-card dt { min-width: 5.1rem; font-size: .88rem; font-weight: 800; }
+.tutorial-card dd { margin: 0; }
+.tutorial-controls { width: 100%; border-collapse: collapse; text-align: left; font-size: .88rem; }
+.tutorial-controls th, .tutorial-controls td { padding: .55rem .35rem; border-bottom: 1px solid #87a7d13d; }
+.tutorial-controls thead th { color: #c3d4e8; }
+.tutorial-controls kbd {
+  display: inline-block;
+  min-width: 1.35em;
+  margin: .1em;
+  padding: .15em .3em;
+  border: 1px solid #a6c3e265;
+  border-radius: 4px;
+  background: #273e60;
+  text-align: center;
+}
+@media (max-width: 740px) {
+  .portal-tutorial { grid-column: 1 / -1; }
+  .tutorial-lessons { grid-template-columns: 1fr; }
 }

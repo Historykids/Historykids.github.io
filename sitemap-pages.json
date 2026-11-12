@@ -89,22 +89,27 @@
     {
       "file": "touge-racing.html",
       "path": "/touge-racing.html",
-      "lastmod": "2026-11-12"
+      "lastmod": "2026-11-13"
     },
     {
       "file": "touge-racing-rooms.html",
       "path": "/touge-racing-rooms.html",
-      "lastmod": "2026-11-12"
+      "lastmod": "2026-11-13"
     },
     {
       "file": "touge-racing-play.html",
       "path": "/touge-racing-play.html",
-      "lastmod": "2026-11-12"
+      "lastmod": "2026-11-13"
     },
     {
       "file": "touge-racing-ranking.html",
       "path": "/touge-racing-ranking.html",
       "lastmod": "2026-11-12"
+    },
+    {
+      "file": "touge-racing-tutorial.html",
+      "path": "/touge-racing-tutorial.html",
+      "lastmod": "2026-11-13"
     }
   ],
   "aliases": [

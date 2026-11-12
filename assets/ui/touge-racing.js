@@ -7,14 +7,16 @@ import {
 import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=6";
 import { createRoomDirectory, raceRequest } from "./touge-racing-menu.js?v=6";
 
-import { mountRaceUI } from "./touge-racing-ui.js?v=6";
+import { mountRaceUI } from "./touge-racing-ui.js?v=6.2";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();
 if (profile) initialize(profile);
 
 function initialize(profile) {
-  mountRaceUI(document.getElementById("race-app"));
+  const params = new URL(location.href).searchParams;
+  const mode = document.body.dataset.racePage === "rooms" ? "online" : params.get("mode") === "trial" ? "trial" : "cpu";
+  mountRaceUI(document.getElementById("race-app"), mode === "trial");
   const byId = id => document.getElementById(id);
   const setup = byId("setup"), lobby = byId("lobby"), game = byId("game");
   const start = byId("start"), pause = byId("pause"), resume = byId("resume"), retry = byId("retry");
@@ -35,8 +37,6 @@ function initialize(profile) {
   const TRIAL_BEST_PREFIX = "historykids.tougeRacing.trial.best.";
   const PLAYER_KEY = "historykids.tougeRacing.trial.player";
   const defaultTrack = TRACKS[0].id;
-  const params = new URL(location.href).searchParams;
-  const mode = document.body.dataset.racePage === "rooms" ? "online" : params.get("mode") === "trial" ? "trial" : "cpu";
   const chosen = params.get("track");
   let selected = TRACKS.some(course => course.id === chosen) ? chosen : defaultTrack;
   let state = "setup";
@@ -134,7 +134,7 @@ function initialize(profile) {
     const best = bestTime(id, mode === "trial");
     byId("selected-info").textContent = course.region + " · " + course.description +
       (mode !== "online" && Number.isFinite(best) ? " 自己ベスト " + formatTime(best) : "");
-    byId("open-ranking").href = "./touge-racing-ranking.html?track=" + encodeURIComponent(id);
+    if (mode === "trial") byId("open-ranking").href = "./touge-racing-ranking.html?track=" + encodeURIComponent(id);
   }
 
   function setupMenu() {
@@ -430,7 +430,6 @@ function initialize(profile) {
     if (record) save(BEST_PREFIX + track.id, String(player.finishedAt));
     byId("result-title").textContent = "レース終了";
     byId("trial-submit").hidden = true;
-    byId("result-ranking").hidden = true;
     byId("result-place-line").hidden = false;
     byId("result-stats").hidden = false;
     byId("race-order").hidden = true;
@@ -527,7 +526,6 @@ function initialize(profile) {
       for (const racer of race.racers) Object.assign(racer, race.targets.get(racer.id));
       byId("result-title").textContent = "レース終了";
       byId("trial-submit").hidden = true;
-      byId("result-ranking").hidden = true;
       byId("result-place-line").hidden = true;
       byId("result-stats").hidden = true;
       byId("record").hidden = true;

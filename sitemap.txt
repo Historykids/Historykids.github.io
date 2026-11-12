@@ -19,3 +19,4 @@ https://historykids.github.io/touge-racing.html
 https://historykids.github.io/touge-racing-rooms.html
 https://historykids.github.io/touge-racing-play.html
 https://historykids.github.io/touge-racing-ranking.html
+https://historykids.github.io/touge-racing-tutorial.html

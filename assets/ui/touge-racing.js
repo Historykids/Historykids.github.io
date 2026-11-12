@@ -1,180 +1,156 @@
-import {
-  BOOST_PADS, LAPS, PAD_HALF_WIDTH, PAD_LENGTH, ROAD_HALF, TRACK_LENGTH, createScene, trackSample
-} from "./touge-racing-scene.js?v=3";
+import { createScene } from "./touge-racing-scene.js?v=4";
+import { getTrack, LAPS, TRACKS } from "./touge-racing-tracks.mjs";
+import { EMPTY_INPUT, ROOM_CODE, ROOM_SIZE, applyDrive, createRacer, formatTime, isDriving, rankRacers, stepRace } from "./touge-racing-rules.mjs";
+import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=4";
 
 const byId = id => document.getElementById(id);
-const game = byId("game");
-const canvas = byId("track");
-const hud = byId("hud");
-const intro = byId("intro");
-const paused = byId("paused");
-const result = byId("result");
-const start = byId("start");
-const pause = byId("pause");
-const resume = byId("resume");
-const retry = byId("retry");
+const setup = byId("setup"), lobby = byId("lobby"), game = byId("game");
+const start = byId("start"), pause = byId("pause"), resume = byId("resume"), retry = byId("retry");
+const courseGrid = byId("course-grid");
+const nickname = byId("nickname"), roomInput = byId("room-input");
 const countdown = byId("countdown");
-const time = byId("time");
-const speed = byId("speed");
-const speedBar = byId("speed-bar");
-const boostLabel = byId("boost");
-const placeNumber = byId("place").firstChild;
-const lapNumber = byId("lap").firstChild;
-const touchButtons = [...document.querySelectorAll("[data-input]")];
-
-const STORAGE_KEY = "historykids.tougeRacing.best.v1";
-const racerConfigs = [
-  { color: 0x37b8d5, lane: -1.9, distance: -14 },
-  { color: 0xed6d4e, lane: 2.85, distance: -5.5, cruise: 42 },
-  { color: 0xecc372, lane: -2.9, distance: -8.5, cruise: 40 },
-  { color: 0x92abec, lane: .4, distance: -11.5, cruise: 38.5 }
-];
-const racers = racerConfigs.map(config => ({ ...config }));
-const player = racers[0];
-const finishLine = TRACK_LENGTH * LAPS;
-const steering = new Map();
+const time = byId("time"), speed = byId("speed"), speedBar = byId("speed-bar");
+const placeNumber = byId("place").firstChild, lapNumber = byId("lap").firstChild;
+const buttons = [...document.querySelectorAll("[data-input]")];
+const held = new Map();
 const keys = new Map([
-  ["ArrowUp", "gas"], ["KeyW", "gas"],
-  ["ArrowDown", "brake"], ["KeyS", "brake"],
-  ["ArrowLeft", "left"], ["KeyA", "left"],
-  ["ArrowRight", "right"], ["KeyD", "right"]
+  ["ArrowUp", "gas"], ["KeyW", "gas"], ["ArrowDown", "brake"], ["KeyS", "brake"],
+  ["ArrowLeft", "left"], ["KeyA", "left"], ["ArrowRight", "right"], ["KeyD", "right"]
 ]);
-const frame = {};
-const next = {};
-let scene;
-let state = "loading";
-let previousState;
-let frameId = 0;
-let lastFrame = 0;
-let elapsed = 0;
-let remaining = 0;
-let bestTime = readBestTime();
 
-function readBestTime() {
-  try {
-    const saved = Number(localStorage.getItem(STORAGE_KEY));
-    if (Number.isFinite(saved) && saved > 0) return saved;
-  } catch {
-    // The race still works when the browser blocks storage.
-  }
-  return Infinity;
+const BEST_PREFIX = "historykids.tougeRacing.best.v2.";
+const NAME_KEY = "historykids.tougeRacing.nickname";
+const defaultTrack = TRACKS[0].id;
+let mode = "cpu", selected = defaultTrack, state = "setup";
+let race, online, onlinePhase, previousState, menuOpen = false;
+let frameId = 0, lastFrame = 0;
+
+function load(key) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function save(key, value) {
+  try { localStorage.setItem(key, value); } catch {}
+}
+function bestTime(id) {
+  const saved = Number(load(BEST_PREFIX + id) ||
+    (id === defaultTrack ? load("historykids.tougeRacing.best.v1") : null));
+  return Number.isFinite(saved) && saved > 0 ? saved : Infinity;
 }
 
-function formatTime(seconds) {
-  const ticks = Math.round(seconds * 100);
-  const minutes = Math.floor(ticks / 6000);
-  const secs = String(Math.floor(ticks / 100) % 60).padStart(2, "0");
-  const cents = String(ticks % 100).padStart(2, "0");
-  return `${minutes}:${secs}.${cents}`;
-}
-
-function createMap() {
-  const map = byId("map");
-  const ctx = map.getContext("2d");
-  const background = document.createElement("canvas");
-  background.width = map.width;
-  background.height = map.height;
-  const brush = background.getContext("2d");
-  const scale = .52;
-  const projectX = x => map.width / 2 + x * scale;
-  const projectY = z => map.height / 2 + z * scale;
-  brush.beginPath();
-  for (let i = 0; i <= 110; i++) {
-    const p = trackSample(TRACK_LENGTH * i / 110);
-    brush.lineTo(projectX(p.x), projectY(p.z));
-  }
-  brush.closePath();
-  brush.lineJoin = "round";
-  brush.lineWidth = 8;
-  brush.strokeStyle = "#304759";
-  brush.stroke();
-  brush.lineWidth = 2.5;
-  brush.strokeStyle = "#9ab8c7";
-  brush.stroke();
-
-  const line = trackSample(0);
-  brush.beginPath();
-  brush.moveTo(projectX(line.x - line.rx * 9), projectY(line.z - line.rz * 9));
-  brush.lineTo(projectX(line.x + line.rx * 9), projectY(line.z + line.rz * 9));
-  brush.lineWidth = 2;
-  brush.strokeStyle = "#fff";
-  brush.stroke();
-
-  return function drawMap() {
-    ctx.clearRect(0, 0, map.width, map.height);
-    ctx.drawImage(background, 0, 0);
-    for (let i = racers.length - 1; i >= 0; i--) {
-      const racer = racers[i];
-      const p = trackSample(racer.distance, frame);
-      ctx.beginPath();
-      ctx.arc(projectX(p.x + p.rx * racer.lane), projectY(p.z + p.rz * racer.lane),
-        i === 0 ? 4 : 2.8, 0, Math.PI * 2);
-      ctx.fillStyle = i === 0 ? "#8de9ff" : "#ffc194";
-      ctx.fill();
-    }
+function outline(canvas, track, mini = false) {
+  const context = canvas.getContext("2d");
+  const { width, height } = canvas;
+  const xs = track.outline.map(p => p.x), zs = track.outline.map(p => p.z);
+  const left = Math.min(...xs), top = Math.min(...zs);
+  const w = Math.max(...xs) - left, h = Math.max(...zs) - top;
+  const scale = Math.min((width - 28) / w, (height - 22) / h);
+  const x = value => (width - w * scale) / 2 + (value - left) * scale;
+  const y = value => (height - h * scale) / 2 + (value - top) * scale;
+  if (!context) return () => {};
+  context.beginPath();
+  track.outline.forEach((point, i) => {
+    const xx = x(point.x), yy = y(point.z);
+    if (i) context.lineTo(xx, yy);
+    else context.moveTo(xx, yy);
+  });
+  context.closePath();
+  context.lineJoin = "round";
+  context.lineWidth = mini ? 11 : 8;
+  context.strokeStyle = mini ? "#081722b3" : "#304759";
+  context.stroke();
+  context.lineWidth = mini ? 3.2 : 2.5;
+  context.strokeStyle = mini ? "#eefbff" : "#9ab8c7";
+  context.stroke();
+  const line = track.sample(0);
+  context.beginPath();
+  context.moveTo(x(line.x - line.rx * 9), y(line.z - line.rz * 9));
+  context.lineTo(x(line.x + line.rx * 9), y(line.z + line.rz * 9));
+  context.lineWidth = 2.4;
+  context.strokeStyle = "#9aeeff";
+  context.stroke();
+  return (racer, own, target = context) => {
+    if (racer.dnf) return;
+    const point = track.sample(racer.distance);
+    target.beginPath();
+    target.arc(x(point.x + point.rx * racer.lane), y(point.z + point.rz * racer.lane),
+      own ? 4.2 : 2.8, 0, Math.PI * 2);
+    target.fillStyle = own ? "#8de9ff" : "#ffc194";
+    target.fill();
   };
 }
 
-function resetRacers() {
-  racers.forEach((racer, index) => {
-    Object.assign(racer, racerConfigs[index], {
-      speed: 0, lateralSpeed: 0, steer: 0, boost: 0, lastPad: -1,
-      finishedAt: Infinity, contact: 0
-    });
-  });
+function createCourseCards() {
+  for (const course of TRACKS) {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.dataset.course = course.id;
+    card.className = "course-card";
+    const art = document.createElement("div");
+    art.className = "course-art";
+    art.style.setProperty("--sky", course.colors[0]);
+    art.style.setProperty("--land", course.colors[2]);
+    const canvas = document.createElement("canvas");
+    canvas.width = 150;
+    canvas.height = 85;
+    canvas.setAttribute("aria-hidden", "true");
+    art.append(canvas);
+    const caption = document.createElement("div");
+    caption.className = "course-caption";
+    const title = document.createElement("strong");
+    title.textContent = course.name;
+    const difficulty = document.createElement("small");
+    difficulty.textContent = course.difficulty;
+    caption.append(title, difficulty);
+    card.append(art, caption);
+    card.addEventListener("click", () => selectCourse(course.id));
+    courseGrid.append(card);
+    outline(canvas, getTrack(course.id), true);
+  }
 }
 
-function active() {
+function selectCourse(id) {
+  selected = id;
+  for (const card of courseGrid.children) card.setAttribute("aria-pressed", String(card.dataset.course === id));
+  const course = getTrack(id);
+  const best = bestTime(id);
+  byId("selected-info").textContent = course.name + " · " + course.description +
+    (mode === "cpu" && Number.isFinite(best) ? " 自己ベスト " + formatTime(best) : "");
+}
+
+function selectMode(value) {
+  mode = value;
+  byId("mode-cpu").setAttribute("aria-pressed", String(value === "cpu"));
+  byId("mode-online").setAttribute("aria-pressed", String(value === "online"));
+  byId("online-entry").hidden = value !== "online";
+  start.textContent = value === "cpu" ? "CPUと対戦する →" : "このコースで部屋を作る →";
+  byId("setup-message").textContent = "";
+  selectCourse(selected);
+}
+
+function isActive() {
   return state === "countdown" || state === "racing";
 }
 
-function setState(nextState) {
-  state = nextState;
-  game.dataset.state = state;
-  intro.hidden = !["loading", "ready", "error"].includes(state);
-  hud.hidden = !active();
-  paused.hidden = state !== "paused";
-  result.hidden = state !== "finished";
-  if (!active()) clearInput();
+function showState(value) {
+  state = value;
+  setup.hidden = value !== "setup";
+  lobby.hidden = value !== "lobby";
+  game.hidden = !setup.hidden || !lobby.hidden;
+  game.dataset.state = value;
+  byId("hud").hidden = !isActive() || menuOpen;
+  byId("paused").hidden = value !== "paused" && !menuOpen;
+  byId("result").hidden = value !== "finished";
+  if (!isActive()) clearInput();
 }
 
 function clearInput() {
-  steering.clear();
-  touchButtons.forEach(button => button.classList.remove("pressed"));
+  held.clear();
+  buttons.forEach(button => button.classList.remove("pressed"));
+  if (online) online.control(EMPTY_INPUT, true);
 }
 
-function startRace() {
-  clearInput();
-  resetRacers();
-  elapsed = 0;
-  remaining = 3;
-  lastFrame = 0;
-  setState("countdown");
-  refreshHud();
-  render(0, true);
-  pause.focus({ preventScroll: true });
-  scheduleFrame();
-}
-
-function pauseRace() {
-  if (!active()) return;
-  previousState = state;
-  setState("paused");
-  cancelAnimationFrame(frameId);
-  frameId = 0;
-  resume.focus({ preventScroll: true });
-}
-
-function resumeRace() {
-  if (state !== "paused") return;
-  lastFrame = 0;
-  setState(previousState);
-  pause.focus({ preventScroll: true });
-  scheduleFrame();
-}
-
-function readInputs() {
-  const actions = [...steering.values()];
+function input() {
+  const actions = [...held.values()];
   return {
     gas: actions.includes("gas"),
     brake: actions.includes("brake"),
@@ -182,214 +158,423 @@ function readInputs() {
   };
 }
 
-function approach(value, target, delta) {
-  return value + Math.max(-delta, Math.min(delta, target - value));
+function cleanupRace() {
+  cancelAnimationFrame(frameId);
+  frameId = 0;
+  const previous = race;
+  race = null;
+  previous?.scene?.dispose();
 }
 
-function turnAt(distance, lookAhead) {
-  const p = trackSample(distance, frame);
-  const ahead = trackSample(distance + lookAhead, next);
-  return ahead.fx * p.rx + ahead.fz * p.rz;
+function setupScreen(message = "") {
+  cleanupRace();
+  menuOpen = false;
+  showState("setup");
+  selectCourse(selected);
+  byId("setup-message").textContent = message;
+  start.focus({ preventScroll: true });
+  window.scrollTo(0, 0);
 }
 
-function updatePlayer(dt) {
-  const input = readInputs();
-  const turn = turnAt(player.distance, 6);
-  player.steer = approach(player.steer, input.turn, dt * 6.2);
-  const slip = -turn * player.speed * player.speed * .029;
-  const grip = input.brake ? 1.25 : 1;
-  const speedRatio = Math.min(1, player.speed / 16);
-  const lateralTarget = (player.steer * 8.5 * grip + slip) * speedRatio;
-  player.lateralSpeed = approach(player.lateralSpeed, lateralTarget, dt * (input.brake ? 31 : 23));
-  player.lane = Math.max(-ROAD_HALF - 2, Math.min(ROAD_HALF + 2, player.lane + player.lateralSpeed * dt));
-
-  const distanceOnLap = (player.distance % TRACK_LENGTH + TRACK_LENGTH) % TRACK_LENGTH;
-  const padIndex = BOOST_PADS.findIndex(pad =>
-    distanceOnLap >= pad.distance && distanceOnLap <= pad.distance + PAD_LENGTH
-  );
-  if (padIndex >= 0 && player.speed > 8 &&
-      Math.abs(player.lane - BOOST_PADS[padIndex].lane) < PAD_HALF_WIDTH) {
-    const padId = Math.floor(player.distance / TRACK_LENGTH) * BOOST_PADS.length + padIndex;
-    if (padId !== player.lastPad) player.boost = 1.65;
-    player.lastPad = padId;
-  }
-  player.boost = Math.max(0, player.boost - dt);
-  player.contact = Math.max(0, player.contact - dt);
-
-  const rough = Math.abs(player.lane) > ROAD_HALF - .2;
-  const boosting = player.boost > 0 && !rough;
-  const limit = rough ? 24 : boosting ? 63 : 47;
-  if (input.brake) {
-    player.speed = Math.max(0, player.speed - dt * 32);
-  } else if (rough || input.gas || boosting) {
-    const target = input.gas || boosting ? limit : 0;
-    player.speed = approach(player.speed, target, dt * (rough ? 24 : boosting ? 31 : 20));
-  } else {
-    player.speed = Math.max(0, player.speed - dt * 8.5);
+function prepareRace(track, racers, isOnline) {
+  cleanupRace();
+  menuOpen = false;
+  clearInput();
+  const oldCanvas = byId("track");
+  const canvas = oldCanvas.cloneNode();
+  canvas.setAttribute("aria-label", track.name + "の3Dコース");
+  oldCanvas.replaceWith(canvas);
+  const map = byId("map");
+  const mapBase = document.createElement("canvas");
+  mapBase.width = map.width;
+  mapBase.height = map.height;
+  const drawMarker = outline(mapBase, track);
+  const mapContext = map.getContext("2d");
+  const drawMap = () => {
+    if (!mapContext) return;
+    mapContext.clearRect(0, 0, map.width, map.height);
+    mapContext.drawImage(mapBase, 0, 0);
+    for (let i = racers.length - 1; i >= 0; i--) drawMarker(racers[i], i === 0, mapContext);
+  };
+  showState("countdown");
+  byId("map-title").textContent = track.name;
+  byId("race-message").textContent = "";
+  pause.textContent = isOnline ? "↩" : "Ⅱ";
+  pause.setAttribute("aria-label", isOnline ? "退出メニュー" : "一時停止");
+  byId("pause-title").textContent = isOnline ? "部屋から退出する？" : "一時停止";
+  byId("exit-race").textContent = isOnline ? "部屋から退出する" : "モード選択に戻る";
+  byId("restart").hidden = isOnline;
+  try {
+    race = { track, racers, player: racers[0], isOnline, elapsed: 0, remaining: 3, drawMap, canvas };
+    race.scene = createScene(canvas, racers, track);
+    canvas.addEventListener("webglcontextlost", event => {
+      event.preventDefault();
+      if (race?.canvas !== canvas) return;
+      leaveOnline();
+      setupScreen("3Dの描画が中断されたよ。もう一度レースを始めてね。");
+    });
+    lastFrame = 0;
+    window.scrollTo(0, 0);
+    resize();
+    refreshHud();
+    if (matchMedia("(pointer: fine)").matches) pause.focus({ preventScroll: true });
+    schedule();
+    return true;
+  } catch (error) {
+    console.error(error);
+    leaveOnline();
+    setupScreen("3Dを表示できなかったよ。別のブラウザで試してね。");
+    return false;
   }
 }
 
-function updateRival(racer, index, dt) {
-  const corner = Math.abs(turnAt(racer.distance, 14));
-  const cruise = racer.cruise + 1.8 * Math.sin(racer.distance * .04 + index);
-  racer.speed = approach(racer.speed, cruise - 8.2 * corner, dt * (17 + index));
-  const preferredLane = racerConfigs[index].lane + Math.sin(racer.distance * .033 + index) * 1.1;
-  const change = approach(racer.lane, preferredLane, dt * 2.9) - racer.lane;
-  racer.steer = change / dt * .15;
-  racer.lane += change;
-
-  if (Math.abs(player.distance - racer.distance) < 3.6 &&
-      Math.abs(player.lane - racer.lane) < 1.75 && player.contact === 0) {
-    player.speed *= .86;
-    player.contact = .58;
-  }
-}
-
-function updateRace(dt) {
-  if (state === "countdown") {
-    remaining -= dt;
-    if (remaining > 0) return;
-    setState("racing");
-    dt = -remaining;
-    if (dt === 0) return;
-  }
-
-  updatePlayer(dt);
-  for (let index = 1; index < racers.length; index++) updateRival(racers[index], index, dt);
-  for (const racer of racers) {
-    const advance = racer.speed * dt;
-    if (!Number.isFinite(racer.finishedAt) && racer.distance + advance >= finishLine) {
-      racer.finishedAt = elapsed + (finishLine - racer.distance) / racer.speed;
-    }
-    racer.distance += advance;
-  }
-  elapsed += dt;
-  if (Number.isFinite(player.finishedAt)) finishRace();
-}
-
-function rank() {
-  return 1 + racers.slice(1).filter(racer =>
-    Number.isFinite(player.finishedAt) ? racer.finishedAt < player.finishedAt : racer.distance > player.distance
-  ).length;
+function startCPU() {
+  const racers = [
+    createRacer(0, { name: "あなた" }),
+    ...Array.from({ length: 3 }, (_, i) => createRacer(i + 1, { name: "CPU " + (i + 1), cpu: true }))
+  ];
+  prepareRace(getTrack(selected), racers, false);
 }
 
 function refreshHud() {
-  const displayedSpeed = Math.round(player.speed * 3.6);
-  placeNumber.nodeValue = rank();
-  lapNumber.nodeValue = Math.min(LAPS, Math.floor(Math.max(0, player.distance) / TRACK_LENGTH) + 1);
-  time.textContent = formatTime(elapsed);
-  speed.textContent = displayedSpeed;
-  speedBar.value = displayedSpeed;
-  boostLabel.hidden = player.boost <= 0 || Math.abs(player.lane) > ROAD_HALF - .2;
+  const { player, racers, track, elapsed, remaining } = race;
+  placeNumber.nodeValue = rankRacers(racers).indexOf(player) + 1;
+  lapNumber.nodeValue = Math.min(LAPS, Math.floor(Math.max(0, player.distance) / track.length) + 1);
+  time.textContent = formatTime(player.finishedAt ?? elapsed);
+  const kph = Math.round(player.speed * 3.6);
+  speed.textContent = kph;
+  speedBar.value = kph;
+  byId("boost").hidden = player.boost <= 0 || Math.abs(player.lane) > track.halfWidth - .2;
   countdown.hidden = state !== "countdown" && elapsed > .75;
-  const message = state === "countdown" ? String(Math.ceil(remaining)) : "GO!";
-  if (countdown.textContent !== message) countdown.textContent = message;
+  const text = state === "countdown" ? String(Math.max(1, Math.ceil(remaining))) : "GO!";
+  if (countdown.textContent !== text) countdown.textContent = text;
 }
 
-function finishRace() {
-  const previousBest = bestTime;
-  const finishTime = player.finishedAt;
-  if (finishTime < bestTime) {
-    bestTime = finishTime;
-    try {
-      localStorage.setItem(STORAGE_KEY, String(bestTime));
-    } catch {
-      // Keep the record in memory for this visit.
+function tickCPU(dt) {
+  if (state === "countdown") {
+    race.remaining -= dt;
+    if (race.remaining > 0) return;
+    dt = -race.remaining;
+    showState("racing");
+  }
+  race.player.input = input();
+  stepRace(race.track, race.racers, dt, race.elapsed);
+  race.elapsed += dt;
+  if (race.player.finishedAt !== null) finishCPU();
+}
+
+function tickOnline(dt, stamp) {
+  const snapshot = race.snapshot;
+  if (!snapshot) return;
+  const age = (stamp - race.receivedAt) / 1000;
+  race.remaining = Math.max(0, snapshot.countdown - age);
+  if (snapshot.phase === "racing") race.elapsed = snapshot.elapsed + Math.min(.16, age);
+  const drive = menuOpen ? EMPTY_INPUT : input();
+  online.control(drive);
+  if (snapshot.phase !== "racing") return;
+  for (const racer of race.racers) {
+    const target = snapshot.racers.find(entry => entry.id === racer.id);
+    const own = racer === race.player;
+    racer.finishedAt = target.finishedAt;
+    racer.dnf = target.dnf;
+    if (own && isDriving(racer) && online.joined && age < .55) {
+      applyDrive(race.track, racer, drive, dt);
+      racer.distance += racer.speed * dt;
+    }
+    const lead = Math.min(.12, age) * target.speed;
+    const distanceError = target.distance + lead - racer.distance;
+    const blend = 1 - Math.exp(-(own ? 8 : 16) * dt);
+    const snap = !isDriving(racer) || Math.abs(distanceError) > 13;
+    racer.distance += distanceError * (snap ? 1 : blend);
+    racer.lane += (target.lane - racer.lane) * (snap ? 1 : blend);
+    racer.speed += (target.speed - racer.speed) * (snap ? 1 : blend * (own ? .46 : 1));
+    if (!own || snap) {
+      racer.steer = target.steer;
+      racer.boost = target.boost;
     }
   }
-  byId("result-place").textContent = rank();
-  byId("result-time").textContent = formatTime(finishTime);
-  byId("best-time").textContent = formatTime(bestTime);
-  byId("record").hidden = finishTime >= previousBest;
-  setState("finished");
-  retry.focus({ preventScroll: true });
-}
-
-let drawMap;
-function render(dt, resetCamera = false) {
-  scene.render(state, dt, resetCamera);
-  drawMap();
-}
-
-function scheduleFrame() {
-  if (!frameId) frameId = requestAnimationFrame(tick);
-}
-
-function tick(timestamp) {
-  frameId = 0;
-  if (!active()) return;
-  const dt = lastFrame ? Math.min(.1, (timestamp - lastFrame) / 1000) : 0;
-  lastFrame = timestamp;
-  if (dt > 0) updateRace(dt);
-  refreshHud();
-  render(dt);
-  if (active()) scheduleFrame();
-}
-
-function unavailable(message) {
-  cancelAnimationFrame(frameId);
-  frameId = 0;
-  setState("error");
-  start.disabled = true;
-  byId("error").textContent = message;
+  if (race.player.finishedAt !== null && online.joined) {
+    setRaceMessage("ゴール！ ほかの選手のゴールを待っています。");
+  }
 }
 
 function resize() {
-  if (!scene || state === "error") return;
-  scene.resize(game.clientWidth, game.clientHeight);
-  render(0, true);
+  if (!race?.scene || game.hidden) return;
+  race.scene.resize(game.clientWidth, game.clientHeight);
+  race.scene.render(state, 0, true);
+  race.drawMap();
+}
+function schedule() {
+  if (!frameId) frameId = requestAnimationFrame(frame);
+}
+function frame(stamp) {
+  frameId = 0;
+  if (!race || !isActive()) return;
+  const dt = lastFrame ? Math.min(.1, (stamp - lastFrame) / 1000) : 0;
+  lastFrame = stamp;
+  if (race.isOnline) tickOnline(dt, stamp);
+  else if (dt) tickCPU(dt);
+  refreshHud();
+  race.scene.render(state, dt, false);
+  race.drawMap();
+  if (isActive()) schedule();
 }
 
-start.addEventListener("click", startRace);
-pause.addEventListener("click", pauseRace);
-resume.addEventListener("click", resumeRace);
-byId("restart").addEventListener("click", startRace);
-retry.addEventListener("click", startRace);
-window.addEventListener("keydown", event => {
-  if (event.code === "Escape") {
-    if (state === "paused") resumeRace();
-    else pauseRace();
+function togglePause() {
+  if (!race) return;
+  if (race.isOnline && isActive()) {
+    menuOpen = !menuOpen;
+    clearInput();
+    showState(state);
+    if (menuOpen) resume.focus();
+    return;
   }
-  if (!active() || !keys.has(event.code) || event.altKey || event.ctrlKey || event.metaKey) return;
-  event.preventDefault();
-  steering.set(event.code, keys.get(event.code));
+  if (state === "paused") {
+    lastFrame = 0;
+    showState(previousState);
+    schedule();
+  } else if (isActive()) {
+    previousState = state;
+    showState("paused");
+    cancelAnimationFrame(frameId);
+    frameId = 0;
+    resume.focus();
+  }
+}
+
+function finishCPU() {
+  const { track, player, racers } = race;
+  const prior = bestTime(track.id);
+  const record = player.finishedAt < prior;
+  if (record) save(BEST_PREFIX + track.id, String(player.finishedAt));
+  byId("result-place-line").hidden = false;
+  byId("result-stats").hidden = false;
+  byId("race-order").hidden = true;
+  byId("result-place").textContent = rankRacers(racers).indexOf(player) + 1;
+  byId("result-time").textContent = formatTime(player.finishedAt);
+  byId("best-time").textContent = formatTime(Math.min(prior, player.finishedAt));
+  byId("record").hidden = !record;
+  byId("result-note").textContent = "";
+  retry.hidden = false;
+  retry.disabled = false;
+  retry.textContent = "同じコースでもう一度";
+  showState("finished");
+  retry.focus({ preventScroll: true });
+}
+
+function setRaceMessage(text) {
+  const output = byId("race-message");
+  if (output.textContent !== text) output.textContent = text;
+}
+
+function fillList(container, rows) {
+  const fragment = document.createDocumentFragment();
+  for (const [label, value, emphasized] of rows) {
+    const item = document.createElement("li");
+    if (emphasized) item.className = "own";
+    const name = document.createElement("span");
+    name.textContent = label;
+    const status = document.createElement("strong");
+    status.textContent = value;
+    item.append(name, status);
+    fragment.append(item);
+  }
+  container.replaceChildren(fragment);
+}
+
+function finishOnline(snapshot, id) {
+  menuOpen = false;
+  const first = state !== "finished";
+  const ordered = rankRacers(snapshot.racers);
+  if (first) {
+    for (const racer of race.racers) Object.assign(racer, snapshot.racers.find(entry => entry.id === racer.id));
+    byId("result-place-line").hidden = true;
+    byId("result-stats").hidden = true;
+    byId("record").hidden = true;
+    byId("race-order").hidden = false;
+    fillList(byId("race-order"), ordered.map(racer =>
+      [racer.name + (racer.id === id ? "（あなた）" : ""), racer.dnf ? "途中終了" : formatTime(racer.finishedAt), racer.id === id]));
+    showState("finished");
+    resize();
+  }
+  const host = snapshot.host === id;
+  const count = snapshot.players.filter(player => player.connected).length;
+  retry.hidden = !host || count < ROOM_SIZE;
+  retry.disabled = retry.hidden;
+  retry.textContent = "同じメンバーでもう一度";
+  byId("result-note").textContent = count < ROOM_SIZE ? "再戦するには新しい部屋を作ってね。" :
+    host ? "同じ4人で再戦できるよ。" : "ホストが再戦を選ぶと、もう一度走れるよ。";
+  if (first) (retry.hidden ? byId("back-to-courses") : retry).focus({ preventScroll: true });
+}
+
+function lobbySnapshot(snapshot, id) {
+  const count = snapshot.players.filter(player => player.connected).length;
+  const host = snapshot.host === id;
+  byId("lobby-count").textContent = "参加者 " + count + " / 4人";
+  byId("lobby-course").textContent = getTrack(snapshot.trackId).name + " · 3周";
+  fillList(byId("seats"), Array.from({ length: ROOM_SIZE }, (_, slot) => {
+    const player = snapshot.players.find(entry => entry.slot === slot);
+    if (!player) return ["参加者を待っています", "空き", false];
+    const own = player.id === id;
+    const suffix = own ? "（あなた）" : "";
+    const label = player.id === snapshot.host ? "ホスト" : "参加済み";
+    return [player.name + suffix, player.connected ? label : "再接続待ち", own];
+  }));
+  byId("online-start").disabled = !host || count < ROOM_SIZE;
+  byId("online-start").textContent = count < ROOM_SIZE ? "あと " + (ROOM_SIZE - count) + "人でスタート" :
+    host ? "4人でレース開始 →" : "ホストの開始を待っています";
+}
+
+function onlineSnapshot(snapshot, id) {
+  const formerPhase = onlinePhase;
+  onlinePhase = snapshot.phase;
+  if (snapshot.phase === "lobby") {
+    lobbySnapshot(snapshot, id);
+    return;
+  }
+  if (!race || (snapshot.phase === "countdown" && formerPhase === "finished")) {
+    const track = getTrack(snapshot.trackId);
+    const ordered = [snapshot.racers.find(racer => racer.id === id), ...snapshot.racers.filter(racer => racer.id !== id)];
+    if (!track || !ordered[0] || !prepareRace(track, ordered.map(racer => ({ ...racer })), true)) return;
+  }
+  race.snapshot = snapshot;
+  race.receivedAt = performance.now();
+  if (snapshot.phase === "finished") {
+    finishOnline(snapshot, id);
+  } else if (snapshot.phase !== state) {
+    showState(snapshot.phase);
+  }
+}
+
+function rememberRoom(code) {
+  const url = new URL(location.href);
+  if (code) url.searchParams.set("room", code);
+  else url.searchParams.delete("room");
+  history.replaceState(null, "", url);
+}
+
+function joinOnline(code, request) {
+  if (!ROOM_CODE.test(code)) {
+    byId("setup-message").textContent = "6文字のルームコードを確認してね。";
+    roomInput.focus();
+    return;
+  }
+  leaveOnline();
+  const name = nickname.value.trim();
+  if (name) save(NAME_KEY, name);
+  showState("lobby");
+  window.scrollTo(0, 0);
+  byId("room-code").textContent = code;
+  byId("lobby-course").textContent = "コース情報を確認中…";
+  byId("lobby-count").textContent = "参加者 0 / 4人";
+  byId("online-start").disabled = true;
+  byId("online-start").textContent = "接続中…";
+  fillList(byId("seats"), Array.from({ length: ROOM_SIZE }, () => ["参加者を待っています", "空き", false]));
+  const link = new URL(location.href);
+  link.searchParams.set("room", code);
+  byId("invite-link").value = link.href;
+  byId("invite-link").hidden = true;
+  rememberRoom(code);
+  online = new OnlineRace(code, { ...request, name }, {
+    status(message) {
+      byId("lobby-message").textContent = message;
+      if (race) setRaceMessage(message);
+      if (state === "finished" && message) byId("result-note").textContent = message;
+    },
+    state: onlineSnapshot,
+    error(message) {
+      online = null;
+      onlinePhase = null;
+      rememberRoom(null);
+      setupScreen(message);
+    }
+  });
+  online.open();
+}
+
+function leaveOnline() {
+  if (!online) return;
+  online.leave();
+  online = null;
+  onlinePhase = null;
+  rememberRoom(null);
+}
+
+byId("mode-cpu").addEventListener("click", () => selectMode("cpu"));
+byId("mode-online").addEventListener("click", () => selectMode("online"));
+start.addEventListener("click", () => {
+  if (mode === "cpu") startCPU();
+  else joinOnline(makeRoomCode(), { type: "create", trackId: selected });
 });
-window.addEventListener("keyup", event => steering.delete(event.code));
-window.addEventListener("blur", pauseRace);
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) pauseRace();
+byId("join-form").addEventListener("submit", event => {
+  event.preventDefault();
+  joinOnline(roomInput.value.trim().toUpperCase(), { type: "join" });
+});
+byId("copy-link").addEventListener("click", async () => {
+  const field = byId("invite-link");
+  try {
+    await navigator.clipboard.writeText(field.value);
+    byId("lobby-message").textContent = "招待リンクをコピーしたよ。";
+  } catch {
+    field.hidden = false;
+    field.focus();
+    field.select();
+  }
+});
+byId("online-start").addEventListener("click", () => online?.start());
+byId("leave-lobby").addEventListener("click", () => { leaveOnline(); setupScreen(); });
+pause.addEventListener("click", togglePause);
+resume.addEventListener("click", togglePause);
+byId("restart").addEventListener("click", startCPU);
+byId("exit-race").addEventListener("click", () => { leaveOnline(); setupScreen(); });
+byId("back-to-courses").addEventListener("click", () => { leaveOnline(); setupScreen(); });
+retry.addEventListener("click", () => {
+  if (race?.isOnline) online?.start();
+  else startCPU();
 });
 
-for (const button of touchButtons) {
+window.addEventListener("keydown", event => {
+  if (event.code === "Escape" && !event.repeat) togglePause();
+  if (!isActive() || menuOpen || !keys.has(event.code) || event.altKey || event.ctrlKey || event.metaKey) return;
+  event.preventDefault();
+  held.set(event.code, keys.get(event.code));
+});
+window.addEventListener("keyup", event => held.delete(event.code));
+window.addEventListener("blur", () => {
+  clearInput();
+  if (isActive() && !race.isOnline) togglePause();
+});
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) return;
+  clearInput();
+  if (isActive() && !race.isOnline) togglePause();
+});
+for (const button of buttons) {
   button.addEventListener("pointerdown", event => {
-    if (!active() || event.button !== 0) return;
+    if (!isActive() || menuOpen || event.button !== 0) return;
     event.preventDefault();
     button.setPointerCapture(event.pointerId);
-    steering.set(event.pointerId, button.dataset.input);
+    held.set(event.pointerId, button.dataset.input);
     button.classList.add("pressed");
   });
-  for (const eventName of ["pointerup", "pointercancel", "lostpointercapture"]) {
-    button.addEventListener(eventName, event => {
-      steering.delete(event.pointerId);
-      if (![...steering.values()].includes(button.dataset.input)) button.classList.remove("pressed");
+  for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
+    button.addEventListener(type, event => {
+      held.delete(event.pointerId);
+      if (![...held.values()].includes(button.dataset.input)) button.classList.remove("pressed");
     });
   }
 }
 
-canvas.addEventListener("webglcontextlost", event => {
-  event.preventDefault();
-  unavailable("3Dの描画が中断されたよ。ページを再読み込みしてね。");
-});
-
-try {
-  resetRacers();
-  scene = createScene(canvas, racers);
-  drawMap = createMap();
-  setState("ready");
-  resize();
-  new ResizeObserver(resize).observe(game);
-  start.disabled = false;
-} catch (error) {
-  console.error(error);
-  unavailable("3Dを表示できなかったよ。別のブラウザで開いてね。");
+createCourseCards();
+nickname.value = load(NAME_KEY) ?? "";
+selectMode("cpu");
+start.disabled = false;
+new ResizeObserver(resize).observe(game);
+const invited = new URL(location.href).searchParams.get("room")?.trim().toUpperCase();
+if (invited && ROOM_CODE.test(invited)) {
+  selectMode("online");
+  roomInput.value = invited;
+  const token = savedRoomToken(invited);
+  if (token) joinOnline(invited, { type: "resume", token });
+  else byId("setup-message").textContent = "招待が届いたよ。「部屋に入る」で参加。";
 }

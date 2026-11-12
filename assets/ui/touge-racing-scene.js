@@ -1,67 +1,18 @@
 import * as THREE from "../vendor/three.module.js";
-import { createCanvasRenderer } from "./touge-racing-canvas.js?v=3";
+import { createCanvasRenderer } from "./touge-racing-canvas.js?v=4";
 
-export const ROAD_HALF = 7.2;
-export const LAPS = 3;
-
-const waypoints = [
-  [-51, 69], [-4, 70], [52, 76], [86, 60], [98, 26], [86, -9],
-  [58, -45], [30, -43], [4, -62], [-33, -79], [-73, -65],
-  [-103, -32], [-107, 15], [-89, 49]
-];
-const curve = new THREE.CatmullRomCurve3(
-  waypoints.map(([x, z]) => new THREE.Vector3(x, 0, z)),
-  true
-);
-curve.arcLengthDivisions = 1200;
-export const TRACK_LENGTH = curve.getLength();
-
-const segments = 560;
-const step = TRACK_LENGTH / segments;
-const samples = Array.from({ length: segments }, (_, i) => curve.getPointAt(i / segments));
-
-export const BOOST_PADS = [
-  { distance: TRACK_LENGTH * .065, lane: 0 },
-  { distance: TRACK_LENGTH * .485, lane: -2.5 },
-  { distance: TRACK_LENGTH * .83, lane: 2.5 }
-];
-export const PAD_LENGTH = 9;
-export const PAD_HALF_WIDTH = 2.35;
-
-export function trackSample(distance, out = {}) {
-  const index = ((distance % TRACK_LENGTH + TRACK_LENGTH) % TRACK_LENGTH) / step;
-  const base = Math.floor(index);
-  const a = samples[base % segments];
-  const b = samples[(base + 1) % segments];
-  const before = samples[(base + segments - 1) % segments];
-  const after = samples[(base + 2) % segments];
-  const alpha = index - base;
-  const dx = b.x - a.x;
-  const dz = b.z - a.z;
-  const fx = dx + .5 * ((1 - alpha) * (a.x - before.x - dx) + alpha * (after.x - b.x - dx));
-  const fz = dz + .5 * ((1 - alpha) * (a.z - before.z - dz) + alpha * (after.z - b.z - dz));
-  const magnitude = Math.hypot(fx, fz);
-  out.x = a.x + dx * alpha;
-  out.z = a.z + dz * alpha;
-  out.fx = fx / magnitude;
-  out.fz = fz / magnitude;
-  out.rx = -out.fz;
-  out.rz = out.fx;
-  return out;
-}
-
-function ribbon(scene, material, left, right, y, from = 0, to = TRACK_LENGTH) {
+function ribbon(track, scene, material, left, right, y, from = 0, to = track.length) {
   const vertices = [];
   const indices = [];
-  appendRibbon(vertices, indices, left, right, y, from, to);
+  appendRibbon(track, vertices, indices, left, right, y, from, to);
   addSurface(scene, material, vertices, indices);
 }
 
-function appendRibbon(vertices, indices, left, right, y, from, to) {
-  const count = Math.ceil((to - from) / step);
+function appendRibbon(track, vertices, indices, left, right, y, from, to) {
+  const count = Math.ceil((to - from) / 1.1);
   const offset = vertices.length / 3;
   for (let i = 0; i <= count; i++) {
-    const p = trackSample(from + (to - from) * i / count);
+    const p = track.sample(from + (to - from) * i / count);
     vertices.push(p.x + p.rx * left, y, p.z + p.rz * left);
     vertices.push(p.x + p.rx * right, y, p.z + p.rz * right);
     const index = offset + i * 2;
@@ -84,8 +35,8 @@ function box(group, material, x, y, z, w, h, d) {
   return mesh;
 }
 
-function place(object, distance, lane, height = 0) {
-  const p = trackSample(distance);
+function place(track, object, distance, lane, height = 0) {
+  const p = track.sample(distance);
   object.position.set(p.x + p.rx * lane, height, p.z + p.rz * lane);
   object.rotation.y = Math.atan2(p.fx, p.fz);
 }
@@ -93,12 +44,13 @@ function place(object, distance, lane, height = 0) {
 const flat = color => new THREE.MeshLambertMaterial({ color });
 const bright = color => new THREE.MeshBasicMaterial({ color });
 
-function buildRoad(scene) {
+function buildRoad(scene, track) {
+  const { length: TRACK_LENGTH, halfWidth: ROAD_HALF, pads: BOOST_PADS, padLength: PAD_LENGTH, padHalfWidth: PAD_HALF_WIDTH } = track;
   const surfaces = new Map();
   function strip(material, left, right, y, from = 0, to = TRACK_LENGTH) {
     if (!surfaces.has(material)) surfaces.set(material, { vertices: [], indices: [] });
     const { vertices, indices } = surfaces.get(material);
-    appendRibbon(vertices, indices, left, right, y, from, to);
+    appendRibbon(track, vertices, indices, left, right, y, from, to);
   }
   const white = bright(0xe8edf2);
   const red = flat(0xcc4339);
@@ -138,7 +90,7 @@ function buildRoad(scene) {
       .18, pad.distance, pad.distance + PAD_LENGTH);
     for (let i = 0; i < 3; i++) {
       const arrow = new THREE.Group();
-      place(arrow, pad.distance + 1.8 + i * 2.6, pad.lane, .19);
+      place(track, arrow, pad.distance + 1.8 + i * 2.6, pad.lane, .19);
       for (const side of [-1, 1]) {
         const wing = box(arrow, padLine, side * .72, 0, 0, 1.75, .016, .2);
         wing.rotation.y = side * .43;
@@ -151,11 +103,16 @@ function buildRoad(scene) {
   }
 }
 
-function makeSky(scene) {
+function makeSky(scene, track) {
+  const asRGB = value => new THREE.Vector3(
+    parseInt(value.slice(1, 3), 16) / 255,
+    parseInt(value.slice(3, 5), 16) / 255,
+    parseInt(value.slice(5, 7), 16) / 255
+  );
   const sun = new THREE.Vector3(.81, .185, .5).normalize();
   const sky = new THREE.Mesh(new THREE.SphereGeometry(515, 24, 12), new THREE.ShaderMaterial({
     side: THREE.BackSide,
-    uniforms: { sun: { value: sun } },
+    uniforms: { sun: { value: sun }, zenith: { value: asRGB(track.colors[0]) }, horizonColor: { value: asRGB(track.colors[1]) }, night: { value: track.theme === "night" ? 1 : 0 } },
     vertexShader: `
       varying vec3 vPosition;
       void main() {
@@ -165,23 +122,26 @@ function makeSky(scene) {
     `,
     fragmentShader: `
       uniform vec3 sun;
+      uniform vec3 zenith;
+      uniform vec3 horizonColor;
+      uniform float night;
       varying vec3 vPosition;
       void main() {
         vec3 direction = normalize(vPosition);
         float y = direction.y;
         float azimuth = dot(normalize(vec3(direction.x, 0.0, direction.z + .0001)), normalize(vec3(sun.x, 0.0, sun.z)));
         float glow = pow(max(0.0, azimuth), 4.0);
-        vec3 horizon = mix(vec3(.67, .44, .41), vec3(1.0, .65, .39), glow);
-        vec3 color = mix(horizon, vec3(.16, .33, .51), smoothstep(-.015, .65, y));
+        vec3 horizon = horizonColor * mix(.75, 1.02, glow);
+        vec3 color = mix(horizon, zenith, smoothstep(-.015, .65, y));
         float alignment = max(0.0, dot(direction, sun));
         color += pow(alignment, 38.0) * vec3(.19, .09, .015);
-        color = mix(color, vec3(1.0, .87, .62), smoothstep(.9987, .9991, alignment));
+        color = mix(color, mix(vec3(1.0, .87, .62), vec3(.88, .92, 1.0), night), smoothstep(.9987, .9991, alignment));
         gl_FragColor = vec4(color, 1.0);
       }
     `
   }));
   scene.add(sky);
-  const light = new THREE.DirectionalLight(0xffcfaa, 2.05);
+  const light = new THREE.DirectionalLight(track.theme === "night" ? 0xa8bbff : 0xffcfaa, track.theme === "night" ? 1.1 : 2.05);
   light.position.set(sun.x * 100, 38, sun.z * 100);
   scene.add(light, new THREE.HemisphereLight(0xe5e8ff, 0x5c5147, 1.65));
   return sky;
@@ -200,10 +160,10 @@ function instances(scene, geometry, material, transforms) {
   scene.add(group);
 }
 
-function landscape(scene) {
-  box(scene, flat(0x4a624d), -9, -.69, -95, 305, 1.37, 380);
-  box(scene, flat(0x62564b), -8, -1.11, 92.4, 305, 1.2, 8);
-  box(scene, flat(0x317181), 0, -1.8, 0, 1000, .45, 1000);
+function landscape(scene, track) {
+  const coastal = ["coast", "harbor", "sakura"].includes(track.theme);
+  box(scene, flat(track.colors[2]), 0, -.69, -105, 530, 1.37, coastal ? 402 : 700);
+  box(scene, flat(coastal ? track.colors[3] : track.colors[2]), 0, -1.8, 0, 1000, .45, 1000);
 
   let seed = 1347;
   function random() {
@@ -217,25 +177,25 @@ function landscape(scene) {
     [[174, 177, 24], [187, 182, 35], [216, 200, 43], [-169, 207, 27], [-194, 219, 43]]
   ];
   const peak = new THREE.ConeGeometry(1, 1, 5);
-  ranges.forEach((range, i) => {
-    instances(scene, peak, flat([0x4a6158, 0x3f5356, 0x47616c][i]), range.map(([x, z, height]) =>
+  ranges.forEach(range => {
+    instances(scene, peak, flat(track.colors[5]), range.map(([x, z, height]) =>
       [x, height * .5 - 1.5, z, height * (.75 + random() * .45), height, height, random() * Math.PI]));
   });
 
   const trees = [];
   const trunks = [];
   const rocks = [];
-  const bounds = samples.filter((_, i) => i % 3 === 0);
-  for (let i = 0; i < 360; i++) {
+  const bounds = track.outline;
+  for (let i = 0; i < (track.theme === "desert" ? 45 : 360); i++) {
     const x = random() * 290 - 155;
     const z = random() * 220 - 132;
     const scale = .65 + random() * 1.05;
-    if (bounds.some(p => Math.hypot(p.x - x, p.z - z) < 12.5 + scale)) continue;
+    if (bounds.some(p => Math.hypot(p.x - x, p.z - z) < track.halfWidth + 5 + scale)) continue;
     const yaw = random() * Math.PI;
     trees.push([x, 3.35 * scale, z, 1.9 * scale, 4.4 * scale, 1.9 * scale, yaw]);
     trunks.push([x, .76 * scale, z, .37 * scale, 1.5 * scale, .37 * scale, yaw]);
   }
-  instances(scene, new THREE.ConeGeometry(1, 1, 5), flat(0x315b49), trees);
+  instances(scene, (track.theme === "sakura" ? new THREE.IcosahedronGeometry(1, 0) : new THREE.ConeGeometry(1, 1, 5)), flat(track.colors[4]), trees);
   instances(scene, new THREE.BoxGeometry(1, 1, 1), flat(0x6f5143), trunks);
 
   const swells = [];
@@ -249,15 +209,28 @@ function landscape(scene) {
     }
   }
   instances(scene, new THREE.DodecahedronGeometry(1), flat(0x655c57), rocks);
-  instances(scene, new THREE.BoxGeometry(1, 1, 1), flat(0x59979f), swells);
+  if (coastal) instances(scene, new THREE.BoxGeometry(1, 1, 1), flat(new THREE.Color(track.colors[3]).multiplyScalar(1.25)), swells);
+  if (["night", "harbor"].includes(track.theme)) {
+    const buildings = Array.from({ length: 30 }, (_, i) => {
+      const x = -160 + (i % 10) * 34, z = -112 - Math.floor(i / 10) * 25;
+      const h = track.theme === "night" ? 14 + random() * 34 : 4 + random() * 8;
+      return [x, h / 2, z, 11 + random() * 7, h, 10, 0];
+    });
+    instances(scene, new THREE.BoxGeometry(1, 1, 1), flat(track.theme === "night" ? "#445078" : "#8c6261"), buildings);
+    if (track.theme === "night") {
+      instances(scene, new THREE.BoxGeometry(1, 1, 1), bright(0xffd7a0),
+        buildings.flatMap(([x, y, z, w, h, d]) => [0.3, .6, .82].map(level => [x, h * level, z + d / 2, w * .7, .48, .3, 0])));
+    }
+  }
 }
 
-function roadside(scene) {
-  const orange = flat(0xc34f36);
+function roadside(scene, track) {
+  const { halfWidth: ROAD_HALF, length: TRACK_LENGTH } = track;
+  const orange = flat(track.colors[6]);
   const roof = flat(0x283944);
   const concrete = flat(0xc6ab8a);
   const gate = new THREE.Group();
-  for (const x of [-8.8, 8.8]) {
+  for (const x of [-ROAD_HALF - 1.6, ROAD_HALF + 1.6]) {
     box(gate, concrete, x, .27, 0, 1.48, .54, 1.52);
     box(gate, orange, x, 4, 0, .72, 7.7, .72);
   }
@@ -265,7 +238,12 @@ function roadside(scene) {
   box(gate, orange, 0, 7.7, 0, 21.1, .6, .95);
   box(gate, roof, 0, 8.07, 0, 22, .27, 1.35);
   box(gate, orange, 0, 6.97, 0, .85, 1.26, .6);
-  place(gate, 0, 0);
+  if (track.theme === "castle") {
+    box(gate, flat(0xe4d6bf), 0, 8.2, 0, 17, 2.65, 2.55);
+    box(gate, roof, 0, 9.65, 0, 22, .5, 3.8);
+    box(gate, roof, 0, 10.15, 0, 17, .6, 2.5);
+  }
+  place(track, gate, 0, 0);
   scene.add(gate);
 
   const lamp = flat(0x303e46);
@@ -276,7 +254,7 @@ function roadside(scene) {
     box(post, lamp, 0, 2.05, 0, .19, 4.1, .19);
     box(post, lamp, -.55, 4, 0, 1.25, .2, .24);
     box(post, bulb, -1.02, 3.88, 0, .45, .09, .34);
-    place(post, distance, -ROAD_HALF - 1.75);
+    place(track, post, distance, -ROAD_HALF - 1.75);
     post.rotateY(Math.PI);
     scene.add(post);
   }
@@ -284,13 +262,13 @@ function roadside(scene) {
   const metal = flat(0x9ea9a6);
   const posts = [];
   for (let distance = 8; distance < TRACK_LENGTH * .36; distance += 4.5) {
-    const p = trackSample(distance);
+    const p = track.sample(distance);
     const lane = ROAD_HALF + 1.18;
     posts.push([p.x + p.rx * lane, .43, p.z + p.rz * lane, .24, .86, .25,
       Math.atan2(p.fx, p.fz)]);
   }
   instances(scene, new THREE.BoxGeometry(1, 1, 1), metal, posts);
-  ribbon(scene, metal, ROAD_HALF + 1.01, ROAD_HALF + 1.35, .8, 7, TRACK_LENGTH * .36);
+  ribbon(track, scene, metal, ROAD_HALF + 1.01, ROAD_HALF + 1.35, .8, 7, TRACK_LENGTH * .36);
 }
 
 const carGlass = flat(0x192e3f);
@@ -339,24 +317,21 @@ function car(scene, paint) {
   return group;
 }
 
-export function createScene(canvas, racers) {
+export function createScene(canvas, racers, track) {
   const attributes = { antialias: true, alpha: false };
   const context = canvas.getContext("webgl2", attributes) || canvas.getContext("webgl", attributes);
   const renderer = context
     ? new THREE.WebGLRenderer({ canvas, context })
-    : createCanvasRenderer(canvas, racers, {
-        sample: trackSample, length: TRACK_LENGTH, halfWidth: ROAD_HALF,
-        pads: BOOST_PADS, padLength: PAD_LENGTH, padHalfWidth: PAD_HALF_WIDTH
-      });
+    : createCanvasRenderer(canvas, racers, track);
   const scene = new THREE.Scene();
   let sky;
   let cars = [];
   if (context) {
-    scene.fog = new THREE.FogExp2(0xc99982, .0036);
-    sky = makeSky(scene);
-    landscape(scene);
-    buildRoad(scene);
-    roadside(scene);
+    scene.fog = new THREE.FogExp2(track.colors[1], .0036);
+    sky = makeSky(scene, track);
+    landscape(scene, track);
+    buildRoad(scene, track);
+    roadside(scene, track);
     cars = racers.map(racer => car(scene, racer.color));
   }
 
@@ -380,14 +355,15 @@ export function createScene(canvas, racers) {
   function render(state, dt, resetCamera) {
     cars.forEach((model, index) => {
       const racer = racers[index];
-      const p = trackSample(racer.distance, frame);
+      model.visible = !racer.dnf;
+      const p = track.sample(racer.distance, frame);
       model.position.set(p.x + p.rx * racer.lane, .18, p.z + p.rz * racer.lane);
       model.rotation.y = Math.atan2(p.fx, p.fz) - racer.steer * .17;
     });
 
     const player = racers[0];
-    const p = trackSample(player.distance, frame);
-    const lookingAhead = trackSample(player.distance + 27, next);
+    const p = track.sample(player.distance, frame);
+    const lookingAhead = track.sample(player.distance + 27, next);
     const intro = state === "ready";
     const back = intro ? (portrait ? 14 : 16) : (portrait ? 11.4 : 10.6);
     const lane = player.lane + (intro && !portrait ? -11.4 : 0);
@@ -402,5 +378,15 @@ export function createScene(canvas, racers) {
     renderer.render(scene, camera);
   }
 
-  return { render, resize };
+  function dispose() {
+    if (!context) return;
+    scene.traverse(object => {
+      object.geometry?.dispose();
+      object.material?.dispose();
+    });
+    renderer.dispose();
+    renderer.forceContextLoss();
+  }
+
+  return { render, resize, dispose };
 }

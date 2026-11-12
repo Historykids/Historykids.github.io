@@ -77,3 +77,18 @@ namespace_id = "1010"
 [ratelimits.simple]
 limit = 240
 period = 60
+
+[[durable_objects.bindings]]
+name = "RACING_ROOM"
+class_name = "TougeRaceRoom"
+
+[[migrations]]
+tag = "touge-race-v1"
+new_sqlite_classes = ["TougeRaceRoom"]
+
+[[ratelimits]]
+name = "RACING_CONNECT_LIMITER"
+namespace_id = "1011"
+[ratelimits.simple]
+limit = 60
+period = 60

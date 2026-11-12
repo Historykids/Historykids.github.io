@@ -2,7 +2,9 @@
 export function createCanvasRenderer(canvas, racers, track) {
   const ctx = canvas.getContext("2d", { alpha: false });
   if (!ctx) throw new Error("Canvas 2D is unavailable");
-  const { sample, length, halfWidth, pads, padLength, padHalfWidth } = track;
+  const { sample, length, halfWidth, pads, padLength, padHalfWidth, theme, colors } = track;
+  const coastal = ["coast", "sakura", "harbor"].includes(theme);
+  const [skyTop, skyHorizon, groundColor, waterColor, treeColor, mountainColor, gateColor] = colors;
   const terrain = [];
   const road = [];
   const scenery = [];
@@ -56,9 +58,9 @@ export function createCanvasRenderer(canvas, racers, track) {
     });
   }
 
-  const sea = { color: "#487d8c", corners: [[-1100, -.25, 94], [-1100, -.25, 1100], [1100, -.25, 1100], [1100, -.25, 94]] };
-  terrain.push(sea);
-  for (let i = 0; i < 21; i++) {
+  const sea = { color: waterColor, corners: [[-1100, -.25, 94], [-1100, -.25, 1100], [1100, -.25, 1100], [1100, -.25, 94]] };
+  if (coastal) terrain.push(sea);
+  for (let i = 0; i < (coastal ? 21 : 0); i++) {
     const x = Math.sin(i * 2.4) * 150 + i * 11 - 135;
     const z = 101 + (i * 17) % 95;
     terrain.push({ color: i % 3 ? "#578d99" : "#6a99a1",
@@ -71,9 +73,9 @@ export function createCanvasRenderer(canvas, racers, track) {
     [150, -81, 68], [185, 164, 30], [230, 191, 38], [-169, 203, 34]
   ];
   for (const [x, z, h] of peaks) {
-    scenery.push({ color: z > 110 ? "#526c75" : "#566658",
+    scenery.push({ color: mountainColor,
       corners: [[x - h, -.5, z], [x, h, z + 3], [x + h, -.5, z + 10]] });
-    scenery.push({ color: z > 110 ? "#607e87" : "#6b7560",
+    scenery.push({ color: shade(parseInt(mountainColor.slice(1), 16), 1.15),
       corners: [[x, h, z + 3], [x + h * .35, 0, z - 7], [x + h, -.5, z + 10]] });
   }
 
@@ -90,19 +92,23 @@ export function createCanvasRenderer(canvas, racers, track) {
     strip(road, a, b, -halfWidth + .22, -halfWidth + .37, .16, "#e3dfd3");
     strip(road, a, b, halfWidth - .37, halfWidth - .22, .16, "#e3dfd3");
     if (index % 2 === 0) strip(road, a, b, -.08, .08, .16, "#c9b388");
-    if (index % 4 === 0) {
+    if (index % (theme === "desert" ? 21 : 4) === 0) {
       const side = index % 12 === 0 && from > length * .37 ? 1 : -1;
       const offset = side * (12 + 4 * Math.sin(index * .8) ** 2);
       const h = 3 + 3 * Math.sin(index) ** 2;
       const trunk = ["#6c5747", "#6c5747", "#534636", "#534636", "#6c5747"];
       box(scenery, a, offset, h * .23, 0, .26, h * .46, .26, trunk);
-      for (let layer = 0; layer < 2; layer++) {
+      if (theme === "sakura") {
+        box(scenery, a, offset, h * .64, 0, h * .54, h * .43, h * .48,
+          [treeColor, treeColor, "#bb7f96", "#c2839e", "#edb1c5"]);
+      }
+      for (let layer = 0; layer < (theme === "sakura" ? 0 : 2); layer++) {
         const y = h * (.28 + layer * .26);
         const w = h * (.31 - layer * .07);
-        scenery.push({ color: layer ? "#3b6456" : "#335447",
+        scenery.push({ color: layer ? shade(parseInt(treeColor.slice(1), 16), 1.15) : treeColor,
           corners: [point(a, offset - w, y), point(a, offset, y + h * .59), point(a, offset + w, y)] });
         const base = point(a, offset, y);
-        scenery.push({ color: layer ? "#446958" : "#3c5e4f",
+        scenery.push({ color: shade(parseInt(treeColor.slice(1), 16), layer ? 1.25 : 1.07),
           corners: [[base[0] - a.fx * w, y, base[2] - a.fz * w], point(a, offset, y + h * .59),
             [base[0] + a.fx * w, y, base[2] + a.fz * w]] });
       }
@@ -126,13 +132,35 @@ export function createCanvasRenderer(canvas, racers, track) {
   }
 
   const start = sample(0);
-  const vermilion = ["#d76a48", "#b84e37", "#a34336", "#c5573c", "#ef8860"];
+  const pigment = parseInt(gateColor.slice(1), 16);
+  const vermilion = [gateColor, ...[.87, .77, .91, 1.12].map(value => shade(pigment, value))];
   const beam = ["#304552", "#293a45", "#293a45", "#293a45", "#5b6364"];
-  for (const lane of [-8.8, 8.8]) box(scenery, start, lane, 3.9, 0, .75, 7.8, .75, vermilion);
+  for (const lane of [-halfWidth - 1.6, halfWidth + 1.6]) box(scenery, start, lane, 3.9, 0, .75, 7.8, .75, vermilion);
   box(scenery, start, 0, 6.15, 0, 20, .62, .72, vermilion);
   box(scenery, start, 0, 7.68, 0, 21.1, .62, .9, vermilion);
   box(scenery, start, 0, 8.06, 0, 22, .26, 1.3, beam);
   box(scenery, start, 0, 6.94, 0, .8, 1.2, .62, vermilion);
+
+  if (theme === "castle") {
+    box(scenery, start, 0, 8.35, 0, 17, 2.65, 2.55, ["#ded2bd", "#ded2bd", "#a9a298", "#b6ab9d", "#f0e4d1"]);
+    box(scenery, start, 0, 9.77, 0, 22, .55, 3.8, beam);
+    box(scenery, start, 0, 10.18, 0, 17, .48, 2.5, beam);
+  }
+  if (theme === "night" || theme === "harbor") {
+    for (let i = 0; i < 21; i++) {
+      const p = { x: -155 + (i % 10) * 34, z: -110 - Math.floor(i / 10) * 24, fx: 0, fz: 1, rx: -1, rz: 0 };
+      const h = theme === "night" ? 16 + (i * 13) % 29 : 4 + (i * 3) % 8;
+      const colors = theme === "night"
+        ? ["#3c4261", "#454c70", "#303653", "#394163", "#515b81"]
+        : ["#85575a", "#8e6260", "#674c54", "#734e4d", "#b47d75"];
+      box(scenery, p, 0, h * .5, 0, 13, h, 10, colors);
+      if (theme === "night") {
+        for (const level of [.3, .6, .82]) {
+          box(scenery, p, 0, h * level, 5.03, 8, .45, .06, Array(5).fill("#e4c691"));
+        }
+      }
+    }
+  }
 
   function setPixelRatio(value) { ratio = Math.min(value, 1.25); }
 
@@ -195,9 +223,8 @@ export function createCanvasRenderer(canvas, racers, track) {
     }
 
     const sky = ctx.createLinearGradient(0, 0, 0, Math.max(1, horizon));
-    sky.addColorStop(0, "#395c80");
-    sky.addColorStop(.6, "#a58082");
-    sky.addColorStop(1, "#f0aa79");
+    sky.addColorStop(0, skyTop);
+    sky.addColorStop(1, skyHorizon);
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, width, height);
     const sun = transform([camera.position.x + 170, camera.position.y + 39, camera.position.z + 105]);
@@ -210,15 +237,14 @@ export function createCanvasRenderer(canvas, racers, track) {
       glow.addColorStop(1, "#ffe1a300");
       ctx.fillStyle = glow;
       ctx.fillRect(x - r * 4, y - r * 4, r * 8, r * 8);
-      ctx.fillStyle = "#ffe8ae";
+      ctx.fillStyle = theme === "night" ? "#e0ecff" : "#ffe8ae";
       ctx.beginPath();
       ctx.arc(x, y, r, 0, 2 * Math.PI);
       ctx.fill();
     }
     const ground = ctx.createLinearGradient(0, horizon, 0, Math.max(horizon + 1, height));
-    ground.addColorStop(0, "#9c8980");
-    ground.addColorStop(.37, "#647b5f");
-    ground.addColorStop(1, "#496650");
+    ground.addColorStop(0, shade(parseInt(groundColor.slice(1), 16), 1.37));
+    ground.addColorStop(1, groundColor);
     ctx.fillStyle = ground;
     ctx.fillRect(0, horizon, width, height - horizon);
     terrain.forEach(surface => paint(project(surface)));
@@ -226,6 +252,7 @@ export function createCanvasRenderer(canvas, racers, track) {
 
     const faces = [...scenery];
     racers.forEach((racer, index) => {
+      if (racer.dnf) return;
       const p = sample(racer.distance);
       p.x += p.rx * racer.lane;
       p.z += p.rz * racer.lane;

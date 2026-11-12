@@ -92,3 +92,11 @@ namespace_id = "1011"
 [ratelimits.simple]
 limit = 60
 period = 60
+
+[[durable_objects.bindings]]
+name = "RACING_HUB"
+class_name = "TougeRaceHub"
+
+[[migrations]]
+tag = "touge-race-hub-v1"
+new_sqlite_classes = ["TougeRaceHub"]

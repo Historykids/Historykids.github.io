@@ -3,31 +3,40 @@ import {
   COUNTDOWN, EMPTY_INPUT, RACE_LIMIT, RACE_PROTOCOL, ROOM_CODE, ROOM_SIZE, STEP, createRacer, isDriving, stepRace
 } from "../../assets/ui/touge-racing-rules.mjs";
 
+import { cleanRacerName, raceHub } from "./touge-racing-hub.mjs";
+
 const ORIGIN = "https://historykids.github.io";
 const RECONNECT_MS = 12000;
 const PEER_LIMIT = 10;
 const TIME_AFTER_WIN = 70;
 const ROOM_IDLE = 20 * 60 * 1000;
-const cleanName = value => typeof value === "string"
-  ? [...value.normalize("NFKC").replace(/[\p{C}<>]/gu, "").trim()].slice(0, 14).join("")
-  : "";
-
 export async function racingRequest(request, env, reply) {
   const url = new URL(request.url);
-  if (!env.RACING_ROOM) return reply({ error: "unavailable" }, 503);
-  if (url.pathname !== "/race/status" && url.pathname !== "/race/socket") return reply({ error: "not-found" }, 404);
+  const path = url.pathname;
+  const isDirectory = path === "/race/rooms" || path === "/race/leaderboard";
+  if (!isDirectory && path !== "/race/status" && path !== "/race/socket") return reply({ error: "not-found" }, 404);
   if (request.method === "OPTIONS") return reply({ ok: true });
-  if (request.method !== "GET") return reply({ error: "method-not-allowed" }, 405);
-  if (url.pathname === "/race/status") {
+  if (request.method !== "GET" && !(path === "/race/leaderboard" && request.method === "POST")) {
+    return reply({ error: "method-not-allowed" }, 405);
+  }
+  const limiter = env.RACING_CONNECT_LIMITER;
+  if ((path === "/race/socket" || request.method === "POST") && limiter &&
+      !(await limiter.limit({ key: path + ":" + (request.headers.get("CF-Connecting-IP") || "anonymous") })).success) {
+    return reply({ error: "rate-limited" }, 429);
+  }
+  if (isDirectory) {
+    const hub = raceHub(env);
+    if (!hub) return reply({ error: "unavailable" }, 503);
+    const response = await hub.fetch(request);
+    return reply(await response.json(), response.status);
+  }
+  if (!env.RACING_ROOM) return reply({ error: "unavailable" }, 503);
+  if (path === "/race/status") {
     return reply({ protocol: RACE_PROTOCOL, capacity: ROOM_SIZE, tracks: TRACKS.map(track => track.id) });
   }
   const code = url.searchParams.get("room");
   if (!ROOM_CODE.test(code ?? "")) return reply({ error: "invalid-room" }, 400);
   if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") return reply({ error: "websocket-required" }, 426);
-  const limiter = env.RACING_CONNECT_LIMITER;
-  if (limiter && !(await limiter.limit({ key: request.headers.get("CF-Connecting-IP") || "anonymous" })).success) {
-    return reply({ error: "rate-limited" }, 429);
-  }
   return env.RACING_ROOM.get(env.RACING_ROOM.idFromName("touge-" + code)).fetch(request);
 }
 
@@ -94,6 +103,7 @@ export class RaceRoom {
     record.disconnectedAt = this.clock();
     if (record.racer) record.racer.input = EMPTY_INPUT;
     if (this.phase === "lobby" || this.phase === "finished") this.broadcast();
+    else this.publishListing();
   }
 
   leave(peer) {
@@ -105,6 +115,7 @@ export class RaceRoom {
       if (!this.players.size && (this.phase === "lobby" || this.phase === "finished")) this.reset();
     }
     this.detach(peer);
+    this.publishListing();
     try { peer.socket.close(1000, "left"); } catch {}
   }
 
@@ -164,7 +175,7 @@ export class RaceRoom {
       const slots = [...this.players.values()].map(player => player.slot);
       const slot = Array.from({ length: ROOM_SIZE }, (_, i) => i).find(index => !slots.includes(index));
       record = {
-        id: crypto.randomUUID(), token: crypto.randomUUID(), name: cleanName(message.name) || "レーサー " + (slot + 1),
+        id: crypto.randomUUID(), token: crypto.randomUUID(), name: cleanRacerName(message.name) || "レーサー " + (slot + 1),
         slot, ack: 0, inputAt: now, peer: null, racer: null
       };
       this.players.set(record.token, record);
@@ -197,7 +208,30 @@ export class RaceRoom {
     this.broadcast();
   }
 
+  publishListing(now = this.clock()) {
+    if (!this.directory || !this.code) return;
+    const players = this.connected();
+    const host = [...this.players.values()].find(record => record.id === this.host)?.name;
+    const entry = this.track && players ? {
+      id: this.code, track: this.track.id, host, players: this.phase === "lobby" ? this.players.size : players, phase: this.phase
+    } : { id: this.code, phase: "closed" };
+    const signature = JSON.stringify(entry);
+    if (signature === this.listingSignature && (entry.phase === "closed" || now - this.listingAt < 12000)) return;
+    this.listingSignature = signature;
+    this.listingAt = now;
+    this.listingWork = (this.listingWork ?? Promise.resolve()).then(async () => {
+      if (signature !== this.listingSignature) return;
+      const response = await this.directory.fetch("https://racing.internal/internal/room", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: signature
+      });
+      if (!response.ok) throw new Error("Room listing update failed");
+    }).catch(() => {
+      if (this.listingSignature === signature) this.listingAt = this.clock() - 10000;
+    });
+  }
+
   broadcast(now = this.clock()) {
+    this.publishListing(now);
     if (!this.track) return;
     const players = [...this.players.values()].map(({ id, name, slot, peer }) => ({ id, name, slot, connected: !!peer }));
     const racers = this.racers.map(({ input, ...racer }) => racer);
@@ -261,6 +295,7 @@ export class RaceRoom {
       for (const peer of [...this.peers]) this.reject(peer, "idle");
       this.players.clear();
     }
+    this.publishListing(now);
     if (!this.peers.size && !this.players.size && this.phase !== "racing" && this.phase !== "countdown") {
       this.reset();
       clearInterval(this.timer);
@@ -270,14 +305,16 @@ export class RaceRoom {
 }
 
 export class TougeRaceRoom {
-  constructor() {
+  constructor(_ctx, env) {
     this.room = new RaceRoom();
+    this.room.directory = raceHub(env);
   }
 
   async fetch(request) {
     if (request.headers.get("Origin") !== ORIGIN) return new Response("Origin not allowed", { status: 403 });
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") return new Response("WebSocket required", { status: 426 });
     if (this.room.peers.size >= PEER_LIMIT) return new Response("Room busy", { status: 503 });
+    this.room.code = new URL(request.url).searchParams.get("room");
     const [client, server] = Object.values(new WebSocketPair());
     server.accept();
     this.room.attach(server);

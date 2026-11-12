@@ -3,6 +3,7 @@ import {snakeRequest,SNAKE_VERSION} from './neon-snake.mjs';
 export {NeonSnakeArena} from './neon-snake.mjs';
 import {racingRequest} from './touge-racing.mjs';
 export {TougeRaceRoom} from './touge-racing.mjs';
+export {TougeRaceHub} from './touge-racing-hub.mjs';
 import {wealthRequest} from './wealth.mjs';
 export {HistoryLeaderboard} from './wealth.mjs';
 const origin='https://historykids.github.io';

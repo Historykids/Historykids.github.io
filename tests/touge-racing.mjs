@@ -100,3 +100,83 @@ room.tick(now);
 assert.equal(room.phase, "lobby");
 assert.equal(room.track, null);
 console.log("Four human seats, shared start and results, reconnect, rematch, departure, and room cleanup passed.");
+
+const { DatabaseSync } = await import("node:sqlite");
+const { TougeRaceHub } = await import("../server/ranking-api/touge-racing-hub.mjs");
+const { createTrialRacer, recordTrialInput, replayTrial, TRIAL_PROTOCOL } = await import("../assets/ui/touge-racing-rules.mjs");
+const track = getTrack("yunagi");
+
+function trial(track, idleTicks = 0) {
+  const player = createTrialRacer();
+  const racers = [player], tape = [];
+  let tick = 0;
+  while (player.finishedAt === null && tick < 3600) {
+    player.input = tick < idleTicks ? { gas: false, brake: false, turn: 0 } : steering(track, player);
+    recordTrialInput(tape, player.input);
+    stepRace(track, racers, STEP, tick++ * STEP, 1);
+  }
+  assert.equal(player.distance, track.length);
+  assert.equal(replayTrial(track, tape), player.finishedAt);
+  assert.equal(replayTrial(track, [...tape, [5, 1]]), null);
+  return tape;
+}
+for (const { id } of TRACKS) trial(getTrack(id));
+
+const front = createRacer(1), rear = createRacer(0);
+Object.assign(front, { distance: .3, lane: 0, speed: 12 });
+Object.assign(rear, { distance: track.length - 2, lane: 0, speed: 36 });
+stepRace(track, [front, rear], STEP, 1);
+assert(front.speed > 12 && rear.speed < 36 && rear.contact > 0);
+assert(front.distance - rear.distance + track.length >= 3.94, "Bumpers separate across the lap line");
+const left = createRacer(0), right = createRacer(1);
+Object.assign(left, { distance: 20, lane: .3, speed: 28, lateralSpeed: 5 });
+Object.assign(right, { distance: 20, lane: 1.5, speed: 28, lateralSpeed: -4 });
+stepRace(track, [left, right], STEP, 1);
+assert(right.lane - left.lane >= 2.149);
+assert(left.contact > 0 && right.contact > 0);
+assert(left.lateralSpeed < 5 && right.lateralSpeed > -4);
+
+const database = new DatabaseSync(":memory:");
+const hub = new TougeRaceHub({ storage: { sql: { exec(query, ...params) {
+  const stmt = database.prepare(query);
+  if (query.trimStart().startsWith("SELECT")) return { toArray: () => stmt.all(...params) };
+  stmt.run(...params);
+  return { toArray: () => [] };
+} } } });
+const request = (path, body) => new Request("https://racing.internal" + path, body
+  ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+  : {});
+const directoryRoom = new RaceRoom({ clock: () => now, autoRun: false });
+directoryRoom.code = "ABCDEF";
+directoryRoom.directory = { fetch: (url, init) => hub.fetch(new Request(url, init)) };
+const listingSocket = new Socket();
+const listingPeer = directoryRoom.attach(listingSocket);
+directoryRoom.message(listingPeer, JSON.stringify({ type: "create", protocol: RACE_PROTOCOL, trackId: "yunagi", name: "Test" }));
+await directoryRoom.listingWork;
+let listing = await (await hub.fetch(request("/race/rooms"))).json();
+assert.deepEqual(listing.rooms, [{ id: "ABCDEF", host: "Test", track: "yunagi", players: 1, phase: "lobby" }]);
+directoryRoom.message(listingPeer, JSON.stringify({ type: "leave" }));
+await directoryRoom.listingWork;
+listing = await (await hub.fetch(request("/race/rooms"))).json();
+assert.deepEqual(listing.rooms, []);
+
+const record = { protocol: TRIAL_PROTOCOL, track: "yunagi", player: crypto.randomUUID(), name: "レーサーA", tape: trial(track, 10) };
+const submit = run => hub.fetch(request("/race/leaderboard", run));
+assert.equal((await submit({ ...record, tape: [[5, 1]], seconds: .01 })).status, 400);
+assert.equal((await submit({ ...record, tape: [[5, 3601]] })).status, 400);
+const first = await (await submit(record)).json();
+const slower = await (await submit({ ...record, tape: trial(track, 20) })).json();
+assert.equal(slower.updated, false);
+assert.equal(slower.seconds, first.seconds);
+const faster = await (await submit({ ...record, tape: trial(track), player: crypto.randomUUID(), name: "レーサーB" })).json();
+assert.equal(faster.rank, 1);
+assert.deepEqual(faster.entries.map(entry => entry.name), ["レーサーB", "レーサーA"]);
+const better = await (await submit({ ...record, tape: trial(track) })).json();
+assert.equal(better.updated, true);
+assert.equal(better.rank, 1);
+assert.deepEqual(better.entries.map(entry => entry.rank), [1, 1]);
+assert(!JSON.stringify(better).includes(record.player));
+const other = await (await hub.fetch(request("/race/leaderboard?track=night"))).json();
+assert.deepEqual(other.entries, []);
+database.close();
+console.log("All ten time trials, front/side impacts, live directory lifecycle, replay validation, and per-track ranking passed.");

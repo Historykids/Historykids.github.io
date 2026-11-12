@@ -252,7 +252,7 @@ export function createCanvasRenderer(canvas, racers, track) {
 
     const faces = [...scenery];
     racers.forEach((racer, index) => {
-      if (racer.dnf) return;
+      if (racer.dnf || (index !== 0 && racer.finishedAt !== null)) return;
       const p = sample(racer.distance);
       p.x += p.rx * racer.lane;
       p.z += p.rz * racer.lane;

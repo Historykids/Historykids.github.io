@@ -4,13 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#101c27">
-    <meta name="description" content="歴史キッズの無料3Dレーシングゲーム。10コースでオンライン4人対戦とCPU対戦。パソコン・スマホ対応。">
+    <meta name="description" content="歴史キッズの無料3Dレーシングゲーム。10コースでタイムアタック、オンライン4人対戦、CPU対戦。パソコン・スマホ対応。">
     <title>峠レーシング 3D｜歴史キッズ</title>
     <link rel="canonical" href="https://historykids.github.io/touge-racing.html">
     <link rel="icon" href="./favicon.ico">
-    <link rel="stylesheet" href="./assets/ui/touge-racing.css?v=4">
+    <link rel="stylesheet" href="./assets/ui/touge-racing.css?v=5">
     <script src="./assets/ui/ranking-config.js"></script>
-    <script type="module" src="./assets/ui/touge-racing.js?v=4"></script>
+    <script type="module" src="./assets/ui/touge-racing.js?v=5"></script>
   </head>
   <body>
     <header class="topbar">
@@ -34,30 +34,48 @@
           </button>
           <button type="button" id="mode-online" aria-pressed="false">
             <span class="mode-icon" aria-hidden="true">◎</span>
-            <span><strong>オンライン4人対戦</strong><small>友だちを招待して4人で走る</small></span>
+            <span><strong>オンライン4人対戦</strong><small>部屋一覧から4人で集まる</small></span>
+          </button>
+          <button type="button" id="mode-trial" aria-pressed="false">
+            <span class="mode-icon" aria-hidden="true">◷</span>
+            <span><strong>タイムアタック</strong><small>1人で1周、コース別ランキングに挑戦</small></span>
           </button>
         </div>
         <section id="online-entry" class="online-entry" aria-labelledby="entry-title" hidden>
-          <div>
-            <h2 id="entry-title">友だちと遊ぶ</h2>
-            <label for="nickname">レースで表示する名前</label>
-            <input id="nickname" type="text" maxlength="14" placeholder="レーサー" autocomplete="off">
+          <div class="room-header">
+            <div><h2 id="entry-title">オンラインの部屋一覧</h2><p>参加できる部屋を選ぼう。</p></div>
+            <button class="secondary" id="reload-rooms" type="button">更新</button>
           </div>
-          <form id="join-form">
-            <label for="room-input">招待された人はルームコードを入力</label>
-            <div class="join-line">
-              <input id="room-input" type="text" placeholder="6文字のコード" maxlength="6" autocapitalize="characters" spellcheck="false" autocomplete="off" required>
-              <button class="secondary" type="submit">部屋に入る</button>
-            </div>
-          </form>
+          <label for="nickname">レースで表示する名前</label>
+          <input id="nickname" type="text" maxlength="14" placeholder="レーサー" autocomplete="off">
+          <button class="secondary" id="join-invite" type="button" hidden>招待された部屋に入る</button>
+          <p id="room-list-status" class="directory-status" role="status"></p>
+          <ul id="room-list" class="room-list"></ul>
         </section>
         <p id="setup-message" class="setup-message" role="status"></p>
         <section aria-labelledby="courses-title">
           <div class="course-heading">
             <div><h2 id="courses-title">コースを選ぶ</h2><p id="selected-info"></p></div>
-            <button class="primary" id="start" type="button" disabled>CPUと対戦する →</button>
+            <div class="course-actions">
+              <button class="secondary" id="open-ranking" type="button" aria-controls="rank-panel" aria-expanded="false">ランキング</button>
+              <button class="primary" id="start" type="button" disabled>CPUと対戦する →</button>
+            </div>
           </div>
           <div id="course-grid" class="course-grid" aria-label="全10コース"></div>
+        </section>
+        <section id="rank-panel" class="rank-panel" aria-labelledby="rank-title" hidden>
+          <div class="room-header">
+            <div><h2 id="rank-title" tabindex="-1">コース別ランキング</h2><p>タイムアタック1周の上位20件</p></div>
+            <div class="rank-actions">
+              <button class="secondary" id="reload-ranking" type="button">更新</button>
+              <button class="secondary" id="close-ranking" type="button">閉じる</button>
+            </div>
+          </div>
+          <p id="rank-status" class="directory-status" role="status"></p>
+          <table id="rank-table" hidden>
+            <thead><tr><th scope="col">順位</th><th scope="col">レーサー</th><th scope="col">タイム</th></tr></thead>
+            <tbody id="rank-rows"></tbody>
+          </table>
         </section>
         <p class="control-tip">青いブーストを踏むと加速。きついカーブでは手前でブレーキ。</p>
       </section>
@@ -68,7 +86,7 @@
           <h1 id="lobby-title">オンライン対戦</h1>
           <p id="lobby-course" class="lobby-course"></p>
           <div class="invite-box">
-            <div><span>ルームコード</span><strong id="room-code"></strong></div>
+            <div><span>参加者募集中</span><strong>招待リンク</strong></div>
             <button class="secondary" id="copy-link" type="button">招待リンクをコピー</button>
           </div>
           <input id="invite-link" type="url" readonly aria-label="招待リンク" hidden>
@@ -88,8 +106,8 @@
         </aside>
         <div class="hud" id="hud">
           <div class="race-stats">
-            <div class="stat"><span>順位</span><strong id="place">4<small> / 4</small></strong></div>
-            <div class="stat"><span>周回</span><strong id="lap">1<small> / 3</small></strong></div>
+            <div class="stat" id="place-stat"><span>順位</span><strong id="place">4<small> / 4</small></strong></div>
+            <div class="stat"><span>周回</span><strong id="lap">1<small id="lap-total"> / 3</small></strong></div>
             <div class="stat"><span>タイム</span><strong id="time">0:00.00</strong></div>
           </div>
           <button class="pause" id="pause" type="button" aria-label="一時停止">Ⅱ</button>
@@ -99,6 +117,7 @@
             <span id="boost" class="boost" hidden>ブースト</span>
           </div>
           <div class="countdown" id="countdown" role="status" hidden></div>
+          <span class="impact" id="impact" hidden>接触！</span>
           <div class="race-message" id="race-message" role="status"></div>
           <div class="touch-controls" aria-label="タッチ操作">
             <div class="control-group">
@@ -130,6 +149,13 @@
             <p class="record" id="record" role="status" hidden>自己ベスト更新！</p>
             <ol id="race-order" class="race-order" hidden></ol>
             <p id="result-note" class="result-note" role="status"></p>
+            <form id="trial-submit" class="trial-submit" hidden>
+              <label for="trial-name">ランキングに表示する名前</label>
+              <input id="trial-name" type="text" maxlength="14" autocomplete="off" required>
+              <button class="primary" id="submit-time" type="submit">ランキングに登録</button>
+              <p id="trial-status" role="status"></p>
+            </form>
+            <button class="secondary" id="result-ranking" type="button" hidden>このコースのランキング</button>
             <button class="primary" id="retry" type="button">もう一度走る</button>
             <button class="secondary" id="back-to-courses" type="button">モード選択に戻る</button>
           </div>

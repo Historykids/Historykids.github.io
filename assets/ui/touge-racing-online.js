@@ -2,16 +2,16 @@ import { RACE_PROTOCOL } from "./touge-racing-rules.mjs";
 
 const ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 const messages = {
-  "room-missing": "部屋が見つからないよ。招待リンクかコードを確認してね。",
+  "room-missing": "部屋が見つからないよ。部屋一覧を更新して、入り直してね。",
   "full": "この部屋は4人そろっているよ。",
   "in-progress": "この部屋はすでにレースが始まっているよ。",
   "expired": "再接続できる時間が過ぎたよ。",
-  "code-used": "別の部屋とコードが重なったよ。もう一度、部屋を作ってね。",
+  "code-used": "もう一度、部屋を作ってね。",
   "version": "ゲームが更新されたよ。ページを再読み込みしてね。",
   "replaced": "別のタブから同じ部屋に接続したよ。",
   "idle": "しばらく操作がなかったため、部屋から退出したよ。",
   "unavailable": "オンラインに接続できないよ。少し待ってから試してね。",
-  "connection": "通信が切れたよ。招待リンクかコードから入り直せるよ。"
+  "connection": "通信が切れたよ。部屋一覧から入り直せるよ。"
 };
 
 export function makeRoomCode() {

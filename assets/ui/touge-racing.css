@@ -188,8 +188,8 @@ h1 em { color: var(--ice); font-style: italic; white-space: nowrap; }
   position: absolute;
   z-index: 2;
   inset: 0;
-  display: grid;
-  place-items: center;
+  display: flex;
+  overflow-y: auto;
   padding: 1rem;
   background: #0c1524b9;
 }
@@ -197,6 +197,8 @@ h1 em { color: var(--ice); font-style: italic; white-space: nowrap; }
   display: grid;
   gap: .7rem;
   width: min(100%, 350px);
+  margin: auto;
+  flex-shrink: 0;
   padding: clamp(1rem, 4vw, 1.6rem);
   text-align: center;
   border: 1px solid #c0ecff4d;
@@ -286,7 +288,7 @@ body { background: radial-gradient(ellipse at 78% 0%, #20394a 0%, #101c27 53%); 
 }
 .race-heading h1 { max-width: none; font-size: clamp(2.25rem, 5vw, 4.35rem); }
 .race-heading .keyboard, .race-heading .touch-hint { margin: 0 0 .2rem; white-space: nowrap; }
-.mode-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.mode-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
 .mode-picker button {
   display: flex;
   align-items: center;
@@ -352,17 +354,15 @@ body { background: radial-gradient(ellipse at 78% 0%, #20394a 0%, #101c27 53%); 
 .control-tip { color: var(--muted); margin: .85rem 0 0; font-size: .78rem; }
 .online-entry {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-  align-items: end;
-  gap: .75rem 1.25rem;
+  gap: .55rem;
   margin-top: .85rem;
   padding: .85rem;
   background: #172836;
   border: 1px solid #ffffff25;
   border-radius: 9px;
 }
-.online-entry label { display: block; font-size: .79rem; color: var(--muted); margin: .28rem 0; }
-.online-entry input, #invite-link {
+.online-entry label, .trial-submit label { display: block; font-size: .79rem; color: var(--muted); }
+.online-entry input, .trial-submit input, #invite-link {
   min-width: 0;
   width: 100%;
   padding: .55rem .65rem;
@@ -372,9 +372,6 @@ body { background: radial-gradient(ellipse at 78% 0%, #20394a 0%, #101c27 53%); 
   color: var(--text);
   font: inherit;
 }
-#room-input { text-transform: uppercase; }
-.join-line { display: flex; gap: .5rem; }
-.join-line button { flex: 0 0 auto; }
 .setup-message, .lobby-message { color: #ffe2a6; margin: .55rem 0 0; font-size: .86rem; }
 .setup-message:empty, .lobby-message:empty, .race-message:empty, .result-note:empty { display: none; }
 .lobby { max-width: 640px; }
@@ -395,7 +392,7 @@ body { background: radial-gradient(ellipse at 78% 0%, #20394a 0%, #101c27 53%); 
 }
 .invite-box span, .invite-box strong { display: block; }
 .invite-box span { color: var(--muted); font-size: .73rem; }
-.invite-box strong { font: 800 1.5rem ui-monospace, monospace; letter-spacing: .14em; color: var(--ice); }
+.invite-box strong { font-size: 1.1rem; color: var(--ice); }
 .seats, .race-order { display: grid; gap: .4rem; margin: 0; padding: 0; list-style: none; counter-reset: position; }
 .seats li, .race-order li {
   display: grid;
@@ -436,14 +433,84 @@ body { background: radial-gradient(ellipse at 78% 0%, #20394a 0%, #101c27 53%); 
   .setup, .lobby { padding-top: 1.15rem; }
   .race-heading { align-items: start; flex-direction: column; gap: .4rem; margin-bottom: .8rem; }
   .race-heading .course { font-size: .72rem; margin-bottom: .4rem; }
-  .mode-picker { gap: .46rem; }
+  .mode-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .46rem; }
+  #mode-trial { grid-column: 1 / -1; min-height: 58px; }
   .mode-picker button { gap: .38rem; padding: .55rem; }
   .mode-picker strong { font-size: .87rem; }
   .mode-picker small { font-size: .65rem; }
   .mode-icon { display: none; }
   .course-heading { align-items: flex-start; flex-direction: column; margin-top: .85rem; }
-  .course-heading .primary { width: 100%; }
+  .course-actions { width: 100%; }
+  .course-actions .primary { flex: 1; }
   .course-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
-  .online-entry { grid-template-columns: minmax(0, 1fr); gap: .52rem; }
+  .online-entry { gap: .52rem; }
   .race-message { top: 7.5rem; left: .65rem; transform: none; max-width: min(55%, 22rem); text-align: left; }
+}
+
+.course-actions, .rank-actions { display: flex; align-items: center; gap: .45rem; }
+.course-actions { flex-shrink: 0; }
+.course-actions .secondary { white-space: nowrap; }
+.room-header { display: flex; justify-content: space-between; align-items: center; gap: .65rem; }
+.room-header p { color: var(--muted); margin: 0; font-size: .79rem; }
+.room-header button { min-height: 38px; padding: .4rem .7rem; flex-shrink: 0; }
+.online-entry #nickname { max-width: 360px; }
+#join-invite { justify-self: start; }
+.directory-status { margin: .1rem 0; font-size: .82rem; color: var(--muted); }
+.directory-status:empty, .room-list:empty { display: none; }
+.room-list { display: grid; gap: .36rem; padding: 0; margin: .15rem 0 0; list-style: none; }
+.room-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .55rem;
+  padding: .43rem .58rem;
+  background: #223749;
+  border-radius: 6px;
+}
+.room-list strong, .room-list small { display: block; }
+.room-list strong { font-size: .91rem; overflow-wrap: anywhere; }
+.room-list small { margin-top: .1rem; font-size: .75rem; color: var(--muted); }
+.room-list button { min-height: 38px; padding: .36rem .6rem; white-space: nowrap; }
+.room-list button:disabled { opacity: .58; cursor: default; }
+.rank-panel {
+  margin-top: 1rem;
+  padding: .9rem;
+  background: #172836;
+  border: 1px solid #ffffff25;
+  border-radius: 9px;
+}
+.rank-panel .directory-status { margin-top: .7rem; }
+.rank-panel table { width: 100%; border-collapse: collapse; margin-top: .6rem; font-size: .89rem; }
+.rank-panel th, .rank-panel td { padding: .53rem .5rem; text-align: left; border-bottom: 1px solid #ffffff20; }
+.rank-panel th { color: var(--muted); font-size: .77rem; }
+.rank-panel th:first-child, .rank-panel td:first-child { width: 4rem; white-space: nowrap; }
+.rank-panel th:last-child, .rank-panel td:last-child { width: 6rem; text-align: right; font-variant-numeric: tabular-nums; }
+.rank-panel td:last-child { color: var(--ice); font-weight: 800; }
+.trial-submit { display: grid; gap: .32rem; text-align: left; }
+.trial-submit p { color: var(--ice); font-size: .78rem; margin: .12rem 0 0; }
+.trial-submit p:empty { display: none; }
+#place-stat[hidden] + .stat { border-left: 0; }
+.impact {
+  position: absolute;
+  left: 50%;
+  bottom: 23%;
+  transform: translateX(-50%);
+  padding: .3rem .65rem;
+  border: 1px solid #f8b26b;
+  border-radius: 5px;
+  color: #ffe1b9;
+  background: #41251fe3;
+  font-weight: 900;
+}
+.game:is([data-state="racing"], [data-state="countdown"])[data-contact="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 50px #ff7a3a55;
+  pointer-events: none;
+}
+@media (max-width: 450px) {
+  .course-actions button { padding-inline: .62rem; }
+  .rank-actions { gap: .2rem; }
+  .rank-actions button { padding-inline: .44rem; font-size: .77rem; }
 }

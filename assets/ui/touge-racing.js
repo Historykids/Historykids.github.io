@@ -1,13 +1,17 @@
-import { createScene } from "./touge-racing-scene.js?v=4";
+import { createScene } from "./touge-racing-scene.js?v=5";
 import { getTrack, LAPS, TRACKS } from "./touge-racing-tracks.mjs";
-import { EMPTY_INPUT, ROOM_CODE, ROOM_SIZE, applyDrive, createRacer, formatTime, isDriving, rankRacers, stepRace } from "./touge-racing-rules.mjs";
-import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=4";
+import {
+  EMPTY_INPUT, ROOM_CODE, ROOM_SIZE, STEP, TRIAL_MAX_TICKS, TRIAL_PROTOCOL,
+  applyDrive, createRacer, createTrialRacer, formatTime, isDriving, rankRacers, recordTrialInput, stepRace
+} from "./touge-racing-rules.mjs?v=5";
+import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=5";
+import { createRankingPanel, createRoomDirectory, raceRequest } from "./touge-racing-menu.js?v=5";
 
 const byId = id => document.getElementById(id);
 const setup = byId("setup"), lobby = byId("lobby"), game = byId("game");
 const start = byId("start"), pause = byId("pause"), resume = byId("resume"), retry = byId("retry");
 const courseGrid = byId("course-grid");
-const nickname = byId("nickname"), roomInput = byId("room-input");
+const nickname = byId("nickname"), trialName = byId("trial-name");
 const countdown = byId("countdown");
 const time = byId("time"), speed = byId("speed"), speedBar = byId("speed-bar");
 const placeNumber = byId("place").firstChild, lapNumber = byId("lap").firstChild;
@@ -19,11 +23,18 @@ const keys = new Map([
 ]);
 
 const BEST_PREFIX = "historykids.tougeRacing.best.v2.";
+const TRIAL_BEST_PREFIX = "historykids.tougeRacing.trial.best.";
+const PLAYER_KEY = "historykids.tougeRacing.trial.player";
 const NAME_KEY = "historykids.tougeRacing.nickname";
 const defaultTrack = TRACKS[0].id;
 let mode = "cpu", selected = defaultTrack, state = "setup";
 let race, online, onlinePhase, previousState, menuOpen = false;
 let frameId = 0, lastFrame = 0;
+const setDirectoryActive = createRoomDirectory(code => joinOnline(code, { type: "join" }));
+const ranking = createRankingPanel();
+const modes = {
+  cpu: "CPUと対戦する →", online: "このコースで部屋を作る →", trial: "タイムアタック開始 →"
+};
 
 function load(key) {
   try { return localStorage.getItem(key); } catch { return null; }
@@ -31,9 +42,9 @@ function load(key) {
 function save(key, value) {
   try { localStorage.setItem(key, value); } catch {}
 }
-function bestTime(id) {
-  const saved = Number(load(BEST_PREFIX + id) ||
-    (id === defaultTrack ? load("historykids.tougeRacing.best.v1") : null));
+function bestTime(id, trial = false) {
+  const key = (trial ? TRIAL_BEST_PREFIX : BEST_PREFIX) + id;
+  const saved = Number(load(key) || (!trial && id === defaultTrack ? load("historykids.tougeRacing.best.v1") : null));
   return Number.isFinite(saved) && saved > 0 ? saved : Infinity;
 }
 
@@ -69,7 +80,7 @@ function outline(canvas, track, mini = false) {
   context.strokeStyle = "#9aeeff";
   context.stroke();
   return (racer, own, target = context) => {
-    if (racer.dnf) return;
+    if (racer.dnf || (!own && racer.finishedAt !== null)) return;
     const point = track.sample(racer.distance);
     target.beginPath();
     target.arc(x(point.x + point.rx * racer.lane), y(point.z + point.rz * racer.lane),
@@ -112,17 +123,18 @@ function selectCourse(id) {
   selected = id;
   for (const card of courseGrid.children) card.setAttribute("aria-pressed", String(card.dataset.course === id));
   const course = getTrack(id);
-  const best = bestTime(id);
+  const best = bestTime(id, mode === "trial");
   byId("selected-info").textContent = course.name + " · " + course.description +
-    (mode === "cpu" && Number.isFinite(best) ? " 自己ベスト " + formatTime(best) : "");
+    (mode !== "online" && Number.isFinite(best) ? " 自己ベスト " + formatTime(best) : "");
+  ranking.show(id);
 }
 
 function selectMode(value) {
   mode = value;
-  byId("mode-cpu").setAttribute("aria-pressed", String(value === "cpu"));
-  byId("mode-online").setAttribute("aria-pressed", String(value === "online"));
+  for (const id of Object.keys(modes)) byId("mode-" + id).setAttribute("aria-pressed", String(value === id));
   byId("online-entry").hidden = value !== "online";
-  start.textContent = value === "cpu" ? "CPUと対戦する →" : "このコースで部屋を作る →";
+  start.textContent = modes[value];
+  setDirectoryActive(value === "online" && state === "setup");
   byId("setup-message").textContent = "";
   selectCourse(selected);
 }
@@ -133,6 +145,7 @@ function isActive() {
 
 function showState(value) {
   state = value;
+  setDirectoryActive(value === "setup" && mode === "online");
   setup.hidden = value !== "setup";
   lobby.hidden = value !== "lobby";
   game.hidden = !setup.hidden || !lobby.hidden;
@@ -176,7 +189,7 @@ function setupScreen(message = "") {
   window.scrollTo(0, 0);
 }
 
-function prepareRace(track, racers, isOnline) {
+function prepareRace(track, racers, isOnline, isTrial = false) {
   cleanupRace();
   menuOpen = false;
   clearInput();
@@ -198,6 +211,9 @@ function prepareRace(track, racers, isOnline) {
   };
   showState("countdown");
   byId("map-title").textContent = track.name;
+  byId("place-stat").hidden = isTrial;
+  byId("lap-total").textContent = " / " + (isTrial ? 1 : LAPS);
+  game.dataset.contact = "false";
   byId("race-message").textContent = "";
   pause.textContent = isOnline ? "↩" : "Ⅱ";
   pause.setAttribute("aria-label", isOnline ? "退出メニュー" : "一時停止");
@@ -205,7 +221,10 @@ function prepareRace(track, racers, isOnline) {
   byId("exit-race").textContent = isOnline ? "部屋から退出する" : "モード選択に戻る";
   byId("restart").hidden = isOnline;
   try {
-    race = { track, racers, player: racers[0], isOnline, elapsed: 0, remaining: 3, drawMap, canvas };
+    race = {
+      track, racers, player: racers[0], isOnline, isTrial, elapsed: 0, remaining: isOnline ? 5 : 3,
+      laps: isTrial ? 1 : LAPS, ticks: 0, accumulator: 0, tape: isTrial ? [] : null, drawMap, canvas
+    };
     race.scene = createScene(canvas, racers, track);
     canvas.addEventListener("webglcontextlost", event => {
       event.preventDefault();
@@ -236,21 +255,33 @@ function startCPU() {
   prepareRace(getTrack(selected), racers, false);
 }
 
+function startTrial() {
+  prepareRace(getTrack(selected), [createTrialRacer()], false, true);
+}
+
+function startLocalRace() {
+  if (mode === "trial") startTrial();
+  else startCPU();
+}
+
 function refreshHud() {
-  const { player, racers, track, elapsed, remaining } = race;
+  const { player, racers, track, elapsed, remaining, laps } = race;
   placeNumber.nodeValue = rankRacers(racers).indexOf(player) + 1;
-  lapNumber.nodeValue = Math.min(LAPS, Math.floor(Math.max(0, player.distance) / track.length) + 1);
+  lapNumber.nodeValue = Math.min(laps, Math.floor(Math.max(0, player.distance) / track.length) + 1);
   time.textContent = formatTime(player.finishedAt ?? elapsed);
   const kph = Math.round(player.speed * 3.6);
   speed.textContent = kph;
   speedBar.value = kph;
   byId("boost").hidden = player.boost <= 0 || Math.abs(player.lane) > track.halfWidth - .2;
+  const contact = player.contact > .18;
+  byId("impact").hidden = !contact;
+  game.dataset.contact = String(contact);
   countdown.hidden = state !== "countdown" && elapsed > .75;
   const text = state === "countdown" ? String(Math.max(1, Math.ceil(remaining))) : "GO!";
   if (countdown.textContent !== text) countdown.textContent = text;
 }
 
-function tickCPU(dt) {
+function tickLocal(dt) {
   if (state === "countdown") {
     race.remaining -= dt;
     if (race.remaining > 0) return;
@@ -258,9 +289,26 @@ function tickCPU(dt) {
     showState("racing");
   }
   race.player.input = input();
+  if (race.isTrial) return tickTrial(dt);
   stepRace(race.track, race.racers, dt, race.elapsed);
   race.elapsed += dt;
   if (race.player.finishedAt !== null) finishCPU();
+}
+
+function tickTrial(dt) {
+  const { track, racers, player, tape } = race;
+  race.accumulator += dt;
+  while (race.accumulator + 1e-9 >= STEP) {
+    race.accumulator -= STEP;
+    recordTrialInput(tape, player.input);
+    stepRace(track, racers, STEP, race.ticks * STEP, 1);
+    race.ticks++;
+    race.elapsed = race.ticks * STEP;
+    if (player.finishedAt !== null || race.ticks >= TRIAL_MAX_TICKS) {
+      finishTrial();
+      return;
+    }
+  }
 }
 
 function tickOnline(dt, stamp) {
@@ -277,6 +325,7 @@ function tickOnline(dt, stamp) {
     const own = racer === race.player;
     racer.finishedAt = target.finishedAt;
     racer.dnf = target.dnf;
+    racer.contact = Math.max(0, target.contact - age);
     if (own && isDriving(racer) && online.joined && age < .55) {
       applyDrive(race.track, racer, drive, dt);
       racer.distance += racer.speed * dt;
@@ -313,7 +362,7 @@ function frame(stamp) {
   const dt = lastFrame ? Math.min(.1, (stamp - lastFrame) / 1000) : 0;
   lastFrame = stamp;
   if (race.isOnline) tickOnline(dt, stamp);
-  else if (dt) tickCPU(dt);
+  else if (dt) tickLocal(dt);
   refreshHud();
   race.scene.render(state, dt, false);
   race.drawMap();
@@ -347,6 +396,9 @@ function finishCPU() {
   const prior = bestTime(track.id);
   const record = player.finishedAt < prior;
   if (record) save(BEST_PREFIX + track.id, String(player.finishedAt));
+  byId("result-title").textContent = "レース終了";
+  byId("trial-submit").hidden = true;
+  byId("result-ranking").hidden = true;
   byId("result-place-line").hidden = false;
   byId("result-stats").hidden = false;
   byId("race-order").hidden = true;
@@ -360,6 +412,65 @@ function finishCPU() {
   retry.textContent = "同じコースでもう一度";
   showState("finished");
   retry.focus({ preventScroll: true });
+}
+
+function finishTrial() {
+  const { track, player } = race;
+  const finished = player.finishedAt !== null;
+  const prior = bestTime(track.id, true);
+  const improved = finished && player.finishedAt < prior;
+  if (improved) save(TRIAL_BEST_PREFIX + track.id, String(player.finishedAt));
+  byId("result-title").textContent = finished ? "タイムアタック完走" : "タイムアップ";
+  byId("result-place-line").hidden = true;
+  byId("result-stats").hidden = false;
+  byId("race-order").hidden = true;
+  byId("record").hidden = !improved;
+  byId("result-time").textContent = finished ? formatTime(player.finishedAt) : "未完走";
+  byId("best-time").textContent = formatTime(improved ? player.finishedAt : prior);
+  byId("result-note").textContent = finished ? "" : "2分以内に1周するとランキングに登録できるよ。";
+  byId("trial-submit").hidden = !finished;
+  byId("submit-time").disabled = false;
+  byId("trial-status").textContent = "";
+  trialName.value = load(NAME_KEY) ?? "";
+  byId("result-ranking").hidden = false;
+  retry.hidden = false;
+  retry.disabled = false;
+  retry.textContent = "同じコースでもう一度";
+  showState("finished");
+  retry.focus({ preventScroll: true });
+}
+
+let trialPlayer;
+async function submitTrial(event) {
+  event.preventDefault();
+  const run = race;
+  if (!run?.isTrial || run.player.finishedAt === null) return;
+  const name = trialName.value.trim();
+  if (!name) {
+    byId("trial-status").textContent = "表示する名前を入力してね。";
+    trialName.focus();
+    return;
+  }
+  save(NAME_KEY, name);
+  trialPlayer ??= load(PLAYER_KEY) || crypto.randomUUID();
+  save(PLAYER_KEY, trialPlayer);
+  const button = byId("submit-time");
+  const status = byId("trial-status");
+  button.disabled = true;
+  status.textContent = "走行記録を確認中…";
+  try {
+    const result = await raceRequest("/race/leaderboard", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ protocol: TRIAL_PROTOCOL, track: run.track.id, player: trialPlayer, name, tape: run.tape })
+    });
+    if (race !== run) return;
+    status.textContent = (result.updated ? "登録できたよ！ " : "登録済みの自己ベスト ") +
+      result.rank + "位 · " + formatTime(result.seconds);
+  } catch {
+    if (race !== run) return;
+    button.disabled = false;
+    status.textContent = "登録できなかったよ。もう一度試せるよ。";
+  }
 }
 
 function setRaceMessage(text) {
@@ -388,6 +499,9 @@ function finishOnline(snapshot, id) {
   const ordered = rankRacers(snapshot.racers);
   if (first) {
     for (const racer of race.racers) Object.assign(racer, snapshot.racers.find(entry => entry.id === racer.id));
+    byId("result-title").textContent = "レース終了";
+    byId("trial-submit").hidden = true;
+    byId("result-ranking").hidden = true;
     byId("result-place-line").hidden = true;
     byId("result-stats").hidden = true;
     byId("record").hidden = true;
@@ -455,8 +569,7 @@ function rememberRoom(code) {
 
 function joinOnline(code, request) {
   if (!ROOM_CODE.test(code)) {
-    byId("setup-message").textContent = "6文字のルームコードを確認してね。";
-    roomInput.focus();
+    byId("setup-message").textContent = "部屋一覧から、参加する部屋を選び直してね。";
     return;
   }
   leaveOnline();
@@ -464,7 +577,7 @@ function joinOnline(code, request) {
   if (name) save(NAME_KEY, name);
   showState("lobby");
   window.scrollTo(0, 0);
-  byId("room-code").textContent = code;
+  byId("join-invite").hidden = true;
   byId("lobby-course").textContent = "コース情報を確認中…";
   byId("lobby-count").textContent = "参加者 0 / 4人";
   byId("online-start").disabled = true;
@@ -500,15 +613,21 @@ function leaveOnline() {
   rememberRoom(null);
 }
 
-byId("mode-cpu").addEventListener("click", () => selectMode("cpu"));
-byId("mode-online").addEventListener("click", () => selectMode("online"));
+for (const id of Object.keys(modes)) byId("mode-" + id).addEventListener("click", () => selectMode(id));
 start.addEventListener("click", () => {
-  if (mode === "cpu") startCPU();
-  else joinOnline(makeRoomCode(), { type: "create", trackId: selected });
+  if (mode === "online") joinOnline(makeRoomCode(), { type: "create", trackId: selected });
+  else startLocalRace();
 });
-byId("join-form").addEventListener("submit", event => {
-  event.preventDefault();
-  joinOnline(roomInput.value.trim().toUpperCase(), { type: "join" });
+byId("open-ranking").addEventListener("click", () => ranking.open(selected));
+byId("reload-ranking").addEventListener("click", () => ranking.show(selected));
+byId("close-ranking").addEventListener("click", () => {
+  ranking.close();
+  byId("open-ranking").focus();
+});
+byId("trial-submit").addEventListener("submit", submitTrial);
+byId("result-ranking").addEventListener("click", () => {
+  setupScreen();
+  ranking.open(selected);
 });
 byId("copy-link").addEventListener("click", async () => {
   const field = byId("invite-link");
@@ -525,12 +644,12 @@ byId("online-start").addEventListener("click", () => online?.start());
 byId("leave-lobby").addEventListener("click", () => { leaveOnline(); setupScreen(); });
 pause.addEventListener("click", togglePause);
 resume.addEventListener("click", togglePause);
-byId("restart").addEventListener("click", startCPU);
+byId("restart").addEventListener("click", startLocalRace);
 byId("exit-race").addEventListener("click", () => { leaveOnline(); setupScreen(); });
 byId("back-to-courses").addEventListener("click", () => { leaveOnline(); setupScreen(); });
 retry.addEventListener("click", () => {
   if (race?.isOnline) online?.start();
-  else startCPU();
+  else startLocalRace();
 });
 
 window.addEventListener("keydown", event => {
@@ -573,8 +692,11 @@ new ResizeObserver(resize).observe(game);
 const invited = new URL(location.href).searchParams.get("room")?.trim().toUpperCase();
 if (invited && ROOM_CODE.test(invited)) {
   selectMode("online");
-  roomInput.value = invited;
   const token = savedRoomToken(invited);
   if (token) joinOnline(invited, { type: "resume", token });
-  else byId("setup-message").textContent = "招待が届いたよ。「部屋に入る」で参加。";
+  else {
+    const join = byId("join-invite");
+    join.hidden = false;
+    join.addEventListener("click", () => joinOnline(invited, { type: "join" }));
+  }
 }

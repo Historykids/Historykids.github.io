@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { createCanvasRenderer } from "./touge-racing-canvas.js?v=4";
+import { createCanvasRenderer } from "./touge-racing-canvas.js?v=5";
 
 function ribbon(track, scene, material, left, right, y, from = 0, to = track.length) {
   const vertices = [];
@@ -355,7 +355,7 @@ export function createScene(canvas, racers, track) {
   function render(state, dt, resetCamera) {
     cars.forEach((model, index) => {
       const racer = racers[index];
-      model.visible = !racer.dnf;
+      model.visible = !racer.dnf && (index === 0 || racer.finishedAt === null);
       const p = track.sample(racer.distance, frame);
       model.position.set(p.x + p.rx * racer.lane, .18, p.z + p.rz * racer.lane);
       model.rotation.y = Math.atan2(p.fx, p.fz) - racer.steer * .17;

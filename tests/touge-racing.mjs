@@ -56,7 +56,10 @@ const host = connect("create", { trackId: "harbor", name: "A" });
 const players = [host, ...["B", "C", "D"].map(name => connect("join", { name }))];
 assert.equal(host.socket.last("state").players.length, 4);
 assert(host.socket.last("state").players.every(player => !("token" in player)));
-assert.equal(connect("join").socket.last("error").code, "full");
+const fifth = connect("join", { name: "E" });
+assert(fifth.joined);
+assert.equal(host.socket.last("state").players.length, 5);
+send(fifth, "leave");
 send(players[1], "start");
 assert.equal(room.phase, "lobby");
 send(host, "start");
@@ -99,7 +102,7 @@ now += 13000;
 room.tick(now);
 assert.equal(room.phase, "lobby");
 assert.equal(room.track, null);
-console.log("Four human seats, shared start and results, reconnect, rematch, departure, and room cleanup passed.");
+console.log("Five seats accepted, shared start and results, reconnect, rematch, departure, and room cleanup passed.");
 
 const { DatabaseSync } = await import("node:sqlite");
 const { TougeRaceHub } = await import("../server/ranking-api/touge-racing-hub.mjs");
@@ -180,3 +183,50 @@ const other = await (await hub.fetch(request("/race/leaderboard?track=night"))).
 assert.deepEqual(other.entries, []);
 database.close();
 console.log("All ten time trials, front/side impacts, live directory lifecycle, replay validation, and per-track ranking passed.");
+
+const { EMPTY_INPUT, MIN_ROOM_PLAYERS, VISIBLE_RIVALS } = await import("../assets/ui/touge-racing-rules.mjs");
+const world = getTrack("fuji");
+const drifting = createTrialRacer();
+drifting.speed = 32;
+drifting.input = { ...EMPTY_INPUT, gas: true, drift: true, turn: 1 };
+for (let i = 0; i < 20; i++) stepRace(world, [drifting], STEP, i * STEP, 1);
+assert(drifting.drifting && drifting.driftCharge >= .55);
+drifting.input = { ...EMPTY_INPUT, gas: true };
+stepRace(world, [drifting], STEP, 20 * STEP, 1);
+assert(!drifting.drifting && drifting.boost > .6);
+const itemDriver = createRacer(0);
+Object.assign(itemDriver, { distance: world.itemLines[0] - .3, lane: 0, speed: 32, input: { ...EMPTY_INPUT, gas: true } });
+stepRace(world, [itemDriver], STEP, 1);
+assert.equal(itemDriver.item, "turbo");
+itemDriver.input = { ...EMPTY_INPUT, gas: true, item: true };
+stepRace(world, [itemDriver], STEP, 1 + STEP);
+assert.equal(itemDriver.item, null);
+assert(itemDriver.boost > 2);
+
+const large = new RaceRoom({ clock: () => now, autoRun: false });
+const largePeers = Array.from({ length: 35 }, (_, i) => {
+  const socket = new Socket();
+  const peer = large.attach(socket);
+  large.message(peer, JSON.stringify({ type: i ? "join" : "create", protocol: RACE_PROTOCOL, trackId: world.id }));
+  assert(socket.last("joined"));
+  return { socket, peer };
+});
+assert.equal(large.connected(), 35);
+large.message(largePeers[0].peer, JSON.stringify({ type: "start" }));
+assert.equal(large.phase, "countdown");
+assert(largePeers.every(({ socket }) => {
+  const state = socket.last("state");
+  return state.fieldSize === 35 && state.racers.length === VISIBLE_RIVALS + 1 &&
+    state.racers[0].id === socket.last("joined").id && new Set(state.racers.map(racer => racer.id)).size === state.racers.length;
+}));
+const small = new RaceRoom({ clock: () => now, autoRun: false });
+const smallHost = small.attach(new Socket());
+small.message(smallHost, JSON.stringify({ type: "create", protocol: RACE_PROTOCOL, trackId: world.id }));
+small.message(smallHost, JSON.stringify({ type: "start" }));
+assert.equal(small.phase, "lobby");
+for (let i = 1; i < MIN_ROOM_PLAYERS; i++) {
+  small.message(small.attach(new Socket()), JSON.stringify({ type: "join", protocol: RACE_PROTOCOL }));
+}
+small.message(smallHost, JSON.stringify({ type: "start" }));
+assert.equal(small.phase, "countdown");
+console.log("Drift boost, item pickup/use, two-player start and 35-player room snapshots passed.");

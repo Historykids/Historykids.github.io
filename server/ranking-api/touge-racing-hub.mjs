@@ -1,5 +1,5 @@
 import { getTrack } from "../../assets/ui/touge-racing-tracks.mjs";
-import { replayTrial, ROOM_CODE, ROOM_SIZE, TRIAL_PROTOCOL } from "../../assets/ui/touge-racing-rules.mjs";
+import { replayTrial, ROOM_CODE, TRIAL_PROTOCOL } from "../../assets/ui/touge-racing-rules.mjs";
 
 const ROOM_TTL = 40000;
 const RECORD_LIMIT = 20;
@@ -60,7 +60,7 @@ export class TougeRaceHub {
     const now = Date.now();
     this.sql.exec("DELETE FROM race_rooms WHERE expires <= ?", now);
     const rooms = this.rows(`SELECT id, track, host, players, phase FROM race_rooms
-      ORDER BY CASE WHEN phase = 'lobby' AND players < 4 THEN 0 ELSE 1 END, expires DESC LIMIT 50`);
+      ORDER BY CASE WHEN phase = 'lobby' THEN 0 ELSE 1 END, expires DESC LIMIT 50`);
     return reply({ rooms });
   }
 
@@ -70,7 +70,7 @@ export class TougeRaceHub {
       this.sql.exec("DELETE FROM race_rooms WHERE id = ?", room.id);
       return reply({ ok: true });
     }
-    if (!getTrack(room.track) || !Number.isInteger(room.players) || room.players < 1 || room.players > ROOM_SIZE ||
+    if (!getTrack(room.track) || !Number.isInteger(room.players) || room.players < 1 ||
         !["lobby", "countdown", "racing", "finished"].includes(room.phase)) return reply({ error: "invalid-room" }, 400);
     this.sql.exec(`INSERT INTO race_rooms (id, track, host, players, phase, expires) VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET track=excluded.track, host=excluded.host, players=excluded.players,
@@ -93,10 +93,11 @@ export class TougeRaceHub {
   submit(run) {
     const track = getTrack(run?.track);
     const name = cleanRacerName(run?.name);
-    if (!track || !name || !PLAYER_KEY.test(run?.player ?? "") || run.protocol !== TRIAL_PROTOCOL) {
+    const legacy = track && !track.region && run?.protocol === "touge-time-attack-1";
+    if (!track || !name || !PLAYER_KEY.test(run?.player ?? "") || (!legacy && run.protocol !== TRIAL_PROTOCOL)) {
       return reply({ error: "invalid-record" }, 400);
     }
-    const seconds = replayTrial(track, run.tape);
+    const seconds = replayTrial(track, run.tape, legacy);
     if (seconds === null) return reply({ error: "invalid-replay" }, 400);
     const centis = Math.round(seconds * 100);
     const old = this.rows("SELECT centis FROM trial_records WHERE track = ? AND player = ?", track.id, run.player)[0];
@@ -106,6 +107,7 @@ export class TougeRaceHub {
         ON CONFLICT(track, player) DO UPDATE SET name=excluded.name, centis=excluded.centis, recorded=excluded.recorded`,
         track.id, run.player, name, centis, Date.now());
     }
+    this.sql.exec("UPDATE trial_records SET name = ? WHERE player = ? AND name != ?", name, run.player, name);
     const best = updated ? centis : old.centis;
     const { place } = this.rows("SELECT COUNT(*) + 1 AS place FROM trial_records WHERE track = ? AND centis < ?", track.id, best)[0];
     return reply({ track: track.id, rank: place, seconds: best / 100, updated, entries: this.board(track.id) });

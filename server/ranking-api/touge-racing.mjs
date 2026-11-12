@@ -1,13 +1,12 @@
 import { getTrack, TRACKS } from "../../assets/ui/touge-racing-tracks.mjs";
 import {
-  COUNTDOWN, EMPTY_INPUT, RACE_LIMIT, RACE_PROTOCOL, ROOM_CODE, ROOM_SIZE, STEP, createRacer, isDriving, stepRace
+  COUNTDOWN, EMPTY_INPUT, RACE_LIMIT, RACE_PROTOCOL, ROOM_CODE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, STEP, createRacer, isDriving, rankRacers, stepRace
 } from "../../assets/ui/touge-racing-rules.mjs";
 
 import { cleanRacerName, raceHub } from "./touge-racing-hub.mjs";
 
 const ORIGIN = "https://historykids.github.io";
 const RECONNECT_MS = 12000;
-const PEER_LIMIT = 10;
 const TIME_AFTER_WIN = 70;
 const ROOM_IDLE = 20 * 60 * 1000;
 export async function racingRequest(request, env, reply) {
@@ -32,7 +31,7 @@ export async function racingRequest(request, env, reply) {
   }
   if (!env.RACING_ROOM) return reply({ error: "unavailable" }, 503);
   if (path === "/race/status") {
-    return reply({ protocol: RACE_PROTOCOL, capacity: ROOM_SIZE, tracks: TRACKS.map(track => track.id) });
+    return reply({ protocol: RACE_PROTOCOL, capacity: null, minimumPlayers: MIN_ROOM_PLAYERS, tracks: TRACKS.map(track => track.id) });
   }
   const code = url.searchParams.get("room");
   if (!ROOM_CODE.test(code ?? "")) return reply({ error: "invalid-room" }, 400);
@@ -65,7 +64,7 @@ export class RaceRoom {
 
   send(peer, message) {
     if (!peer || peer.closed) return;
-    try { peer.socket.send(JSON.stringify(message)); }
+    try { peer.socket.send(typeof message === "string" ? message : JSON.stringify(message)); }
     catch { this.detach(peer); }
   }
 
@@ -76,10 +75,6 @@ export class RaceRoom {
   }
 
   attach(socket) {
-    if (this.peers.size >= PEER_LIMIT) {
-      socket.close(1013, "busy");
-      return null;
-    }
     const now = this.clock();
     const peer = { socket, record: null, heardAt: now, rateAt: now, messages: 0, closed: false };
     this.peers.add(peer);
@@ -141,7 +136,7 @@ export class RaceRoom {
     if (message.type === "leave") return this.leave(peer);
     if (message.type === "ping") return;
     if (message.type === "start") {
-      if (record.id !== this.host || !["lobby", "finished"].includes(this.phase) || this.connected() !== ROOM_SIZE) return;
+      if (record.id !== this.host || !["lobby", "finished"].includes(this.phase) || this.connected() < MIN_ROOM_PLAYERS) return;
       this.start(now);
       return;
     }
@@ -151,7 +146,11 @@ export class RaceRoom {
     if (!record.racer || message.seq <= record.ack) return;
     record.ack = message.seq;
     record.inputAt = now;
-    record.racer.input = { gas: message.gas, brake: message.brake, turn: message.turn };
+    const previous = record.racer.input;
+    record.racer.itemQueued ||= message.item === true && !previous.item;
+    record.racer.input = {
+      gas: message.gas, brake: message.brake, turn: message.turn, drift: message.drift === true, item: message.item === true
+    };
   }
 
   join(peer, message, now) {
@@ -171,9 +170,9 @@ export class RaceRoom {
         if (!this.track) return this.reject(peer, "invalid-track");
       } else if (!this.track) return this.reject(peer, "room-missing");
       if (this.phase !== "lobby") return this.reject(peer, "in-progress");
-      if (this.players.size >= ROOM_SIZE) return this.reject(peer, "full");
-      const slots = [...this.players.values()].map(player => player.slot);
-      const slot = Array.from({ length: ROOM_SIZE }, (_, i) => i).find(index => !slots.includes(index));
+      const slots = new Set([...this.players.values()].map(player => player.slot));
+      let slot = 0;
+      while (slots.has(slot)) slot++;
       record = {
         id: crypto.randomUUID(), token: crypto.randomUUID(), name: cleanRacerName(message.name) || "レーサー " + (slot + 1),
         slot, ack: 0, inputAt: now, peer: null, racer: null
@@ -194,8 +193,8 @@ export class RaceRoom {
   }
 
   start(now) {
-    this.racers = [...this.players.values()].map(record => {
-      record.racer = createRacer(record.slot, { id: record.id, name: record.name });
+    this.racers = [...this.players.values()].sort((a, b) => a.slot - b.slot).map((record, gridSlot) => {
+      record.racer = createRacer(gridSlot, { id: record.id, name: record.name, grid: true });
       record.inputAt = now;
       return record.racer;
     });
@@ -213,7 +212,7 @@ export class RaceRoom {
     const players = this.connected();
     const host = [...this.players.values()].find(record => record.id === this.host)?.name;
     const entry = this.track && players ? {
-      id: this.code, track: this.track.id, host, players: this.phase === "lobby" ? this.players.size : players, phase: this.phase
+      id: this.code, track: this.track.id, host, players, phase: this.phase
     } : { id: this.code, phase: "closed" };
     const signature = JSON.stringify(entry);
     if (signature === this.listingSignature && (entry.phase === "closed" || now - this.listingAt < 12000)) return;
@@ -233,13 +232,51 @@ export class RaceRoom {
   broadcast(now = this.clock()) {
     this.publishListing(now);
     if (!this.track) return;
-    const players = [...this.players.values()].map(({ id, name, slot, peer }) => ({ id, name, slot, connected: !!peer }));
-    const racers = this.racers.map(({ input, ...racer }) => racer);
+    const lobby = this.phase === "lobby" || this.phase === "finished";
+    const players = lobby ? [...this.players.values()].map(({ id, name, slot, peer }) => ({ id, name, slot, connected: !!peer })) : [];
+    const ordered = rankRacers(this.racers);
+    const ranks = new Map(ordered.map((racer, index) => [racer.id, index + 1]));
+    const wire = racer => ({
+      id: racer.id, slot: racer.slot, name: racer.name, color: racer.color,
+      distance: racer.distance, lane: racer.lane, speed: racer.speed, steer: racer.steer,
+      boost: racer.boost, drifting: racer.drifting, driftCharge: racer.driftCharge, slow: racer.slow,
+      item: racer.item, shield: racer.shield, contact: racer.contact, finishedAt: racer.finishedAt, dnf: racer.dnf
+    });
     const snapshot = {
-      type: "state", phase: this.phase, trackId: this.track.id, host: this.host, players, racers,
-      countdown: Math.max(0, (this.startAt - now) / 1000), elapsed: this.elapsed
+      type: "state", phase: this.phase, trackId: this.track.id, host: this.host, players,
+      fieldSize: ordered.length, countdown: Math.max(0, (this.startAt - now) / 1000), elapsed: this.elapsed
     };
-    for (const record of this.players.values()) this.send(record.peer, snapshot);
+    if (lobby) {
+      const message = JSON.stringify({ ...snapshot, racers: ordered.map(wire) });
+      for (const record of this.players.values()) this.send(record.peer, message);
+      return;
+    }
+    const length = this.track.length;
+    const nearby = ordered.map(racer => ({
+      data: wire(racer), progress: ((racer.distance % length) + length) % length
+    })).sort((a, b) => a.progress - b.progress);
+    const indices = new Map(nearby.map((racer, index) => [racer.data.id, index]));
+    for (const record of this.players.values()) {
+      if (!record.peer) continue;
+      const index = indices.get(record.id);
+      const count = nearby.length;
+      const local = [nearby[index].data];
+      let left = 1, right = 1;
+      while (local.length < Math.min(count, VISIBLE_RIVALS + 1)) {
+        const low = nearby[(index - left + count) % count];
+        const high = nearby[(index + right) % count];
+        const backward = (nearby[index].progress - low.progress + length) % length;
+        const forward = (high.progress - nearby[index].progress + length) % length;
+        if (backward < forward) {
+          local.push(low.data);
+          left++;
+        } else {
+          local.push(high.data);
+          right++;
+        }
+      }
+      this.send(record.peer, { ...snapshot, rank: ranks.get(record.id), racers: local });
+    }
   }
 
   tick(now = this.clock()) {
@@ -313,7 +350,6 @@ export class TougeRaceRoom {
   async fetch(request) {
     if (request.headers.get("Origin") !== ORIGIN) return new Response("Origin not allowed", { status: 403 });
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") return new Response("WebSocket required", { status: 426 });
-    if (this.room.peers.size >= PEER_LIMIT) return new Response("Room busy", { status: 503 });
     this.room.code = new URL(request.url).searchParams.get("room");
     const [client, server] = Object.values(new WebSocketPair());
     server.accept();

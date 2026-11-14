@@ -1,6 +1,7 @@
 import { worldScenery } from "./touge-racing-world.mjs?v=7";
 
 import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE } from "./touge-racing-tracks.mjs?v=7";
+import { ITEMS, PULSE_LIFETIME, pulseDistance } from "./touge-racing-rules.mjs?v=9";
 
 // Software perspective renderer for browsers that cannot open a WebGL context.
 export function createCanvasRenderer(canvas, racers, track, showItems = false) {
@@ -207,7 +208,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false) {
     canvas.height = Math.round(h * ratio);
   }
 
-  function render(_scene, camera, itemRespawns, elapsed) {
+  function render(_scene, camera, itemRespawns, elapsed, projectiles) {
     camera.updateMatrixWorld();
     const view = camera.matrixWorldInverse.elements;
     const focal = height / (2 * Math.tan(camera.fov * Math.PI / 360));
@@ -307,6 +308,13 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false) {
     crates.forEach((crate, index) => {
       if ((!itemRespawns || itemRespawns[index] <= elapsed) && nearby(crate[0])) faces.push(...crate);
     });
+    for (const pulse of projectiles) {
+      if (elapsed >= pulse.launchedAt + PULSE_LIFETIME) continue;
+      const p = sample(pulseDistance(pulse, elapsed));
+      if (Math.abs(p.x - eyeX) > 345 || Math.abs(p.z - eyeZ) > 345) continue;
+      const color = ITEMS[pulse.kind].color;
+      box(faces, p, pulse.lane, .75, 0, 1.6, .9, 1.6, [color, color, color, color, "#fff0ff"]);
+    }
     racers.forEach((racer, index) => {
       if (racer.dnf || (index !== 0 && racer.finishedAt !== null)) return;
       const p = sample(racer.distance);

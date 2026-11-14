@@ -1,8 +1,9 @@
 import * as THREE from "../vendor/three.module.js";
-import { createCanvasRenderer } from "./touge-racing-canvas.js?v=7.1";
+import { createCanvasRenderer } from "./touge-racing-canvas.js?v=9";
 import { worldScenery } from "./touge-racing-world.mjs?v=7";
 import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE } from "./touge-racing-tracks.mjs?v=7";
 import { smoothRacerPose } from "./touge-racing-motion.mjs?v=6";
+import { ITEMS, PULSE_LIFETIME, pulseDistance } from "./touge-racing-rules.mjs?v=9";
 
 function ribbon(track, scene, material, left, right, y, from = 0, to = track.length) {
   const vertices = [];
@@ -379,6 +380,7 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
   const scene = new THREE.Scene();
   let sky;
   const cars = [];
+  const pulseModels = [];
   let crates = [];
   if (context) {
     scene.fog = new THREE.FogExp2(track.colors[1], .0036);
@@ -409,7 +411,30 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
     renderer.setSize(width, height, false);
   }
 
-  function render(state, dt, resetCamera, itemRespawns = null, elapsed = 0) {
+  function renderPulses(projectiles, elapsed) {
+    let count = 0;
+    for (const pulse of projectiles) {
+      if (elapsed >= pulse.launchedAt + PULSE_LIFETIME) continue;
+      let model = pulseModels[count];
+      if (!model) {
+        model = new THREE.Group();
+        const core = new THREE.Mesh(new THREE.SphereGeometry(.76, 12, 8), bright("#ffffff"));
+        core.scale.y = .66;
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(.77, .14, 6, 16), bright("#ffffff"));
+        rim.rotation.x = Math.PI / 2;
+        model.add(core, rim);
+        pulseModels.push(model);
+        scene.add(model);
+      }
+      model.children[0].material.color.set(ITEMS[pulse.kind].color);
+      place(track, model, pulseDistance(pulse, elapsed), pulse.lane, .84);
+      model.visible = true;
+      count++;
+    }
+    for (let i = count; i < pulseModels.length; i++) pulseModels[i].visible = false;
+  }
+
+  function render(state, dt, resetCamera, itemRespawns = null, elapsed = 0, projectiles = []) {
     racers.forEach((racer, index) => {
       const pose = smoothRacerPose(track, racer, poses[index], dt, resetCamera);
       const visible = !racer.dnf && (index === 0 || racer.finishedAt === null);
@@ -447,8 +472,10 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
     if (sky) sky.position.copy(camera.position);
     aim.lerp(target, ease);
     camera.lookAt(aim);
-    if (context) renderer.render(scene, camera);
-    else renderer.render(scene, camera, itemRespawns, elapsed);
+    if (context) {
+      renderPulses(projectiles, elapsed);
+      renderer.render(scene, camera);
+    } else renderer.render(scene, camera, itemRespawns, elapsed, projectiles);
   }
 
   function tirePoint(side, output) {

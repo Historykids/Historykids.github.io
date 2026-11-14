@@ -1,9 +1,9 @@
-import { createScene } from "./touge-racing-scene.js?v=8";
+import { createScene } from "./touge-racing-scene.js?v=9";
 import { getTrack, LAPS, TRACKS } from "./touge-racing-tracks.mjs?v=7";
 import {
   EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS, TRIAL_PROTOCOL,
-  applyDrive, createItemRespawns, createRacer, createTrialRacer, formatTime, isDriving, lapTime, rankRacers, recordTrialInput, stepRace
-} from "./touge-racing-rules.mjs?v=7";
+  applyDrive, createRaceItems, createRacer, createTrialRacer, formatTime, isDriving, lapTime, rankRacers, recordTrialInput, stepRace
+} from "./touge-racing-rules.mjs?v=9";
 import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=6";
 import { createRoomDirectory, raceRequest } from "./touge-racing-menu.js?v=7";
 
@@ -259,7 +259,7 @@ function initialize(profile) {
       race = {
         track, racers, player: racers[0], isOnline, isTrial, elapsed: 0, remaining: isOnline ? 5 : 3,
         ticks: 0, accumulator: 0, tape: isTrial ? [] : null, drawMap, canvas, snapshot,
-        itemRespawns: !isOnline && !isTrial ? createItemRespawns(track) : null
+        items: !isOnline && !isTrial ? createRaceItems(track) : null
       };
       race.scene = createScene(canvas, racers, track, { showItems: !isTrial && !!track.region, raceCamera: true });
       canvas.addEventListener("webglcontextlost", event => {
@@ -323,7 +323,10 @@ function initialize(profile) {
     byId("item-name").textContent = item?.label ?? (player.shield > 0 ? "ガード中" : player.grip > 0 ? "グリップ中" : player.slow > 0 ? "パルス被弾" : "アイテムなし");
     byId("item-hud").style.setProperty("--item-color", item?.color ?? "#a7bcdb");
     byId("item-hud").dataset.ready = String(!!item);
-    byId("item-hint").textContent = item ? (player.pickup > 0 ? "アイテムをゲット！" : itemHint) : "紫の箱を通過";
+    const direction = player.item === "pulse" ? "前に発射" : player.item === "backPulse" ? "後ろに発射" : "";
+    byId("item-hint").textContent = item
+      ? (player.pickup > 0 ? "アイテムをゲット！" : direction ? itemHint + " · " + direction : itemHint)
+      : "紫の箱を通過";
     byId("drift-label").hidden = !player.drifting;
     byId("drift-meter").value = player.driftCharge;
     const lap = race.isTrial ? Math.min(LAPS, player.lapEnds.length + 1)
@@ -363,7 +366,7 @@ function initialize(profile) {
       player.input = input();
       itemTap = false;
       if (race.isTrial) recordTrialInput(race.tape, player.input);
-      stepRace(track, racers, STEP, race.ticks * STEP, LAPS, race.itemRespawns);
+      stepRace(track, racers, STEP, race.ticks * STEP, LAPS, race.items);
       race.ticks++;
       race.elapsed = race.ticks * STEP;
       if (race.isTrial && (player.finishedAt !== null || race.ticks >= TRIAL_MAX_TICKS)) {
@@ -424,8 +427,9 @@ function initialize(profile) {
   }
 
   function renderScene(dt, resetCamera) {
-    const boxes = race.isOnline ? race.snapshot?.itemRespawns : race.itemRespawns;
-    race.scene.render(state, dt, resetCamera, boxes, race.elapsed);
+    const boxes = race.isOnline ? race.snapshot?.itemRespawns : race.items?.respawns;
+    const projectiles = race.isOnline ? race.snapshot?.projectiles : race.items?.projectiles;
+    race.scene.render(state, dt, resetCamera, boxes, race.elapsed, projectiles);
   }
 
   function resize() {

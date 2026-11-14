@@ -1,6 +1,6 @@
 import { getTrack, LAPS, TRACKS } from "../../assets/ui/touge-racing-tracks.mjs";
 import {
-  COUNTDOWN, EMPTY_INPUT, ITEM_RESPAWN_SECONDS, RACE_LIMIT, RACE_PROTOCOL, ROOM_CODE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, STEP, createItemRespawns, createRacer, isDriving, rankRacers, stepRace
+  COUNTDOWN, EMPTY_INPUT, ITEM_RESPAWN_SECONDS, RACE_LIMIT, RACE_PROTOCOL, ROOM_CODE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, STEP, createRaceItems, createRacer, isDriving, pulseDistance, rankRacers, stepRace
 } from "../../assets/ui/touge-racing-rules.mjs";
 
 import { cleanRacerName, raceHub } from "./touge-racing-hub.mjs";
@@ -33,7 +33,7 @@ export async function racingRequest(request, env, reply) {
   if (path === "/race/status") {
     return reply({
       protocol: RACE_PROTOCOL, capacity: null, minimumPlayers: MIN_ROOM_PLAYERS,
-      trialLaps: LAPS, itemRespawnSeconds: ITEM_RESPAWN_SECONDS, tracks: TRACKS.map(track => track.id)
+      trialLaps: LAPS, itemRespawnSeconds: ITEM_RESPAWN_SECONDS, pulseMode: "projectile", tracks: TRACKS.map(track => track.id)
     });
   }
   const code = url.searchParams.get("room");
@@ -56,7 +56,7 @@ export class RaceRoom {
     this.host = null;
     this.track = null;
     this.racers = [];
-    this.itemRespawns = null;
+    this.items = null;
     this.startAt = 0;
     this.elapsed = 0;
     this.tickNumber = 0;
@@ -197,7 +197,7 @@ export class RaceRoom {
   }
 
   start(now) {
-    this.itemRespawns = this.track.region ? createItemRespawns(this.track) : null;
+    this.items = this.track.region ? createRaceItems(this.track) : null;
     this.racers = [...this.players.values()].sort((a, b) => a.slot - b.slot).map((record, gridSlot) => {
       record.racer = createRacer(gridSlot, { id: record.id, name: record.name, grid: true });
       record.inputAt = now;
@@ -249,7 +249,7 @@ export class RaceRoom {
     });
     const snapshot = {
       type: "state", phase: this.phase, trackId: this.track.id, host: this.host, players,
-      fieldSize: ordered.length, layout: this.track.layoutScale > 1 ? "long" : "classic", itemRespawns: this.itemRespawns, countdown: Math.max(0, (this.startAt - now) / 1000), elapsed: this.elapsed
+      fieldSize: ordered.length, layout: this.track.layoutScale > 1 ? "long" : "classic", itemRespawns: this.items?.respawns ?? null, countdown: Math.max(0, (this.startAt - now) / 1000), elapsed: this.elapsed
     };
     if (lobby) {
       const message = JSON.stringify({ ...snapshot, racers: ordered.map(wire) });
@@ -260,6 +260,9 @@ export class RaceRoom {
     const nearby = ordered.map(racer => ({
       data: wire(racer), progress: ((racer.distance % length) + length) % length
     })).sort((a, b) => a.progress - b.progress);
+    const shots = (this.items?.projectiles ?? []).map(pulse => ({
+      pulse, position: pulseDistance(pulse, this.elapsed)
+    }));
     const indices = new Map(nearby.map((racer, index) => [racer.data.id, index]));
     for (const record of this.players.values()) {
       if (!record.peer) continue;
@@ -280,7 +283,11 @@ export class RaceRoom {
           right++;
         }
       }
-      this.send(record.peer, { ...snapshot, rank: ranks.get(record.id), racers: local });
+      const projectiles = shots.filter(({ position }) => {
+        const gap = position - nearby[index].progress;
+        return Math.abs(gap - Math.round(gap / length) * length) < 365;
+      }).map(({ pulse: { ownerId, ...shot } }) => shot);
+      this.send(record.peer, { ...snapshot, rank: ranks.get(record.id), racers: local, projectiles });
     }
   }
 
@@ -314,7 +321,7 @@ export class RaceRoom {
       // Use the same fixed simulation step for all four drivers.
       let steps = 0;
       while (now - this.tickedAt + .001 >= STEP * 1000 && steps++ < 8) {
-        stepRace(this.track, this.racers, STEP, this.elapsed, LAPS, this.itemRespawns);
+        stepRace(this.track, this.racers, STEP, this.elapsed, LAPS, this.items);
         this.elapsed += STEP;
         this.tickedAt += STEP * 1000;
         this.tickNumber++;

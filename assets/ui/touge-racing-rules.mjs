@@ -8,6 +8,8 @@ export const VISIBLE_RIVALS = 16;
 export const COUNTDOWN = 5;
 export const RACE_LIMIT = 360;
 export const ITEM_RESPAWN_SECONDS = 1;
+export const PULSE_LIFETIME = 2.6;
+const PULSE_SPEED = 88;
 export const STEP = 1 / 30;
 export const TRIAL_PROTOCOL = "touge-time-attack-3";
 export const TRIAL_LIMIT = 360;
@@ -152,7 +154,12 @@ function resolveContact(track, a, b) {
   }
 }
 
-function useItem(racer, rivals) {
+export function pulseDistance(pulse, elapsed) {
+  const direction = pulse.kind === "backPulse" ? -1 : 1;
+  return pulse.startDistance + direction * PULSE_SPEED * Math.max(0, elapsed - pulse.launchedAt);
+}
+
+function useItem(track, racer, projectiles, launchedAt) {
   if (racer.item === "turbo") racer.boost = Math.max(racer.boost, 2.2);
   if (racer.item === "shield") racer.shield = 4;
   if (racer.item === "grip") racer.grip = 4;
@@ -163,29 +170,57 @@ function useItem(racer, rivals) {
   }
   if (racer.item === "pulse" || racer.item === "backPulse") {
     const direction = racer.item === "pulse" ? 1 : -1;
-    let closest, range = 38;
-    for (const rival of rivals) {
-      const gap = (rival.distance - racer.distance) * direction;
-      if (gap > 0 && gap < range) {
-        closest = rival;
-        range = gap;
-      }
-    }
-    if (!closest) return;
-    if (closest.shield > 0) closest.shield = 0;
-    else {
-      closest.speed *= .68;
-      closest.slow = 1.05;
-    }
+    projectiles.push({
+      kind: racer.item, ownerId: racer.id, launchedAt,
+      startDistance: racer.distance + direction * 3.25,
+      lane: clamp(racer.lane, -track.halfWidth, track.halfWidth)
+    });
   }
   racer.item = null;
 }
 
-export function createItemRespawns(track) {
-  return Array(track.itemLines.length * ITEM_LANES.length).fill(0);
+export function createRaceItems(track) {
+  return { respawns: Array(track.itemLines.length * ITEM_LANES.length).fill(0), projectiles: [] };
 }
 
-function raceItems(track, racer, rivals, from, elapsed, respawns) {
+function hitWindow(start, end, radius) {
+  if (start === end) return Math.abs(start) <= radius ? [0, 1] : [1, 0];
+  const near = (-radius - start) / (end - start), far = (radius - start) / (end - start);
+  return [Math.max(0, Math.min(near, far)), Math.min(1, Math.max(near, far))];
+}
+
+function stepProjectiles(track, projectiles, moving, previous, elapsed, dt, finishLine) {
+  const end = elapsed + dt;
+  let remaining = 0;
+  for (const pulse of projectiles) {
+    const expiresAt = pulse.launchedAt + PULSE_LIFETIME;
+    if (elapsed >= expiresAt) continue;
+    const from = pulseDistance(pulse, elapsed), to = pulseDistance(pulse, end);
+    let hit = null, earliest = Math.min(1, (expiresAt - elapsed) / dt);
+    for (const [index, rival] of moving.entries()) {
+      if (rival.id === pulse.ownerId || rival.distance >= finishLine) continue;
+      const old = previous[index];
+      const gap = old.distance - from;
+      const startGap = gap - Math.round(gap / track.length) * track.length;
+      const endGap = startGap + (rival.distance - old.distance) - (to - from);
+      const [frontIn, frontOut] = hitWindow(startGap, endGap, 2.7);
+      const [sideIn, sideOut] = hitWindow(old.lane - pulse.lane, rival.lane - pulse.lane, 1.8);
+      const entry = Math.max(frontIn, sideIn);
+      if (entry <= Math.min(frontOut, sideOut) && (entry < earliest || entry === earliest && !hit)) {
+        earliest = entry;
+        hit = rival;
+      }
+    }
+    if (hit?.shield > 0) hit.shield = 0;
+    else if (hit) {
+      hit.speed *= .68;
+      hit.slow = 1.05;
+    } else if (end < expiresAt) projectiles[remaining++] = pulse;
+  }
+  projectiles.length = remaining;
+}
+
+function raceItems(track, racer, from, elapsed, dt, { respawns, projectiles }) {
   if (!racer.item && racer.distance > from && Math.abs(racer.lane) <= track.halfWidth + .75) {
     const lapStart = Math.floor(racer.distance / track.length) * track.length;
     for (const [gate, line] of track.itemLines.entries()) {
@@ -215,7 +250,7 @@ function raceItems(track, racer, rivals, from, elapsed, respawns) {
     }
   }
   if (racer.item && (racer.cpu ? elapsed >= racer.itemReady : (racer.input.item && !racer.itemHeld) || racer.itemQueued)) {
-    useItem(racer, rivals);
+    useItem(track, racer, projectiles, elapsed + dt);
   }
   racer.itemHeld = !!racer.input.item;
   racer.itemQueued = false;
@@ -237,10 +272,10 @@ function resolveRaceContacts(track, moving) {
   }
 }
 
-export function stepRace(track, racers, dt, elapsed, laps = LAPS, itemRespawns = null) {
+export function stepRace(track, racers, dt, elapsed, laps = LAPS, items = null) {
   if (dt <= 0) return;
   const moving = racers.filter(isDriving);
-  const previous = moving.map(racer => racer.distance);
+  const previous = moving.map(({ distance, lane }) => ({ distance, lane }));
   for (const racer of moving) {
     racer.contact = Math.max(0, racer.contact - dt);
     racer.shield = Math.max(0, racer.shield - dt);
@@ -253,9 +288,10 @@ export function stepRace(track, racers, dt, elapsed, laps = LAPS, itemRespawns =
   }
   resolveRaceContacts(track, moving);
   const finishLine = track.length * laps;
+  if (items?.projectiles.length) stepProjectiles(track, items.projectiles, moving, previous, elapsed, dt, finishLine);
   moving.forEach((racer, index) => {
-    const from = previous[index];
-    if (itemRespawns && !racer.lapEnds) raceItems(track, racer, moving, from, elapsed, itemRespawns);
+    const from = previous[index].distance;
+    if (items && !racer.lapEnds && racer.distance < finishLine) raceItems(track, racer, from, elapsed, dt, items);
     const advance = racer.distance - from;
     const crossing = line => elapsed + dt * (advance > 0 ? clamp((line - from) / advance, 0, 1) : 1);
     if (racer.lapEnds) {

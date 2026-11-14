@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js', 'assets/ui/amounts.js', 'assets/ui/wealth-rules.js', 'assets/ui/account-data.js', 'assets/ui/sengoku-rules.js', 'assets/ui/sengoku-world-rules.js', 'assets/ui/sengoku-tactics.js', 'assets/ui/sengoku-kuni-map.js', 'assets/ui/sengoku-ranking-rules.js', 'assets/ui/sengoku-chat-rules.js', 'assets/ui/tenka-season1-rules.js', 'assets/ui/neon-snake-engine.js', 'scripts/neon-snake-probe.cjs']
+    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js', 'assets/ui/amounts.js', 'assets/ui/wealth-rules.js', 'assets/ui/account-data.js', 'assets/ui/sengoku-rules.js', 'assets/ui/sengoku-world-rules.js', 'assets/ui/sengoku-tactics.js', 'assets/ui/sengoku-kuni-map.js', 'assets/ui/sengoku-ranking-rules.js', 'assets/ui/sengoku-chat-rules.js', 'assets/ui/tenka-season1-rules.js', 'assets/ui/neon-snake-engine.js', 'assets/ui/touge-racing-rules.mjs', 'scripts/neon-snake-probe.cjs']
 permissions:
   contents: write
   pages: write
@@ -27,6 +27,7 @@ jobs:
         run: npm ci
       - name: Check answers, account transfers, ownership and durable storage
         run: |
+          node tests/touge-racing.mjs
           node tests/tenka-map.cjs
           node tests/tenka-season1.cjs
           node tests/tenka-season1-ui.cjs
@@ -246,6 +247,10 @@ jobs:
             if(response.status!==403||(await response.json()).error!=='tenka-owner-only')throw Error('Private Tenka data must remain owner-only');
           }
           console.log('Private Tenka access checks passed; no season player, draw or legacy reward created');
+          const raceStatusResponse=await fetch(new URL('/race/status',base),{headers:{Origin:'https://historykids.github.io','Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
+          const raceStatus=await raceStatusResponse.json();
+          if(!raceStatusResponse.ok||raceStatus.pulseMode!=='projectile'||raceStatus.itemRespawnSeconds!==1)throw Error('Touge Racing projectile configuration check failed');
+          console.log('Touge Racing projectile configuration verified');
           console.log('Ranking storage check passed');
           JS
           git config user.name 'github-actions[bot]'

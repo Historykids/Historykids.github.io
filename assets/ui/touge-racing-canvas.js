@@ -1,7 +1,7 @@
 import { worldScenery } from "./touge-racing-world.mjs?v=7";
 
-import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, driveSample, nearShortcut, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=15";
-import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulsePosition } from "./touge-racing-rules.mjs?v=15";
+import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, driveSample, nearShortcut, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=16";
+import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulsePosition } from "./touge-racing-rules.mjs?v=16";
 
 // Software perspective renderer for browsers that cannot open a WebGL context.
 export function createCanvasRenderer(canvas, racers, track, showItems = false, neon = false) {
@@ -203,13 +203,13 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
   }
   if (showItems) {
     for (const [gate, distance] of track.itemLines.entries()) {
-      const isOffroad = distance === track.offroadItemLine;
-      trackStrip(markings, distance - ITEM_ZONE_BEFORE, distance + ITEM_ZONE_AFTER, -halfWidth + .3, halfWidth - .3, .19, isOffroad ? "#315c43" : "#694e9e");
+      const isTurbo = distance === track.offroadItemLine;
+      trackStrip(markings, distance - ITEM_ZONE_BEFORE, distance + ITEM_ZONE_AFTER, -halfWidth + .3, halfWidth - .3, .19, "#694e9e");
       for (const [slot, fraction] of ITEM_LANES.entries()) {
         const p = sample(distance), lane = halfWidth * fraction;
         const faces = [];
         crates.push(faces);
-        const colors = isOffroad ? Array(5).fill(ITEMS.offroad.color) : neon ? Array(5).fill(DOPA_COLORS[(gate + slot) % DOPA_COLORS.length])
+        const colors = isTurbo ? Array(5).fill(ITEMS.turbo.color) : neon ? Array(5).fill(DOPA_COLORS[(gate + slot) % DOPA_COLORS.length])
           : ["#a27bff", "#9b72ee", "#8369dc", "#ac91ec", "#d1baff"];
         box(faces, p, lane, 1.17, 0, 1.45, 1.45, 1.45, colors);
         box(faces, p, lane, 1.17, -.75, .5, .5, .08, Array(5).fill("#efe2ff"));

@@ -1,9 +1,9 @@
 import * as THREE from "../vendor/three.module.js";
-import { createCanvasRenderer } from "./touge-racing-canvas.js?v=15";
+import { createCanvasRenderer } from "./touge-racing-canvas.js?v=16";
 import { worldScenery } from "./touge-racing-world.mjs?v=7";
-import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, driveSample, nearShortcut, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=15";
-import { smoothRacerPose } from "./touge-racing-motion.mjs?v=15";
-import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulsePosition } from "./touge-racing-rules.mjs?v=15";
+import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, driveSample, nearShortcut, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=16";
+import { smoothRacerPose } from "./touge-racing-motion.mjs?v=16";
+import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, boostRemaining, isRoughSurface, pulsePosition } from "./touge-racing-rules.mjs?v=16";
 
 function ribbon(track, scene, material, left, right, y, from = 0, to = track.length) {
   const vertices = [];
@@ -271,15 +271,15 @@ function itemGates(scene, track, neon) {
   const shapes = [];
   const material = flat("#a27bff");
   const core = bright("#e1d4ff");
-  const offroad = bright(ITEMS.offroad.color);
+  const turbo = bright(ITEMS.turbo.color);
   const geometry = new THREE.BoxGeometry(1.34, 1.34, 1.34);
   const accents = neon ? DOPA_COLORS.map(bright) : null;
   for (const [gate, distance] of track.itemLines.entries()) {
-    const isOffroad = distance === track.offroadItemLine;
-    ribbon(track, scene, flat(isOffroad ? "#315c43" : "#694e9e"), -track.halfWidth + .3, track.halfWidth - .3, .195, distance - ITEM_ZONE_BEFORE, distance + ITEM_ZONE_AFTER);
+    const isTurbo = distance === track.offroadItemLine;
+    ribbon(track, scene, flat("#694e9e"), -track.halfWidth + .3, track.halfWidth - .3, .195, distance - ITEM_ZONE_BEFORE, distance + ITEM_ZONE_AFTER);
     for (const [slot, fraction] of ITEM_LANES.entries()) {
       const group = new THREE.Group();
-      const gem = new THREE.Mesh(geometry, isOffroad ? offroad : accents?.[(gate + slot) % DOPA_COLORS.length] ?? material);
+      const gem = new THREE.Mesh(geometry, isTurbo ? turbo : accents?.[(gate + slot) % DOPA_COLORS.length] ?? material);
       gem.rotation.z = Math.PI / 4;
       group.add(gem);
       box(group, core, 0, 0, -.71, .44, .44, .11);
@@ -503,8 +503,8 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
     const ahead = player.distance + 24 * (player.shortcut ? track.shortcut.ratio : 1);
     const lookingAhead = driveSample(track, ahead, player.shortcut, next);
     const intro = state === "ready";
-    const boost = motion && !motion.matches && state === "racing" && racers[0].boost > 0 &&
-      Math.abs(player.lane) < track.halfWidth - .2 ? 1 : 0;
+    const boost = motion && !motion.matches && state === "racing" && boostRemaining(racers[0]) > 0 &&
+      !isRoughSurface(track, racers[0]) ? 1 : 0;
     const rush = neon && motion && !motion.matches && state === "racing"
       ? 8 * Math.min(1, racers[0].speed / 78) : 0;
     const fov = (portrait ? 68 : 61) + rush + boost * (neon ? 11 : 7);

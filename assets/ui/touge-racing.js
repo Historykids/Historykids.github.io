@@ -1,14 +1,14 @@
-import { createScene } from "./touge-racing-scene.js?v=15";
-import { driveSample, getTrack, lapDistance, LAPS, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=15";
+import { createScene } from "./touge-racing-scene.js?v=16";
+import { driveSample, getTrack, lapDistance, LAPS, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=16";
 import {
-  DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS, TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL,
-  advanceRacer, applyDrive, createRaceItems, createRacer, createTrialRacer, formatTime, isDriving, lapTime, raceHalfWidth, rankRacers, recordTrialInput, stepRace, trialInput
-} from "./touge-racing-rules.mjs?v=15";
-import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=15";
+  DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS, TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL,
+  advanceRacer, applyDrive, boostRemaining, createRaceItems, createRacer, createTrialRacer, formatTime, isDriving, isRoughSurface, lapTime, rankRacers, recordTrialInput, stepRace, trialInput
+} from "./touge-racing-rules.mjs?v=16";
+import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=16";
 import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=10";
 
-import { createRaceEffects } from "./touge-racing-effects.js?v=11";
-import { mountRaceUI } from "./touge-racing-ui.js?v=15";
+import { createRaceEffects } from "./touge-racing-effects.js?v=16";
+import { mountRaceUI } from "./touge-racing-ui.js?v=16";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();
@@ -119,7 +119,7 @@ function initialize(profile) {
       const entrance = track.shortcut.outline[0];
       context.beginPath();
       context.arc(x(entrance.x), y(entrance.z), mini ? 2.1 : 3.4, 0, Math.PI * 2);
-      context.fillStyle = ITEMS.offroad.color;
+      context.fillStyle = ITEMS.turbo.color;
       context.fill();
     }
     const line = track.sample(0);
@@ -198,8 +198,8 @@ function initialize(profile) {
       byId("race-speed").firstElementChild.textContent = "作る部屋の速さ";
     }
     if (mode === "trial") {
-      keyboardHelp.textContent = "↑↓←→ / WASD　Shiftでドリフト　Spaceでタイヤ";
-      byId("race-tip").textContent = "1人で3周。毎周オフロードタイヤを1つ使えるよ。ミニマップの緑の点が目印。";
+      keyboardHelp.textContent = "↑↓←→ / WASD　Shiftでドリフト　Spaceでターボ";
+      byId("race-tip").textContent = "1人で3周。毎周ターボを1つ使えるよ。ミニマップの黄色い点がショートカットの目印。";
     }
     updateProfileLink();
     setDirectoryActive(mode === "online");
@@ -350,7 +350,7 @@ function initialize(profile) {
     const track = getTrack(selected), speedClass = selectedSpeed;
     const previousRace = race, previousState = state;
     const player = createTrialRacer();
-    if (track.offroad) player.item = "offroad";
+    if (track.turboCuts) player.item = "turbo";
     const racers = [player];
     trialGhostEnabled = enabled;
     let data, note = "";
@@ -361,7 +361,7 @@ function initialize(profile) {
       choiceButtons.forEach(button => { button.disabled = true; });
       byId("ghost-loading").textContent = "1位のゴーストを読み込み中…";
       try {
-        const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1", replay: "6" });
+        const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1", replay: "7" });
         const result = await raceRequest("/race/leaderboard?" + query);
         if (result.track === track.id && result.speedClass === speedClass) data = result.ghost;
         note = data ? "1位 " + data.name + " · " + formatTime(data.seconds) : "1位のゴーストはまだありません";
@@ -380,7 +380,10 @@ function initialize(profile) {
     race.ghost = data ? {
       racer: racers[1], tape: data.tape, index: 0, remaining: 0,
       track: data.protocol === TRIAL_PROTOCOL ? track :
-        getTrack(track.id, { shortcuts: data.protocol === SHORTCUT_TRIAL_PROTOCOL, offroad: false })
+        getTrack(track.id, {
+          shortcuts: data.protocol === SHORTCUT_TRIAL_PROTOCOL || data.protocol === OFFROAD_TRIAL_PROTOCOL,
+          offroad: data.protocol === OFFROAD_TRIAL_PROTOCOL, turboCuts: false
+        })
     } : null;
     byId("ghost-status").hidden = !enabled;
     byId("ghost-status").textContent = note;
@@ -422,14 +425,15 @@ function initialize(profile) {
     game.dataset.rank = String(place);
     byId("field-size").textContent = (race.snapshot?.fieldSize ?? racers.length) + "台中";
     const item = ITEMS[player.item];
-    byId("item-icon").textContent = item?.icon ?? "◇";
-    byId("item-name").textContent = (player.offroadTime > 0 ? "オフロードタイヤ作動中" : item?.label) ?? (player.shield > 0 ? "ガード中" : player.grip > 0 ? "グリップ中" : player.slow > 0 ? "パルス被弾" : "アイテムなし");
-    byId("item-hud").style.setProperty("--item-color", (player.offroadTime > 0 ? ITEMS.offroad.color : item?.color) ?? "#a7bcdb");
+    const turbo = player.turboTime > 0;
+    byId("item-icon").textContent = (turbo ? ITEMS.turbo.icon : item?.icon) ?? "◇";
+    byId("item-name").textContent = (turbo ? "ターボ発動中" : item?.label) ?? (player.shield > 0 ? "ガード中" : player.grip > 0 ? "グリップ中" : player.slow > 0 ? "パルス被弾" : "アイテムなし");
+    byId("item-hud").style.setProperty("--item-color", (turbo ? ITEMS.turbo.color : item?.color) ?? "#a7bcdb");
     byId("item-hud").dataset.ready = String(!!item);
     const direction = player.item === "pulse" ? "前に発射" : player.item === "backPulse" ? "後ろに発射" : "";
-    byId("item-hint").textContent = player.offroadTime > 0 ? "残り " + Math.ceil(player.offroadTime) + "秒" : item
+    byId("item-hint").textContent = turbo ? "残り " + Math.ceil(player.turboTime) + "秒" : item
       ? (player.pickup > 0 ? "アイテムをゲット！" : direction ? itemHint + " · " + direction : itemHint)
-      : race.isTrial ? "次の周でタイヤ補充" : "緑の箱はオフロードタイヤ";
+      : race.isTrial ? "次の周でターボ補充" : "色付きの箱を通過";
     byId("drift-label").hidden = !player.drifting;
     byId("drift-meter").value = player.driftCharge;
     const lap = race.isTrial ? Math.min(LAPS, player.lapEnds.length + 1)
@@ -440,17 +444,20 @@ function initialize(profile) {
     const kph = Math.round(player.speed * 3.6);
     speed.textContent = kph;
     speedBar.value = kph;
-    const onRoad = Math.abs(player.lane) <= raceHalfWidth(track, player) - .2;
-    byId("boost").hidden = player.boost <= 0 || !onRoad;
+    const onRoad = !isRoughSurface(track, player);
+    byId("boost").hidden = boostRemaining(player) <= 0 || !onRoad;
     const shortcutHint = byId("shortcut-hint");
     const cut = track.shortcut;
     const remainingToEntry = cut ? cut.from - lapDistance(track, player.distance) : Infinity;
     const nearby = remainingToEntry >= 0 && remainingToEntry < 150;
     const entrySide = cut?.lane < 0 ? "← コース左側" : "コース右側 →";
-    const hint = player.shortcut ? (track.offroad ? "オフロード走行中" : "ショートカット走行中") : nearby && track.offroad
-      ? player.offroadTime > 0 ? entrySide + "から入る" :
-        player.item === "offroad" ? entrySide + " · " + itemHint : "緑の箱でタイヤ入手"
-      : nearby ? entrySide + "から分岐" : "";
+    let hint = "";
+    if (player.shortcut) hint = "オフロード走行中";
+    else if (nearby && turbo) hint = entrySide + "から入る";
+    else if (nearby && player.item === "turbo") {
+      const closeEnough = remainingToEntry <= Math.max(28, player.speed * 1.55);
+      hint = entrySide + " · " + (closeEnough ? itemHint : "手前でターボ");
+    } else if (nearby) hint = race.isTrial ? "次の周でターボ補充" : "手前の黄色い箱でターボ";
     shortcutHint.hidden = !hint;
     if (shortcutHint.textContent !== hint) shortcutHint.textContent = hint;
     const contact = player.contact > .18;
@@ -519,10 +526,10 @@ function initialize(profile) {
       racer.grip = Math.max(0, (target.grip ?? 0) - age);
       racer.pickup = Math.max(0, (target.pickup ?? 0) - age);
       racer.slow = target.slow;
-      racer.offroadTime = Math.max(0, (target.offroadTime ?? 0) - age);
+      racer.turboTime = Math.max(0, (target.turboTime ?? 0) - age);
       if (own && isDriving(racer) && online.joined && age < .55) {
         applyDrive(race.track, racer, drive, dt, race.scale);
-        advanceRacer(race.track, racer, dt);
+        advanceRacer(race.track, racer, dt, race.scale);
       }
       const targetShortcut = target.shortcut === true;
       const changedRoad = racer.shortcut !== targetShortcut;
@@ -775,7 +782,7 @@ function initialize(profile) {
       return;
     }
     if (!race || (snapshot.phase === "countdown" && formerPhase === "finished")) {
-      const track = getTrack(snapshot.trackId, { classic: snapshot.layout !== "long", shortcuts: snapshot.shortcuts === true, offroad: snapshot.offroadItems === true });
+      const track = getTrack(snapshot.trackId, { classic: snapshot.layout !== "long", shortcuts: snapshot.turboCuts === true });
       const own = snapshot.racers.find(racer => racer.id === id);
       if (!track || !own) return;
       const initial = [own, ...snapshot.racers.filter(racer => racer.id !== id).slice(0, VISIBLE_RIVALS)];

@@ -1,4 +1,4 @@
-import { driveSample } from "./touge-racing-tracks.mjs?v=15";
+import { driveSample } from "./touge-racing-tracks.mjs?v=16";
 
 const angleDifference = (angle, from) => Math.atan2(Math.sin(angle - from), Math.cos(angle - from));
 

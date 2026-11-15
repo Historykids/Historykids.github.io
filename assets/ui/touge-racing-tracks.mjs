@@ -141,10 +141,10 @@ export function driveSample(track, distance, shortcut, out) {
 }
 
 const cached = new Map();
-export function getTrack(id, { classic = false, shortcuts = !classic, offroad = shortcuts } = {}) {
+export function getTrack(id, { classic = false, shortcuts = !classic, offroad = shortcuts, turboCuts = offroad } = {}) {
   const spec = TRACKS.find(track => track.id === id) ?? LEGACY_TRACKS.find(track => track.id === id);
   if (!spec) return null;
-  const key = id + (classic ? ":classic" : shortcuts ? (offroad ? ":offroad" : ":shortcuts") : ":main");
+  const key = id + (classic ? ":classic" : shortcuts ? (turboCuts ? ":turbo" : offroad ? ":offroad" : ":shortcuts") : ":main");
   if (cached.has(key)) return cached.get(key);
 
   const { points } = spec;
@@ -212,6 +212,7 @@ export function getTrack(id, { classic = false, shortcuts = !classic, offroad = 
     track.shortcut = buildShortcut(track, shortcutSections[id]);
     if (offroad) {
       track.offroad = true;
+      track.turboCuts = turboCuts;
       track.offroadItemLine = track.shortcut.from - 90;
       track.itemLines = [...track.itemLines, track.offroadItemLine].sort((a, b) => a - b);
     }

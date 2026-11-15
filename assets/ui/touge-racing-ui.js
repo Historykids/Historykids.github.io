@@ -36,7 +36,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
           <div id="course-grid" class="course-grid" aria-label="全10コース"></div>
         </section>
         <div class="race-preferences">
-          <p class="control-tip" id="race-tip">カーブでドリフトを続けて、離すと加速。緑の箱でオフロードタイヤを拾うと、コース内側の地形を抜けられるよ。</p>
+          <p class="control-tip" id="race-tip">カーブでドリフトを続けて、離すと加速。黄色い箱はターボ。ターボが効いている間は草地や砂地でも加速できるよ。</p>
           <label class="race-sound"><input id="race-sound" type="checkbox"> 効果音</label>
         </div>
       </section>

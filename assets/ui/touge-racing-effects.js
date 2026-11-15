@@ -1,3 +1,4 @@
+import { boostRemaining } from "./touge-racing-rules.mjs?v=16";
 import { DEFAULT_RACE_SPEED, DOPA_COLORS, ITEMS, RACE_SPEEDS } from "./touge-racing-rules.mjs?v=10";
 
 const DRIFT_COLORS = ["#a6ebff", "#ffc648", "#ff76df"];
@@ -183,7 +184,8 @@ export function createRaceEffects(game) {
     const tier = racer.driftCharge >= 1.05 ? 2 : racer.driftCharge >= .55 ? 1 : 0;
     const driving = active && racer.finishedAt === null;
     const drifting = driving && racer.drifting;
-    const boosting = driving && onRoad && racer.boost > 0;
+    const boost = boostRemaining(racer);
+    const boosting = driving && onRoad && boost > 0;
     const effect = boosting ? "boost" : drifting ? "drift" : neon && driving && onRoad && racer.speed >= 42 ? "rush" : "";
     if (drivingEffect !== effect) {
       drivingEffect = effect;
@@ -195,7 +197,7 @@ export function createRaceEffects(game) {
       layer.style.setProperty("--race-accent", DRIFT_COLORS[tier]);
     }
 
-    const newBoost = boosting && previous && (!previous.boosting || racer.boost > previous.boost + .28);
+    const newBoost = boosting && previous && (!previous.boosting || boost > previous.boost + .28);
     const hit = driving && racer.contact > .18 && previous && previous.contact <= .18;
     const pulseHit = neon && driving && previous && racer.slow > previous.slow + .3;
     const spentItem = neon && driving && !item && previous?.item;
@@ -236,7 +238,7 @@ export function createRaceEffects(game) {
       if (pulseHit) message("contact", "パルス命中！", "減速中");
       else if (hit) play("contact");
     }
-    previous = { lap, place, item, pickup: racer.pickup, boost: racer.boost, boosting, drifting, tier, contact: racer.contact, slow: racer.slow };
+    previous = { lap, place, item, pickup: racer.pickup, boost, boosting, drifting, tier, contact: racer.contact, slow: racer.slow };
     if (!context || motion.matches) {
       if (context && drawn) context.clearRect(0, 0, width, height);
       drawn = false;

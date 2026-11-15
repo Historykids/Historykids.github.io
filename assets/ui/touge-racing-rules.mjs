@@ -11,7 +11,8 @@ export const ITEM_RESPAWN_SECONDS = 1;
 export const PULSE_LIFETIME = 2.6;
 const PULSE_SPEED = 88;
 export const STEP = 1 / 30;
-export const TRIAL_PROTOCOL = "touge-time-attack-6";
+export const TRIAL_PROTOCOL = "touge-time-attack-7";
+export const OFFROAD_TRIAL_PROTOCOL = "touge-time-attack-6";
 export const SHORTCUT_TRIAL_PROTOCOL = "touge-time-attack-5";
 export const MAIN_ROAD_TRIAL_PROTOCOL = "touge-time-attack-4";
 export const PREVIOUS_TRIAL_PROTOCOL = "touge-time-attack-3";
@@ -46,18 +47,18 @@ export const ITEMS = Object.freeze({
   pulse: { icon: "◎", label: "パルス", color: "#f3a3ff" },
   grip: { icon: "✦", label: "グリップ", color: "#9dffac" },
   backPulse: { icon: "⇠", label: "バックパルス", color: "#ffa3d2" },
-  recovery: { icon: "↺", label: "リカバー", color: "#ffd1a2" },
-  offroad: { icon: "⛰", label: "オフロードタイヤ", color: "#b9ef97" }
+  recovery: { icon: "↺", label: "リカバー", color: "#ffd1a2" }
 });
-const itemTypes = Object.keys(ITEMS).filter(item => item !== "offroad");
-const OFFROAD_SECONDS = 14;
+const itemTypes = Object.keys(ITEMS);
+const TURBO_SECONDS = 2.2;
+const LEGACY_OFFROAD_SECONDS = 14;
 
 export function createRacer(slot, { id = String(slot), name = "", cpu = false, grid = false, difficulty = "normal" } = {}) {
   return {
     id, name, slot, color: COLORS[slot % COLORS.length], cpu, difficulty,
     lane: grid ? [-4.6, -1.55, 1.55, 4.6][slot % 4] : startingLanes[slot],
     distance: grid ? -6 - Math.floor(slot / 4) * 5.4 : startingDistances[slot],
-    speed: 0, shortcut: false, offroadTime: 0, lateralSpeed: 0, steer: 0, boost: 0, lastPad: -1, contact: 0,
+    speed: 0, shortcut: false, offroadTime: 0, turboTime: 0, lateralSpeed: 0, steer: 0, boost: 0, lastPad: -1, contact: 0,
     finishedAt: null, dnf: false, input: EMPTY_INPUT,
     drifting: false, driftCharge: 0, shield: 0, grip: 0, slow: 0, pickup: 0, item: null, lastBox: -1, itemHeld: false, itemReady: 0
   };
@@ -105,9 +106,8 @@ export function applyDrive(track, racer, input, dt, speedScale = standardSpeed) 
     racer.lastPad = padId;
   }
   racer.boost = Math.max(0, racer.boost - dt);
-  const rough = (Math.abs(racer.lane) > halfWidth - .2 || (track.offroad && racer.shortcut)) &&
-    racer.offroadTime <= 0;
-  const boosting = racer.boost > 0 && !rough;
+  const rough = isRoughSurface(track, racer);
+  const boosting = boostRemaining(racer) > 0 && !rough;
   const limit = racer.slow > 0 ? 25 : rough ? (gripping ? 43 : 24) : boosting ? 63 : drifting ? 42 : 47;
   if (input.brake) racer.speed = Math.max(0, racer.speed - accelerationStep * 32);
   else if (rough || input.gas || boosting) {
@@ -121,12 +121,13 @@ function applyCPU(track, racer, dt, speedScale) {
   const level = CPU_DIFFICULTIES[racer.difficulty] ?? CPU_DIFFICULTIES.normal;
   const cornerPenalty = racer.grip > 0 ? .5 : 1;
   const normal = cruise[racer.slot] * level.speed + 1.8 * Math.sin(racer.distance * .04 + racer.slot) - level.corner * corner * cornerPenalty;
-  const target = racer.slow > 0 || (track.offroad && racer.shortcut && racer.offroadTime <= 0) ? 23 : racer.boost > 0 ? 56 : normal;
+  const target = racer.slow > 0 || (track.offroad && racer.shortcut && !terrainTraction(track, racer))
+    ? 23 : boostRemaining(racer) > 0 ? 56 : normal;
   racer.boost = Math.max(0, racer.boost - dt);
   racer.speed = approach(racer.speed, target * speedScale, dt * (17 + racer.slot) * level.acceleration * speedScale ** 2);
   const cut = track.shortcut;
   const beforeEntry = cut && cut.from - lapDistance(track, racer.distance);
-  const entry = cut && (!track.offroad || racer.offroadTime > 0) && racer.difficulty === "hard" && beforeEntry >= 0 && beforeEntry < 90;
+  const entry = cut && (!track.offroad || terrainTraction(track, racer)) && racer.difficulty === "hard" && beforeEntry >= 0 && beforeEntry < 90;
   const lane = racer.shortcut ? 0 : entry ? cut.lane : startingLanes[racer.slot] + Math.sin(racer.distance * .033 + racer.slot) * 1.1;
   const change = approach(racer.lane, lane, dt * 2.9 * speedScale) - racer.lane;
   racer.lateralSpeed = change / dt;
@@ -138,7 +139,25 @@ export function raceHalfWidth(track, racer) {
   return racer.shortcut ? track.shortcut.halfWidth : track.halfWidth;
 }
 
-export function advanceRacer(track, racer, dt) {
+function terrainTraction(track, racer) {
+  return (track.turboCuts ? racer.turboTime : racer.offroadTime) > 0;
+}
+
+export function isRoughSurface(track, racer) {
+  return (Math.abs(racer.lane) > raceHalfWidth(track, racer) - .2 || (track.offroad && racer.shortcut)) &&
+    !terrainTraction(track, racer);
+}
+
+export function boostRemaining(racer) {
+  return Math.max(racer.boost, racer.turboTime ?? 0);
+}
+
+function activateTurbo(track, racer) {
+  racer.boost = Math.max(racer.boost, TURBO_SECONDS);
+  if (track.turboCuts) racer.turboTime = Math.max(racer.turboTime, TURBO_SECONDS);
+}
+
+export function advanceRacer(track, racer, dt, speedScale = standardSpeed) {
   const cut = track.shortcut, step = racer.speed * dt;
   if (!cut) { racer.distance += step; return; }
   const progress = lapDistance(track, racer.distance);
@@ -151,14 +170,17 @@ export function advanceRacer(track, racer, dt) {
     racer.distance += cut.to - progress + step - distanceToExit;
     racer.lane = clamp(racer.lane + cut.lane, -track.halfWidth - 2, track.halfWidth + 2);
     racer.shortcut = false;
+    if (track.turboCuts) racer.turboTime = 0;
     return;
   }
   const distanceToEntry = cut.from - progress;
-  if ((!track.offroad || racer.offroadTime > 0) && distanceToEntry >= 0 && step > distanceToEntry &&
+  if ((!track.offroad || terrainTraction(track, racer)) && distanceToEntry >= 0 && step > distanceToEntry &&
       Math.abs(racer.lane - cut.lane) <= cut.halfWidth - .8) {
     racer.distance += distanceToEntry + (step - distanceToEntry) * cut.ratio;
     racer.lane -= cut.lane;
     racer.shortcut = true;
+    // Sustain the item boost for the cut at speed, without extending it on the regular road.
+    if (track.turboCuts) racer.turboTime = Math.max(racer.turboTime, cut.length / (49 * speedScale) + .8);
     return;
   }
   racer.distance += step;
@@ -235,10 +257,9 @@ export function pulsePosition(track, pulse, elapsed) {
 }
 
 function useItem(track, racer, projectiles, launchedAt, speedScale) {
-  if (racer.item === "turbo") racer.boost = Math.max(racer.boost, 2.2);
+  if (racer.item === "turbo") activateTurbo(track, racer);
   if (racer.item === "shield") racer.shield = 4;
   if (racer.item === "grip") racer.grip = 4;
-  if (racer.item === "offroad") racer.offroadTime = OFFROAD_SECONDS;
   if (racer.item === "recovery") {
     racer.slow = 0;
     racer.speed = Math.max(racer.speed, 38 * speedScale);
@@ -301,13 +322,13 @@ function stepProjectiles(track, projectiles, moving, previous, elapsed, dt, fini
 }
 
 function raceItems(track, racer, from, elapsed, dt, { respawns, projectiles }, speedScale) {
-  if (!racer.shortcut && (!racer.item || track.offroadItemLine !== undefined) && racer.distance > from && Math.abs(racer.lane) <= track.halfWidth + .75) {
+  if (!racer.shortcut && !racer.item && racer.distance > from && Math.abs(racer.lane) <= track.halfWidth + .75) {
     const lapStart = Math.floor(racer.distance / track.length) * track.length;
     for (const [gate, line] of track.itemLines.entries()) {
       const at = lapStart + line;
       if (racer.distance < at - ITEM_ZONE_BEFORE || from > at + ITEM_ZONE_AFTER) continue;
       const visit = Math.floor(lapStart / track.length) * track.itemLines.length + gate;
-      if (racer.lastBox === visit || (racer.item && line !== track.offroadItemLine)) break;
+      if (racer.lastBox === visit) break;
       let closest = -1, reach = track.halfWidth * .22 + .75;
       ITEM_LANES.forEach((lane, slot) => {
         const index = gate * ITEM_LANES.length + slot;
@@ -321,7 +342,7 @@ function raceItems(track, racer, from, elapsed, dt, { respawns, projectiles }, s
         respawns[closest] = elapsed + ITEM_RESPAWN_SECONDS;
         const types = track.layoutScale > 1 ? itemTypes.length : 3;
         const lap = Math.floor(lapStart / track.length);
-        racer.item = line === track.offroadItemLine ? "offroad" : itemTypes[(racer.slot + gate + lap * 2) % types];
+        racer.item = line === track.offroadItemLine ? "turbo" : itemTypes[(racer.slot + gate + lap * 2) % types];
         racer.lastBox = visit;
         racer.pickup = .95;
         racer.itemReady = elapsed + (CPU_DIFFICULTIES[racer.difficulty] ?? CPU_DIFFICULTIES.normal).itemDelay;
@@ -362,22 +383,25 @@ export function stepRace(track, racers, dt, elapsed, laps = LAPS, items = null, 
     racer.grip = Math.max(0, racer.grip - dt);
     racer.pickup = Math.max(0, racer.pickup - dt);
     racer.slow = Math.max(0, racer.slow - dt);
+    racer.turboTime = Math.max(0, (racer.turboTime ?? 0) - dt);
     racer.offroadTime = Math.max(0, (racer.offroadTime ?? 0) - dt);
     if (track.offroad && racer.lapEnds) {
       const lap = racer.lapEnds.length;
+      const item = track.turboCuts ? "turbo" : "offroad";
       if (racer.trialItemLap !== lap) {
-        racer.item = "offroad";
+        racer.item = item;
         racer.trialItemLap = lap;
       }
-      if (racer.input.item && !racer.itemHeld && racer.item === "offroad") {
+      if (racer.input.item && !racer.itemHeld && racer.item === item) {
         racer.item = null;
-        racer.offroadTime = OFFROAD_SECONDS;
+        if (track.turboCuts) activateTurbo(track, racer);
+        else racer.offroadTime = LEGACY_OFFROAD_SECONDS;
       }
       racer.itemHeld = !!racer.input.item;
     }
     if (racer.cpu) applyCPU(track, racer, dt, speedScale);
     else applyDrive(track, racer, racer.input, dt, speedScale);
-    advanceRacer(track, racer, dt);
+    advanceRacer(track, racer, dt, speedScale);
   }
   resolveRaceContacts(track, moving);
   const finishLine = track.length * laps;
@@ -397,6 +421,7 @@ export function stepRace(track, racers, dt, elapsed, laps = LAPS, items = null, 
     racer.distance = finishLine;
     racer.speed = 0;
     racer.boost = 0;
+    racer.turboTime = 0;
   });
 }
 
@@ -424,15 +449,16 @@ export function trialInput(mask) {
 export function replayTrial(track, tape, protocol = TRIAL_PROTOCOL, speedClass = DEFAULT_RACE_SPEED) {
   const legacy = protocol === "touge-time-attack-1" && !track.region;
   const singleLap = legacy || protocol === "touge-time-attack-2";
-  if (!isRaceSpeed(speedClass) || (protocol !== TRIAL_PROTOCOL && protocol !== SHORTCUT_TRIAL_PROTOCOL && protocol !== MAIN_ROAD_TRIAL_PROTOCOL &&
+  if (!isRaceSpeed(speedClass) || (protocol !== TRIAL_PROTOCOL && protocol !== OFFROAD_TRIAL_PROTOCOL && protocol !== SHORTCUT_TRIAL_PROTOCOL && protocol !== MAIN_ROAD_TRIAL_PROTOCOL &&
       (speedClass !== DEFAULT_RACE_SPEED || (!singleLap && protocol !== PREVIOUS_TRIAL_PROTOCOL)))) return null;
-  if (protocol === SHORTCUT_TRIAL_PROTOCOL) track = { ...track, offroad: false };
-  else if (protocol !== TRIAL_PROTOCOL && track.shortcut) track = { ...track, shortcut: null, offroad: false };
+  if (protocol === SHORTCUT_TRIAL_PROTOCOL) track = { ...track, offroad: false, turboCuts: false };
+  else if (protocol === OFFROAD_TRIAL_PROTOCOL) track = { ...track, turboCuts: false };
+  else if (protocol !== TRIAL_PROTOCOL && track.shortcut) track = { ...track, shortcut: null, offroad: false, turboCuts: false };
   const { scale } = RACE_SPEEDS[speedClass];
   const laps = singleLap ? 1 : LAPS;
   const maxTicks = singleLap ? 3600 : TRIAL_MAX_TICKS;
   if (!Array.isArray(tape) || !tape.length || tape.length > maxTicks) return null;
-  const maxMask = protocol === TRIAL_PROTOCOL ? 59 : legacy ? 11 : 27;
+  const maxMask = protocol === TRIAL_PROTOCOL || protocol === OFFROAD_TRIAL_PROTOCOL ? 59 : legacy ? 11 : 27;
   let total = 0;
   for (const entry of tape) {
     if (!Array.isArray(entry) || entry.length !== 2) return null;

@@ -107,7 +107,7 @@ console.log("Five seats accepted, shared start and results, reconnect, rematch, 
 
 const { DatabaseSync } = await import("node:sqlite");
 const { TougeRaceHub } = await import("../server/ranking-api/touge-racing-hub.mjs");
-const { CPU_DIFFICULTIES, DEFAULT_RACE_SPEED, MAIN_ROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, RACE_SPEEDS, createRaceItems, createTrialRacer, lapTime,
+const { CPU_DIFFICULTIES, DEFAULT_RACE_SPEED, MAIN_ROAD_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, RACE_SPEEDS, createRaceItems, createTrialRacer, lapTime,
   recordTrialInput, replayTrial, TRIAL_MAX_TICKS, TRIAL_PROTOCOL } = await import("../assets/ui/touge-racing-rules.mjs");
 const track = getTrack("yunagi");
 
@@ -129,7 +129,7 @@ function trial(track, idleTicks = 0, laps = LAPS, speedClass = DEFAULT_RACE_SPEE
   const protocol = laps === 1 ? "touge-time-attack-2" : TRIAL_PROTOCOL;
   assert.equal(replayTrial(track, tape, protocol, speedClass), player.finishedAt);
   assert.equal(replayTrial(track, [...tape, [5, 1]], protocol, speedClass), null);
-  assert.equal(player.item, track.offroad ? "offroad" : null);
+  assert.equal(player.item, track.turboCuts ? "turbo" : track.offroad ? "offroad" : null);
   if (track.layoutScale > 1 && !idleTicks && speedClass === DEFAULT_RACE_SPEED) {
     assert(player.lapEnds.every((_, index) => {
       const seconds = lapTime(player.lapEnds, index);
@@ -247,7 +247,7 @@ assert.deepEqual(await (await hub.fetch(request("/race/leaderboard?track=yunagi"
 assert.equal((await hub.fetch(request("/race/leaderboard?track=yunagi&speedClass=bogus"))).status, 400);
 assert.equal((await submit({ ...record, speedClass: "bogus" })).status, 400);
 const ghostBoard = async speed => (await (await hub.fetch(request(
-  "/race/leaderboard?track=yunagi&ghost=1&replay=6&speedClass=" + speed))).json()).ghost;
+  "/race/leaderboard?track=yunagi&ghost=1&replay=7&speedClass=" + speed))).json()).ghost;
 const ghost = await ghostBoard("150cc");
 assert.deepEqual(Object.keys(ghost).sort(), ["name", "protocol", "seconds", "tape"]);
 assert.equal(ghost.name, better.entries[0].name);
@@ -465,7 +465,7 @@ assert.equal(solo.item, null);
 console.log("Minute-long circuits, shoulder pickup, one-second shared respawns and three CPU difficulty levels passed.");
 
 // Record real steering into the branch and replay the identical drive on the server.
-function driveRoute(track, speedClass, useTires = true) {
+function driveRoute(track, speedClass, useItem = true) {
   const driver = createTrialRacer(), field = [driver], tape = [];
   const { scale } = RACE_SPEEDS[speedClass];
   let entries = 0;
@@ -476,7 +476,7 @@ function driveRoute(track, speedClass, useTires = true) {
     const slip = turnAt(track, driver.distance, 6, driver.shortcut) * (driver.speed / scale) ** 2 * .029;
     const aim = (lane - driver.lane) * 2.7 + slip;
     driver.input = { gas: true, brake: false, turn: aim > 2.1 ? 1 : aim < -2.1 ? -1 : 0,
-      item: useTires && remaining >= 0 && remaining < 33 && driver.item === "offroad" };
+      item: useItem && remaining >= 0 && remaining < 33 && (driver.item === "turbo" || driver.item === "offroad") };
     recordTrialInput(tape, driver.input);
     const onBranch = driver.shortcut;
     stepRace(track, field, STEP, tick * STEP, LAPS, null, scale);
@@ -496,10 +496,13 @@ for (const { id } of TRACKS) {
     const main = driveRoute(getTrack(id, { shortcuts: false }), speedClass);
     const branch = driveRoute(route, speedClass);
     assert.equal(branch.entries, LAPS, id);
-    assert.equal(driveRoute(route, speedClass, false).entries, 0, id + " needs tires to cut");
+    assert.equal(driveRoute(route, speedClass, false).entries, 0, id + " needs a turbo to cut");
     const oldRoute = driveRoute(getTrack(id, { offroad: false }), speedClass);
     assert.equal(oldRoute.entries, LAPS);
     assert.equal(replayTrial(route, oldRoute.tape, SHORTCUT_TRIAL_PROTOCOL, speedClass), oldRoute.time);
+    const previousOffroad = driveRoute(getTrack(id, { turboCuts: false }), speedClass);
+    assert.equal(previousOffroad.entries, LAPS);
+    assert.equal(replayTrial(route, previousOffroad.tape, OFFROAD_TRIAL_PROTOCOL, speedClass), previousOffroad.time);
     assert(branch.time < main.time, id + " shortcut must save time");
     assert.equal(replayTrial(route, branch.tape, TRIAL_PROTOCOL, speedClass), branch.time);
     assert.equal(replayTrial(route, main.tape, MAIN_ROAD_TRIAL_PROTOCOL, speedClass), main.time);
@@ -509,7 +512,7 @@ for (const { id } of TRACKS) {
 const cutRoom = new RaceRoom({ clock: () => now, autoRun: false });
 const cutSockets = ["create", "join"].map(type => {
   const socket = new Socket(), peer = cutRoom.attach(socket);
-  cutRoom.message(peer, JSON.stringify({ type, protocol: RACE_PROTOCOL, shortcuts: true, offroadItems: true, trackId: "fuji", layout: "long" }));
+  cutRoom.message(peer, JSON.stringify({ type, protocol: RACE_PROTOCOL, turboCuts: true, trackId: "fuji", layout: "long" }));
   return { socket, peer };
 });
 cutRoom.start(now);
@@ -517,15 +520,15 @@ now = cutRoom.startAt;
 cutRoom.tick(now);
 const route = cutRoom.track;
 const [shortcutter, mainDriver] = cutRoom.racers;
-assert(cutSockets[0].socket.last("state").offroadItems);
-// The tire gate awards the correct item even when a racer arrives holding another item.
+assert(cutSockets[0].socket.last("state").turboCuts);
+// This box contains the regular turbo item.
 Object.assign(shortcutter, { distance: route.offroadItemLine - .3, lane: route.halfWidth * .17, speed: 42,
-  item: "shield", input: { ...EMPTY_INPUT, gas: true } });
+  input: { ...EMPTY_INPUT, gas: true } });
 stepRace(route, [shortcutter], STEP, 0, LAPS, cutRoom.items);
-assert.equal(shortcutter.item, "offroad");
+assert.equal(shortcutter.item, "turbo");
 shortcutter.input = { ...EMPTY_INPUT, gas: true, item: true };
 stepRace(route, [shortcutter], STEP, STEP, LAPS, cutRoom.items);
-assert(shortcutter.offroadTime >= 13.9);
+assert.equal(shortcutter.turboTime, 2.2);
 assert.equal(shortcutter.item, null);
 Object.assign(shortcutter, { distance: route.shortcut.from - .2, lane: route.shortcut.lane, speed: 42,
   item: "pulse", itemQueued: true, input: { ...EMPTY_INPUT, gas: true } });
@@ -538,6 +541,18 @@ assert.equal(mainDriver.slow, 0);
 const cutState = cutSockets[1].socket.last("state");
 const active = cutState.racers.find(racer => racer.id === shortcutter.id);
 assert.equal(active.shortcut, true);
-assert(active.offroadTime > 0);
+assert(active.turboTime > 2.2);
 assert(Math.abs(cutState.projectiles[0].branchStart - route.shortcut.from) < .001);
-console.log("Shortcuts save time on all ten courses in all four classes; old and new tapes replay, and online routes synchronize.");
+const turf = createRacer(0);
+Object.assign(turf, { distance: 40, lane: route.halfWidth + .8, speed: 42, item: "turbo",
+  input: { ...EMPTY_INPUT, gas: true, item: true } });
+const normalBoost = createRacer(1);
+Object.assign(normalBoost, { distance: turf.distance, lane: turf.lane, speed: turf.speed, boost: 1.65,
+  input: { ...EMPTY_INPUT, gas: true } });
+stepRace(route, [turf], STEP, 0, LAPS, cutRoom.items);
+const activationSpeed = turf.speed;
+stepRace(route, [turf], STEP, STEP, LAPS, cutRoom.items);
+stepRace(route, [normalBoost], STEP, STEP);
+assert(turf.speed > activationSpeed, "The item turbo accelerates in the grass");
+assert(normalBoost.speed < 42, "Other boosts still slow in the grass");
+console.log("Turbo cuts save time in all classes; old and new tapes replay, and online routes synchronize.");

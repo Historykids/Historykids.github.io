@@ -108,7 +108,7 @@ console.log("Five seats accepted, shared start and results, reconnect, rematch, 
 const { DatabaseSync } = await import("node:sqlite");
 const { TougeRaceHub } = await import("../server/ranking-api/touge-racing-hub.mjs");
 const { CPU_DIFFICULTIES, DEFAULT_RACE_SPEED, MAIN_ROAD_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, RACE_SPEEDS, createRaceItems, createTrialRacer, lapTime,
-  recordTrialInput, replayTrial, TRIAL_MAX_TICKS, TRIAL_PROTOCOL } = await import("../assets/ui/touge-racing-rules.mjs");
+  recordTrialInput, replayTrial, TERRAIN_TRIAL_PROTOCOL, TRIAL_MAX_TICKS, TRIAL_PROTOCOL } = await import("../assets/ui/touge-racing-rules.mjs");
 const track = getTrack("yunagi");
 
 function trial(track, idleTicks = 0, laps = LAPS, speedClass = DEFAULT_RACE_SPEED) {
@@ -246,12 +246,13 @@ assert.deepEqual(standardBoard.entries, better.entries);
 assert.deepEqual(await (await hub.fetch(request("/race/leaderboard?track=yunagi"))).json(), standardBoard);
 assert.equal((await hub.fetch(request("/race/leaderboard?track=yunagi&speedClass=bogus"))).status, 400);
 assert.equal((await submit({ ...record, speedClass: "bogus" })).status, 400);
-const ghostBoard = async speed => (await (await hub.fetch(request(
-  "/race/leaderboard?track=yunagi&ghost=1&replay=8&speedClass=" + speed))).json()).ghost;
+const ghostBoard = async (speed, replay = 9, id = "yunagi") => (await (await hub.fetch(request(
+  "/race/leaderboard?track=" + id + "&ghost=1&replay=" + replay + "&speedClass=" + speed))).json()).ghost;
 const ghost = await ghostBoard("150cc");
 assert.deepEqual(Object.keys(ghost).sort(), ["name", "protocol", "seconds", "tape"]);
 assert.equal(ghost.name, better.entries[0].name);
 assert.equal(ghost.protocol, TRIAL_PROTOCOL);
+assert.equal(await ghostBoard("150cc", 8), null);
 const oldGhostRequest = request("/race/leaderboard?track=yunagi&ghost=1&speedClass=150cc");
 assert.equal((await (await hub.fetch(oldGhostRequest)).json()).ghost, null);
 database.prepare("UPDATE trial_records SET tape = ? WHERE track = ? AND name = ?")
@@ -267,7 +268,6 @@ assert.equal(tied.updated, false);
 assert.deepEqual(await ghostBoard("150cc"), ghost);
 const other = await (await hub.fetch(request("/race/leaderboard?track=night"))).json();
 assert.deepEqual(other.entries, []);
-database.close();
 console.log("All ten three-lap trials, exact splits, collision physics, live rooms, replay validation and total-only ranking passed.");
 
 const { EMPTY_INPUT, MIN_ROOM_PLAYERS, VISIBLE_RIVALS } = await import("../assets/ui/touge-racing-rules.mjs");
@@ -512,12 +512,30 @@ for (const { id } of TRACKS) {
 const open = getTrack("fuji", { freeDrive: true });
 assert.equal(open.itemLines.length, 7);
 assert.equal(open.offroadItemLine, undefined);
+const grass = { free: true, x: open.terrain.bounds.left + 10, z: open.terrain.bounds.top + 10, heading: Math.PI / 2 };
+for (const { scale } of Object.values(RACE_SPEEDS)) {
+  const roadDriver = createTrialRacer(), grassDriver = createTrialRacer();
+  roadDriver.speed = grassDriver.speed = 47 * scale;
+  roadDriver.input = grassDriver.input = { ...EMPTY_INPUT, gas: true };
+  Object.assign(grassDriver, grass, { boost: 1.65 });
+  for (let tick = 0; tick < 24; tick++) {
+    stepRace(open, [roadDriver, grassDriver], STEP, tick * STEP, LAPS, null, scale);
+  }
+  assert.equal(roadDriver.speed, 47 * scale);
+  assert.equal(grassDriver.speed, 19 * scale, "Grass slows the car even if a drift boost is active");
+}
 const boostedOnGrass = createTrialRacer();
-Object.assign(boostedOnGrass, { free: true, x: open.terrain.bounds.left + 10, z: open.terrain.bounds.top + 10,
-  heading: Math.PI / 2, speed: 42, input: { ...EMPTY_INPUT, item: true } });
+Object.assign(boostedOnGrass, grass, { speed: 19, input: { ...EMPTY_INPUT, gas: true, item: true } });
 stepRace(open, [boostedOnGrass], STEP, 0);
-assert(boostedOnGrass.speed > 42);
+assert(boostedOnGrass.speed > 19);
 assert(boostedOnGrass.free && boostedOnGrass.turboTime > 0);
+boostedOnGrass.input = { ...EMPTY_INPUT, gas: true };
+for (let tick = 1; tick <= 95; tick++) {
+  stepRace(open, [boostedOnGrass], STEP, tick * STEP);
+  if (tick === 60) assert.equal(boostedOnGrass.speed, 63, "Turbo reaches full boost speed on grass");
+}
+assert(boostedOnGrass.free && boostedOnGrass.turboTime === 0);
+assert.equal(boostedOnGrass.speed, 19, "Grass slows the car again when turbo expires");
 
 const escape = createTrialRacer();
 Object.assign(escape, { distance: 120, lane: open.halfWidth + 1.5, speed: 42,
@@ -560,6 +578,20 @@ for (const { id } of TRACKS) {
   assert.equal(replayTrial(route, tape, TRIAL_PROTOCOL), racer.finishedAt);
 }
 
+const oldTerrain = { ...open, legacyTerrainSpeed: true };
+const oldRacer = createTrialRacer(), oldTape = [];
+for (let tick = 0; tick < TRIAL_MAX_TICKS && oldRacer.finishedAt === null; tick++) {
+  oldRacer.input = steering(oldTerrain, oldRacer, tick > 100 && tick < 220 ? oldTerrain.halfWidth : 0);
+  recordTrialInput(oldTape, oldRacer.input);
+  stepRace(oldTerrain, [oldRacer], STEP, tick * STEP);
+}
+// The previous physics gave 166.40 seconds on this run along the shoulder.
+assert.equal(Math.round(oldRacer.finishedAt * 100), 16640);
+assert.equal(replayTrial(open, oldTape, TERRAIN_TRIAL_PROTOCOL), oldRacer.finishedAt);
+assert.equal((await submit({ ...record, track: open.id, tape: oldTape, protocol: TERRAIN_TRIAL_PROTOCOL })).status, 200);
+assert.equal((await ghostBoard("150cc", 9, open.id)).protocol, TERRAIN_TRIAL_PROTOCOL);
+database.close();
+
 const terrainRoom = new RaceRoom({ clock: () => now, autoRun: false });
 const terrainSockets = ["create", "join"].map(type => {
   const socket = new Socket(), peer = terrainRoom.attach(socket);
@@ -579,6 +611,7 @@ terrainRoom.tick(now);
 const state8 = terrainSockets[1].last("state");
 assert(state8.freeDrive);
 assert(state8.racers.some(racer => racer.id === pilot.id && racer.free && racer.x > field.left + 20));
+assert(pilot.speed < 42, "The online room slows an unboosted driver off-road");
 assert(state8.projectiles[0].free);
 for (let i = 0; i < 8 && !rival.slow; i++) {
   now += STEP * 1000;

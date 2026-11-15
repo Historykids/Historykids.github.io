@@ -1,7 +1,7 @@
 import { getTrack, LAPS, racerWorldPosition, TRACKS } from "../../assets/ui/touge-racing-tracks.mjs";
 import {
   COUNTDOWN, DEFAULT_RACE_SPEED, EMPTY_INPUT, ITEM_RESPAWN_SECONDS, MIN_ROOM_PLAYERS, RACE_LIMIT,
-  RACE_PROTOCOL, RACE_SPEEDS, ROOM_CODE, STEP, VISIBLE_RIVALS, createRaceItems, createRacer,
+  RACE_PROTOCOL, RACE_SPEEDS, ROOM_CODE, STEP, TRIAL_PROTOCOL, VISIBLE_RIVALS, createRaceItems, createRacer,
   isDriving, isRaceSpeed, pulsePosition, rankRacers, stepRace
 } from "../../assets/ui/touge-racing-rules.mjs";
 
@@ -35,7 +35,8 @@ export async function racingRequest(request, env, reply) {
   if (path === "/race/status") {
     return reply({
       protocol: RACE_PROTOCOL, capacity: null, minimumPlayers: MIN_ROOM_PLAYERS,
-      shortcuts: true, turboCuts: true, freeDrive: true, trialLaps: LAPS, itemRespawnSeconds: ITEM_RESPAWN_SECONDS, pulseMode: "projectile",
+      shortcuts: true, turboCuts: true, freeDrive: true, trialLaps: LAPS, trialProtocol: TRIAL_PROTOCOL,
+      itemRespawnSeconds: ITEM_RESPAWN_SECONDS, pulseMode: "projectile",
       speedClasses: Object.keys(RACE_SPEEDS), tracks: TRACKS.map(track => track.id)
     });
   }

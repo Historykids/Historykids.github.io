@@ -1,14 +1,15 @@
 import { createScene } from "./touge-racing-scene.js?v=17";
 import { getTrack, LAPS, racerWorldPosition, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=17";
 import {
-  DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS, TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL,
+  DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS,
+  TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain,
   advanceRacer, applyDrive, boostRemaining, createRaceItems, createRacer, createTrialRacer, formatTime, isDriving, isRoughSurface, lapTime, rankRacers, recordTrialInput, stepRace, trialInput
-} from "./touge-racing-rules.mjs?v=17";
+} from "./touge-racing-rules.mjs?v=18";
 import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=17";
 import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=10";
 
 import { createRaceEffects } from "./touge-racing-effects.js?v=17";
-import { mountRaceUI } from "./touge-racing-ui.js?v=17";
+import { mountRaceUI } from "./touge-racing-ui.js?v=18";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();
@@ -212,7 +213,7 @@ function initialize(profile) {
     }
     if (mode === "trial") {
       keyboardHelp.textContent = "↑↓←→ / WASD　Shiftでドリフト　Spaceでターボ";
-      byId("race-tip").textContent = "毎周ターボを1つ使えるよ。ミニマップで次の通過地点を確認しよう。";
+      byId("race-tip").textContent = "草地や砂地では減速。毎周1つ使えるターボで横切ろう。ミニマップに次の通過地点が出るよ。";
     }
     updateProfileLink();
     setDirectoryActive(mode === "online");
@@ -374,7 +375,7 @@ function initialize(profile) {
       choiceButtons.forEach(button => { button.disabled = true; });
       byId("ghost-loading").textContent = "1位のゴーストを読み込み中…";
       try {
-        const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1", replay: "8" });
+        const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1", replay: "9" });
         const result = await raceRequest("/race/leaderboard?" + query);
         if (result.track === track.id && result.speedClass === speedClass) data = result.ghost;
         note = data ? "1位 " + data.name + " · " + formatTime(data.seconds) : "1位のゴーストはまだありません";
@@ -392,7 +393,7 @@ function initialize(profile) {
     if (!prepareRace(track, racers, false, true)) return;
     race.ghost = data ? {
       racer: racers[1], tape: data.tape, index: 0, remaining: 0,
-      track: data.protocol === TRIAL_PROTOCOL ? track :
+      track: usesTrialTerrain(data.protocol) ? { ...track, legacyTerrainSpeed: data.protocol === TERRAIN_TRIAL_PROTOCOL } :
         getTrack(track.id, {
           shortcuts: [SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL].includes(data.protocol),
           offroad: [OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL].includes(data.protocol),
@@ -461,8 +462,9 @@ function initialize(profile) {
     const onRoad = !isRoughSurface(track, player);
     byId("boost").hidden = boostRemaining(player) <= 0 || !onRoad;
     const shortcutHint = byId("shortcut-hint");
-    const hint = track.terrain ? (player.free && onRoad ? "コース復帰中" : "通過地点 " +
-      ((player.nextGate ?? 0) + 1) + " / " + track.terrain.gates.length) : "";
+    const terrainHint = !onRoad ? "道路外で減速 · " : "";
+    const hint = track.terrain ? terrainHint + "通過地点 " +
+      ((player.nextGate ?? 0) + 1) + " / " + track.terrain.gates.length : "";
     shortcutHint.hidden = !hint;
     if (shortcutHint.textContent !== hint) shortcutHint.textContent = hint;
     const contact = player.contact > .18;

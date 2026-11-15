@@ -12,12 +12,14 @@ export const ITEM_RESPAWN_SECONDS = 1;
 export const PULSE_LIFETIME = 2.6;
 const PULSE_SPEED = 88;
 export const STEP = 1 / 30;
-export const TRIAL_PROTOCOL = "touge-time-attack-8";
+export const TRIAL_PROTOCOL = "touge-time-attack-9";
+export const TERRAIN_TRIAL_PROTOCOL = "touge-time-attack-8";
 export const TURBO_TRIAL_PROTOCOL = "touge-time-attack-7";
 export const OFFROAD_TRIAL_PROTOCOL = "touge-time-attack-6";
 export const SHORTCUT_TRIAL_PROTOCOL = "touge-time-attack-5";
 export const MAIN_ROAD_TRIAL_PROTOCOL = "touge-time-attack-4";
 export const PREVIOUS_TRIAL_PROTOCOL = "touge-time-attack-3";
+export const usesTrialTerrain = protocol => protocol === TRIAL_PROTOCOL || protocol === TERRAIN_TRIAL_PROTOCOL;
 export const TRIAL_LIMIT = 360;
 export const DEFAULT_RACE_SPEED = "150cc";
 export const RACE_SPEEDS = Object.freeze({
@@ -113,11 +115,15 @@ export function applyDrive(track, racer, input, dt, speedScale = standardSpeed) 
   racer.boost = Math.max(0, racer.boost - dt);
   const rough = isRoughSurface(track, racer);
   const boosting = boostRemaining(racer) > 0 && !rough;
-  const limit = racer.slow > 0 ? 25 : rough ? (gripping ? 43 : 24) : boosting ? 63 : drifting ? 42 : 47;
-  if (input.brake) racer.speed = Math.max(0, racer.speed - accelerationStep * 32);
+  const heavyTerrain = rough && track.terrain && !track.legacyTerrainSpeed && !gripping;
+  const limit = heavyTerrain ? 19 : racer.slow > 0 ? 25 :
+    rough ? (gripping ? 43 : 24) : boosting ? 63 : drifting ? 42 : 47;
+  const target = input.gas || boosting ? limit * speedScale : 0;
+  const terrainDrag = heavyTerrain ? 55 : 24;
+  if (input.brake) racer.speed = Math.max(0, racer.speed - accelerationStep * Math.max(32, terrainDrag));
   else if (rough || input.gas || boosting) {
-    racer.speed = approach(racer.speed, input.gas || boosting ? limit * speedScale : 0,
-      accelerationStep * (rough ? 24 : boosting ? 31 : 20));
+    const acceleration = rough ? (racer.speed > target ? terrainDrag : 24) : boosting ? 31 : 20;
+    racer.speed = approach(racer.speed, target, accelerationStep * acceleration);
   } else racer.speed = Math.max(0, racer.speed - accelerationStep * 8.5);
 }
 
@@ -150,7 +156,8 @@ function terrainTraction(track, racer) {
 
 export function isRoughSurface(track, racer) {
   if (racer.free) return !racer.onAsphalt && !terrainTraction(track, racer);
-  return (Math.abs(racer.lane) > raceHalfWidth(track, racer) - .2 || (track.offroad && racer.shortcut)) &&
+  const edge = raceHalfWidth(track, racer) - (track.terrain && !track.legacyTerrainSpeed ? 0 : .2);
+  return (Math.abs(racer.lane) > edge || (!!track.offroad && racer.shortcut)) &&
     !terrainTraction(track, racer);
 }
 
@@ -510,18 +517,20 @@ export function trialInput(mask) {
 export function replayTrial(track, tape, protocol = TRIAL_PROTOCOL, speedClass = DEFAULT_RACE_SPEED) {
   const legacy = protocol === "touge-time-attack-1" && !track.region;
   const singleLap = legacy || protocol === "touge-time-attack-2";
-  if (!isRaceSpeed(speedClass) || (protocol !== TRIAL_PROTOCOL && protocol !== TURBO_TRIAL_PROTOCOL && protocol !== OFFROAD_TRIAL_PROTOCOL && protocol !== SHORTCUT_TRIAL_PROTOCOL && protocol !== MAIN_ROAD_TRIAL_PROTOCOL &&
+  const openTerrain = usesTrialTerrain(protocol);
+  if (!isRaceSpeed(speedClass) || (!openTerrain && protocol !== TURBO_TRIAL_PROTOCOL && protocol !== OFFROAD_TRIAL_PROTOCOL && protocol !== SHORTCUT_TRIAL_PROTOCOL && protocol !== MAIN_ROAD_TRIAL_PROTOCOL &&
       (speedClass !== DEFAULT_RACE_SPEED || (!singleLap && protocol !== PREVIOUS_TRIAL_PROTOCOL)))) return null;
-  if (protocol !== TRIAL_PROTOCOL && track.terrain) track = { ...track, terrain: null, offroad: !!track.shortcut };
+  if (protocol === TERRAIN_TRIAL_PROTOCOL) track = { ...track, legacyTerrainSpeed: true };
+  if (!openTerrain && track.terrain) track = { ...track, terrain: null, offroad: !!track.shortcut };
   if (protocol === TURBO_TRIAL_PROTOCOL && track.shortcut) track = { ...track, offroad: true, turboCuts: true };
   else if (protocol === SHORTCUT_TRIAL_PROTOCOL) track = { ...track, offroad: false, turboCuts: false };
   else if (protocol === OFFROAD_TRIAL_PROTOCOL) track = { ...track, turboCuts: false };
-  else if (protocol !== TRIAL_PROTOCOL && protocol !== TURBO_TRIAL_PROTOCOL && track.shortcut) track = { ...track, shortcut: null, offroad: false, turboCuts: false };
+  else if (!openTerrain && protocol !== TURBO_TRIAL_PROTOCOL && track.shortcut) track = { ...track, shortcut: null, offroad: false, turboCuts: false };
   const { scale } = RACE_SPEEDS[speedClass];
   const laps = singleLap ? 1 : LAPS;
   const maxTicks = singleLap ? 3600 : TRIAL_MAX_TICKS;
   if (!Array.isArray(tape) || !tape.length || tape.length > maxTicks) return null;
-  const maxMask = [TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL].includes(protocol) ? 59 : legacy ? 11 : 27;
+  const maxMask = openTerrain || [TURBO_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL].includes(protocol) ? 59 : legacy ? 11 : 27;
   let total = 0;
   for (const entry of tape) {
     if (!Array.isArray(entry) || entry.length !== 2) return null;

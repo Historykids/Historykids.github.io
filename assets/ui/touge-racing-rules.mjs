@@ -340,6 +340,10 @@ export function recordTrialInput(tape, input) {
   else tape.push([mask, 1]);
 }
 
+export function trialInput(mask) {
+  return { gas: !!(mask & 1), brake: !!(mask & 2), turn: ((mask & 12) >> 2) - 1, drift: !!(mask & 16) };
+}
+
 export function replayTrial(track, tape, protocol = TRIAL_PROTOCOL, speedClass = DEFAULT_RACE_SPEED) {
   const legacy = protocol === "touge-time-attack-1" && !track.region;
   const singleLap = legacy || protocol === "touge-time-attack-2";
@@ -360,7 +364,7 @@ export function replayTrial(track, tape, protocol = TRIAL_PROTOCOL, speedClass =
   const racers = [player];
   let tick = 0;
   for (const [mask, count] of tape) {
-    player.input = { gas: !!(mask & 1), brake: !!(mask & 2), turn: ((mask & 12) >> 2) - 1, drift: !!(mask & 16) };
+    player.input = trialInput(mask);
     for (let run = 0; run < count; run++) {
       stepRace(track, racers, STEP, tick * STEP, laps, null, scale);
       tick++;

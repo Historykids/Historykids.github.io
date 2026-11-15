@@ -23,6 +23,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
           <ul id="room-list" class="room-list"></ul>
         </section>
         <p id="setup-message" class="setup-message" role="status"></p>
+        ${showRankings ? '<label class="race-sound"><input id="ghost-toggle" type="checkbox" checked> ランキング1位のゴーストと走る</label>' : ""}
         <fieldset class="speed-picker" id="race-speed"><legend>走る速さ</legend></fieldset>
         <section aria-labelledby="courses-title">
           <div class="course-heading">
@@ -84,6 +85,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
           </div>
           <button class="pause" id="pause" type="button" aria-label="一時停止">Ⅱ</button>
           <div class="speedometer">
+            ${showRankings ? '<small id="ghost-status" class="speed-class-tag" hidden></small>' : ""}
             <span id="speed-class-label" class="speed-class-tag"></span>
             <div><strong id="speed">0</strong> <span>km/h</span></div>
             <progress id="speed-bar" max="230" value="0" aria-label="スピード"></progress>

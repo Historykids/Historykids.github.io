@@ -13,6 +13,7 @@ export function smoothRacerPose(track, racer, pose, dt, reset = false) {
   pose.yaw = fresh ? angle : pose.yaw + angleDifference(angle, pose.yaw) * (1 - Math.exp(-12 * dt));
   pose.id = racer.id;
   pose.color = racer.color;
+  pose.ghost = racer.ghost;
   pose.dnf = racer.dnf;
   pose.finishedAt = racer.finishedAt;
   pose.shield = racer.shield;

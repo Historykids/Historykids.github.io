@@ -1,9 +1,9 @@
 import * as THREE from "../vendor/three.module.js";
-import { createCanvasRenderer } from "./touge-racing-canvas.js?v=10";
+import { createCanvasRenderer } from "./touge-racing-canvas.js?v=12";
 import { worldScenery } from "./touge-racing-world.mjs?v=7";
 import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE } from "./touge-racing-tracks.mjs?v=7";
-import { smoothRacerPose } from "./touge-racing-motion.mjs?v=6";
-import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulseDistance } from "./touge-racing-rules.mjs?v=10";
+import { smoothRacerPose } from "./touge-racing-motion.mjs?v=12";
+import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulseDistance } from "./touge-racing-rules.mjs?v=12";
 
 function ribbon(track, scene, material, left, right, y, from = 0, to = track.length) {
   const vertices = [];
@@ -340,7 +340,7 @@ const rims = flat(0x9da7b6);
 const taillight = bright(0xff513e);
 const headlight = bright(0xffe9bd);
 
-function car(scene, paint) {
+function car(scene, paint, ghost) {
   const group = new THREE.Group();
   const body = flat(paint);
   group.userData.paint = body;
@@ -375,6 +375,22 @@ function car(scene, paint) {
   }));
   shadow.rotation.x = -Math.PI / 2;
   shadow.position.y = .024;
+  if (ghost) {
+    const materials = new Map();
+    group.traverse(mesh => {
+      if (!mesh.isMesh) return;
+      if (!materials.has(mesh.material)) {
+        const material = mesh.material.clone();
+        material.transparent = true;
+        material.opacity = .42;
+        material.depthWrite = false;
+        materials.set(mesh.material, material);
+      }
+      mesh.material = materials.get(mesh.material);
+    });
+    group.userData.paint = materials.get(body);
+    shadow.visible = false;
+  }
   group.add(shadow);
   scene.add(group);
   return group;
@@ -455,7 +471,7 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
       const pose = smoothRacerPose(track, racer, poses[index], dt, resetCamera);
       const visible = !racer.dnf && (index === 0 || racer.finishedAt === null);
       if (!context || (!visible && !cars[index])) return;
-      const model = cars[index] ?? (cars[index] = car(scene, racer.color));
+      const model = cars[index] ?? (cars[index] = car(scene, racer.color, racer.ghost));
       model.visible = visible;
       if (!visible) return;
       const p = track.sample(pose.distance, frame);

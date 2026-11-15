@@ -1,7 +1,7 @@
 import { worldScenery } from "./touge-racing-world.mjs?v=7";
 
 import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE } from "./touge-racing-tracks.mjs?v=7";
-import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulseDistance } from "./touge-racing-rules.mjs?v=10";
+import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulseDistance } from "./touge-racing-rules.mjs?v=12";
 
 // Software perspective renderer for browsers that cannot open a WebGL context.
 export function createCanvasRenderer(canvas, racers, track, showItems = false, neon = false) {
@@ -230,7 +230,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
       ];
     }
 
-    function project({ corners, color, oneSided }) {
+    function project({ corners, color, oneSided, opacity }) {
       const vertices = corners.map(transform);
       const clipped = [];
       for (let i = 0; i < vertices.length; i++) {
@@ -253,7 +253,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
         }, 0);
         if (area >= 0) return null;
       }
-      return { color, screen, depth: clipped.reduce((sum, p) => sum + p[2], 0) / clipped.length };
+      return { color, screen, opacity, depth: clipped.reduce((sum, p) => sum + p[2], 0) / clipped.length };
     }
 
     function trace(screen) {
@@ -267,7 +267,9 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
       ctx.beginPath();
       trace(polygon.screen);
       ctx.fillStyle = polygon.color;
+      ctx.globalAlpha = polygon.opacity ?? 1;
       ctx.fill();
+      ctx.globalAlpha = 1;
     }
 
     const sky = ctx.createLinearGradient(0, 0, 0, Math.max(1, horizon));
@@ -339,6 +341,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
       const paintwork = [body, side, side, body, light];
       const glass = ["#203746", "#294455", "#203746", "#294455", light];
       const rubber = ["#232735", "#232735", "#232735", "#232735", "#303744"];
+      const startFace = faces.length;
       const red = Array(5).fill("#ff5346");
       box(faces, p, 0, .7, 0, 2.14, .54, 3.98, paintwork);
       box(faces, p, 0, 1.13, -.2, 1.66, .43, 1.64, glass);
@@ -347,6 +350,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
         box(faces, p, side * .77, .78, -2, .44, .14, .05, red);
         for (const z of [-1.3, 1.28]) box(faces, p, side * .94, .36, z, .35, .64, .68, rubber);
       }
+      if (racer.ghost) for (let i = startFace; i < faces.length; i++) faces[i].opacity = .42;
     });
     faces.map(project).filter(Boolean).sort((a, b) => b.depth - a.depth).forEach(paint);
   }

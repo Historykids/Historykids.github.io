@@ -1,14 +1,14 @@
-import { createScene } from "./touge-racing-scene.js?v=10";
+import { createScene } from "./touge-racing-scene.js?v=12";
 import { getTrack, LAPS, TRACKS } from "./touge-racing-tracks.mjs?v=7";
 import {
   DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS, TRIAL_PROTOCOL,
-  applyDrive, createRaceItems, createRacer, createTrialRacer, formatTime, isDriving, lapTime, rankRacers, recordTrialInput, stepRace
-} from "./touge-racing-rules.mjs?v=10";
+  applyDrive, createRaceItems, createRacer, createTrialRacer, formatTime, isDriving, lapTime, rankRacers, recordTrialInput, stepRace, trialInput
+} from "./touge-racing-rules.mjs?v=12";
 import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=10";
 import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=10";
 
 import { createRaceEffects } from "./touge-racing-effects.js?v=11";
-import { mountRaceUI } from "./touge-racing-ui.js?v=10";
+import { mountRaceUI } from "./touge-racing-ui.js?v=12";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();
@@ -117,7 +117,7 @@ function initialize(profile) {
       target.beginPath();
       target.arc(x(point.x + point.rx * racer.lane), y(point.z + point.rz * racer.lane),
         own ? 4.2 : 2.8, 0, Math.PI * 2);
-      target.fillStyle = own ? "#8de9ff" : "#ffc194";
+      target.fillStyle = own ? "#8de9ff" : racer.ghost ? "#98ffe7" : "#ffc194";
       target.fill();
     };
   }
@@ -318,8 +318,49 @@ function initialize(profile) {
     prepareRace(getTrack(selected), racers, false);
   }
 
-  function startTrial() {
-    prepareRace(getTrack(selected), [createTrialRacer()], false, true);
+  let loadingGhost = false;
+  async function startTrial() {
+    if (loadingGhost) return;
+    const track = getTrack(selected), speedClass = selectedSpeed;
+    const previousRace = race, previousState = state;
+    const racers = [createTrialRacer()];
+    const enabled = byId("ghost-toggle").checked;
+    let data, note = "";
+    if (enabled) {
+      loadingGhost = true;
+      start.disabled = true;
+      byId("setup-message").textContent = "1位のゴーストを読み込み中…";
+      try {
+        const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1" });
+        const result = await raceRequest("/race/leaderboard?" + query);
+        if (result.track === track.id && result.speedClass === speedClass) data = result.ghost;
+        note = data ? "1位 " + data.name + " · " + formatTime(data.seconds) : "1位のゴーストはまだありません";
+      } catch {
+        note = "ゴーストを読み込めませんでした";
+      } finally {
+        loadingGhost = false;
+        start.disabled = false;
+        byId("setup-message").textContent = "";
+      }
+      if (race !== previousRace || state !== previousState || selected !== track.id || selectedSpeed !== speedClass) return;
+    }
+    if (data) racers.push(Object.assign(createTrialRacer(), { id: "ghost", color: 0x80ffea, ghost: true }));
+    if (!prepareRace(track, racers, false, true)) return;
+    race.ghost = data ? { racer: racers[1], tape: data.tape, index: 0, remaining: 0 } : null;
+    byId("ghost-status").hidden = !enabled;
+    byId("ghost-status").textContent = note;
+  }
+
+  function stepGhost(ghost, track, elapsed, scale) {
+    if (!ghost || ghost.racer.finishedAt !== null) return;
+    if (!ghost.remaining) {
+      const entry = ghost.tape[ghost.index++];
+      if (!entry) { ghost.racer.dnf = true; return; }
+      ghost.racer.input = trialInput(entry[0]);
+      ghost.remaining = entry[1];
+    }
+    stepRace(track, [ghost.racer], STEP, elapsed, LAPS, null, scale);
+    ghost.remaining--;
   }
 
   function startLocalRace() {
@@ -341,7 +382,7 @@ function initialize(profile) {
 
   function refreshHud() {
     const { player, racers, track, elapsed, remaining } = race;
-    const place = race.snapshot?.rank ?? rankRacers(racers).indexOf(player) + 1;
+    const place = race.isTrial ? 1 : race.snapshot?.rank ?? rankRacers(racers).indexOf(player) + 1;
     placeNumber.nodeValue = place;
     game.dataset.rank = String(place);
     byId("field-size").textContent = (race.snapshot?.fieldSize ?? racers.length) + "台中";
@@ -393,7 +434,9 @@ function initialize(profile) {
       player.input = input();
       itemTap = false;
       if (race.isTrial) recordTrialInput(race.tape, player.input);
-      stepRace(track, racers, STEP, race.ticks * STEP, LAPS, race.items, race.scale);
+      const elapsed = race.ticks * STEP;
+      stepRace(track, race.isTrial ? [player] : racers, STEP, elapsed, LAPS, race.items, race.scale);
+      stepGhost(race.ghost, track, elapsed, race.scale);
       race.ticks++;
       race.elapsed = race.ticks * STEP;
       if (race.isTrial && (player.finishedAt !== null || race.ticks >= TRIAL_MAX_TICKS)) {

@@ -56,6 +56,9 @@ export class TougeRaceHub {
       track TEXT NOT NULL, player TEXT NOT NULL, name TEXT NOT NULL,
       centis INTEGER NOT NULL, recorded INTEGER NOT NULL, PRIMARY KEY(track, player)
     )`);
+    if (!this.rows("PRAGMA table_info(trial_records)").some(column => column.name === "tape")) {
+      this.sql.exec("ALTER TABLE trial_records ADD COLUMN tape TEXT");
+    }
     this.sql.exec("CREATE INDEX IF NOT EXISTS trial_records_order ON trial_records(track, centis, recorded, player)");
   }
 
@@ -110,12 +113,16 @@ export class TougeRaceHub {
     if (seconds === null) return reply({ error: "invalid-replay" }, 400);
     const centis = Math.round(seconds * 100);
     const board = total ? totalBoard(track.id, speedClass) : track.id;
-    const old = this.rows("SELECT centis FROM trial_records WHERE track = ? AND player = ?", board, run.player)[0];
+    const old = this.rows("SELECT centis, tape IS NOT NULL AS hasTape FROM trial_records WHERE track = ? AND player = ?", board, run.player)[0];
     const updated = !old || centis < old.centis;
     if (updated) {
-      this.sql.exec(`INSERT INTO trial_records (track, player, name, centis, recorded) VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(track, player) DO UPDATE SET name=excluded.name, centis=excluded.centis, recorded=excluded.recorded`,
-        board, run.player, name, centis, Date.now());
+      this.sql.exec(`INSERT INTO trial_records (track, player, name, centis, recorded, tape) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(track, player) DO UPDATE SET name=excluded.name, centis=excluded.centis,
+          recorded=excluded.recorded, tape=excluded.tape`,
+        board, run.player, name, centis, Date.now(), total ? JSON.stringify(run.tape) : null);
+    } else if (total && centis === old.centis && !old.hasTape) {
+      this.sql.exec("UPDATE trial_records SET tape = ? WHERE track = ? AND player = ?",
+        JSON.stringify(run.tape), board, run.player);
     }
     this.sql.exec("UPDATE trial_records SET name = ? WHERE player = ? AND name != ?", name, run.player, name);
     const best = updated ? centis : old.centis;
@@ -133,6 +140,13 @@ export class TougeRaceHub {
     if (!track) return reply({ error: "invalid-track" }, 400);
     const speedClass = url.searchParams.get("speedClass") ?? DEFAULT_RACE_SPEED;
     if (!isRaceSpeed(speedClass)) return reply({ error: "invalid-speed" }, 400);
-    return reply({ track: track.id, speedClass, entries: this.board(totalBoard(track.id, speedClass)) });
+    const board = totalBoard(track.id, speedClass);
+    if (url.searchParams.get("ghost") === "1") {
+      const leader = this.rows(`SELECT name, centis, tape FROM trial_records WHERE track = ?
+        ORDER BY centis, recorded, player LIMIT 1`, board)[0];
+      const ghost = leader?.tape ? { name: leader.name, seconds: leader.centis / 100, tape: JSON.parse(leader.tape) } : null;
+      return reply({ track: track.id, speedClass, ghost });
+    }
+    return reply({ track: track.id, speedClass, entries: this.board(board) });
   }
 }

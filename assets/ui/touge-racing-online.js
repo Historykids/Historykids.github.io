@@ -1,4 +1,4 @@
-import { DEFAULT_RACE_SPEED, RACE_PROTOCOL } from "./touge-racing-rules.mjs?v=14";
+import { DEFAULT_RACE_SPEED, RACE_PROTOCOL } from "./touge-racing-rules.mjs?v=15";
 
 const ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 const messages = {
@@ -57,7 +57,7 @@ export class OnlineRace {
       this.timeout = setTimeout(() => socket.close(), 5500);
       socket.addEventListener("open", () => {
         const message = this.token ? { type: "resume", token: this.token } : this.request;
-        this.send({ ...message, protocol: RACE_PROTOCOL, speedClasses: true, shortcuts: true });
+        this.send({ ...message, protocol: RACE_PROTOCOL, speedClasses: true, shortcuts: true, offroadItems: true });
       });
       socket.addEventListener("message", event => this.message(socket, event.data));
       socket.addEventListener("close", () => this.disconnected(socket));

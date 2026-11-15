@@ -1020,4 +1020,4 @@ body { background: radial-gradient(ellipse at 82% -5%, #293c61 0%, #101827 58%);
   .game[data-race-finish] #result .dialog { animation: none; }
 }
 
-#shortcut-hint { color: #ffce77; text-align: center; letter-spacing: .02em; line-height: 1.35; }
+#shortcut-hint { color: #c9ffc2; text-align: center; letter-spacing: .02em; line-height: 1.35; }

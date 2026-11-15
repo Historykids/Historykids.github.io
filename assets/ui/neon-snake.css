@@ -17,7 +17,7 @@
 .title-card h3 { color: var(--title-ink); }
 .title-card progress { accent-color: var(--title-ink); }
 .title-card.selected { border-color: var(--title-ink); }
-.leaderboard .snake-title { display: block; overflow: hidden; text-overflow: ellipsis; font-size: .82em; letter-spacing: .025em; }
+.leaderboard .snake-title { display: block; overflow: hidden; text-overflow: ellipsis; font-size: .88em; font-weight: 800; letter-spacing: .025em; }
 @media (max-width: 700px) {
   .collection-tabs { flex-wrap: wrap; gap: 0 16px; }
 }

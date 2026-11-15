@@ -1,6 +1,6 @@
 import { getTrack } from "../../assets/ui/touge-racing-tracks.mjs";
 import {
-  DEFAULT_RACE_SPEED, isRaceSpeed, MAIN_ROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL, replayTrial, ROOM_CODE, TRIAL_PROTOCOL
+  DEFAULT_RACE_SPEED, isRaceSpeed, MAIN_ROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL, replayTrial, ROOM_CODE, SHORTCUT_TRIAL_PROTOCOL, TRIAL_PROTOCOL
 } from "../../assets/ui/touge-racing-rules.mjs";
 
 const ROOM_TTL = 40000;
@@ -102,7 +102,7 @@ export class TougeRaceHub {
   }
 
   submit(run) {
-    const total = [TRIAL_PROTOCOL, MAIN_ROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL].includes(run?.protocol);
+    const total = [TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, MAIN_ROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL].includes(run?.protocol);
     const track = getTrack(run?.track, { classic: !total });
     const speedClass = run?.speedClass ?? DEFAULT_RACE_SPEED;
     const name = cleanRacerName(run?.name);
@@ -147,8 +147,10 @@ export class TougeRaceHub {
         ORDER BY centis, recorded, player LIMIT 1`, board)[0];
       const stored = leader?.tape ? JSON.parse(leader.tape) : null;
       const run = Array.isArray(stored) ? { protocol: MAIN_ROAD_TRIAL_PROTOCOL, tape: stored } : stored;
-      const supportsShortcuts = url.searchParams.get("replay") === "5";
-      const ghost = run && (supportsShortcuts || run.protocol !== TRIAL_PROTOCOL)
+      const replay = url.searchParams.get("replay");
+      const supported = run?.protocol === TRIAL_PROTOCOL ? replay === "6" :
+        run?.protocol === SHORTCUT_TRIAL_PROTOCOL ? replay === "5" || replay === "6" : true;
+      const ghost = run && supported
         ? { name: leader.name, seconds: leader.centis / 100, ...run }
         : null;
       return reply({ track: track.id, speedClass, ghost });

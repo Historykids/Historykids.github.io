@@ -1,9 +1,9 @@
 import * as THREE from "../vendor/three.module.js";
-import { createCanvasRenderer } from "./touge-racing-canvas.js?v=14";
+import { createCanvasRenderer } from "./touge-racing-canvas.js?v=15";
 import { worldScenery } from "./touge-racing-world.mjs?v=7";
-import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, driveSample, nearShortcut, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=14";
-import { smoothRacerPose } from "./touge-racing-motion.mjs?v=14";
-import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulsePosition } from "./touge-racing-rules.mjs?v=14";
+import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, driveSample, nearShortcut, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=15";
+import { smoothRacerPose } from "./touge-racing-motion.mjs?v=15";
+import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulsePosition } from "./touge-racing-rules.mjs?v=15";
 
 function ribbon(track, scene, material, left, right, y, from = 0, to = track.length) {
   const vertices = [];
@@ -112,7 +112,7 @@ function buildRoad(scene, track, neon) {
     }
   }
   const cut = track.shortcut;
-  if (cut) {
+  if (cut && !track.offroad) {
     const gold = bright(SHORTCUT_COLOR);
     ribbon(cut, scene, flat(0x554637), -cut.halfWidth, cut.halfWidth, .168);
     for (const side of [-1, 1]) {
@@ -271,13 +271,15 @@ function itemGates(scene, track, neon) {
   const shapes = [];
   const material = flat("#a27bff");
   const core = bright("#e1d4ff");
+  const offroad = bright(ITEMS.offroad.color);
   const geometry = new THREE.BoxGeometry(1.34, 1.34, 1.34);
   const accents = neon ? DOPA_COLORS.map(bright) : null;
   for (const [gate, distance] of track.itemLines.entries()) {
-    ribbon(track, scene, flat("#694e9e"), -track.halfWidth + .3, track.halfWidth - .3, .195, distance - ITEM_ZONE_BEFORE, distance + ITEM_ZONE_AFTER);
+    const isOffroad = distance === track.offroadItemLine;
+    ribbon(track, scene, flat(isOffroad ? "#315c43" : "#694e9e"), -track.halfWidth + .3, track.halfWidth - .3, .195, distance - ITEM_ZONE_BEFORE, distance + ITEM_ZONE_AFTER);
     for (const [slot, fraction] of ITEM_LANES.entries()) {
       const group = new THREE.Group();
-      const gem = new THREE.Mesh(geometry, accents?.[(gate + slot) % DOPA_COLORS.length] ?? material);
+      const gem = new THREE.Mesh(geometry, isOffroad ? offroad : accents?.[(gate + slot) % DOPA_COLORS.length] ?? material);
       gem.rotation.z = Math.PI / 4;
       group.add(gem);
       box(group, core, 0, 0, -.71, .44, .44, .11);

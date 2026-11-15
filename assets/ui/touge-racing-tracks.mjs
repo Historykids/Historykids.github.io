@@ -141,10 +141,10 @@ export function driveSample(track, distance, shortcut, out) {
 }
 
 const cached = new Map();
-export function getTrack(id, { classic = false, shortcuts = !classic } = {}) {
+export function getTrack(id, { classic = false, shortcuts = !classic, offroad = shortcuts } = {}) {
   const spec = TRACKS.find(track => track.id === id) ?? LEGACY_TRACKS.find(track => track.id === id);
   if (!spec) return null;
-  const key = id + (classic ? ":classic" : shortcuts ? ":shortcuts" : ":main");
+  const key = id + (classic ? ":classic" : shortcuts ? (offroad ? ":offroad" : ":shortcuts") : ":main");
   if (cached.has(key)) return cached.get(key);
 
   const { points } = spec;
@@ -208,7 +208,14 @@ export function getTrack(id, { classic = false, shortcuts = !classic } = {}) {
   const outline = Array.from({ length: 100 }, (_, i) => sample(length * i / 100));
   const itemLines = (layoutScale > 1 ? [.065, .20, .335, .47, .61, .75, .885] : [.22, .58, .93]).map(portion => length * portion);
   const track = { ...spec, length, layoutScale, sample, samples, pads, outline, itemLines, padLength: PAD_LENGTH, padHalfWidth: PAD_HALF_WIDTH };
-  if (!classic && shortcuts && Object.hasOwn(shortcutSections, id)) track.shortcut = buildShortcut(track, shortcutSections[id]);
+  if (!classic && shortcuts && Object.hasOwn(shortcutSections, id)) {
+    track.shortcut = buildShortcut(track, shortcutSections[id]);
+    if (offroad) {
+      track.offroad = true;
+      track.offroadItemLine = track.shortcut.from - 90;
+      track.itemLines = [...track.itemLines, track.offroadItemLine].sort((a, b) => a - b);
+    }
+  }
   cached.set(key, track);
   return track;
 }

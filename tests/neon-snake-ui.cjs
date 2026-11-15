@@ -16,6 +16,10 @@ await test('new costumes and earned titles persist and appear above the name in 
   a.$('clearTitle').click();assert.equal(a.saved().title,'');
   const title=[...a.$('titleCards').children].find(c=>c.textContent.includes('光の巨蛇'));
   title.querySelector('button').click();assert.equal(a.saved().title,'leviathan');
+  const titleColor=title.style.getPropertyValue('--title-ink');
+  assert.equal(new Set([...a.$('titleCards').children].map(card=>card.style.getPropertyValue('--title-ink'))).size,10);
+  const swatch=a.w.document.createElement('span');swatch.style.color=titleColor;
+  assert.equal(a.$('equippedTitle').querySelector('strong').style.color,swatch.style.color);
   a.$('skinsTab').click();
   const costume=[...a.$('skins').children].find(c=>c.textContent.includes('ネオンゼブラ'));
   assert(costume.querySelector('canvas'));costume.querySelector('button').click();
@@ -25,6 +29,7 @@ await test('new costumes and earned titles persist and appear above the name in 
   assert.equal(h.sockets[0].peer.record.snake.skin,'zebra');
   const name=[...b.$('leaderboard').querySelectorAll('.snake-name')].find(item=>item.textContent.endsWith('Alice'));
   assert.equal(name.firstElementChild.textContent,'光の巨蛇');
+  assert.equal(name.firstElementChild.style.color,swatch.style.color);
  }finally{a.close();b.close();h.close();}
 });
 console.log(checks+' online snake browser and keyboard checks passed.');

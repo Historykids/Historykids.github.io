@@ -26,10 +26,15 @@
   renderTitles();
   const ready=E.missions.filter(m=>profile.daily[m.id]>=m.goal&&!profile.daily.claimed.includes(m.id)).length;$('missionCount').textContent=ready?ready+'件受取可能':'';$('skinCount').textContent=profile.owned.length+' / '+E.skins.length;
  }
+ function titleName(item,tag='span',className=''){
+  const label=element(tag,className,item.name);
+  label.style.color=item.color;
+  return label;
+ }
  function renderTitles(){
   const earned=E.earnedTitles(profile), selected=E.title(profile.title),mount=$('titleCards');
   $('titlesCount').textContent=earned.length+' / '+E.titles.length;
-  $('equippedTitle').textContent=selected?'装備中 · '+selected.name:'称号なし';
+  $('equippedTitle').replaceChildren(...(selected?['装備中 · ',titleName(selected,'strong')]:['称号なし']));
   $('clearTitle').disabled=!selected||locked;
   mount.replaceChildren();
   for(const item of E.titles){
@@ -66,8 +71,12 @@
  function reward(){if(settled||!arena)return null;settled=true;if(writable())profile=E.profile(localStorageSafe());const before=profile.best,earned=E.settle(profile,arena.stats);save();return{...earned,newBest:arena.stats.best>before};}
  function end(reason){if(!playing||settled)return;paused=true;keys.clear();touch.reset();const result=reward();$('resultTitle').textContent=result.newBest?'自己ベスト、更新！':'いい軌跡だった！';$('endReason').textContent=reason;$('resultLength').textContent=num(arena.stats.best);$('newBest').hidden=!result.newBest;$('resultRank').textContent=arena.stats.rank+'位';$('resultKills').textContent=arena.stats.kills+'匹';$('resultTime').textContent=time(arena.stats.seconds);$('earnedCoins').textContent=result.coins;$('earnedXp').textContent=result.xp;const unlocks=[];
   if(result.unlocked.length)unlocks.push('コスチューム獲得 · '+result.unlocked.map(id=>E.skin(id).name).join(' / '));
-  if(result.unlockedTitles.length)unlocks.push('称号獲得 · '+result.unlockedTitles.map(item=>item.name).join(' / '));
-  $('unlockMessage').textContent=unlocks.join(' ／ ')||'集めた光と経験値は次のプレイへ。';if($('pauseDialog').open)$('pauseDialog').close();$('resultDialog').showModal();}
+  if(result.unlockedTitles.length){
+   if(unlocks.length)unlocks.push(' ／ ');
+   unlocks.push('称号獲得 · ');
+   result.unlockedTitles.forEach((item,index)=>{if(index)unlocks.push(' / ');unlocks.push(titleName(item,'strong'));});
+  }
+  $('unlockMessage').replaceChildren(...(unlocks.length?unlocks:['集めた光と経験値は次のプレイへ。']));if($('pauseDialog').open)$('pauseDialog').close();$('resultDialog').showModal();}
  function goHome(){net?.close();playing=false;starting=false;paused=false;keys.clear();touch.reset();arena=null;document.body.classList.remove('playing');$('gameHud').hidden=true;$('home').hidden=false;$('play').disabled=locked;$('play').innerHTML='オンラインでプレイ <span>↗</span>';$('quit').disabled=false;$('quit').textContent='報酬を受け取って退出する';for(const id of ['pauseDialog','resultDialog'])if($(id).open)$(id).close();renderHome();$('play').focus();}
  function pause(){if(!playing||paused||settled)return;paused=true;keys.clear();touch.reset();net?.control({x:0,y:0,boost:false});hud();$('pauseDialog').showModal();}
  function resume(){if(!playing||settled||locked)return;paused=false;last=performance.now();accumulator=0;$('pauseDialog').close();canvas.focus();}
@@ -79,7 +88,7 @@
    : '長さが1以上で加速できます';
   const mount=$('leaderboard');mount.replaceChildren();for(const [i,s]of rank.slice(0,10).entries()){const li=element('li',s.id===p.id?'me':'');const name=element('span','snake-name',s.id===p.id?s.name+' (YOU)':s.name+(s.bot?' · CPU':''));
    const title=E.title(s.title);
-   if(title){const badge=element('small','snake-title',title.name);badge.style.color=title.color;name.prepend(badge);}
+   if(title)name.prepend(titleName(title,'small','snake-title'));
    li.append(element('span','',String(i+1).padStart(2,'0')),name,element('span','snake-score',num(s.mass)));mount.append(li);}drawMinimap();}
  function drawMinimap(){const c=$('minimap').getContext('2d');if(!c)return;c.clearRect(0,0,150,150);c.strokeStyle='#69829133';c.beginPath();c.arc(75,75,66,0,Math.PI*2);c.stroke();for(const point of arena.positions||[]){const self=point[0]===arena.player.id;c.fillStyle=self?'#b5ffe7':point[3]?'#74859d88':'#c0afffc0';c.beginPath();c.arc(75+point[1]/arena.radius*65,75+point[2]/arena.radius*65,self?3.5:1.8,0,Math.PI*2);c.fill();}}
  function sprite(color){if(sprites.has(color))return sprites.get(color);const c=document.createElement('canvas');c.width=c.height=80;const x=c.getContext('2d');const g=x.createRadialGradient(29,24,2,39,40,31);g.addColorStop(0,'#f1fffebf');g.addColorStop(.17,color);g.addColorStop(.65,color);g.addColorStop(1,'#0b1126');x.fillStyle=g;x.beginPath();x.arc(40,40,31,0,Math.PI*2);x.fill();x.strokeStyle='#ffffff12';x.lineWidth=1.2;x.stroke();sprites.set(color,c);return c;}
@@ -161,9 +170,10 @@
    ctx.fillText(person.name+(person.id===p.id?' (YOU)':''),person.x,nameY);
    const title=E.title(person.title);
    if(title){
-    ctx.save();ctx.font='bold 12px "Space Grotesk","Noto Sans JP",sans-serif';ctx.fillStyle=title.color;
-    ctx.strokeStyle='#10141e';ctx.lineWidth=3;ctx.strokeText(title.name,person.x,nameY-15);
-    ctx.fillText(title.name,person.x,nameY-15);ctx.restore();
+    const titleSize=Math.max(12,11/camera.zoom),titleY=nameY-13/camera.zoom;
+    ctx.save();ctx.font='bold '+titleSize+'px "Space Grotesk","Noto Sans JP",sans-serif';ctx.fillStyle=title.color;
+    ctx.strokeStyle='#10141e';ctx.lineWidth=2.5/camera.zoom;ctx.strokeText(title.name,person.x,titleY);
+    ctx.fillText(title.name,person.x,titleY);ctx.restore();
    }}ctx.shadowBlur=0;}ctx.restore();}
  function preview(t){const c=$('skinPreview'),x=c.getContext('2d');if(!x)return;x.clearRect(0,0,700,400);const costume=E.skin(profile.selected);
   if(costume.pattern){x.save();x.scale(3.7,3.7);x.translate(4,13);drawCostumePreview(x,costume,t);x.restore();return;}

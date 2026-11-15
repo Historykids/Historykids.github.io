@@ -26,16 +26,16 @@
  ]);
  const skin=id=>skins.find(s=>s.id===id)||skins[0];
  const titles=Object.freeze([
-  {id:'light-coil',name:'閃光の長蛇',key:'best',goal:10000,label:'1回の対戦で長さ10,000を達成する',color:'#a1fff0'},
-  {id:'neon-wyrm',name:'ネオンの大蛇',key:'best',goal:20000,label:'1回の対戦で長さ20,000を達成する',color:'#b3afff'},
-  {id:'leviathan',name:'光の巨蛇',key:'best',goal:30000,label:'1回の対戦で長さ30,000を達成する',color:'#cffe8d'},
-  {id:'light-devourer',name:'光を喰らう者',key:'totalFood',goal:50000,label:'光を累計50,000個集める',color:'#88ebff'},
-  {id:'night-survivor',name:'不夜の生存者',key:'totalSeconds',goal:108000,label:'累計30時間生き延びる',color:'#afaaff'},
-  {id:'apex-hunter',name:'ネオンの狩王',key:'totalKills',goal:500,label:'累計500匹を倒す',color:'#ffa2cf'},
-  {id:'arena-titan',name:'アリーナの覇蛇',key:'best',goal:50000,label:'1回の対戦で長さ50,000を達成する',color:'#a2ffe4'},
-  {id:'storm-serpent',name:'天を裂く蛇',key:'best',goal:75000,label:'1回の対戦で長さ75,000を達成する',color:'#ffb8dc'},
-  {id:'immortal-serpent',name:'不滅の大蛇',key:'best',goal:100000,label:'1回の対戦で長さ100,000を達成する',color:'#ffe497'},
-  {id:'endless-serpent',name:'無限の大蛇',key:'best',goal:150000,label:'1回の対戦で長さ150,000を達成する',color:'#fff3cb'}
+  {id:'light-coil',name:'閃光の長蛇',key:'best',goal:10000,label:'1回の対戦で長さ10,000を達成する',color:'#55e9f7'},
+  {id:'neon-wyrm',name:'ネオンの大蛇',key:'best',goal:20000,label:'1回の対戦で長さ20,000を達成する',color:'#84aaff'},
+  {id:'leviathan',name:'光の巨蛇',key:'best',goal:30000,label:'1回の対戦で長さ30,000を達成する',color:'#b6f565'},
+  {id:'light-devourer',name:'光を喰らう者',key:'totalFood',goal:50000,label:'光を累計50,000個集める',color:'#ffad6e'},
+  {id:'night-survivor',name:'不夜の生存者',key:'totalSeconds',goal:108000,label:'累計30時間生き延びる',color:'#c595ff'},
+  {id:'apex-hunter',name:'ネオンの狩王',key:'totalKills',goal:500,label:'累計500匹を倒す',color:'#ff8291'},
+  {id:'arena-titan',name:'アリーナの覇蛇',key:'best',goal:50000,label:'1回の対戦で長さ50,000を達成する',color:'#67e6ac'},
+  {id:'storm-serpent',name:'天を裂く蛇',key:'best',goal:75000,label:'1回の対戦で長さ75,000を達成する',color:'#ff94e6'},
+  {id:'immortal-serpent',name:'不滅の大蛇',key:'best',goal:100000,label:'1回の対戦で長さ100,000を達成する',color:'#ffd35c'},
+  {id:'endless-serpent',name:'無限の大蛇',key:'best',goal:150000,label:'1回の対戦で長さ150,000を達成する',color:'#f2f7ff'}
  ]);
  const title=id=>titles.find(item=>item.id===id);
  const earnedTitles=p=>titles.filter(item=>p[item.key]>=item.goal);

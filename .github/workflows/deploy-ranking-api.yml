@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js', 'assets/ui/amounts.js', 'assets/ui/wealth-rules.js', 'assets/ui/account-data.js', 'assets/ui/sengoku-rules.js', 'assets/ui/sengoku-world-rules.js', 'assets/ui/sengoku-tactics.js', 'assets/ui/sengoku-kuni-map.js', 'assets/ui/sengoku-ranking-rules.js', 'assets/ui/sengoku-chat-rules.js', 'assets/ui/tenka-season1-rules.js', 'assets/ui/neon-snake-engine.js', 'assets/ui/touge-racing-rules.mjs', 'scripts/neon-snake-probe.cjs']
+    paths: ['.github/workflows/deploy-ranking-api.yml', 'server/ranking-api/**', 'server/figure-api/ranking*.mjs', 'assets/ui/core.js', 'assets/ui/amounts.js', 'assets/ui/wealth-rules.js', 'assets/ui/account-data.js', 'assets/ui/sengoku-rules.js', 'assets/ui/sengoku-world-rules.js', 'assets/ui/sengoku-tactics.js', 'assets/ui/sengoku-kuni-map.js', 'assets/ui/sengoku-ranking-rules.js', 'assets/ui/sengoku-chat-rules.js', 'assets/ui/tenka-season1-rules.js', 'assets/ui/neon-snake-engine.js', 'assets/ui/touge-racing-rules.mjs', 'assets/ui/touge-racing-tracks.mjs', 'assets/ui/touge-racing-terrain.mjs', 'scripts/neon-snake-probe.cjs']
 permissions:
   contents: write
   pages: write
@@ -249,7 +249,7 @@ jobs:
           console.log('Private Tenka access checks passed; no season player, draw or legacy reward created');
           const raceStatusResponse=await fetch(new URL('/race/status',base),{headers:{Origin:'https://historykids.github.io','Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
           const raceStatus=await raceStatusResponse.json();
-          if(!raceStatusResponse.ok||raceStatus.pulseMode!=='projectile'||raceStatus.itemRespawnSeconds!==1||raceStatus.shortcuts!==true||raceStatus.turboCuts!==true)throw Error('Touge Racing projectile configuration check failed');
+          if(!raceStatusResponse.ok||raceStatus.pulseMode!=='projectile'||raceStatus.itemRespawnSeconds!==1||raceStatus.shortcuts!==true||raceStatus.freeDrive!==true)throw Error('Touge Racing projectile configuration check failed');
           const raceSpeeds=['100cc','150cc','200cc','dopagaki'];
           if(JSON.stringify(raceStatus.speedClasses)!==JSON.stringify(raceSpeeds))throw Error('Touge Racing speed classes missing');
           for(const speedClass of raceSpeeds){

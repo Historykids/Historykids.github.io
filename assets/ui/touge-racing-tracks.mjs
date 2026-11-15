@@ -1,3 +1,5 @@
+import { buildTerrain, terrainPoint } from "./touge-racing-terrain.mjs?v=17";
+
 export const LAPS = 3;
 export const PAD_LENGTH = 9;
 export const PAD_HALF_WIDTH = 2.35;
@@ -135,16 +137,28 @@ export function nearShortcut(track, x, z) {
   return cut?.outline.some(point => Math.hypot(point.x - x, point.z - z) < cut.halfWidth + 7) ?? false;
 }
 
+export function racerSample(track, racer, out) {
+  return racer.free ? terrainPoint(racer, out) : driveSample(track, racer.distance, racer.shortcut, out);
+}
+
+export function racerWorldPosition(track, racer, out) {
+  const p = racerSample(track, racer, out);
+  const lane = racer.free ? 0 : racer.lane;
+  p.x += p.rx * lane;
+  p.z += p.rz * lane;
+  return p;
+}
+
 export function driveSample(track, distance, shortcut, out) {
   if (!shortcut || !track.shortcut) return track.sample(distance, out);
   return track.shortcut.sample((lapDistance(track, distance) - track.shortcut.from) / track.shortcut.ratio, out);
 }
 
 const cached = new Map();
-export function getTrack(id, { classic = false, shortcuts = !classic, offroad = shortcuts, turboCuts = offroad } = {}) {
+export function getTrack(id, { classic = false, shortcuts = !classic, offroad = shortcuts, turboCuts = offroad, freeDrive = false } = {}) {
   const spec = TRACKS.find(track => track.id === id) ?? LEGACY_TRACKS.find(track => track.id === id);
   if (!spec) return null;
-  const key = id + (classic ? ":classic" : shortcuts ? (turboCuts ? ":turbo" : offroad ? ":offroad" : ":shortcuts") : ":main");
+  const key = id + (classic ? ":classic" : freeDrive ? ":terrain" : shortcuts ? (turboCuts ? ":turbo" : offroad ? ":offroad" : ":shortcuts") : ":main");
   if (cached.has(key)) return cached.get(key);
 
   const { points } = spec;
@@ -210,12 +224,16 @@ export function getTrack(id, { classic = false, shortcuts = !classic, offroad = 
   const track = { ...spec, length, layoutScale, sample, samples, pads, outline, itemLines, padLength: PAD_LENGTH, padHalfWidth: PAD_HALF_WIDTH };
   if (!classic && shortcuts && Object.hasOwn(shortcutSections, id)) {
     track.shortcut = buildShortcut(track, shortcutSections[id]);
-    if (offroad) {
+    if (offroad && !freeDrive) {
       track.offroad = true;
       track.turboCuts = turboCuts;
       track.offroadItemLine = track.shortcut.from - 90;
       track.itemLines = [...track.itemLines, track.offroadItemLine].sort((a, b) => a - b);
     }
+  }
+  if (!classic && freeDrive && Object.hasOwn(shortcutSections, id)) {
+    track.terrain = buildTerrain(track);
+    track.turboCuts = true;
   }
   cached.set(key, track);
   return track;

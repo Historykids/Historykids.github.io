@@ -1,7 +1,7 @@
 import { worldScenery } from "./touge-racing-world.mjs?v=7";
 
-import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, driveSample, nearShortcut, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=16";
-import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulsePosition } from "./touge-racing-rules.mjs?v=16";
+import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, nearShortcut, racerSample, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=17";
+import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulsePosition } from "./touge-racing-rules.mjs?v=17";
 
 // Software perspective renderer for browsers that cannot open a WebGL context.
 export function createCanvasRenderer(canvas, racers, track, showItems = false, neon = false) {
@@ -130,7 +130,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
     }
   }
   const cut = track.shortcut;
-  if (cut && !track.offroad) {
+  if (cut && !track.offroad && !track.terrain) {
     trackStrip(markings, 0, cut.length, -cut.halfWidth, cut.halfWidth, .168, "#554637", cut.sample);
     for (const side of [-1, 1]) {
       const edge = side * (cut.halfWidth - .22);
@@ -202,6 +202,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
     }
   }
   if (showItems) {
+    const crateAccents = DOPA_COLORS.filter(color => color !== DOPA_COLORS[2]);
     for (const [gate, distance] of track.itemLines.entries()) {
       const isTurbo = distance === track.offroadItemLine;
       trackStrip(markings, distance - ITEM_ZONE_BEFORE, distance + ITEM_ZONE_AFTER, -halfWidth + .3, halfWidth - .3, .19, "#694e9e");
@@ -209,7 +210,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
         const p = sample(distance), lane = halfWidth * fraction;
         const faces = [];
         crates.push(faces);
-        const colors = isTurbo ? Array(5).fill(ITEMS.turbo.color) : neon ? Array(5).fill(DOPA_COLORS[(gate + slot) % DOPA_COLORS.length])
+        const colors = isTurbo ? Array(5).fill(ITEMS.turbo.color) : neon ? Array(5).fill(crateAccents[(gate + slot) % crateAccents.length])
           : ["#a27bff", "#9b72ee", "#8369dc", "#ac91ec", "#d1baff"];
         box(faces, p, lane, 1.17, 0, 1.45, 1.45, 1.45, colors);
         box(faces, p, lane, 1.17, -.75, .5, .5, .08, Array(5).fill("#efe2ff"));
@@ -331,7 +332,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
     for (const pulse of projectiles) {
       if (elapsed >= pulse.launchedAt + PULSE_LIFETIME) continue;
       const shot = pulsePosition(track, pulse, elapsed);
-      const p = driveSample(track, shot.distance, shot.shortcut);
+      const p = racerSample(track, shot);
       if (Math.abs(p.x - eyeX) > 345 || Math.abs(p.z - eyeZ) > 345) continue;
       const color = ITEMS[pulse.kind].color;
       const size = neon ? 2.3 : 1.6;
@@ -340,7 +341,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
     }
     racers.forEach((racer, index) => {
       if (racer.dnf || (index !== 0 && racer.finishedAt !== null)) return;
-      const p = driveSample(track, racer.distance, racer.shortcut);
+      const p = racerSample(track, racer);
       p.x += p.rx * racer.lane;
       p.z += p.rz * racer.lane;
       p.fx = Math.sin(racer.yaw);

@@ -1,4 +1,4 @@
-import { getTrack, LAPS, TRACKS } from "../../assets/ui/touge-racing-tracks.mjs";
+import { getTrack, LAPS, racerWorldPosition, TRACKS } from "../../assets/ui/touge-racing-tracks.mjs";
 import {
   COUNTDOWN, DEFAULT_RACE_SPEED, EMPTY_INPUT, ITEM_RESPAWN_SECONDS, MIN_ROOM_PLAYERS, RACE_LIMIT,
   RACE_PROTOCOL, RACE_SPEEDS, ROOM_CODE, STEP, VISIBLE_RIVALS, createRaceItems, createRacer,
@@ -35,7 +35,7 @@ export async function racingRequest(request, env, reply) {
   if (path === "/race/status") {
     return reply({
       protocol: RACE_PROTOCOL, capacity: null, minimumPlayers: MIN_ROOM_PLAYERS,
-      shortcuts: true, turboCuts: true, trialLaps: LAPS, itemRespawnSeconds: ITEM_RESPAWN_SECONDS, pulseMode: "projectile",
+      shortcuts: true, turboCuts: true, freeDrive: true, trialLaps: LAPS, itemRespawnSeconds: ITEM_RESPAWN_SECONDS, pulseMode: "projectile",
       speedClasses: Object.keys(RACE_SPEEDS), tracks: TRACKS.map(track => track.id)
     });
   }
@@ -166,7 +166,7 @@ export class RaceRoom {
       return this.reject(peer, "version");
     }
     if (this.speedClass !== DEFAULT_RACE_SPEED && message.speedClasses !== true) return this.reject(peer, "version");
-    if (this.track?.turboCuts && message.turboCuts !== true) return this.reject(peer, "version");
+    if (this.track?.terrain && message.freeDrive !== true) return this.reject(peer, "version");
     let record;
     if (message.type === "resume") {
       record = this.players.get(message.token);
@@ -176,7 +176,7 @@ export class RaceRoom {
     } else {
       if (message.type === "create") {
         if (this.track) return this.reject(peer, "code-used");
-        const track = getTrack(message.trackId, { classic: message.layout !== "long", shortcuts: message.turboCuts === true });
+        const track = getTrack(message.trackId, { classic: message.layout !== "long", shortcuts: message.freeDrive === true, freeDrive: message.freeDrive === true });
         if (!track) return this.reject(peer, "invalid-track");
         const speedClass = message.speedClass ?? DEFAULT_RACE_SPEED;
         if (!isRaceSpeed(speedClass)) return this.reject(peer, "invalid-speed");
@@ -255,16 +255,34 @@ export class RaceRoom {
     const wire = racer => ({
       id: racer.id, slot: racer.slot, name: racer.name, color: racer.color,
       distance: racer.distance, shortcut: racer.shortcut, turboTime: racer.turboTime, lane: racer.lane, speed: racer.speed, steer: racer.steer,
+      ...(this.track.terrain ? { free: !!racer.free, x: racer.x, z: racer.z, heading: racer.heading, onAsphalt: racer.onAsphalt,
+        nextGate: racer.nextGate ?? 0, completedLaps: racer.completedLaps ?? 0, progress: racer.progress } : {}),
       boost: racer.boost, drifting: racer.drifting, driftCharge: racer.driftCharge, slow: racer.slow,
       item: racer.item, shield: racer.shield, grip: racer.grip, pickup: racer.pickup, contact: racer.contact, finishedAt: racer.finishedAt, dnf: racer.dnf
     });
     const snapshot = {
       type: "state", phase: this.phase, trackId: this.track.id, speedClass: this.speedClass, host: this.host, players,
-      fieldSize: ordered.length, shortcuts: !!this.track.shortcut, turboCuts: !!this.track.turboCuts, layout: this.track.layoutScale > 1 ? "long" : "classic", itemRespawns: this.items?.respawns ?? null, countdown: Math.max(0, (this.startAt - now) / 1000), elapsed: this.elapsed
+      fieldSize: ordered.length, freeDrive: !!this.track.terrain, shortcuts: !!this.track.shortcut, turboCuts: !!this.track.turboCuts, layout: this.track.layoutScale > 1 ? "long" : "classic", itemRespawns: this.items?.respawns ?? null, countdown: Math.max(0, (this.startAt - now) / 1000), elapsed: this.elapsed
     };
     if (lobby) {
       const message = JSON.stringify({ ...snapshot, racers: ordered.map(wire) });
       for (const record of this.players.values()) this.send(record.peer, message);
+      return;
+    }
+    if (this.track.terrain) {
+      const positions = new Map(ordered.map(racer => [racer.id, racerWorldPosition(this.track, racer)]));
+      const projectiles = (this.items?.projectiles ?? []).map(({ ownerId, ...pulse }) => ({
+        pulse, point: racerWorldPosition(this.track, pulsePosition(this.track, pulse, this.elapsed))
+      }));
+      for (const record of this.players.values()) {
+        if (!record.peer) continue;
+        const own = positions.get(record.id);
+        const gap = point => (point.x - own.x) ** 2 + (point.z - own.z) ** 2;
+        const rivals = ordered.filter(racer => racer.id !== record.id)
+          .sort((a, b) => gap(positions.get(a.id)) - gap(positions.get(b.id))).slice(0, VISIBLE_RIVALS);
+        this.send(record.peer, { ...snapshot, rank: ranks.get(record.id), racers: [record.racer, ...rivals].map(wire),
+          projectiles: projectiles.filter(({ point }) => gap(point) < 365 ** 2).map(({ pulse }) => pulse) });
+      }
       return;
     }
     const length = this.track.length;

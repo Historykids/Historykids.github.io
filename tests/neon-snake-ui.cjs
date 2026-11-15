@@ -10,21 +10,21 @@ await test('server collision results, safe player names and saved reward dedupli
 await test('another tab updating costume progress does not disconnect the player and rewards merge with the newest saved balance',async()=>{const h=await fixture(),p=h.page();try{await start(p,'Pilot');const latest=p.saved();latest.coins=200;p.w.localStorage.setItem('hk_neon_snake_v1',JSON.stringify(latest));p.w.dispatchEvent(new p.w.StorageEvent('storage',{key:'hk_neon_snake_v1'}));assert(!p.$('pauseDialog').open);assert.equal(h.room().status().humans,1);const r=h.sockets[0].peer.record;r.snake.stats.food=120;h.room().finish(r,'fixture finish');await flush();assert(p.saved().coins>200);}finally{p.close();h.close();}});
 await test('an account switch locks the current client and prevents rewards from crossing accounts',async()=>{const h=await fixture(),p=h.page();try{await start(p,'Pilot');const before=p.saved();p.w.dispatchEvent(new p.w.StorageEvent('storage',{key:'hk_account_profile_v1'}));await flush();assert(p.$('pauseDialog').open);assert(p.$('resume').disabled);p.$('quit').click();assert.deepEqual(p.saved(),before);}finally{p.close();h.close();}});
 await test('new costumes and earned titles persist and appear above the name in the shared arena',async()=>{
- const h=await fixture(),a=h.page({seed:{coins:200,games:1,totalFood:400}}),b=h.page();
+ const h=await fixture(),a=h.page({seed:{coins:200,best:30000}}),b=h.page();
  try{
   a.$('titlesTab').click();assert(!a.$('titles').hidden);assert(a.$('skins').hidden);
   a.$('clearTitle').click();assert.equal(a.saved().title,'');
-  const title=[...a.$('titleCards').children].find(c=>c.textContent.includes('光集めの達人'));
-  title.querySelector('button').click();assert.equal(a.saved().title,'collector');
+  const title=[...a.$('titleCards').children].find(c=>c.textContent.includes('光の巨蛇'));
+  title.querySelector('button').click();assert.equal(a.saved().title,'leviathan');
   a.$('skinsTab').click();
   const costume=[...a.$('skins').children].find(c=>c.textContent.includes('ネオンゼブラ'));
   assert(costume.querySelector('canvas'));costume.querySelector('button').click();
   assert.equal(a.saved().selected,'zebra');assert.equal(a.saved().coins,40);
   await start(a,'Alice');await start(b,'Bob');await h.step(8,[a,b]);
-  assert.equal(h.sockets[0].peer.record.snake.title,'collector');
+  assert.equal(h.sockets[0].peer.record.snake.title,'leviathan');
   assert.equal(h.sockets[0].peer.record.snake.skin,'zebra');
   const name=[...b.$('leaderboard').querySelectorAll('.snake-name')].find(item=>item.textContent.endsWith('Alice'));
-  assert.equal(name.firstElementChild.textContent,'光集めの達人');
+  assert.equal(name.firstElementChild.textContent,'光の巨蛇');
  }finally{a.close();b.close();h.close();}
 });
 console.log(checks+' online snake browser and keyboard checks passed.');

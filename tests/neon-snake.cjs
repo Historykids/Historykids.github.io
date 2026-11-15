@@ -23,18 +23,31 @@ test('the body undulates within its hit area while the neck stays attached to th
 test('damaged storage is normalized and forged selections cannot enable locked costumes',()=>{assert.equal(E.profile('{bad').selected,'mint');const p=E.profile({coins:-9,selected:'crown',owned:[],daily:null,xp:NaN});assert.equal(p.coins,0);assert.equal(p.xp,0);assert.equal(p.selected,'mint');assert.equal(E.skins.length,20);assert.equal(new Set(E.skins.flatMap(s=>s.pattern?[s.pattern]:[])).size,8);});
 test('humans and CPUs start at zero with the same small body, and growth extends the body',()=>{const a=new E.Arena({seed:12,bots:3,foodTarget:0});for(const s of a.snakes){assert.equal(s.mass,0);assert.equal(s.radius,8+Math.sqrt(10)/5);assert.equal(s.body.length,10);}assert.equal(a.stats.best,0);const s=a.player;s.mass=200;for(let i=0;i<60;i++)a.step(1/60,{angle:0});assert(s.body.length*E.BODY_STEP>150);assert(s.radius>10);});
 test('CPU keeps a forward food goal despite nearer distractions and turns in broad smooth arcs',()=>{const a=new E.Arena({seed:77,bots:1,foodTarget:0}),s=a.snakes[1];s.x=s.y=0;s.angle=0;s.body=Array.from({length:10},(_,i)=>({x:-i*4,y:0}));const goal={x:300,y:0,value:3},distraction={x:0,y:30,value:3};a.food=[goal];a.rebuild();a.aim(s);assert.equal(s.target,goal);a.food.push(distraction);a.rebuild();a.time=.3;assert(Math.abs(a.aim(s))<.01);assert.equal(s.target,goal);const before=s.angle;E.advance(s,1/30,{angle:Math.PI});assert(Math.abs(E.angleDiff(s.angle,before))<=2.2/30+.0001);s.mass=300;for(let i=0;i<60;i++)E.advance(s,1/60,{angle:0});for(let i=0;i<s.body.length;i++){const p=E.curve(s,i,.3);assert(Math.hypot(p.x-s.body[i].x,p.y-s.body[i].y)<=2.001);}});
-test('titles unlock from lifetime results, preserve explicit opt-out, and reject locked selections',()=>{
- const p=E.profile(null);
- assert(!E.equipTitle(p,'champion'));
- const stats={id:'title-run',food:400,kills:3,seconds:30,best:1000,rank:3};
- const completed=E.settle(p,stats);
- assert.deepEqual(completed.unlockedTitles.map(t=>t.id),['debut','collector']);
- assert.equal(p.title,'collector');
- assert.equal(E.profile(JSON.stringify(p)).title,'collector');
+test('only elite titles unlock, while prior records and explicit opt-out survive the update',()=>{
+ const p=E.profile({title:'debut',games:1,totalFood:400,totalKills:10,firsts:1,best:2500,totalSeconds:600});
+ assert.equal(p.title,null);
+ assert.equal(E.earnedTitles(p).length,0);
+ assert.equal(p.best,2500);
+ assert.equal(p.firsts,1);
+ assert(!E.title('debut'));
+ assert(!E.equipTitle(p,'leviathan'));
+ assert(!E.equipTitle(p,'immortal-serpent'));
+ const arena=new E.Arena({seed:11,bots:0,foodTarget:0});
+ arena.player.mass=29998;
+ arena.food=[{x:0,y:0,value:4,color:0}];
+ arena.step(1/30);
+ assert.equal(arena.stats.best,30002);
+ const completed=E.settle(p,{...arena.stats,rank:1});
+ assert.deepEqual(completed.unlockedTitles.map(t=>t.id),['leviathan']);
+ assert.equal(p.title,'leviathan');
+ assert.equal(E.profile(JSON.stringify(p)).title,'leviathan');
  assert(E.equipTitle(p,''));
+ E.settle(p,{...arena.stats,id:'next',best:50000,rank:1});
  assert.equal(E.profile(p).title,'');
- E.settle(p,{...stats,id:'next',rank:1});
- assert.equal(p.title,'');
- assert.equal(E.profile({best:3000}).title,'giant');
+ assert.equal(E.profile({best:100000,title:'giant'}).title,'immortal-serpent');
+ for(const t of E.titles){
+  assert(!E.earnedTitles(E.profile({[t.key]:t.goal-1})).includes(t));
+  assert(E.earnedTitles(E.profile({[t.key]:t.goal})).includes(t));
+ }
 });
 console.log(checks+' snake engine and reward checks passed.');

@@ -26,12 +26,12 @@
  ]);
  const skin=id=>skins.find(s=>s.id===id)||skins[0];
  const titles=Object.freeze([
-  {id:'debut',name:'光の新人',key:'games',goal:1,label:'1回プレイを終える',color:'#a2ffe4'},
-  {id:'collector',name:'光集めの達人',key:'totalFood',goal:400,label:'光を累計400個集める',color:'#88ebff'},
-  {id:'survivor',name:'ネオンサバイバー',key:'totalSeconds',goal:600,label:'累計10分生き延びる',color:'#afaaff'},
-  {id:'hunter',name:'ネオンハンター',key:'totalKills',goal:10,label:'累計10匹を倒す',color:'#ffa2cf'},
-  {id:'giant',name:'光の巨蛇',key:'best',goal:2500,label:'長さ2,500を達成する',color:'#cffe8d'},
-  {id:'champion',name:'アリーナ王',key:'firsts',goal:1,label:'アリーナ1位でプレイを終える',color:'#ffe497'}
+  {id:'leviathan',name:'光の巨蛇',key:'best',goal:30000,label:'1回の対戦で長さ30,000を達成する',color:'#cffe8d'},
+  {id:'light-devourer',name:'光を喰らう者',key:'totalFood',goal:50000,label:'光を累計50,000個集める',color:'#88ebff'},
+  {id:'night-survivor',name:'不夜の生存者',key:'totalSeconds',goal:108000,label:'累計30時間生き延びる',color:'#afaaff'},
+  {id:'apex-hunter',name:'ネオンの狩王',key:'totalKills',goal:500,label:'累計500匹を倒す',color:'#ffa2cf'},
+  {id:'arena-titan',name:'アリーナの覇蛇',key:'best',goal:50000,label:'1回の対戦で長さ50,000を達成する',color:'#a2ffe4'},
+  {id:'immortal-serpent',name:'不滅の大蛇',key:'best',goal:100000,label:'1回の対戦で長さ100,000を達成する',color:'#ffe497'}
  ]);
  const title=id=>titles.find(item=>item.id===id);
  const earnedTitles=p=>titles.filter(item=>p[item.key]>=item.goal);

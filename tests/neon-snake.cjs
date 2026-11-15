@@ -38,7 +38,8 @@ test('only elite titles unlock, while prior records and explicit opt-out survive
  arena.step(1/30);
  assert.equal(arena.stats.best,30002);
  const completed=E.settle(p,{...arena.stats,rank:1});
- assert.deepEqual(completed.unlockedTitles.map(t=>t.id),['leviathan']);
+ assert.equal(E.titles.length,10);
+ assert.deepEqual(completed.unlockedTitles.map(t=>t.id),['light-coil','neon-wyrm','leviathan']);
  assert.equal(p.title,'leviathan');
  assert.equal(E.profile(JSON.stringify(p)).title,'leviathan');
  assert(E.equipTitle(p,''));

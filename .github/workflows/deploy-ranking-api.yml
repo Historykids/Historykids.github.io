@@ -249,7 +249,7 @@ jobs:
           console.log('Private Tenka access checks passed; no season player, draw or legacy reward created');
           const raceStatusResponse=await fetch(new URL('/race/status',base),{headers:{Origin:'https://historykids.github.io','Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
           const raceStatus=await raceStatusResponse.json();
-          if(!raceStatusResponse.ok||raceStatus.pulseMode!=='projectile'||raceStatus.itemRespawnSeconds!==1)throw Error('Touge Racing projectile configuration check failed');
+          if(!raceStatusResponse.ok||raceStatus.pulseMode!=='projectile'||raceStatus.itemRespawnSeconds!==1||raceStatus.shortcuts!==true)throw Error('Touge Racing projectile configuration check failed');
           const raceSpeeds=['100cc','150cc','200cc','dopagaki'];
           if(JSON.stringify(raceStatus.speedClasses)!==JSON.stringify(raceSpeeds))throw Error('Touge Racing speed classes missing');
           for(const speedClass of raceSpeeds){

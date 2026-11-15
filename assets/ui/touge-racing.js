@@ -1,14 +1,14 @@
-import { createScene } from "./touge-racing-scene.js?v=12";
-import { getTrack, LAPS, TRACKS } from "./touge-racing-tracks.mjs?v=7";
+import { createScene } from "./touge-racing-scene.js?v=14";
+import { driveSample, getTrack, lapDistance, LAPS, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=14";
 import {
   DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS, TRIAL_PROTOCOL,
-  applyDrive, createRaceItems, createRacer, createTrialRacer, formatTime, isDriving, lapTime, rankRacers, recordTrialInput, stepRace, trialInput
-} from "./touge-racing-rules.mjs?v=12";
-import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=10";
+  advanceRacer, applyDrive, createRaceItems, createRacer, createTrialRacer, formatTime, isDriving, lapTime, raceHalfWidth, rankRacers, recordTrialInput, stepRace, trialInput
+} from "./touge-racing-rules.mjs?v=14";
+import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=14";
 import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=10";
 
 import { createRaceEffects } from "./touge-racing-effects.js?v=11";
-import { mountRaceUI } from "./touge-racing-ui.js?v=13";
+import { mountRaceUI } from "./touge-racing-ui.js?v=14";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();
@@ -105,6 +105,16 @@ function initialize(profile) {
     context.lineWidth = mini ? 3.2 : 2.5;
     context.strokeStyle = mini ? "#eefbff" : "#9ab8c7";
     context.stroke();
+    if (track.shortcut) {
+      context.beginPath();
+      for (const [index, point] of track.shortcut.outline.entries()) {
+        if (index) context.lineTo(x(point.x), y(point.z));
+        else context.moveTo(x(point.x), y(point.z));
+      }
+      context.lineWidth = mini ? 1.7 : 2;
+      context.strokeStyle = SHORTCUT_COLOR;
+      context.stroke();
+    }
     const line = track.sample(0);
     context.beginPath();
     context.moveTo(x(line.x - line.rx * 9), y(line.z - line.rz * 9));
@@ -114,7 +124,7 @@ function initialize(profile) {
     context.stroke();
     return (racer, own, target = context) => {
       if (racer.dnf || (!own && racer.finishedAt !== null)) return;
-      const point = track.sample(racer.distance);
+      const point = driveSample(track, racer.distance, racer.shortcut);
       target.beginPath();
       target.arc(x(point.x + point.rx * racer.lane), y(point.z + point.rz * racer.lane),
         own ? 4.2 : 2.8, 0, Math.PI * 2);
@@ -342,7 +352,7 @@ function initialize(profile) {
       choiceButtons.forEach(button => { button.disabled = true; });
       byId("ghost-loading").textContent = "1位のゴーストを読み込み中…";
       try {
-        const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1" });
+        const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1", replay: "5" });
         const result = await raceRequest("/race/leaderboard?" + query);
         if (result.track === track.id && result.speedClass === speedClass) data = result.ghost;
         note = data ? "1位 " + data.name + " · " + formatTime(data.seconds) : "1位のゴーストはまだありません";
@@ -358,12 +368,15 @@ function initialize(profile) {
     }
     if (data) racers.push(Object.assign(createTrialRacer(), { id: "ghost", color: 0x80ffea, ghost: true }));
     if (!prepareRace(track, racers, false, true)) return;
-    race.ghost = data ? { racer: racers[1], tape: data.tape, index: 0, remaining: 0 } : null;
+    race.ghost = data ? {
+      racer: racers[1], tape: data.tape, index: 0, remaining: 0,
+      track: data.protocol === TRIAL_PROTOCOL ? track : getTrack(track.id, { shortcuts: false })
+    } : null;
     byId("ghost-status").hidden = !enabled;
     byId("ghost-status").textContent = note;
   }
 
-  function stepGhost(ghost, track, elapsed, scale) {
+  function stepGhost(ghost, elapsed, scale) {
     if (!ghost || ghost.racer.finishedAt !== null) return;
     if (!ghost.remaining) {
       const entry = ghost.tape[ghost.index++];
@@ -371,7 +384,7 @@ function initialize(profile) {
       ghost.racer.input = trialInput(entry[0]);
       ghost.remaining = entry[1];
     }
-    stepRace(track, [ghost.racer], STEP, elapsed, LAPS, null, scale);
+    stepRace(ghost.track, [ghost.racer], STEP, elapsed, LAPS, null, scale);
     ghost.remaining--;
   }
 
@@ -417,7 +430,15 @@ function initialize(profile) {
     const kph = Math.round(player.speed * 3.6);
     speed.textContent = kph;
     speedBar.value = kph;
-    byId("boost").hidden = player.boost <= 0 || Math.abs(player.lane) > track.halfWidth - .2;
+    const onRoad = Math.abs(player.lane) <= raceHalfWidth(track, player) - .2;
+    byId("boost").hidden = player.boost <= 0 || !onRoad;
+    const shortcutHint = byId("shortcut-hint");
+    const cut = track.shortcut;
+    const remainingToEntry = cut ? cut.from - lapDistance(track, player.distance) : Infinity;
+    const hint = player.shortcut ? "ショートカット走行中" :
+      remainingToEntry >= 0 && remainingToEntry < 170 ? (cut.lane < 0 ? "← ショートカット" : "ショートカット →") : "";
+    shortcutHint.hidden = !hint;
+    if (shortcutHint.textContent !== hint) shortcutHint.textContent = hint;
     const contact = player.contact > .18;
     byId("impact").hidden = !contact;
     game.dataset.contact = String(contact);
@@ -427,7 +448,7 @@ function initialize(profile) {
     if (!countdown.hidden && isActive() && !menuOpen) effects.animateCountdown(text);
     race.effectSample = {
       racer: player, lap, place, item, elapsed, lastLap: lap === LAPS, active: state === "racing" && !menuOpen,
-      onRoad: Math.abs(player.lane) <= track.halfWidth - .2,
+      onRoad,
       lapSplit: race.isTrial && lap > 1 ? formatTime(lapTime(player.lapEnds, lap - 2)) : ""
     };
   }
@@ -448,7 +469,7 @@ function initialize(profile) {
       if (race.isTrial) recordTrialInput(race.tape, player.input);
       const elapsed = race.ticks * STEP;
       stepRace(track, race.isTrial ? [player] : racers, STEP, elapsed, LAPS, race.items, race.scale);
-      stepGhost(race.ghost, track, elapsed, race.scale);
+      stepGhost(race.ghost, elapsed, race.scale);
       race.ticks++;
       race.elapsed = race.ticks * STEP;
       if (race.isTrial && (player.finishedAt !== null || race.ticks >= TRIAL_MAX_TICKS)) {
@@ -486,12 +507,15 @@ function initialize(profile) {
       racer.slow = target.slow;
       if (own && isDriving(racer) && online.joined && age < .55) {
         applyDrive(race.track, racer, drive, dt, race.scale);
-        racer.distance += racer.speed * dt;
+        advanceRacer(race.track, racer, dt);
       }
-      const lead = Math.min(.095, age) * target.speed;
+      const targetShortcut = target.shortcut === true;
+      const changedRoad = racer.shortcut !== targetShortcut;
+      racer.shortcut = targetShortcut;
+      const lead = targetShortcut ? 0 : Math.min(.095, age) * target.speed;
       const distanceError = target.distance + lead - racer.distance;
       const blend = 1 - Math.exp(-(own ? 8 : 16) * dt);
-      const snap = !isDriving(racer) || Math.abs(distanceError) > 13;
+      const snap = changedRoad || !isDriving(racer) || Math.abs(distanceError) > 13;
       if (!own || Math.abs(distanceError) > .08) racer.distance += distanceError * (snap ? 1 : blend);
       if (!own || Math.abs(target.lane - racer.lane) > .04) racer.lane += (target.lane - racer.lane) * (snap ? 1 : blend);
       racer.speed += (target.speed - racer.speed) * (snap ? 1 : blend * (own ? .46 : 1));
@@ -736,7 +760,7 @@ function initialize(profile) {
       return;
     }
     if (!race || (snapshot.phase === "countdown" && formerPhase === "finished")) {
-      const track = getTrack(snapshot.trackId, { classic: snapshot.layout !== "long" });
+      const track = getTrack(snapshot.trackId, { classic: snapshot.layout !== "long", shortcuts: snapshot.shortcuts === true });
       const own = snapshot.racers.find(racer => racer.id === id);
       if (!track || !own) return;
       const initial = [own, ...snapshot.racers.filter(racer => racer.id !== id).slice(0, VISIBLE_RIVALS)];

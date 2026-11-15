@@ -80,6 +80,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
         <aside class="map-panel" aria-label="コースマップ">
           <canvas id="map" width="164" height="106"></canvas>
           <span id="map-title"></span>
+          <span id="shortcut-hint" hidden></span>
         </aside>
         <div class="hud" id="hud">
           <div class="race-stats">

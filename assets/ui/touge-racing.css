@@ -1019,3 +1019,5 @@ body { background: radial-gradient(ellipse at 82% -5%, #293c61 0%, #101827 58%);
   .game[data-speed-class="dopagaki"] .race-effects[data-driving="rush"]::before { opacity: .18; }
   .game[data-race-finish] #result .dialog { animation: none; }
 }
+
+#shortcut-hint { color: #ffce77; text-align: center; letter-spacing: .02em; line-height: 1.35; }

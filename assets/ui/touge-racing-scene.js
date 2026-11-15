@@ -1,9 +1,9 @@
 import * as THREE from "../vendor/three.module.js";
-import { createCanvasRenderer } from "./touge-racing-canvas.js?v=12";
+import { createCanvasRenderer } from "./touge-racing-canvas.js?v=14";
 import { worldScenery } from "./touge-racing-world.mjs?v=7";
-import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE } from "./touge-racing-tracks.mjs?v=7";
-import { smoothRacerPose } from "./touge-racing-motion.mjs?v=12";
-import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulseDistance } from "./touge-racing-rules.mjs?v=12";
+import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, driveSample, nearShortcut, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=14";
+import { smoothRacerPose } from "./touge-racing-motion.mjs?v=14";
+import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulsePosition } from "./touge-racing-rules.mjs?v=14";
 
 function ribbon(track, scene, material, left, right, y, from = 0, to = track.length) {
   const vertices = [];
@@ -111,6 +111,17 @@ function buildRoad(scene, track, neon) {
       scene.add(arrow);
     }
   }
+  const cut = track.shortcut;
+  if (cut) {
+    const gold = bright(SHORTCUT_COLOR);
+    ribbon(cut, scene, flat(0x554637), -cut.halfWidth, cut.halfWidth, .168);
+    for (const side of [-1, 1]) {
+      const edge = side * (cut.halfWidth - .22);
+      ribbon(cut, scene, gold, edge - .18, edge + .18, .184);
+    }
+    strip(gold, cut.lane - 1.6, cut.lane + 1.6, .179, cut.from - 3.5, cut.from + 1);
+    strip(gold, cut.lane - .28, cut.lane + .28, .178, cut.from - 43, cut.from - 3.5);
+  }
   for (const [material, { vertices, indices }] of surfaces) {
     addSurface(scene, material, vertices, indices);
   }
@@ -204,7 +215,7 @@ function landscape(scene, track) {
     const x = (random() * 290 - 155) * worldScale;
     const z = (random() * 220 - 132) * worldScale;
     const scale = .65 + random() * 1.05;
-    if (bounds.some(p => Math.hypot(p.x - x, p.z - z) < track.halfWidth + 5 + scale)) continue;
+    if (nearShortcut(track, x, z) || bounds.some(p => Math.hypot(p.x - x, p.z - z) < track.halfWidth + 5 + scale)) continue;
     const yaw = random() * Math.PI;
     trees.push([x, 3.35 * scale, z, 1.9 * scale, 4.4 * scale, 1.9 * scale, yaw]);
     trunks.push([x, .76 * scale, z, .37 * scale, 1.5 * scale, .37 * scale, yaw]);
@@ -459,7 +470,9 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
         model.children[1].material.color.set(pulse.kind === "pulse" ? DOPA_COLORS[0] : DOPA_COLORS[2]);
         model.scale.setScalar(1.45);
       }
-      place(track, model, pulseDistance(pulse, elapsed), pulse.lane, .84);
+      const shot = pulsePosition(track, pulse, elapsed);
+      const p = driveSample(track, shot.distance, shot.shortcut, frame);
+      model.position.set(p.x + p.rx * shot.lane, .84, p.z + p.rz * shot.lane);
       model.visible = true;
       count++;
     }
@@ -474,7 +487,7 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
       const model = cars[index] ?? (cars[index] = car(scene, racer.color, racer.ghost));
       model.visible = visible;
       if (!visible) return;
-      const p = track.sample(pose.distance, frame);
+      const p = driveSample(track, pose.distance, pose.shortcut, frame);
       model.position.set(p.x + p.rx * pose.lane, .18, p.z + p.rz * pose.lane);
       model.rotation.y = pose.yaw;
       model.userData.paint.color.setHex(pose.color);
@@ -484,8 +497,9 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
       if (crate.visible) crate.children[0].rotation.y += dt * (neon ? 3 : 1.7);
     });
     const player = poses[0];
-    const p = track.sample(player.distance, frame);
-    const lookingAhead = track.sample(player.distance + 24, next);
+    const p = driveSample(track, player.distance, player.shortcut, frame);
+    const ahead = player.distance + 24 * (player.shortcut ? track.shortcut.ratio : 1);
+    const lookingAhead = driveSample(track, ahead, player.shortcut, next);
     const intro = state === "ready";
     const boost = motion && !motion.matches && state === "racing" && racers[0].boost > 0 &&
       Math.abs(player.lane) < track.halfWidth - .2 ? 1 : 0;
@@ -514,7 +528,7 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
 
   function tirePoint(side, output) {
     const pose = poses[0];
-    const p = track.sample(pose.distance, frame);
+    const p = driveSample(track, pose.distance, pose.shortcut, frame);
     const x = p.x + p.rx * pose.lane;
     const z = p.z + p.rz * pose.lane;
     const sine = Math.sin(pose.yaw), cosine = Math.cos(pose.yaw);

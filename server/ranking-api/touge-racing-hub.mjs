@@ -1,6 +1,6 @@
 import { getTrack } from "../../assets/ui/touge-racing-tracks.mjs";
 import {
-  DEFAULT_RACE_SPEED, isRaceSpeed, PREVIOUS_TRIAL_PROTOCOL, replayTrial, ROOM_CODE, TRIAL_PROTOCOL
+  DEFAULT_RACE_SPEED, isRaceSpeed, MAIN_ROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL, replayTrial, ROOM_CODE, TRIAL_PROTOCOL
 } from "../../assets/ui/touge-racing-rules.mjs";
 
 const ROOM_TTL = 40000;
@@ -102,7 +102,7 @@ export class TougeRaceHub {
   }
 
   submit(run) {
-    const total = [TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL].includes(run?.protocol);
+    const total = [TRIAL_PROTOCOL, MAIN_ROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL].includes(run?.protocol);
     const track = getTrack(run?.track, { classic: !total });
     const speedClass = run?.speedClass ?? DEFAULT_RACE_SPEED;
     const name = cleanRacerName(run?.name);
@@ -115,14 +115,15 @@ export class TougeRaceHub {
     const board = total ? totalBoard(track.id, speedClass) : track.id;
     const old = this.rows("SELECT centis, tape IS NOT NULL AS hasTape FROM trial_records WHERE track = ? AND player = ?", board, run.player)[0];
     const updated = !old || centis < old.centis;
+    const tape = total ? JSON.stringify({ protocol: run.protocol, tape: run.tape }) : null;
     if (updated) {
       this.sql.exec(`INSERT INTO trial_records (track, player, name, centis, recorded, tape) VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(track, player) DO UPDATE SET name=excluded.name, centis=excluded.centis,
           recorded=excluded.recorded, tape=excluded.tape`,
-        board, run.player, name, centis, Date.now(), total ? JSON.stringify(run.tape) : null);
+        board, run.player, name, centis, Date.now(), tape);
     } else if (total && centis === old.centis && !old.hasTape) {
       this.sql.exec("UPDATE trial_records SET tape = ? WHERE track = ? AND player = ?",
-        JSON.stringify(run.tape), board, run.player);
+        tape, board, run.player);
     }
     this.sql.exec("UPDATE trial_records SET name = ? WHERE player = ? AND name != ?", name, run.player, name);
     const best = updated ? centis : old.centis;
@@ -144,7 +145,12 @@ export class TougeRaceHub {
     if (url.searchParams.get("ghost") === "1") {
       const leader = this.rows(`SELECT name, centis, tape FROM trial_records WHERE track = ?
         ORDER BY centis, recorded, player LIMIT 1`, board)[0];
-      const ghost = leader?.tape ? { name: leader.name, seconds: leader.centis / 100, tape: JSON.parse(leader.tape) } : null;
+      const stored = leader?.tape ? JSON.parse(leader.tape) : null;
+      const run = Array.isArray(stored) ? { protocol: MAIN_ROAD_TRIAL_PROTOCOL, tape: stored } : stored;
+      const supportsShortcuts = url.searchParams.get("replay") === "5";
+      const ghost = run && (supportsShortcuts || run.protocol !== TRIAL_PROTOCOL)
+        ? { name: leader.name, seconds: leader.centis / 100, ...run }
+        : null;
       return reply({ track: track.id, speedClass, ghost });
     }
     return reply({ track: track.id, speedClass, entries: this.board(board) });

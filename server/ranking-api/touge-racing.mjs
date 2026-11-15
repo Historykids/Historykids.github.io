@@ -2,7 +2,7 @@ import { getTrack, LAPS, TRACKS } from "../../assets/ui/touge-racing-tracks.mjs"
 import {
   COUNTDOWN, DEFAULT_RACE_SPEED, EMPTY_INPUT, ITEM_RESPAWN_SECONDS, MIN_ROOM_PLAYERS, RACE_LIMIT,
   RACE_PROTOCOL, RACE_SPEEDS, ROOM_CODE, STEP, VISIBLE_RIVALS, createRaceItems, createRacer,
-  isDriving, isRaceSpeed, pulseDistance, rankRacers, stepRace
+  isDriving, isRaceSpeed, pulsePosition, rankRacers, stepRace
 } from "../../assets/ui/touge-racing-rules.mjs";
 
 import { cleanRacerName, raceHub } from "./touge-racing-hub.mjs";
@@ -35,7 +35,7 @@ export async function racingRequest(request, env, reply) {
   if (path === "/race/status") {
     return reply({
       protocol: RACE_PROTOCOL, capacity: null, minimumPlayers: MIN_ROOM_PLAYERS,
-      trialLaps: LAPS, itemRespawnSeconds: ITEM_RESPAWN_SECONDS, pulseMode: "projectile",
+      shortcuts: true, trialLaps: LAPS, itemRespawnSeconds: ITEM_RESPAWN_SECONDS, pulseMode: "projectile",
       speedClasses: Object.keys(RACE_SPEEDS), tracks: TRACKS.map(track => track.id)
     });
   }
@@ -166,6 +166,7 @@ export class RaceRoom {
       return this.reject(peer, "version");
     }
     if (this.speedClass !== DEFAULT_RACE_SPEED && message.speedClasses !== true) return this.reject(peer, "version");
+    if (this.track?.shortcut && message.shortcuts !== true) return this.reject(peer, "version");
     let record;
     if (message.type === "resume") {
       record = this.players.get(message.token);
@@ -175,7 +176,7 @@ export class RaceRoom {
     } else {
       if (message.type === "create") {
         if (this.track) return this.reject(peer, "code-used");
-        const track = getTrack(message.trackId, { classic: message.layout !== "long" });
+        const track = getTrack(message.trackId, { classic: message.layout !== "long", shortcuts: message.shortcuts === true });
         if (!track) return this.reject(peer, "invalid-track");
         const speedClass = message.speedClass ?? DEFAULT_RACE_SPEED;
         if (!isRaceSpeed(speedClass)) return this.reject(peer, "invalid-speed");
@@ -253,13 +254,13 @@ export class RaceRoom {
     const ranks = new Map(ordered.map((racer, index) => [racer.id, index + 1]));
     const wire = racer => ({
       id: racer.id, slot: racer.slot, name: racer.name, color: racer.color,
-      distance: racer.distance, lane: racer.lane, speed: racer.speed, steer: racer.steer,
+      distance: racer.distance, shortcut: racer.shortcut, lane: racer.lane, speed: racer.speed, steer: racer.steer,
       boost: racer.boost, drifting: racer.drifting, driftCharge: racer.driftCharge, slow: racer.slow,
       item: racer.item, shield: racer.shield, grip: racer.grip, pickup: racer.pickup, contact: racer.contact, finishedAt: racer.finishedAt, dnf: racer.dnf
     });
     const snapshot = {
       type: "state", phase: this.phase, trackId: this.track.id, speedClass: this.speedClass, host: this.host, players,
-      fieldSize: ordered.length, layout: this.track.layoutScale > 1 ? "long" : "classic", itemRespawns: this.items?.respawns ?? null, countdown: Math.max(0, (this.startAt - now) / 1000), elapsed: this.elapsed
+      fieldSize: ordered.length, shortcuts: !!this.track.shortcut, layout: this.track.layoutScale > 1 ? "long" : "classic", itemRespawns: this.items?.respawns ?? null, countdown: Math.max(0, (this.startAt - now) / 1000), elapsed: this.elapsed
     };
     if (lobby) {
       const message = JSON.stringify({ ...snapshot, racers: ordered.map(wire) });
@@ -271,7 +272,7 @@ export class RaceRoom {
       data: wire(racer), progress: ((racer.distance % length) + length) % length
     })).sort((a, b) => a.progress - b.progress);
     const shots = (this.items?.projectiles ?? []).map(pulse => ({
-      pulse, position: pulseDistance(pulse, this.elapsed)
+      pulse, position: pulsePosition(this.track, pulse, this.elapsed).distance
     }));
     const indices = new Map(nearby.map((racer, index) => [racer.data.id, index]));
     for (const record of this.players.values()) {

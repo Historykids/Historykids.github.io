@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { RaceRoom } from "../server/ranking-api/touge-racing.mjs";
-import { getTrack, LAPS, TRACKS } from "../assets/ui/touge-racing-tracks.mjs";
+import { driveSample, getTrack, lapDistance, LAPS, TRACKS } from "../assets/ui/touge-racing-tracks.mjs";
 import { COUNTDOWN, RACE_PROTOCOL, STEP, createRacer, rankRacers, stepRace, turnAt } from "../assets/ui/touge-racing-rules.mjs";
 
 function steering(track, racer, offset = 0, scale = 1) {
@@ -107,7 +107,7 @@ console.log("Five seats accepted, shared start and results, reconnect, rematch, 
 
 const { DatabaseSync } = await import("node:sqlite");
 const { TougeRaceHub } = await import("../server/ranking-api/touge-racing-hub.mjs");
-const { CPU_DIFFICULTIES, DEFAULT_RACE_SPEED, PREVIOUS_TRIAL_PROTOCOL, RACE_SPEEDS, createRaceItems, createTrialRacer, lapTime,
+const { CPU_DIFFICULTIES, DEFAULT_RACE_SPEED, MAIN_ROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL, RACE_SPEEDS, createRaceItems, createTrialRacer, lapTime,
   recordTrialInput, replayTrial, TRIAL_MAX_TICKS, TRIAL_PROTOCOL } = await import("../assets/ui/touge-racing-rules.mjs");
 const track = getTrack("yunagi");
 
@@ -247,10 +247,16 @@ assert.deepEqual(await (await hub.fetch(request("/race/leaderboard?track=yunagi"
 assert.equal((await hub.fetch(request("/race/leaderboard?track=yunagi&speedClass=bogus"))).status, 400);
 assert.equal((await submit({ ...record, speedClass: "bogus" })).status, 400);
 const ghostBoard = async speed => (await (await hub.fetch(request(
-  "/race/leaderboard?track=yunagi&ghost=1&speedClass=" + speed))).json()).ghost;
+  "/race/leaderboard?track=yunagi&ghost=1&replay=5&speedClass=" + speed))).json()).ghost;
 const ghost = await ghostBoard("150cc");
-assert.deepEqual(Object.keys(ghost).sort(), ["name", "seconds", "tape"]);
+assert.deepEqual(Object.keys(ghost).sort(), ["name", "protocol", "seconds", "tape"]);
 assert.equal(ghost.name, better.entries[0].name);
+assert.equal(ghost.protocol, TRIAL_PROTOCOL);
+const oldGhostRequest = request("/race/leaderboard?track=yunagi&ghost=1&speedClass=150cc");
+assert.equal((await (await hub.fetch(oldGhostRequest)).json()).ghost, null);
+database.prepare("UPDATE trial_records SET tape = ? WHERE track = ? AND name = ?")
+  .run(JSON.stringify(ghost.tape), "yunagi:3laps", ghost.name);
+assert.equal((await (await hub.fetch(oldGhostRequest)).json()).ghost.protocol, MAIN_ROAD_TRIAL_PROTOCOL);
 assert.equal(Math.round(replayTrial(track, ghost.tape) * 100), Math.round(ghost.seconds * 100));
 assert((await ghostBoard("dopagaki")).seconds < ghost.seconds);
 database.prepare("UPDATE trial_records SET tape = NULL WHERE track = ?").run("yunagi:3laps");
@@ -456,3 +462,65 @@ Object.assign(solo, { distance: world.itemLines[0], speed: 30, input: { ...EMPTY
 stepRace(world, [solo], STEP, 8, LAPS, respawn);
 assert.equal(solo.item, null);
 console.log("Minute-long circuits, shoulder pickup, one-second shared respawns and three CPU difficulty levels passed.");
+
+// Record real steering into the branch and replay the identical drive on the server.
+function driveRoute(track, speedClass) {
+  const driver = createTrialRacer(), field = [driver], tape = [];
+  const { scale } = RACE_SPEEDS[speedClass];
+  let entries = 0;
+  for (let tick = 0; tick < TRIAL_MAX_TICKS && driver.finishedAt === null; tick++) {
+    const cut = track.shortcut;
+    const remaining = cut ? cut.from - lapDistance(track, driver.distance) : Infinity;
+    const lane = !driver.shortcut && remaining >= 0 && remaining < 130 ? cut.lane : 0;
+    const slip = turnAt(track, driver.distance, 6, driver.shortcut) * (driver.speed / scale) ** 2 * .029;
+    const aim = (lane - driver.lane) * 2.7 + slip;
+    driver.input = { gas: true, brake: false, turn: aim > 2.1 ? 1 : aim < -2.1 ? -1 : 0 };
+    recordTrialInput(tape, driver.input);
+    const onBranch = driver.shortcut;
+    stepRace(track, field, STEP, tick * STEP, LAPS, null, scale);
+    if (!onBranch && driver.shortcut) entries++;
+  }
+  assert.equal(driver.lapEnds.length, 3);
+  return { time: driver.finishedAt, tape, entries };
+}
+
+for (const { id } of TRACKS) {
+  const route = getTrack(id), cut = route.shortcut;
+  for (const end of [cut.from, cut.to]) {
+    const normal = route.sample(end), branch = driveSample(route, end, true);
+    assert(Math.hypot(branch.x - normal.x - normal.rx * cut.lane, branch.z - normal.z - normal.rz * cut.lane) < .001);
+  }
+  for (const speedClass of Object.keys(RACE_SPEEDS)) {
+    const main = driveRoute(getTrack(id, { shortcuts: false }), speedClass);
+    const branch = driveRoute(route, speedClass);
+    assert.equal(branch.entries, LAPS, id);
+    assert(branch.time < main.time, id + " shortcut must save time");
+    assert.equal(replayTrial(route, branch.tape, TRIAL_PROTOCOL, speedClass), branch.time);
+    assert.equal(replayTrial(route, main.tape, MAIN_ROAD_TRIAL_PROTOCOL, speedClass), main.time);
+  }
+}
+
+const cutRoom = new RaceRoom({ clock: () => now, autoRun: false });
+const cutSockets = ["create", "join"].map(type => {
+  const socket = new Socket(), peer = cutRoom.attach(socket);
+  cutRoom.message(peer, JSON.stringify({ type, protocol: RACE_PROTOCOL, shortcuts: true, trackId: "fuji", layout: "long" }));
+  return { socket, peer };
+});
+cutRoom.start(now);
+now = cutRoom.startAt;
+cutRoom.tick(now);
+const route = cutRoom.track;
+const [shortcutter, mainDriver] = cutRoom.racers;
+assert(cutSockets[0].socket.last("state").shortcuts);
+Object.assign(shortcutter, { distance: route.shortcut.from - .2, lane: route.shortcut.lane, speed: 42,
+  item: "pulse", itemQueued: true, input: { ...EMPTY_INPUT, gas: true } });
+Object.assign(mainDriver, { distance: route.shortcut.from + 10, lane: 0, speed: 42 });
+now += STEP * 4000;
+cutRoom.tick(now);
+assert.equal(shortcutter.shortcut, true);
+assert.equal(mainDriver.shortcut, false);
+assert.equal(mainDriver.slow, 0);
+const cutState = cutSockets[1].socket.last("state");
+assert.equal(cutState.racers.find(racer => racer.id === shortcutter.id).shortcut, true);
+assert(Math.abs(cutState.projectiles[0].branchStart - route.shortcut.from) < .001);
+console.log("Shortcuts save time on all ten courses in all four classes; old and new tapes replay, and online routes synchronize.");

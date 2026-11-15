@@ -1,7 +1,7 @@
 import { worldScenery } from "./touge-racing-world.mjs?v=7";
 
-import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE } from "./touge-racing-tracks.mjs?v=7";
-import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulseDistance } from "./touge-racing-rules.mjs?v=12";
+import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, driveSample, nearShortcut, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=14";
+import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulsePosition } from "./touge-racing-rules.mjs?v=14";
 
 // Software perspective renderer for browsers that cannot open a WebGL context.
 export function createCanvasRenderer(canvas, racers, track, showItems = false, neon = false) {
@@ -42,11 +42,11 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
     strip(road.get(color), a, b, left, right, y, color);
   }
 
-  function trackStrip(surfaces, start, end, left, right, y, color) {
+  function trackStrip(surfaces, start, end, left, right, y, color, samplePath = sample) {
     const segments = Math.ceil((end - start) / 3);
     for (let i = 0; i < segments; i++) {
-      const a = sample(start + (end - start) * i / segments);
-      const b = sample(start + (end - start) * (i + 1) / segments);
+      const a = samplePath(start + (end - start) * i / segments);
+      const b = samplePath(start + (end - start) * (i + 1) / segments);
       strip(surfaces, a, b, left, right, y, color);
     }
   }
@@ -109,6 +109,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
     if (index % (theme === "desert" ? 21 : 4) === 0) {
       const side = index % 12 === 0 && from > length * .37 ? 1 : -1;
       const offset = side * (12 + 4 * Math.sin(index * .8) ** 2);
+      if (nearShortcut(track, a.x + a.rx * offset, a.z + a.rz * offset)) continue;
       const h = 3 + 3 * Math.sin(index) ** 2;
       const trunk = ["#6c5747", "#6c5747", "#534636", "#534636", "#6c5747"];
       box(scenery, a, offset, h * .23, 0, .26, h * .46, .26, trunk);
@@ -127,6 +128,16 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
             [base[0] + a.fx * w, y, base[2] + a.fz * w]] });
       }
     }
+  }
+  const cut = track.shortcut;
+  if (cut) {
+    trackStrip(markings, 0, cut.length, -cut.halfWidth, cut.halfWidth, .168, "#554637", cut.sample);
+    for (const side of [-1, 1]) {
+      const edge = side * (cut.halfWidth - .22);
+      trackStrip(markings, 0, cut.length, edge - .18, edge + .18, .184, SHORTCUT_COLOR, cut.sample);
+    }
+    trackStrip(markings, cut.from - 3.5, cut.from + 1, cut.lane - 1.6, cut.lane + 1.6, .179, SHORTCUT_COLOR);
+    trackStrip(markings, cut.from - 43, cut.from - 3.5, cut.lane - .28, cut.lane + .28, .178, SHORTCUT_COLOR);
   }
   for (let cell = 0; cell < 14; cell++) {
     for (let row = 0; row < 2; row++) {
@@ -318,16 +329,17 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
     });
     for (const pulse of projectiles) {
       if (elapsed >= pulse.launchedAt + PULSE_LIFETIME) continue;
-      const p = sample(pulseDistance(pulse, elapsed));
+      const shot = pulsePosition(track, pulse, elapsed);
+      const p = driveSample(track, shot.distance, shot.shortcut);
       if (Math.abs(p.x - eyeX) > 345 || Math.abs(p.z - eyeZ) > 345) continue;
       const color = ITEMS[pulse.kind].color;
       const size = neon ? 2.3 : 1.6;
       const cap = neon ? DOPA_COLORS[pulse.kind === "pulse" ? 0 : 2] : "#fff0ff";
-      box(faces, p, pulse.lane, .75, 0, size, .9, size, [color, color, color, color, cap]);
+      box(faces, p, shot.lane, .75, 0, size, .9, size, [color, color, color, color, cap]);
     }
     racers.forEach((racer, index) => {
       if (racer.dnf || (index !== 0 && racer.finishedAt !== null)) return;
-      const p = sample(racer.distance);
+      const p = driveSample(track, racer.distance, racer.shortcut);
       p.x += p.rx * racer.lane;
       p.z += p.rz * racer.lane;
       p.fx = Math.sin(racer.yaw);

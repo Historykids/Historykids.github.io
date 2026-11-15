@@ -14,15 +14,38 @@
   {id:'ocean',name:'深海のしずく',rarity:'MISSION',colors:['#73dcff','#3c5fd2'],require:{key:'totalFood',goal:400,label:'光を累計400個集める'}},
   {id:'rose',name:'ローズハンター',rarity:'MISSION',colors:['#ff719b','#703978'],require:{key:'totalKills',goal:10,label:'累計10匹を倒す'}},
   {id:'aurora',name:'オーロラ',rarity:'LEGEND',colors:['#7effcb','#9e7fff','#ff92da'],require:{key:'best',goal:2500,label:'長さ2,500を達成する'}},
-  {id:'crown',name:'黄金の軌跡',rarity:'LEGEND',colors:['#fff2ac','#c99a43'],require:{key:'firsts',goal:1,label:'アリーナ1位でプレイを終える'}}
+  {id:'crown',name:'黄金の軌跡',rarity:'LEGEND',colors:['#fff2ac','#c99a43'],require:{key:'firsts',goal:1,label:'アリーナ1位でプレイを終える'}},
+  {id:'zebra',name:'ネオンゼブラ',rarity:'RARE',colors:['#f4fffa','#5d97ad','#19283a'],pattern:'stripes',cost:160},
+  {id:'confetti',name:'コンフェッティ',rarity:'RARE',colors:['#ffcc65','#f28058','#c5a3ff'],pattern:'dots',cost:260},
+  {id:'wave',name:'波紋',rarity:'RARE',colors:['#60f6ee','#1788c7','#d7fff4'],pattern:'waves',cost:420},
+  {id:'diamond',name:'アメジストダイヤ',rarity:'EPIC',colors:['#cb86ff','#6128a7','#fae2ff'],pattern:'diamonds',cost:640},
+  {id:'bolt',name:'ライムサンダー',rarity:'EPIC',colors:['#b7fa5f','#1f9557','#f6ff85'],pattern:'bolts',cost:900},
+  {id:'checker',name:'グリッドレーサー',rarity:'EPIC',colors:['#ff9a91','#ac335a','#fff0cf'],pattern:'checks',cost:1250},
+  {id:'leopard',name:'ネオンレオパード',rarity:'MISSION',colors:['#ffc06d','#b05359','#491d48'],pattern:'rosettes',require:{key:'totalKills',goal:25,label:'累計25匹を倒す'}},
+  {id:'starfield',name:'星雲',rarity:'LEGEND',colors:['#8189ff','#434396','#ffdb9d'],pattern:'stars',require:{key:'best',goal:4000,label:'長さ4,000を達成する'}}
  ]);
  const skin=id=>skins.find(s=>s.id===id)||skins[0];
+ const titles=Object.freeze([
+  {id:'debut',name:'光の新人',key:'games',goal:1,label:'1回プレイを終える',color:'#a2ffe4'},
+  {id:'collector',name:'光集めの達人',key:'totalFood',goal:400,label:'光を累計400個集める',color:'#88ebff'},
+  {id:'survivor',name:'ネオンサバイバー',key:'totalSeconds',goal:600,label:'累計10分生き延びる',color:'#afaaff'},
+  {id:'hunter',name:'ネオンハンター',key:'totalKills',goal:10,label:'累計10匹を倒す',color:'#ffa2cf'},
+  {id:'giant',name:'光の巨蛇',key:'best',goal:2500,label:'長さ2,500を達成する',color:'#cffe8d'},
+  {id:'champion',name:'アリーナ王',key:'firsts',goal:1,label:'アリーナ1位でプレイを終える',color:'#ffe497'}
+ ]);
+ const title=id=>titles.find(item=>item.id===id);
+ const earnedTitles=p=>titles.filter(item=>p[item.key]>=item.goal);
+ function equipTitle(p,id){
+  if(id!==''&&!earnedTitles(p).some(item=>item.id===id))return false;
+  p.title=id;
+  return true;
+ }
  class Grid{
   constructor(size=90){this.size=size;this.cells=new Map();}
   add(x,y,value){const key=Math.floor(x/this.size)+':'+Math.floor(y/this.size);let a=this.cells.get(key);if(!a)this.cells.set(key,a=[]);a.push(value);}
   near(x,y,r){const a=[],s=this.size;for(let i=Math.floor((x-r)/s);i<=Math.floor((x+r)/s);i++)for(let j=Math.floor((y-r)/s);j<=Math.floor((y+r)/s);j++){const list=this.cells.get(i+':'+j);if(list)a.push(...list);}return a;}
  }
- const BODY_STEP=4,CPU_COUNT=5;
+ const BODY_STEP=4,CPU_COUNT=5,ARENA_RADIUS=2500,FOOD_TARGET=1850,FOOD_LIMIT=2850;
  const BASE_BODY_MASS=10,BOOST_MIN_MASS=1;
  const bodyLength=score=>30+(BASE_BODY_MASS+score)*.75;
  const bodyRadius=score=>8+Math.min(12,Math.sqrt(BASE_BODY_MASS+score)/5);
@@ -37,12 +60,12 @@
  }
  function curve(s,index,time){const p=s.body[index],before=index?s.body[index-1]:s,after=s.body[Math.min(s.body.length-1,index+1)],dx=before.x-after.x,dy=before.y-after.y,d=Math.hypot(dx,dy)||1,step=s.bodyStep||BODY_STEP,headFade=Math.min(1,index*step/65),tailFade=Math.min(1,(s.body.length-index)*step/50),wave=Math.sin(index*step/45-time*(s.bot?2.4:6)+s.id*.73)*(s.bot?2:7.5)*headFade*tailFade;return{x:p.x-dy/d*wave,y:p.y+dx/d*wave};}
  class Arena{
-  constructor({seed=Date.now(),bots=CPU_COUNT,name='YOU',skinId='mint',multiplayer=false,radius=1800,foodTarget=1000}={}){this.seed=seed>>>0||1;this.radius=radius;this.foodTarget=foodTarget;this.time=0;this.food=[];this.nextFood=1;this.snakes=[];this.nextId=1;this.multiplayer=multiplayer;this.ended=false;this.events=[];this.player=multiplayer?null:this.spawn(false,name,skinId);for(let i=0;i<bots;i++)this.spawn(true,['LUNA','MOMO','ORBIT','NOVA','SORA'][i%CPU_COUNT],skins[i%skins.length].id);for(let i=0;i<foodTarget;i++)this.addFood();this.stats=this.player?.stats||null;this.rebuild();}
+  constructor({seed=Date.now(),bots=CPU_COUNT,name='YOU',skinId='mint',multiplayer=false,radius=ARENA_RADIUS,foodTarget=FOOD_TARGET}={}){this.seed=seed>>>0||1;this.radius=radius;this.foodTarget=clamp(Math.floor(foodTarget),0,FOOD_LIMIT);this.time=0;this.food=[];this.nextFood=1;this.snakes=[];this.nextId=1;this.multiplayer=multiplayer;this.ended=false;this.events=[];this.player=multiplayer?null:this.spawn(false,name,skinId);for(let i=0;i<bots;i++)this.spawn(true,['LUNA','MOMO','ORBIT','NOVA','SORA'][i%CPU_COUNT],skins[i%skins.length].id);for(let i=0;i<this.foodTarget;i++)this.addFood();this.stats=this.player?.stats||null;this.rebuild();}
   random(){let x=this.seed;x^=x<<13;x^=x>>>17;x^=x<<5;this.seed=x>>>0;return this.seed/4294967296;}
   point(limit=this.radius-130){const a=this.random()*TAU,r=Math.sqrt(this.random())*limit;return{x:Math.cos(a)*r,y:Math.sin(a)*r};}
   spawn(bot,name,skinId){let p=bot?this.point():{x:0,y:0};for(let n=0;n<60&&this.snakes.some(s=>s.alive&&(distance(s,p)<320||s.body.some((b,i)=>i%12===0&&distance(b,p)<100)));n++)p=this.point(bot?this.radius-130:this.radius*.4);const a=bot?this.random()*TAU:-Math.PI/2,mass=0,length=bodyLength(mass),body=[];for(let n=0;n<length;n+=BODY_STEP)body.push({x:p.x-Math.cos(a)*n,y:p.y-Math.sin(a)*n});const s={id:this.nextId++,bot,name,skin:skinId,x:p.x,y:p.y,angle:a,mass,radius:bodyRadius(mass),body,alive:true,boost:false,age:0,thinkAt:0,target:null,respawnAt:0,input:{x:0,y:0,boost:false},stats:null};if(!bot)s.stats={id:String(this.seed)+'-'+s.id+'-'+this.random(),food:0,kills:0,seconds:0,best:mass,peakRank:99,rank:99};this.snakes.push(s);return s;}
   addFood(drop){
-   if(this.food.length>=2100)return;
+   if(this.food.length>=FOOD_LIMIT)return;
    const position=drop||this.point();
    const bonus=!drop&&this.random()<1/50;
    this.food.push({
@@ -79,12 +102,16 @@
    this.food=this.food.filter(f=>!f.dead&&(f.expiresAt==null||f.expiresAt>this.time));while(this.food.length<this.foodTarget)this.addFood();for(const s of this.snakes)if(s.stats){s.stats.best=Math.max(s.stats.best,Math.floor(s.mass));if(s.alive)s.stats.rank=this.rankOf(s);s.stats.peakRank=Math.min(s.stats.peakRank,s.stats.rank);}}
  }
  const day=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Tokyo'}),integer=v=>Number.isFinite(v)?clamp(Math.floor(v),0,1e9):0;
- function profile(raw){let p={};try{p=typeof raw==='string'?JSON.parse(raw):raw||{};}catch{}if(!p||typeof p!=='object')p={};const valid=Array.isArray(p.owned)?p.owned.filter(id=>skins.some(s=>s.id===id)):[],owned=[...new Set([...skins.filter(s=>s.free).map(s=>s.id),...valid])];return{version:1,name:typeof p.name==='string'?p.name.slice(0,16):'',coins:integer(p.coins),xp:integer(p.xp),best:integer(p.best),games:integer(p.games),totalFood:integer(p.totalFood),totalKills:integer(p.totalKills),totalSeconds:integer(p.totalSeconds),firsts:integer(p.firsts),owned,selected:owned.includes(p.selected)?p.selected:'mint',runs:Array.isArray(p.runs)?p.runs.filter(s=>typeof s==='string').slice(-20):[],daily:p.daily?.day===day()?{day:day(),food:integer(p.daily.food),kills:integer(p.daily.kills),seconds:integer(p.daily.seconds),claimed:Array.isArray(p.daily.claimed)?p.daily.claimed.filter(k=>['food','kills','seconds'].includes(k)):[]}:{day:day(),food:0,kills:0,seconds:0,claimed:[]}};}
+ function profile(raw){let p={};try{p=typeof raw==='string'?JSON.parse(raw):raw||{};}catch{}if(!p||typeof p!=='object')p={};const valid=Array.isArray(p.owned)?p.owned.filter(id=>skins.some(s=>s.id===id)):[],owned=[...new Set([...skins.filter(s=>s.free).map(s=>s.id),...valid])];const result={version:1,name:typeof p.name==='string'?p.name.slice(0,16):'',coins:integer(p.coins),xp:integer(p.xp),best:integer(p.best),games:integer(p.games),totalFood:integer(p.totalFood),totalKills:integer(p.totalKills),totalSeconds:integer(p.totalSeconds),firsts:integer(p.firsts),owned,selected:owned.includes(p.selected)?p.selected:'mint',runs:Array.isArray(p.runs)?p.runs.filter(s=>typeof s==='string').slice(-20):[],daily:p.daily?.day===day()?{day:day(),food:integer(p.daily.food),kills:integer(p.daily.kills),seconds:integer(p.daily.seconds),claimed:Array.isArray(p.daily.claimed)?p.daily.claimed.filter(k=>['food','kills','seconds'].includes(k)):[]}:{day:day(),food:0,kills:0,seconds:0,claimed:[]}};
+  const earned=earnedTitles(result);
+  result.title=p.title===''||earned.some(item=>item.id===p.title)?p.title:earned.at(-1)?.id??null;
+  return result;
+ }
  const level=p=>Math.floor(Math.sqrt(p.xp/120))+1;
  function unlock(p){const earned=[];for(const s of skins)if(s.require&&p[s.require.key]>=s.require.goal&&!p.owned.includes(s.id)){p.owned.push(s.id);earned.push(s.id);}return earned;}
- function settle(p,stats){if(p.runs.includes(stats.id))return{coins:0,xp:0,unlocked:[],duplicate:true};const food=integer(stats.food),kills=integer(stats.kills),seconds=integer(stats.seconds),best=integer(stats.best),rank=integer(stats.rank)||99,oldLevel=level(p),xp=food*3+kills*80+seconds,baseCoins=Math.floor(food/6)+kills*18+Math.floor(seconds/15)+(rank===1?50:rank<=3?20:0);p.best=Math.max(p.best,best);p.totalFood+=food;p.totalKills+=kills;p.totalSeconds+=seconds;p.games++;if(rank===1)p.firsts++;p.xp+=xp;const coins=baseCoins+(level(p)-oldLevel)*30;p.coins+=coins;p.daily.food+=food;p.daily.kills+=kills;p.daily.seconds+=seconds;p.runs.push(stats.id);p.runs=p.runs.slice(-20);return{coins,xp,unlocked:unlock(p),duplicate:false};}
+ function settle(p,stats){if(p.runs.includes(stats.id))return{coins:0,xp:0,unlocked:[],unlockedTitles:[],duplicate:true};const beforeTitles=earnedTitles(p);const food=integer(stats.food),kills=integer(stats.kills),seconds=integer(stats.seconds),best=integer(stats.best),rank=integer(stats.rank)||99,oldLevel=level(p),xp=food*3+kills*80+seconds,baseCoins=Math.floor(food/6)+kills*18+Math.floor(seconds/15)+(rank===1?50:rank<=3?20:0);p.best=Math.max(p.best,best);p.totalFood+=food;p.totalKills+=kills;p.totalSeconds+=seconds;p.games++;if(rank===1)p.firsts++;p.xp+=xp;const coins=baseCoins+(level(p)-oldLevel)*30;p.coins+=coins;p.daily.food+=food;p.daily.kills+=kills;p.daily.seconds+=seconds;p.runs.push(stats.id);p.runs=p.runs.slice(-20);const unlockedTitles=earnedTitles(p).filter(item=>!beforeTitles.includes(item));if(p.title==null&&unlockedTitles.length)p.title=unlockedTitles.at(-1).id;return{coins,xp,unlocked:unlock(p),unlockedTitles,duplicate:false};}
  const missions=Object.freeze([{id:'food',title:'光を集めよう',goal:120,reward:60,unit:'個'},{id:'seconds',title:'のびのび、3分',goal:180,reward:80,unit:'秒'},{id:'kills',title:'ハンターの一歩',goal:3,reward:100,unit:'匹'}]);
  function claim(p,id){const m=missions.find(m=>m.id===id);if(!m||p.daily[id]<m.goal||p.daily.claimed.includes(id))return false;p.daily.claimed.push(id);p.coins+=m.reward;return true;}
  function equip(p,id){const s=skins.find(s=>s.id===id);if(!s)return false;if(!p.owned.includes(id)){if(!s.cost||p.coins<s.cost)return false;p.coins-=s.cost;p.owned.push(id);}p.selected=id;return true;}
- const api=Object.freeze({Arena,Grid,skins,skin,profile,level,settle,missions,claim,equip,unlock,angleDiff,clamp,advance,curve,BODY_STEP,CPU_COUNT,BOOST_MIN_MASS});root.HKNeonSnake=api;if(typeof module!=='undefined')module.exports=api;
+ const api=Object.freeze({Arena,Grid,skins,skin,profile,level,settle,missions,claim,equip,unlock,angleDiff,clamp,advance,curve,BODY_STEP,CPU_COUNT,BOOST_MIN_MASS,ARENA_RADIUS,FOOD_TARGET,FOOD_LIMIT,titles,title,earnedTitles,equipTitle});root.HKNeonSnake=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -23,7 +23,6 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
           <ul id="room-list" class="room-list"></ul>
         </section>
         <p id="setup-message" class="setup-message" role="status"></p>
-        ${showRankings ? '<label class="race-sound"><input id="ghost-toggle" type="checkbox" checked> ランキング1位のゴーストと走る</label>' : ""}
         <fieldset class="speed-picker" id="race-speed"><legend>走る速さ</legend></fieldset>
         <section aria-labelledby="courses-title">
           <div class="course-heading">
@@ -42,6 +41,18 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
         </div>
       </section>
 
+      ${showRankings ? `
+      <section class="lobby" id="ghost-choice" aria-labelledby="ghost-title" hidden>
+        <div class="lobby-main">
+          <button class="secondary back-button" id="ghost-back" type="button">← コース選択に戻る</button>
+          <h1 id="ghost-title" tabindex="-1">ゴーストを表示</h1>
+          <p class="lobby-course" id="ghost-course"></p>
+          <p class="lobby-guide">同じコース・速さのランキング1位の走りを、半透明の車で表示できます。</p>
+          <button class="primary" id="start-with-ghost" type="button">ゴーストを表示して走る →</button>
+          <button class="secondary" id="start-without-ghost" type="button">表示せずに走る →</button>
+          <p class="lobby-message" id="ghost-loading" role="status"></p>
+        </div>
+      </section>` : ""}
       <section class="lobby" id="lobby" aria-labelledby="lobby-title" hidden>
         <div class="lobby-main">
           <button class="secondary back-button" id="leave-lobby" type="button">← 部屋一覧に戻る</button>

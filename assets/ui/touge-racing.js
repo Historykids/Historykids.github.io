@@ -8,7 +8,7 @@ import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.
 import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=10";
 
 import { createRaceEffects } from "./touge-racing-effects.js?v=11";
-import { mountRaceUI } from "./touge-racing-ui.js?v=12";
+import { mountRaceUI } from "./touge-racing-ui.js?v=13";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();
@@ -20,6 +20,7 @@ function initialize(profile) {
   mountRaceUI(document.getElementById("race-app"), mode === "trial", mode === "cpu" ? CPU_DIFFICULTIES : null, LAPS);
   const byId = id => document.getElementById(id);
   const setup = byId("setup"), lobby = byId("lobby"), game = byId("game");
+  const ghostChoice = byId("ghost-choice");
   const start = byId("start"), pause = byId("pause"), resume = byId("resume"), retry = byId("retry");
   const courseGrid = byId("course-grid");
   const effects = createRaceEffects(game);
@@ -197,7 +198,8 @@ function initialize(profile) {
     setDirectoryActive(value === "setup" && mode === "online");
     setup.hidden = value !== "setup";
     lobby.hidden = value !== "lobby";
-    game.hidden = !setup.hidden || !lobby.hidden;
+    if (ghostChoice) ghostChoice.hidden = value !== "ghost";
+    game.hidden = !setup.hidden || !lobby.hidden || value === "ghost";
     game.dataset.state = value;
     byId("hud").hidden = !isActive() || menuOpen;
     byId("paused").hidden = value !== "paused" && !menuOpen;
@@ -318,18 +320,27 @@ function initialize(profile) {
     prepareRace(getTrack(selected), racers, false);
   }
 
-  let loadingGhost = false;
-  async function startTrial() {
+  let loadingGhost = false, trialGhostEnabled = false;
+  function showGhostChoice() {
+    byId("ghost-course").textContent = getTrack(selected).name + " · " + RACE_SPEEDS[selectedSpeed].label;
+    showState("ghost");
+    window.scrollTo(0, 0);
+    byId("ghost-title").focus({ preventScroll: true });
+  }
+
+  async function startTrial(enabled = trialGhostEnabled) {
     if (loadingGhost) return;
     const track = getTrack(selected), speedClass = selectedSpeed;
     const previousRace = race, previousState = state;
     const racers = [createTrialRacer()];
-    const enabled = byId("ghost-toggle").checked;
+    trialGhostEnabled = enabled;
     let data, note = "";
     if (enabled) {
       loadingGhost = true;
       start.disabled = true;
-      byId("setup-message").textContent = "1位のゴーストを読み込み中…";
+      const choiceButtons = ghostChoice.querySelectorAll("button");
+      choiceButtons.forEach(button => { button.disabled = true; });
+      byId("ghost-loading").textContent = "1位のゴーストを読み込み中…";
       try {
         const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1" });
         const result = await raceRequest("/race/leaderboard?" + query);
@@ -340,7 +351,8 @@ function initialize(profile) {
       } finally {
         loadingGhost = false;
         start.disabled = false;
-        byId("setup-message").textContent = "";
+        choiceButtons.forEach(button => { button.disabled = false; });
+        byId("ghost-loading").textContent = "";
       }
       if (race !== previousRace || state !== previousState || selected !== track.id || selectedSpeed !== speedClass) return;
     }
@@ -806,9 +818,15 @@ function initialize(profile) {
     if (mode === "online") joinOnline(makeRoomCode(), { type: "create", trackId: selected, layout: "long", speedClass: selectedSpeed });
     else {
       effects.setSound(soundToggle.checked);
-      startLocalRace();
+      if (mode === "trial") showGhostChoice();
+      else startLocalRace();
     }
   });
+  if (ghostChoice) {
+    byId("ghost-back").addEventListener("click", () => setupScreen());
+    byId("start-with-ghost").addEventListener("click", () => startTrial(true));
+    byId("start-without-ghost").addEventListener("click", () => startTrial(false));
+  }
   byId("trial-submit").addEventListener("submit", submitTrial);
   byId("copy-link").addEventListener("click", async () => {
     const field = byId("invite-link");

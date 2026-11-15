@@ -184,7 +184,7 @@ export function createRaceEffects(game) {
     const driving = active && racer.finishedAt === null;
     const drifting = driving && racer.drifting;
     const boosting = driving && onRoad && racer.boost > 0;
-    const effect = boosting ? "boost" : drifting ? "drift" : "";
+    const effect = boosting ? "boost" : drifting ? "drift" : neon && driving && onRoad && racer.speed >= 42 ? "rush" : "";
     if (drivingEffect !== effect) {
       drivingEffect = effect;
       layer.dataset.driving = effect;
@@ -267,13 +267,13 @@ export function createRaceEffects(game) {
       context.lineWidth = Math.max(1, unit / (neon ? 235 : 340));
       context.lineCap = "round";
       for (const [index, { angle, phase, reach }] of trails.entries()) {
-        if (!boosting && index % (neon ? 2 : 3) !== 0) continue;
+        if (!boosting && (neon ? index % 3 === 0 : index % 3 !== 0)) continue;
         const progress = (phase + time * (neon ? 3.6 : 2.45)) % 1;
         const x = Math.cos(angle) * width, y = Math.sin(angle) * height;
-        const start = (neon ? .38 : .32) + progress * reach;
+        const start = (neon ? .33 : .32) + progress * reach;
         const end = start + .048 + progress * (neon ? .19 : .115);
         if (neon) context.strokeStyle = DOPA_COLORS[index % DOPA_COLORS.length];
-        context.globalAlpha = progress * .74 * speedLines;
+        context.globalAlpha = progress * (neon ? .94 : .74) * speedLines;
         context.beginPath();
         context.moveTo(width * .5 + x * start, height * .45 + y * start);
         context.lineTo(width * .5 + x * end, height * .45 + y * end);

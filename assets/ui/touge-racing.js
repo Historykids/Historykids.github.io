@@ -7,7 +7,7 @@ import {
 import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=10";
 import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=10";
 
-import { createRaceEffects } from "./touge-racing-effects.js?v=10";
+import { createRaceEffects } from "./touge-racing-effects.js?v=11";
 import { mountRaceUI } from "./touge-racing-ui.js?v=10";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
@@ -353,7 +353,7 @@ function initialize(profile) {
     const direction = player.item === "pulse" ? "前に発射" : player.item === "backPulse" ? "後ろに発射" : "";
     byId("item-hint").textContent = item
       ? (player.pickup > 0 ? "アイテムをゲット！" : direction ? itemHint + " · " + direction : itemHint)
-      : "紫の箱を通過";
+      : "光る箱を通過";
     byId("drift-label").hidden = !player.drifting;
     byId("drift-meter").value = player.driftCharge;
     const lap = race.isTrial ? Math.min(LAPS, player.lapEnds.length + 1)

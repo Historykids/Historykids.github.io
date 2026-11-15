@@ -1,5 +1,5 @@
 import { TRACKS } from "./touge-racing-tracks.mjs?v=7";
-import { createRankingPanel } from "./touge-racing-menu.js?v=7";
+import { createRankingPanel, mountSpeedPicker } from "./touge-racing-menu.js?v=10";
 import { requireRaceName } from "./touge-racing-profile.mjs?v=6";
 
 const name = requireRaceName();
@@ -8,7 +8,6 @@ if (name) {
   const profile = document.getElementById("profile-link");
   const select = document.getElementById("rank-course");
   profile.textContent = name + " · 名前を変更";
-  profile.href = "./touge-racing.html?edit=1&next=" + encodeURIComponent(location.pathname.split("/").pop() + location.search);
   for (const track of TRACKS) {
     const option = document.createElement("option");
     option.value = track.id;
@@ -18,13 +17,18 @@ if (name) {
   const chosen = new URL(location.href).searchParams.get("track");
   select.value = TRACKS.some(track => track.id === chosen) ? chosen : TRACKS[0].id;
   const show = createRankingPanel();
+  let speedClass = mountSpeedPicker(next => {
+    speedClass = next;
+    refresh();
+  });
   const refresh = () => {
     const url = new URL(location.href);
     url.searchParams.set("track", select.value);
     history.replaceState(null, "", url);
+    profile.href = "./touge-racing.html?edit=1&next=" + encodeURIComponent(location.pathname.split("/").pop() + location.search);
     const tryTrack = document.getElementById("try-track");
-    tryTrack.href = "./touge-racing-play.html?mode=trial&track=" + encodeURIComponent(select.value);
-    show(select.value);
+    tryTrack.href = "./touge-racing-play.html?" + new URLSearchParams({ mode: "trial", track: select.value, speedClass });
+    show(select.value, speedClass);
   };
   select.addEventListener("change", refresh);
   document.getElementById("reload-ranking").addEventListener("click", refresh);

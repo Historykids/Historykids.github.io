@@ -4,19 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#101827">
-  <meta name="description" content="峠レーシング3Dのコース別タイムアタックランキング。">
+  <meta name="description" content="峠レーシング3Dのコース・速度別タイムアタックランキング。">
   <title>ランキング｜峠レーシング 3D</title>
   <link rel="canonical" href="https://historykids.github.io/touge-racing-ranking.html">
   <link rel="icon" href="./favicon.ico">
-  <link rel="stylesheet" href="./assets/ui/touge-racing.css?v=7">
+  <link rel="stylesheet" href="./assets/ui/touge-racing.css?v=10">
   <script src="./assets/ui/ranking-config.js"></script>
-  <script type="module" src="./assets/ui/touge-racing-ranking.js?v=7"></script>
+  <script type="module" src="./assets/ui/touge-racing-ranking.js?v=10"></script>
 </head>
 <body>
   <header class="topbar"><a class="back" href="./touge-racing.html">← レーシングホーム</a><a id="profile-link" class="profile-link" href="./touge-racing.html?edit=1">名前の設定</a></header>
   <main>
     <section class="setup" id="ranking-page" hidden>
       <div class="race-heading"><div><p class="course"><span class="checker" aria-hidden="true"></span> 峠レーシング 3D</p><h1>ランキング</h1></div></div>
+      <fieldset class="speed-picker" id="race-speed"><legend>走る速さ</legend></fieldset>
       <section id="rank-panel" class="rank-panel" aria-labelledby="rank-title">
         <div class="room-header">
           <div><label for="rank-course">コース</label><select id="rank-course"></select></div>

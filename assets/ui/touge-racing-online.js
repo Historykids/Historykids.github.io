@@ -1,4 +1,4 @@
-import { RACE_PROTOCOL } from "./touge-racing-rules.mjs?v=6";
+import { DEFAULT_RACE_SPEED, RACE_PROTOCOL } from "./touge-racing-rules.mjs?v=10";
 
 const ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 const messages = {
@@ -10,6 +10,7 @@ const messages = {
   "replaced": "別のタブから同じ部屋に接続したよ。",
   "idle": "しばらく操作がなかったため、部屋から退出したよ。",
   "unavailable": "オンラインに接続できないよ。少し待ってから試してね。",
+  "invalid-speed": "選んだ速度の部屋を作れなかったよ。ページを再読み込みしてね。",
   "connection": "通信が切れたよ。部屋一覧から入り直せるよ。"
 };
 
@@ -56,7 +57,7 @@ export class OnlineRace {
       this.timeout = setTimeout(() => socket.close(), 5500);
       socket.addEventListener("open", () => {
         const message = this.token ? { type: "resume", token: this.token } : this.request;
-        this.send({ ...message, protocol: RACE_PROTOCOL });
+        this.send({ ...message, protocol: RACE_PROTOCOL, speedClasses: true });
       });
       socket.addEventListener("message", event => this.message(socket, event.data));
       socket.addEventListener("close", () => this.disconnected(socket));
@@ -90,6 +91,10 @@ export class OnlineRace {
       return;
     }
     if (message.type === "state" && this.joined) {
+      if (this.request.type === "create" && (this.request.speedClass ?? DEFAULT_RACE_SPEED) !== (message.speedClass ?? DEFAULT_RACE_SPEED)) {
+        this.leave();
+        return this.fail("invalid-speed");
+      }
       this.phase = message.phase;
       this.handlers.state(message, this.id);
     }

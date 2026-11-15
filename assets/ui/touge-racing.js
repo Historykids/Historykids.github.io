@@ -1,14 +1,14 @@
-import { createScene } from "./touge-racing-scene.js?v=9";
+import { createScene } from "./touge-racing-scene.js?v=10";
 import { getTrack, LAPS, TRACKS } from "./touge-racing-tracks.mjs?v=7";
 import {
-  EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS, TRIAL_PROTOCOL,
+  DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS, TRIAL_PROTOCOL,
   applyDrive, createRaceItems, createRacer, createTrialRacer, formatTime, isDriving, lapTime, rankRacers, recordTrialInput, stepRace
-} from "./touge-racing-rules.mjs?v=9";
-import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=6";
-import { createRoomDirectory, raceRequest } from "./touge-racing-menu.js?v=7";
+} from "./touge-racing-rules.mjs?v=10";
+import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=10";
+import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=10";
 
-import { createRaceEffects } from "./touge-racing-effects.js?v=8";
-import { mountRaceUI } from "./touge-racing-ui.js?v=8";
+import { createRaceEffects } from "./touge-racing-effects.js?v=10";
+import { mountRaceUI } from "./touge-racing-ui.js?v=10";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();
@@ -53,6 +53,11 @@ function initialize(profile) {
   const defaultTrack = TRACKS[0].id;
   const chosen = params.get("track");
   let selected = TRACKS.some(course => course.id === chosen) ? chosen : defaultTrack;
+  let selectedSpeed = mountSpeedPicker(value => {
+    selectedSpeed = value;
+    selectCourse(selected);
+    updateProfileLink();
+  });
   let state = "setup";
   let race, online, onlinePhase, previousState, menuOpen = false;
   let frameId = 0, lastFrame = 0, itemTap = false;
@@ -61,10 +66,18 @@ function initialize(profile) {
     cpu: "CPUと対戦する →", online: "このコースで部屋を作る →", trial: "タイムアタック開始 →"
   };
 
-  function bestTime(id, trial = false) {
-    const key = (trial ? TRIAL_BEST_PREFIX : BEST_PREFIX) + id;
-    const saved = Number(load(key));
+  function bestKey(id, speedClass, trial) {
+    return (trial ? TRIAL_BEST_PREFIX : BEST_PREFIX) + id +
+      (speedClass === DEFAULT_RACE_SPEED ? "" : "." + speedClass);
+  }
+
+  function bestTime(id, speedClass, trial) {
+    const saved = Number(load(bestKey(id, speedClass, trial)));
     return Number.isFinite(saved) && saved > 0 ? saved : Infinity;
+  }
+
+  function rankingLink(track, speedClass) {
+    return "./touge-racing-ranking.html?" + new URLSearchParams({ track, speedClass });
   }
 
   function outline(canvas, track, mini = false) {
@@ -145,10 +158,16 @@ function initialize(profile) {
     selected = id;
     for (const card of courseGrid.children) card.setAttribute("aria-pressed", String(card.dataset.course === id));
     const course = getTrack(id);
-    const best = bestTime(id, mode === "trial");
+    const best = bestTime(id, selectedSpeed, mode === "trial");
     byId("selected-info").textContent = course.region + " · 1周 " + (course.length / 1000).toFixed(2) + " km · " + course.description +
       (mode !== "online" && Number.isFinite(best) ? " 自己ベスト " + formatTime(best) : "");
-    if (mode === "trial") byId("open-ranking").href = "./touge-racing-ranking.html?track=" + encodeURIComponent(id);
+    if (mode === "trial") byId("open-ranking").href = rankingLink(id, selectedSpeed);
+  }
+
+  function updateProfileLink() {
+    const label = byId("profile-link");
+    label.textContent = profile + " · 名前を変更";
+    label.href = "./touge-racing.html?edit=1&next=" + encodeURIComponent(safeRacePage(location.href));
   }
 
   function setupMenu() {
@@ -156,14 +175,15 @@ function initialize(profile) {
     byId("game-title").textContent = { cpu: "CPU対戦", online: "オンライン対戦", trial: "タイムアタック" }[mode];
     start.textContent = modes[mode];
     document.title = byId("game-title").textContent + "｜峠レーシング 3D";
-    if (mode === "online") byId("courses-title").textContent = "コースを選んで部屋を作る";
+    if (mode === "online") {
+      byId("courses-title").textContent = "コースを選んで部屋を作る";
+      byId("race-speed").firstElementChild.textContent = "作る部屋の速さ";
+    }
     if (mode === "trial") {
       keyboardHelp.textContent = "↑↓←→ / WASD　Shiftでドリフト";
       byId("race-tip").textContent = "1人で3周。周回ごとのラップを計測し、3周の合計タイムで競うよ。";
     }
-    const label = byId("profile-link");
-    label.textContent = profile + " · 名前を変更";
-    label.href = "./touge-racing.html?edit=1&next=" + encodeURIComponent(safeRacePage(location.href));
+    updateProfileLink();
     setDirectoryActive(mode === "online");
     selectCourse(selected);
   }
@@ -209,6 +229,7 @@ function initialize(profile) {
     race = null;
     previous?.scene?.dispose();
     effects.reset();
+    delete game.dataset.speedClass;
   }
 
   function setupScreen(message = "") {
@@ -241,6 +262,12 @@ function initialize(profile) {
       mapContext.drawImage(mapBase, 0, 0);
       for (let i = racers.length - 1; i >= 0; i--) drawMarker(racers[i], i === 0, mapContext);
     };
+    const speedClass = isOnline ? snapshot?.speedClass ?? DEFAULT_RACE_SPEED : selectedSpeed;
+    const { label, scale } = RACE_SPEEDS[speedClass];
+    game.dataset.speedClass = speedClass;
+    byId("speed-class-label").textContent = label;
+    byId("result-speed-class").textContent = label;
+    speedBar.max = Math.ceil(230 * scale / 10) * 10;
     showState("countdown");
     byId("map-title").textContent = track.name;
     byId("place-stat").hidden = isTrial;
@@ -257,11 +284,11 @@ function initialize(profile) {
     byId("restart").hidden = isOnline;
     try {
       race = {
-        track, racers, player: racers[0], isOnline, isTrial, elapsed: 0, remaining: isOnline ? 5 : 3,
+        track, racers, player: racers[0], isOnline, isTrial, speedClass, scale, elapsed: 0, remaining: isOnline ? 5 : 3,
         ticks: 0, accumulator: 0, tape: isTrial ? [] : null, drawMap, canvas, snapshot,
         items: !isOnline && !isTrial ? createRaceItems(track) : null
       };
-      race.scene = createScene(canvas, racers, track, { showItems: !isTrial && !!track.region, raceCamera: true });
+      race.scene = createScene(canvas, racers, track, { showItems: !isTrial && !!track.region, raceCamera: true, speedClass });
       canvas.addEventListener("webglcontextlost", event => {
         event.preventDefault();
         if (race?.canvas !== canvas) return;
@@ -366,7 +393,7 @@ function initialize(profile) {
       player.input = input();
       itemTap = false;
       if (race.isTrial) recordTrialInput(race.tape, player.input);
-      stepRace(track, racers, STEP, race.ticks * STEP, LAPS, race.items);
+      stepRace(track, racers, STEP, race.ticks * STEP, LAPS, race.items, race.scale);
       race.ticks++;
       race.elapsed = race.ticks * STEP;
       if (race.isTrial && (player.finishedAt !== null || race.ticks >= TRIAL_MAX_TICKS)) {
@@ -403,7 +430,7 @@ function initialize(profile) {
       racer.pickup = Math.max(0, (target.pickup ?? 0) - age);
       racer.slow = target.slow;
       if (own && isDriving(racer) && online.joined && age < .55) {
-        applyDrive(race.track, racer, drive, dt);
+        applyDrive(race.track, racer, drive, dt, race.scale);
         racer.distance += racer.speed * dt;
       }
       const lead = Math.min(.095, age) * target.speed;
@@ -485,10 +512,10 @@ function initialize(profile) {
   }
 
   function finishCPU() {
-    const { track, player, racers } = race;
-    const prior = bestTime(track.id);
+    const { track, player, racers, speedClass } = race;
+    const prior = bestTime(track.id, speedClass, false);
     const record = player.finishedAt < prior;
-    if (record) save(BEST_PREFIX + track.id, String(player.finishedAt));
+    if (record) save(bestKey(track.id, speedClass, false), String(player.finishedAt));
     byId("result-title").textContent = "レース終了";
     byId("trial-submit").hidden = true;
     byId("result-place-line").hidden = false;
@@ -510,11 +537,11 @@ function initialize(profile) {
   }
 
   function finishTrial() {
-    const { track, player } = race;
+    const { track, player, speedClass } = race;
     const finished = player.finishedAt !== null;
-    const prior = bestTime(track.id, true);
+    const prior = bestTime(track.id, speedClass, true);
     const improved = finished && player.finishedAt < prior;
-    if (improved) save(TRIAL_BEST_PREFIX + track.id, String(player.finishedAt));
+    if (improved) save(bestKey(track.id, speedClass, true), String(player.finishedAt));
     if (finished) effects.finish({ record: improved });
     byId("result-title").textContent = finished ? "タイムアタック完走" : "タイムアップ";
     byId("result-place-line").hidden = true;
@@ -530,7 +557,7 @@ function initialize(profile) {
     byId("submit-time").disabled = false;
     byId("trial-status").textContent = "";
     byId("trial-profile").textContent = profile + "の記録として登録";
-    byId("result-ranking").href = "./touge-racing-ranking.html?track=" + encodeURIComponent(track.id);
+    byId("result-ranking").href = rankingLink(track.id, speedClass);
     byId("result-ranking").hidden = false;
     retry.hidden = false;
     retry.disabled = false;
@@ -553,7 +580,7 @@ function initialize(profile) {
     try {
       const result = await raceRequest("/race/leaderboard", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ protocol: TRIAL_PROTOCOL, track: run.track.id, player: trialPlayer, name: profile, tape: run.tape })
+        body: JSON.stringify({ protocol: TRIAL_PROTOCOL, track: run.track.id, speedClass: run.speedClass, player: trialPlayer, name: profile, tape: run.tape })
       });
       if (race !== run) return;
       status.textContent = (result.updated ? "登録できたよ！ " : "登録済みの自己ベスト ") +
@@ -618,7 +645,8 @@ function initialize(profile) {
     const count = snapshot.players.filter(player => player.connected).length;
     const host = snapshot.host === id;
     byId("lobby-count").textContent = "参加者 " + count + "人";
-    byId("lobby-course").textContent = getTrack(snapshot.trackId).name + " · 3周";
+    const speed = RACE_SPEEDS[snapshot.speedClass]?.label ?? DEFAULT_RACE_SPEED;
+    byId("lobby-course").textContent = getTrack(snapshot.trackId).name + " · " + speed + " · " + LAPS + "周";
     fillList(byId("seats"), snapshot.players.map(player => {
       const own = player.id === id;
       const suffix = own ? "（あなた）" : "";
@@ -732,7 +760,7 @@ function initialize(profile) {
     cpuDifficulty.addEventListener("change", () => save(CPU_DIFFICULTY_KEY, cpuDifficulty.value));
   }
   start.addEventListener("click", () => {
-    if (mode === "online") joinOnline(makeRoomCode(), { type: "create", trackId: selected, layout: "long" });
+    if (mode === "online") joinOnline(makeRoomCode(), { type: "create", trackId: selected, layout: "long", speedClass: selectedSpeed });
     else {
       effects.setSound(soundToggle.checked);
       startLocalRace();

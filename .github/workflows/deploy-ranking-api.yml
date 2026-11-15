@@ -250,7 +250,13 @@ jobs:
           const raceStatusResponse=await fetch(new URL('/race/status',base),{headers:{Origin:'https://historykids.github.io','Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
           const raceStatus=await raceStatusResponse.json();
           if(!raceStatusResponse.ok||raceStatus.pulseMode!=='projectile'||raceStatus.itemRespawnSeconds!==1)throw Error('Touge Racing projectile configuration check failed');
-          console.log('Touge Racing projectile configuration verified');
+          const raceSpeeds=['100cc','150cc','200cc','dopagaki'];
+          if(JSON.stringify(raceStatus.speedClasses)!==JSON.stringify(raceSpeeds))throw Error('Touge Racing speed classes missing');
+          for(const speedClass of raceSpeeds){
+            const board=await fetch(new URL('/race/leaderboard?track=fuji&speedClass='+speedClass,base),{headers:{Origin:'https://historykids.github.io'},signal:AbortSignal.timeout(15000)});
+            if(!board.ok||(await board.json()).speedClass!==speedClass)throw Error('Touge Racing leaderboard check failed for '+speedClass);
+          }
+          console.log('Touge Racing projectile and speed class configuration verified');
           console.log('Ranking storage check passed');
           JS
           git config user.name 'github-actions[bot]'

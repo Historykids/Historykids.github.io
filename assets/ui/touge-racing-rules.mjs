@@ -11,8 +11,20 @@ export const ITEM_RESPAWN_SECONDS = 1;
 export const PULSE_LIFETIME = 2.6;
 const PULSE_SPEED = 88;
 export const STEP = 1 / 30;
-export const TRIAL_PROTOCOL = "touge-time-attack-3";
+export const TRIAL_PROTOCOL = "touge-time-attack-4";
+export const PREVIOUS_TRIAL_PROTOCOL = "touge-time-attack-3";
 export const TRIAL_LIMIT = 360;
+export const DEFAULT_RACE_SPEED = "150cc";
+export const RACE_SPEEDS = Object.freeze({
+  "100cc": { label: "100cc", scale: .8, description: "ゆったり" },
+  "150cc": { label: "150cc", scale: 1, description: "スタンダード" },
+  "200cc": { label: "200cc", scale: 1.22, description: "ハイスピード" },
+  dopagaki: { label: "ドパガキ", scale: 1.56, description: "超高速・ネオン演出" }
+});
+const standardSpeed = RACE_SPEEDS[DEFAULT_RACE_SPEED].scale;
+export const isRaceSpeed = value => typeof value === "string" && Object.hasOwn(RACE_SPEEDS, value);
+export const DOPA_COLORS = ["#41efff", "#ff5de2", "#ffe04f", "#a381ff", "#97ff7c", "#ff8d55"];
+export const DOPA_SKY = ["#221655", "#9c4c9a"];
 export const CPU_DIFFICULTIES = Object.freeze({
   easy: { label: "やさしい", speed: .77, acceleration: .77, corner: 10.5, itemDelay: 1.45 },
   normal: { label: "ふつう", speed: 1, acceleration: 1, corner: 8.2, itemDelay: .7 },
@@ -57,10 +69,12 @@ export function turnAt(track, distance, lookAhead) {
   return ahead.fx * p.rx + ahead.fz * p.rz;
 }
 
-export function applyDrive(track, racer, input, dt) {
+export function applyDrive(track, racer, input, dt, speedScale = standardSpeed) {
+  const handlingStep = dt * speedScale;
   const turn = turnAt(track, racer.distance, 6);
-  racer.steer = approach(racer.steer, input.turn, dt * 6.2);
-  const drifting = !!input.drift && !!input.turn && racer.speed >= 15 && Math.abs(racer.lane) < track.halfWidth;
+  racer.steer = approach(racer.steer, input.turn, handlingStep * 6.2);
+  const normalSpeed = racer.speed / speedScale;
+  const drifting = !!input.drift && !!input.turn && normalSpeed >= 15 && Math.abs(racer.lane) < track.halfWidth;
   if (drifting) racer.driftCharge = Math.min(1.5, racer.driftCharge + dt);
   else if (racer.drifting) {
     if (racer.driftCharge >= .55) racer.boost = Math.max(racer.boost, racer.driftCharge >= 1.05 ? 1.65 : .85);
@@ -68,17 +82,18 @@ export function applyDrive(track, racer, input, dt) {
   }
   racer.drifting = drifting;
   const gripping = racer.grip > 0;
-  const slip = -turn * racer.speed ** 2 * (drifting ? .019 : .029) * (gripping ? .52 : 1);
+  const slip = -turn * normalSpeed ** 2 * (drifting ? .019 : .029) * (gripping ? .52 : 1);
   const grip = (input.brake ? 1.25 : 1) * (gripping ? 1.16 : 1);
-  const lateralTarget = (racer.steer * (drifting ? 11.5 : 8.5) * grip + slip) * Math.min(1, racer.speed / 16);
-  racer.lateralSpeed = approach(racer.lateralSpeed, lateralTarget, dt * (input.brake ? 31 : 23));
+  const lateralTarget = (racer.steer * (drifting ? 11.5 : 8.5) * grip + slip) * Math.min(1, normalSpeed / 16);
+  const accelerationStep = handlingStep * speedScale;
+  racer.lateralSpeed = approach(racer.lateralSpeed, lateralTarget * speedScale, accelerationStep * (input.brake ? 31 : 23));
   racer.lane = clamp(racer.lane + racer.lateralSpeed * dt, -track.halfWidth - 2, track.halfWidth + 2);
 
   const distanceOnLap = ((racer.distance % track.length) + track.length) % track.length;
   const padIndex = track.pads.findIndex(pad =>
     distanceOnLap >= pad.distance && distanceOnLap <= pad.distance + track.padLength
   );
-  if (padIndex >= 0 && racer.speed > 8 &&
+  if (padIndex >= 0 && normalSpeed > 8 &&
       Math.abs(racer.lane - track.pads[padIndex].lane) < track.padHalfWidth) {
     const padId = Math.floor(racer.distance / track.length) * track.pads.length + padIndex;
     if (padId !== racer.lastPad) racer.boost = 1.65;
@@ -88,22 +103,23 @@ export function applyDrive(track, racer, input, dt) {
   const rough = Math.abs(racer.lane) > track.halfWidth - .2;
   const boosting = racer.boost > 0 && !rough;
   const limit = racer.slow > 0 ? 25 : rough ? (gripping ? 43 : 24) : boosting ? 63 : drifting ? 42 : 47;
-  if (input.brake) racer.speed = Math.max(0, racer.speed - dt * 32);
+  if (input.brake) racer.speed = Math.max(0, racer.speed - accelerationStep * 32);
   else if (rough || input.gas || boosting) {
-    racer.speed = approach(racer.speed, input.gas || boosting ? limit : 0, dt * (rough ? 24 : boosting ? 31 : 20));
-  } else racer.speed = Math.max(0, racer.speed - dt * 8.5);
+    racer.speed = approach(racer.speed, input.gas || boosting ? limit * speedScale : 0,
+      accelerationStep * (rough ? 24 : boosting ? 31 : 20));
+  } else racer.speed = Math.max(0, racer.speed - accelerationStep * 8.5);
 }
 
-function applyCPU(track, racer, dt) {
+function applyCPU(track, racer, dt, speedScale) {
   const corner = Math.abs(turnAt(track, racer.distance, 14));
   const level = CPU_DIFFICULTIES[racer.difficulty] ?? CPU_DIFFICULTIES.normal;
   const cornerPenalty = racer.grip > 0 ? .5 : 1;
   const normal = cruise[racer.slot] * level.speed + 1.8 * Math.sin(racer.distance * .04 + racer.slot) - level.corner * corner * cornerPenalty;
   const target = racer.slow > 0 ? 23 : racer.boost > 0 ? 56 : normal;
   racer.boost = Math.max(0, racer.boost - dt);
-  racer.speed = approach(racer.speed, target, dt * (17 + racer.slot) * level.acceleration);
+  racer.speed = approach(racer.speed, target * speedScale, dt * (17 + racer.slot) * level.acceleration * speedScale ** 2);
   const lane = startingLanes[racer.slot] + Math.sin(racer.distance * .033 + racer.slot) * 1.1;
-  const change = approach(racer.lane, lane, dt * 2.9) - racer.lane;
+  const change = approach(racer.lane, lane, dt * 2.9 * speedScale) - racer.lane;
   racer.lateralSpeed = change / dt;
   racer.steer = racer.lateralSpeed * .15;
   racer.lane += change;
@@ -156,22 +172,22 @@ function resolveContact(track, a, b) {
 
 export function pulseDistance(pulse, elapsed) {
   const direction = pulse.kind === "backPulse" ? -1 : 1;
-  return pulse.startDistance + direction * PULSE_SPEED * Math.max(0, elapsed - pulse.launchedAt);
+  return pulse.startDistance + direction * (pulse.speed ?? PULSE_SPEED) * Math.max(0, elapsed - pulse.launchedAt);
 }
 
-function useItem(track, racer, projectiles, launchedAt) {
+function useItem(track, racer, projectiles, launchedAt, speedScale) {
   if (racer.item === "turbo") racer.boost = Math.max(racer.boost, 2.2);
   if (racer.item === "shield") racer.shield = 4;
   if (racer.item === "grip") racer.grip = 4;
   if (racer.item === "recovery") {
     racer.slow = 0;
-    racer.speed = Math.max(racer.speed, 38);
+    racer.speed = Math.max(racer.speed, 38 * speedScale);
     racer.boost = Math.max(racer.boost, .65);
   }
   if (racer.item === "pulse" || racer.item === "backPulse") {
     const direction = racer.item === "pulse" ? 1 : -1;
     projectiles.push({
-      kind: racer.item, ownerId: racer.id, launchedAt,
+      kind: racer.item, ownerId: racer.id, launchedAt, speed: PULSE_SPEED * speedScale,
       startDistance: racer.distance + direction * 3.25,
       lane: clamp(racer.lane, -track.halfWidth, track.halfWidth)
     });
@@ -220,7 +236,7 @@ function stepProjectiles(track, projectiles, moving, previous, elapsed, dt, fini
   projectiles.length = remaining;
 }
 
-function raceItems(track, racer, from, elapsed, dt, { respawns, projectiles }) {
+function raceItems(track, racer, from, elapsed, dt, { respawns, projectiles }, speedScale) {
   if (!racer.item && racer.distance > from && Math.abs(racer.lane) <= track.halfWidth + .75) {
     const lapStart = Math.floor(racer.distance / track.length) * track.length;
     for (const [gate, line] of track.itemLines.entries()) {
@@ -250,7 +266,7 @@ function raceItems(track, racer, from, elapsed, dt, { respawns, projectiles }) {
     }
   }
   if (racer.item && (racer.cpu ? elapsed >= racer.itemReady : (racer.input.item && !racer.itemHeld) || racer.itemQueued)) {
-    useItem(track, racer, projectiles, elapsed + dt);
+    useItem(track, racer, projectiles, elapsed + dt, speedScale);
   }
   racer.itemHeld = !!racer.input.item;
   racer.itemQueued = false;
@@ -272,7 +288,7 @@ function resolveRaceContacts(track, moving) {
   }
 }
 
-export function stepRace(track, racers, dt, elapsed, laps = LAPS, items = null) {
+export function stepRace(track, racers, dt, elapsed, laps = LAPS, items = null, speedScale = standardSpeed) {
   if (dt <= 0) return;
   const moving = racers.filter(isDriving);
   const previous = moving.map(({ distance, lane }) => ({ distance, lane }));
@@ -282,8 +298,8 @@ export function stepRace(track, racers, dt, elapsed, laps = LAPS, items = null) 
     racer.grip = Math.max(0, racer.grip - dt);
     racer.pickup = Math.max(0, racer.pickup - dt);
     racer.slow = Math.max(0, racer.slow - dt);
-    if (racer.cpu) applyCPU(track, racer, dt);
-    else applyDrive(track, racer, racer.input, dt);
+    if (racer.cpu) applyCPU(track, racer, dt, speedScale);
+    else applyDrive(track, racer, racer.input, dt, speedScale);
     racer.distance += racer.speed * dt;
   }
   resolveRaceContacts(track, moving);
@@ -291,7 +307,7 @@ export function stepRace(track, racers, dt, elapsed, laps = LAPS, items = null) 
   if (items?.projectiles.length) stepProjectiles(track, items.projectiles, moving, previous, elapsed, dt, finishLine);
   moving.forEach((racer, index) => {
     const from = previous[index].distance;
-    if (items && !racer.lapEnds && racer.distance < finishLine) raceItems(track, racer, from, elapsed, dt, items);
+    if (items && !racer.lapEnds && racer.distance < finishLine) raceItems(track, racer, from, elapsed, dt, items, speedScale);
     const advance = racer.distance - from;
     const crossing = line => elapsed + dt * (advance > 0 ? clamp((line - from) / advance, 0, 1) : 1);
     if (racer.lapEnds) {
@@ -324,10 +340,12 @@ export function recordTrialInput(tape, input) {
   else tape.push([mask, 1]);
 }
 
-export function replayTrial(track, tape, protocol = TRIAL_PROTOCOL) {
+export function replayTrial(track, tape, protocol = TRIAL_PROTOCOL, speedClass = DEFAULT_RACE_SPEED) {
   const legacy = protocol === "touge-time-attack-1" && !track.region;
   const singleLap = legacy || protocol === "touge-time-attack-2";
-  if (!singleLap && protocol !== TRIAL_PROTOCOL) return null;
+  if (!isRaceSpeed(speedClass) || (protocol !== TRIAL_PROTOCOL &&
+      (speedClass !== DEFAULT_RACE_SPEED || (!singleLap && protocol !== PREVIOUS_TRIAL_PROTOCOL)))) return null;
+  const { scale } = RACE_SPEEDS[speedClass];
   const laps = singleLap ? 1 : LAPS;
   const maxTicks = singleLap ? 3600 : TRIAL_MAX_TICKS;
   if (!Array.isArray(tape) || !tape.length || tape.length > maxTicks) return null;
@@ -344,7 +362,7 @@ export function replayTrial(track, tape, protocol = TRIAL_PROTOCOL) {
   for (const [mask, count] of tape) {
     player.input = { gas: !!(mask & 1), brake: !!(mask & 2), turn: ((mask & 12) >> 2) - 1, drift: !!(mask & 16) };
     for (let run = 0; run < count; run++) {
-      stepRace(track, racers, STEP, tick * STEP, laps);
+      stepRace(track, racers, STEP, tick * STEP, laps, null, scale);
       tick++;
       if (player.finishedAt !== null) return tick === total ? player.finishedAt : null;
     }

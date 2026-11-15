@@ -1,6 +1,8 @@
 import { getTrack, LAPS, TRACKS } from "../../assets/ui/touge-racing-tracks.mjs";
 import {
-  COUNTDOWN, EMPTY_INPUT, ITEM_RESPAWN_SECONDS, RACE_LIMIT, RACE_PROTOCOL, ROOM_CODE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, STEP, createRaceItems, createRacer, isDriving, pulseDistance, rankRacers, stepRace
+  COUNTDOWN, DEFAULT_RACE_SPEED, EMPTY_INPUT, ITEM_RESPAWN_SECONDS, MIN_ROOM_PLAYERS, RACE_LIMIT,
+  RACE_PROTOCOL, RACE_SPEEDS, ROOM_CODE, STEP, VISIBLE_RIVALS, createRaceItems, createRacer,
+  isDriving, isRaceSpeed, pulseDistance, rankRacers, stepRace
 } from "../../assets/ui/touge-racing-rules.mjs";
 
 import { cleanRacerName, raceHub } from "./touge-racing-hub.mjs";
@@ -33,7 +35,8 @@ export async function racingRequest(request, env, reply) {
   if (path === "/race/status") {
     return reply({
       protocol: RACE_PROTOCOL, capacity: null, minimumPlayers: MIN_ROOM_PLAYERS,
-      trialLaps: LAPS, itemRespawnSeconds: ITEM_RESPAWN_SECONDS, pulseMode: "projectile", tracks: TRACKS.map(track => track.id)
+      trialLaps: LAPS, itemRespawnSeconds: ITEM_RESPAWN_SECONDS, pulseMode: "projectile",
+      speedClasses: Object.keys(RACE_SPEEDS), tracks: TRACKS.map(track => track.id)
     });
   }
   const code = url.searchParams.get("room");
@@ -55,6 +58,7 @@ export class RaceRoom {
     this.phase = "lobby";
     this.host = null;
     this.track = null;
+    this.speedClass = DEFAULT_RACE_SPEED;
     this.racers = [];
     this.items = null;
     this.startAt = 0;
@@ -161,6 +165,7 @@ export class RaceRoom {
     if (message.protocol !== RACE_PROTOCOL || !["create", "join", "resume"].includes(message.type)) {
       return this.reject(peer, "version");
     }
+    if (this.speedClass !== DEFAULT_RACE_SPEED && message.speedClasses !== true) return this.reject(peer, "version");
     let record;
     if (message.type === "resume") {
       record = this.players.get(message.token);
@@ -170,8 +175,13 @@ export class RaceRoom {
     } else {
       if (message.type === "create") {
         if (this.track) return this.reject(peer, "code-used");
-        this.track = getTrack(message.trackId, { classic: message.layout !== "long" });
-        if (!this.track) return this.reject(peer, "invalid-track");
+        const track = getTrack(message.trackId, { classic: message.layout !== "long" });
+        if (!track) return this.reject(peer, "invalid-track");
+        const speedClass = message.speedClass ?? DEFAULT_RACE_SPEED;
+        if (!isRaceSpeed(speedClass)) return this.reject(peer, "invalid-speed");
+        if (speedClass !== DEFAULT_RACE_SPEED && message.speedClasses !== true) return this.reject(peer, "version");
+        this.track = track;
+        this.speedClass = speedClass;
       } else if (!this.track) return this.reject(peer, "room-missing");
       if (this.phase !== "lobby") return this.reject(peer, "in-progress");
       const slots = new Set([...this.players.values()].map(player => player.slot));
@@ -217,7 +227,7 @@ export class RaceRoom {
     const players = this.connected();
     const host = [...this.players.values()].find(record => record.id === this.host)?.name;
     const entry = this.track && players ? {
-      id: this.code, track: this.track.id, host, players, phase: this.phase
+      id: this.code, track: this.track.id, speedClass: this.speedClass, host, players, phase: this.phase
     } : { id: this.code, phase: "closed" };
     const signature = JSON.stringify(entry);
     if (signature === this.listingSignature && (entry.phase === "closed" || now - this.listingAt < 12000)) return;
@@ -248,7 +258,7 @@ export class RaceRoom {
       item: racer.item, shield: racer.shield, grip: racer.grip, pickup: racer.pickup, contact: racer.contact, finishedAt: racer.finishedAt, dnf: racer.dnf
     });
     const snapshot = {
-      type: "state", phase: this.phase, trackId: this.track.id, host: this.host, players,
+      type: "state", phase: this.phase, trackId: this.track.id, speedClass: this.speedClass, host: this.host, players,
       fieldSize: ordered.length, layout: this.track.layoutScale > 1 ? "long" : "classic", itemRespawns: this.items?.respawns ?? null, countdown: Math.max(0, (this.startAt - now) / 1000), elapsed: this.elapsed
     };
     if (lobby) {
@@ -318,10 +328,10 @@ export class RaceRoom {
       this.broadcast(now);
     }
     if (this.phase === "racing") {
-      // Use the same fixed simulation step for all four drivers.
+      const { scale } = RACE_SPEEDS[this.speedClass];
       let steps = 0;
       while (now - this.tickedAt + .001 >= STEP * 1000 && steps++ < 8) {
-        stepRace(this.track, this.racers, STEP, this.elapsed, LAPS, this.items);
+        stepRace(this.track, this.racers, STEP, this.elapsed, LAPS, this.items, scale);
         this.elapsed += STEP;
         this.tickedAt += STEP * 1000;
         this.tickNumber++;

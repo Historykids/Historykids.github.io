@@ -901,12 +901,112 @@ body { background: radial-gradient(ellipse at 82% -5%, #293c61 0%, #101827 58%);
   text-shadow: 0 2px #121e34;
 }
 .game[data-race-finish][data-state="racing"] .race-message { border-color: #8ee8ff; }
+.speed-picker {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .55rem;
+  min-inline-size: 0;
+  padding: 0;
+  margin: .95rem 0 1.15rem;
+  border: 0;
+}
+.speed-picker legend {
+  padding: 0 0 .45rem;
+  color: var(--muted);
+  font-size: .8rem;
+  font-weight: 800;
+}
+.speed-option {
+  --option-accent: #86e7ff;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  min-height: 56px;
+  padding: .45rem .7rem;
+  border: 1px solid #65899b70;
+  border-radius: 7px;
+  background: #192b3c;
+  cursor: pointer;
+}
+.speed-option input { flex: 0 0 auto; width: .93rem; height: .93rem; margin: 0; accent-color: var(--option-accent); }
+.speed-option strong { display: block; color: var(--text); font-size: 1rem; font-weight: 900; line-height: 1.25; }
+.speed-option small { display: block; margin-top: .15rem; color: #c5d7e3; font-size: .71rem; }
+.speed-option:hover, .speed-option:has(input:checked) { border-color: var(--option-accent); }
+.speed-option:has(input:checked) { box-shadow: inset 0 0 0 1px var(--option-accent); }
+.speed-option:has(input:checked) strong { color: var(--option-accent); }
+.speed-option[data-speed-class="100cc"] { --option-accent: #a9e6aa; }
+.speed-option[data-speed-class="200cc"] { --option-accent: #ffd888; }
+.speed-option[data-speed-class="dopagaki"] {
+  --option-accent: #ffa8fa;
+  background: linear-gradient(118deg, #30244f, #3e204c 57%, #1a3a50);
+}
+.speed-option[data-speed-class="dopagaki"]:has(input:checked) {
+  box-shadow: inset 0 0 0 1px var(--option-accent), 0 0 1.1rem #ff67ec39;
+}
+.speed-class-tag, .result-speed-class {
+  color: var(--ice);
+  font-size: .74rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+.speed-class-tag { display: block; margin-bottom: .15rem; }
+.result-speed-class { margin: -.15rem 0 .15rem; }
+.game[data-speed-class="dopagaki"] {
+  --dopa-gradient: linear-gradient(100deg, #58efff, #b990ff, #ff8ee6, #ffe365, #87ffc1, #58efff);
+  --ice: #aef5ff;
+}
+.game[data-speed-class="dopagaki"] .speedometer {
+  border-color: #ff99ec;
+  background: linear-gradient(138deg, #292348f5, #112c42f5);
+  box-shadow: 0 0 1.3rem #f65dd16b;
+}
+.game[data-speed-class="dopagaki"] :is(.speed-class-tag, .result-speed-class) { color: #ffaeed; }
+.game[data-speed-class="dopagaki"] #speed-bar::-webkit-progress-value { background: var(--dopa-gradient); }
+.game[data-speed-class="dopagaki"] #speed-bar::-moz-progress-bar { background: var(--dopa-gradient); }
+.game[data-speed-class="dopagaki"] .boost {
+  background: var(--dopa-gradient);
+  box-shadow: 0 0 1rem #69f3ff6b;
+}
+.game[data-speed-class="dopagaki"] .race-effects::before {
+  background:
+    radial-gradient(ellipse at 50% 43%, transparent 46%, #561cb221 67%, #fd54d58f 100%),
+    linear-gradient(110deg, #2ef6ff78, transparent 18% 81%, #f9d93b70);
+}
+.game[data-speed-class="dopagaki"] .race-effects[data-driving="drift"]::before {
+  background: linear-gradient(0deg, #ff51de84, #4ffaff42 15%, transparent 32%);
+}
+.game[data-speed-class="dopagaki"] .race-announce {
+  background: linear-gradient(112deg, #155071fa, #59318cfa 37%, #902d7dfa 68%, #283d64fa);
+  border-image: var(--dopa-gradient) 1;
+}
+.game[data-speed-class="dopagaki"] .race-announce strong { color: #fff5ff; text-shadow: 2px 2px #2d165e, 0 0 16px var(--race-accent); }
+.game[data-speed-class="dopagaki"] .countdown {
+  color: #fff;
+  -webkit-text-stroke-color: #371a61;
+  text-shadow: .045em .056em 0 var(--count-color, #59e1ff), .079em .095em 0 #662390, 0 0 .49em #f29af2;
+}
+.game[data-speed-class="dopagaki"] .countdown::before {
+  inset: 7% -15% 0;
+  border-color: var(--count-color, #59e1ff);
+  background: linear-gradient(112deg, #154e71eb, #712168e8 58%, #683fafed);
+}
+.game[data-speed-class="dopagaki"][data-race-finish] #result .dialog {
+  border-color: #ffa7ee;
+  background: linear-gradient(143deg, #253866, #492150 48%, #182a4a);
+  box-shadow: 0 0 2.9rem #f283ee78;
+}
+.game[data-speed-class="dopagaki"][data-race-finish] #result-title {
+  color: #ffde93;
+  text-shadow: 2px 2px 0 #65196f, 0 0 .95rem #ff85c8;
+}
 @keyframes race-result-in {
   from { transform: translateY(20px) scale(.94); opacity: .55; }
   to { transform: translateY(0) scale(1); opacity: 1; }
 }
 @media (max-width: 520px) {
   .race-announce { top: 24%; }
+  .speed-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-height: 480px) and (orientation: landscape) {
   .race-announce { top: 25%; }

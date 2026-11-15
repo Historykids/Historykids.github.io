@@ -23,6 +23,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
           <ul id="room-list" class="room-list"></ul>
         </section>
         <p id="setup-message" class="setup-message" role="status"></p>
+        <fieldset class="speed-picker" id="race-speed"><legend>走る速さ</legend></fieldset>
         <section aria-labelledby="courses-title">
           <div class="course-heading">
             <div><h2 id="courses-title">コースを選ぶ</h2><p id="selected-info"></p></div>
@@ -35,7 +36,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
           <div id="course-grid" class="course-grid" aria-label="全10コース"></div>
         </section>
         <div class="race-preferences">
-          <p class="control-tip" id="race-tip">カーブでドリフトを続けて、離すと加速。紫の箱でアイテムをゲット。取られた箱は1秒で復活するよ。</p>
+          <p class="control-tip" id="race-tip">カーブでドリフトを続けて、離すと加速。光る箱でアイテムをゲット。取られた箱は1秒で復活するよ。</p>
           <label class="race-sound"><input id="race-sound" type="checkbox"> 効果音</label>
         </div>
       </section>
@@ -83,6 +84,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
           </div>
           <button class="pause" id="pause" type="button" aria-label="一時停止">Ⅱ</button>
           <div class="speedometer">
+            <span id="speed-class-label" class="speed-class-tag"></span>
             <div><strong id="speed">0</strong> <span>km/h</span></div>
             <progress id="speed-bar" max="230" value="0" aria-label="スピード"></progress>
             <span id="boost" class="boost" hidden>ブースト</span>
@@ -115,6 +117,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
         <section class="overlay" id="result" aria-labelledby="result-title" hidden>
           <div class="dialog">
             <h2 id="result-title">レース終了</h2>
+            <p id="result-speed-class" class="result-speed-class"></p>
             <p class="result-place" id="result-place-line"><strong id="result-place"></strong> 位 / 4台</p>
             <dl class="result-stats" id="result-stats">
               <div><dt>${showRankings ? "3周の合計タイム" : "タイム"}</dt><dd id="result-time"></dd></div>

@@ -1,9 +1,9 @@
 import * as THREE from "../vendor/three.module.js";
-import { createCanvasRenderer } from "./touge-racing-canvas.js?v=9";
+import { createCanvasRenderer } from "./touge-racing-canvas.js?v=10";
 import { worldScenery } from "./touge-racing-world.mjs?v=7";
 import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE } from "./touge-racing-tracks.mjs?v=7";
 import { smoothRacerPose } from "./touge-racing-motion.mjs?v=6";
-import { ITEMS, PULSE_LIFETIME, pulseDistance } from "./touge-racing-rules.mjs?v=9";
+import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulseDistance } from "./touge-racing-rules.mjs?v=10";
 
 function ribbon(track, scene, material, left, right, y, from = 0, to = track.length) {
   const vertices = [];
@@ -48,7 +48,7 @@ function place(track, object, distance, lane, height = 0) {
 const flat = color => new THREE.MeshLambertMaterial({ color });
 const bright = color => new THREE.MeshBasicMaterial({ color });
 
-function buildRoad(scene, track) {
+function buildRoad(scene, track, neon) {
   const { length: TRACK_LENGTH, halfWidth: ROAD_HALF, pads: BOOST_PADS, padLength: PAD_LENGTH, padHalfWidth: PAD_HALF_WIDTH } = track;
   const surfaces = new Map();
   function strip(material, left, right, y, from = 0, to = TRACK_LENGTH) {
@@ -62,8 +62,17 @@ function buildRoad(scene, track) {
   const lanes = flat(0xd2b984);
   strip(flat(0x51463e), -ROAD_HALF - 1.25, ROAD_HALF + 1.25, .09);
   strip(flat(0x292d37), -ROAD_HALF, ROAD_HALF, .14);
-  strip(white, -ROAD_HALF + .22, -ROAD_HALF + .38, .17);
-  strip(white, ROAD_HALF - .38, ROAD_HALF - .22, .17);
+  if (neon) {
+    const accents = DOPA_COLORS.map(bright);
+    for (let from = 0, i = 0; from < TRACK_LENGTH; from += 25, i++) {
+      const to = Math.min(TRACK_LENGTH, from + 25);
+      strip(accents[i % accents.length], -ROAD_HALF + .06, -ROAD_HALF + .47, .171, from, to);
+      strip(accents[(i + 3) % accents.length], ROAD_HALF - .47, ROAD_HALF - .06, .171, from, to);
+    }
+  } else {
+    strip(white, -ROAD_HALF + .22, -ROAD_HALF + .38, .17);
+    strip(white, ROAD_HALF - .38, ROAD_HALF - .22, .17);
+  }
 
   for (let distance = 0; distance < TRACK_LENGTH; distance += 8) {
     strip(lanes, -.075, .075, .17, distance, distance + 3.5);
@@ -87,8 +96,8 @@ function buildRoad(scene, track) {
     }
   }
 
-  const padColor = bright(0x137db1);
-  const padLine = bright(0xa3edff);
+  const padColor = bright(neon ? 0x8b268e : 0x137db1);
+  const padLine = bright(neon ? 0xffeb6c : 0xa3edff);
   for (const pad of BOOST_PADS) {
     strip(padColor, pad.lane - PAD_HALF_WIDTH, pad.lane + PAD_HALF_WIDTH,
       .18, pad.distance, pad.distance + PAD_LENGTH);
@@ -107,7 +116,7 @@ function buildRoad(scene, track) {
   }
 }
 
-function makeSky(scene, track) {
+function makeSky(scene, track, colors) {
   const asRGB = value => new THREE.Vector3(
     parseInt(value.slice(1, 3), 16) / 255,
     parseInt(value.slice(3, 5), 16) / 255,
@@ -116,7 +125,7 @@ function makeSky(scene, track) {
   const sun = new THREE.Vector3(.81, .185, .5).normalize();
   const sky = new THREE.Mesh(new THREE.SphereGeometry(515, 24, 12), new THREE.ShaderMaterial({
     side: THREE.BackSide,
-    uniforms: { sun: { value: sun }, zenith: { value: asRGB(track.colors[0]) }, horizonColor: { value: asRGB(track.colors[1]) }, night: { value: track.theme === "night" ? 1 : 0 } },
+    uniforms: { sun: { value: sun }, zenith: { value: asRGB(colors[0]) }, horizonColor: { value: asRGB(colors[1]) }, night: { value: track.theme === "night" ? 1 : 0 } },
     vertexShader: `
       varying vec3 vPosition;
       void main() {
@@ -247,16 +256,17 @@ function addWorldScenery(scene, track) {
   }
 }
 
-function itemGates(scene, track) {
+function itemGates(scene, track, neon) {
   const shapes = [];
   const material = flat("#a27bff");
   const core = bright("#e1d4ff");
   const geometry = new THREE.BoxGeometry(1.34, 1.34, 1.34);
-  for (const distance of track.itemLines) {
+  const accents = neon ? DOPA_COLORS.map(bright) : null;
+  for (const [gate, distance] of track.itemLines.entries()) {
     ribbon(track, scene, flat("#694e9e"), -track.halfWidth + .3, track.halfWidth - .3, .195, distance - ITEM_ZONE_BEFORE, distance + ITEM_ZONE_AFTER);
-    for (const fraction of ITEM_LANES) {
+    for (const [slot, fraction] of ITEM_LANES.entries()) {
       const group = new THREE.Group();
-      const gem = new THREE.Mesh(geometry, material);
+      const gem = new THREE.Mesh(geometry, accents?.[(gate + slot) % DOPA_COLORS.length] ?? material);
       gem.rotation.z = Math.PI / 4;
       group.add(gem);
       box(group, core, 0, 0, -.71, .44, .44, .11);
@@ -370,26 +380,28 @@ function car(scene, paint) {
   return group;
 }
 
-export function createScene(canvas, racers, track, { showItems = false, raceCamera = false } = {}) {
+export function createScene(canvas, racers, track, { showItems = false, raceCamera = false, speedClass } = {}) {
+  const neon = speedClass === "dopagaki";
+  const skyColors = neon ? DOPA_SKY : track.colors;
   const attributes = { antialias: true, alpha: false };
   const context = canvas.getContext("webgl2", attributes) || canvas.getContext("webgl", attributes);
   const poses = racers.map(() => ({}));
   const renderer = context
     ? new THREE.WebGLRenderer({ canvas, context })
-    : createCanvasRenderer(canvas, poses, track, showItems);
+    : createCanvasRenderer(canvas, poses, track, showItems, neon);
   const scene = new THREE.Scene();
   let sky;
   const cars = [];
   const pulseModels = [];
   let crates = [];
   if (context) {
-    scene.fog = new THREE.FogExp2(track.colors[1], .0036);
-    sky = makeSky(scene, track);
+    scene.fog = new THREE.FogExp2(skyColors[1], .0036);
+    sky = makeSky(scene, track, skyColors);
     landscape(scene, track);
-    buildRoad(scene, track);
+    buildRoad(scene, track, neon);
     roadside(scene, track);
     addWorldScenery(scene, track);
-    if (showItems) crates = itemGates(scene, track);
+    if (showItems) crates = itemGates(scene, track, neon);
   }
 
   const camera = new THREE.PerspectiveCamera(61, 1, .12, 720);
@@ -427,6 +439,10 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
         scene.add(model);
       }
       model.children[0].material.color.set(ITEMS[pulse.kind].color);
+      if (neon) {
+        model.children[1].material.color.set(pulse.kind === "pulse" ? DOPA_COLORS[0] : DOPA_COLORS[2]);
+        model.scale.setScalar(1.45);
+      }
       place(track, model, pulseDistance(pulse, elapsed), pulse.lane, .84);
       model.visible = true;
       count++;
@@ -449,7 +465,7 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
     });
     crates.forEach((crate, index) => {
       crate.visible = !itemRespawns || itemRespawns[index] <= elapsed;
-      if (crate.visible) crate.children[0].rotation.y += dt * 1.7;
+      if (crate.visible) crate.children[0].rotation.y += dt * (neon ? 3 : 1.7);
     });
     const player = poses[0];
     const p = track.sample(player.distance, frame);
@@ -457,7 +473,9 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
     const intro = state === "ready";
     const boost = motion && !motion.matches && state === "racing" && racers[0].boost > 0 &&
       Math.abs(player.lane) < track.halfWidth - .2 ? 1 : 0;
-    const fov = (portrait ? 68 : 61) + boost * 7;
+    const rush = neon && motion && !motion.matches && state === "racing"
+      ? 8 * Math.min(1, racers[0].speed / 78) : 0;
+    const fov = (portrait ? 68 : 61) + rush + boost * (neon ? 11 : 7);
     if (Math.abs(camera.fov - fov) > .05) {
       camera.fov += (fov - camera.fov) * (resetCamera ? 1 : 1 - Math.exp(-7 * dt));
       camera.updateProjectionMatrix();

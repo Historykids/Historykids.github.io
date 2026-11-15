@@ -1,13 +1,15 @@
+import { DEFAULT_RACE_SPEED, DOPA_COLORS, ITEMS, RACE_SPEEDS } from "./touge-racing-rules.mjs?v=10";
+
 const DRIFT_COLORS = ["#a6ebff", "#ffc648", "#ff76df"];
 const COLORS = {
   boost: "#65e9ff", drift: "#ff84e6", item: "#ca9fff", lap: "#77efff",
-  final: "#ffcb55", pass: "#aaff8c", contact: "#ff9a62", finish: "#ffd960"
+  final: "#ffcb55", pass: "#aaff8c", contact: "#ff9a62", finish: "#ffd960", launch: "#fff378"
 };
-const PRIORITY = { pass: 1, boost: 2, drift: 3, item: 4, lap: 5, final: 6 };
+const PRIORITY = { pass: 1, boost: 2, drift: 3, item: 4, launch: 4, contact: 4, lap: 5, final: 6 };
 const NOTES = {
   count: [329], go: [392, 523, 784], drift: [587, 880], boost: [440, 659, 988],
   item: [523, 659, 1047], lap: [587, 784], final: [440, 587, 784],
-  pass: [659, 880], contact: [142, 85], finish: [523, 659, 784, 1047]
+  pass: [659, 880], contact: [142, 85], finish: [523, 659, 784, 1047], launch: [988, 659, 440]
 };
 
 export function createRaceEffects(game) {
@@ -26,14 +28,18 @@ export function createRaceEffects(game) {
   let drivingEffect = "", driftTier = -1;
   let width = 1, height = 1;
   const anchor = {};
+  const isDopa = () => game.dataset.speedClass === "dopagaki";
 
   function play(kind) {
     if (!sound || audio?.state !== "running") return;
-    NOTES[kind].forEach((frequency, index) => {
-      const at = audio.currentTime + index * .057;
+    const neon = isDopa();
+    const notes = neon && ["go", "finish", "boost", "final"].includes(kind)
+      ? [...NOTES[kind], NOTES[kind].at(-1) * 1.5] : NOTES[kind];
+    notes.forEach((frequency, index) => {
+      const at = audio.currentTime + index * (neon ? .046 : .057);
       const voice = audio.createOscillator();
       const envelope = audio.createGain();
-      voice.type = kind === "contact" ? "triangle" : "sine";
+      voice.type = neon || kind === "contact" ? "triangle" : "sine";
       voice.frequency.setValueAtTime(frequency, at);
       envelope.gain.setValueAtTime(.001, at);
       envelope.gain.exponentialRampToValueAtTime(.09, at + .012);
@@ -82,8 +88,9 @@ export function createRaceEffects(game) {
     if (!context) return;
     width = canvas.width = Math.max(1, Math.round(game.clientWidth * .72));
     height = canvas.height = Math.max(1, Math.round(game.clientHeight * .72));
-    trails = Array.from({ length: 32 }, (_, index) => ({
-      angle: (index + Math.random() * .7) * Math.PI / 16,
+    const spokes = isDopa() ? 70 : 32;
+    trails = Array.from({ length: spokes }, (_, index) => ({
+      angle: (index + Math.random() * .7) * Math.PI * 2 / spokes,
       phase: Math.random(), reach: .34 + Math.random() * .24
     }));
     drawn = false;
@@ -100,8 +107,8 @@ export function createRaceEffects(game) {
     banner.hidden = false;
     banner.getAnimations?.().forEach(animation => animation.cancel());
     if (!motion.matches) banner.animate?.([
-      { opacity: 0, transform: "translate(-50%, -9px) scale(.82)" },
-      { opacity: 1, transform: "translate(-50%, 0) scale(1.04)", offset: .20 },
+      { opacity: 0, transform: isDopa() ? "translate(-50%, -22px) scale(.65) skewX(-10deg)" : "translate(-50%, -9px) scale(.82)" },
+      { opacity: 1, transform: isDopa() ? "translate(-50%, 0) scale(1.12)" : "translate(-50%, 0) scale(1.04)", offset: .20 },
       { opacity: 1, transform: "translate(-50%, 0) scale(1)" }
     ], { duration: 290, easing: "cubic-bezier(.15,.7,.25,1)" });
     play(kind);
@@ -111,6 +118,11 @@ export function createRaceEffects(game) {
     if (count === value) return;
     count = value;
     countdown.dataset.tick = value;
+    if (isDopa() && !motion.matches) {
+      const go = value === "GO!";
+      countdown.style.setProperty("--count-color", DOPA_COLORS[go ? 0 : Number(value) % DOPA_COLORS.length]);
+      burst(DOPA_COLORS[2], go ? 35 : 8, .5, .39);
+    }
     if (!motion.matches) {
       countdown.getAnimations?.().forEach(animation => animation.cancel());
       countdown.animate?.([
@@ -124,12 +136,16 @@ export function createRaceEffects(game) {
   }
 
   function burst(color, amount, x, y, direction = 0, confetti = false) {
-    for (let index = 0; index < amount && particles.length < 80; index++) {
+    const neon = isDopa();
+    const count = neon ? Math.ceil(amount * 1.7) : amount;
+    const cap = neon ? 180 : 80;
+    for (let index = 0; index < count && particles.length < cap; index++) {
       const angle = Math.random() * Math.PI * 2;
       const velocity = (.07 + Math.random() * .22) * (confetti ? 1.9 : 1);
       const life = (confetti ? .48 : .18) + Math.random() * (confetti ? .68 : .29);
       particles.push({
-        x, y, color, life, remaining: life, confetti,
+        x, y, color: neon && index % 3 ? DOPA_COLORS[(index + Math.floor(time * 10)) % DOPA_COLORS.length] : color,
+        life, remaining: life, confetti,
         vx: Math.cos(angle) * velocity + direction * .11,
         vy: Math.sin(angle) * velocity + (confetti ? -.22 : .085),
         size: 1.1 + Math.random() * (confetti ? 4.8 : 2.3)
@@ -147,9 +163,11 @@ export function createRaceEffects(game) {
     announcement = undefined;
     play("finish");
     if (motion.matches) return;
-    finishTime = 1.16;
-    [COLORS.finish, "#ff7fce", "#79eeff", "#f2fff9"].forEach((color, index) => {
-      burst(color, 10, index % 2 ? .88 : .12, .51, index % 2 ? -1 : 1, true);
+    const neon = isDopa();
+    finishTime = neon ? 1.7 : 1.16;
+    const colors = neon ? DOPA_COLORS : [COLORS.finish, "#ff7fce", "#79eeff", "#f2fff9"];
+    colors.forEach((color, index) => {
+      burst(color, neon ? 17 : 10, index % 2 ? .88 : .12, .51, index % 2 ? -1 : 1, true);
     });
   }
 
@@ -161,6 +179,7 @@ export function createRaceEffects(game) {
       banner.hidden = true;
     }
     const { racer, lap, place, item, active, onRoad, lapSplit, elapsed, lastLap } = sample;
+    const neon = isDopa();
     const tier = racer.driftCharge >= 1.05 ? 2 : racer.driftCharge >= .55 ? 1 : 0;
     const driving = active && racer.finishedAt === null;
     const drifting = driving && racer.drifting;
@@ -178,10 +197,13 @@ export function createRaceEffects(game) {
 
     const newBoost = boosting && previous && (!previous.boosting || racer.boost > previous.boost + .28);
     const hit = driving && racer.contact > .18 && previous && previous.contact <= .18;
+    const pulseHit = neon && driving && previous && racer.slow > previous.slow + .3;
+    const spentItem = neon && driving && !item && previous?.item;
     if (driving && previous) {
       if (newBoost) {
         const fromDrift = previous.drifting && previous.tier > 0 && !drifting;
-        message(fromDrift ? "drift" : "boost", fromDrift ? (previous.tier === 2 ? "SUPER DRIFT!" : "DRIFT BOOST!") : "BOOST!", fromDrift ? "ドリフト加速" : "加速中");
+        const headline = fromDrift ? (previous.tier === 2 ? "SUPER DRIFT!" : "DRIFT BOOST!") : neon ? "NEON BOOST!" : "BOOST!";
+        message(fromDrift ? "drift" : "boost", headline, fromDrift ? "ドリフト加速" : "加速中");
       }
       if (item && racer.pickup > 0 && (racer.pickup > previous.pickup + .30 || item !== previous.item)) {
         message("item", "アイテム GET!", item.label, item.color);
@@ -198,14 +220,23 @@ export function createRaceEffects(game) {
       if (lap > previous.lap) {
         message(lastLap ? "final" : "lap", lastLap ? "FINAL LAP!" : "LAP " + lap,
           lapSplit ? "前のラップ " + lapSplit : lastLap ? "最終ラップ" : "次の周回");
+        if (neon && !motion.matches) {
+          burst(DOPA_COLORS[2], 20, .12, .42, 1);
+          burst(DOPA_COLORS[1], 20, .88, .42, -1);
+        }
       }
       if (elapsed > 2.5 && place < previous.place && time - lastPass > 1.2) {
         lastPass = time;
         message("pass", place === 1 ? "トップに浮上！" : place + "位にアップ！", "オーバーテイク");
       }
-      if (hit) play("contact");
+      if (spentItem) {
+        const shot = spentItem === ITEMS.pulse || spentItem === ITEMS.backPulse;
+        message("launch", shot ? "パルス発射！" : "アイテム発動！", spentItem.label, spentItem.color);
+      }
+      if (pulseHit) message("contact", "パルス命中！", "減速中");
+      else if (hit) play("contact");
     }
-    previous = { lap, place, item, pickup: racer.pickup, boost: racer.boost, boosting, drifting, tier, contact: racer.contact };
+    previous = { lap, place, item, pickup: racer.pickup, boost: racer.boost, boosting, drifting, tier, contact: racer.contact, slow: racer.slow };
     if (!context || motion.matches) {
       if (context && drawn) context.clearRect(0, 0, width, height);
       drawn = false;
@@ -214,30 +245,34 @@ export function createRaceEffects(game) {
     }
 
     driftClock += dt;
-    const spark = drifting && driftClock > .052;
-    if (spark || newBoost || hit) {
+    const spark = drifting && driftClock > (neon ? .035 : .052);
+    if (spark || newBoost || hit || pulseHit || spentItem) {
       driftClock = 0;
       for (const side of [-1, 1]) {
         if (!scene.tirePoint(side, anchor)) continue;
         if (spark) burst(DRIFT_COLORS[tier], tier + 2, anchor.x, anchor.y, side);
-        if (newBoost) burst(COLORS.boost, 7, anchor.x, anchor.y, side);
-        if (hit) burst(COLORS.contact, 6, anchor.x, anchor.y, side);
+        if (newBoost) burst(COLORS.boost, neon ? 17 : 7, anchor.x, anchor.y, side);
+        if (hit || pulseHit) burst(COLORS.contact, pulseHit ? 16 : 6, anchor.x, anchor.y, side);
+        if (spentItem) burst(spentItem.color, 15, anchor.x, anchor.y, side);
       }
     }
     if (drawn) context.clearRect(0, 0, width, height);
-    const speedLines = driving && onRoad ? (boosting ? 1 : Math.max(0, (racer.speed - 37) / 38)) : 0;
+    const relativeSpeed = racer.speed / RACE_SPEEDS[game.dataset.speedClass ?? DEFAULT_RACE_SPEED].scale;
+    const speedLines = driving && onRoad ? (boosting ? 1 :
+      neon ? Math.min(1, Math.max(0, (relativeSpeed - 12) / 39)) : Math.max(0, (relativeSpeed - 37) / 38)) : 0;
     drawn = speedLines > 0 || particles.length > 0;
     if (speedLines > 0) {
       const unit = Math.min(width, height);
       context.strokeStyle = "#95eaff";
-      context.lineWidth = Math.max(1, unit / 340);
+      context.lineWidth = Math.max(1, unit / (neon ? 235 : 340));
       context.lineCap = "round";
       for (const [index, { angle, phase, reach }] of trails.entries()) {
-        if (!boosting && index % 3 !== 0) continue;
-        const progress = (phase + time * 2.45) % 1;
+        if (!boosting && index % (neon ? 2 : 3) !== 0) continue;
+        const progress = (phase + time * (neon ? 3.6 : 2.45)) % 1;
         const x = Math.cos(angle) * width, y = Math.sin(angle) * height;
-        const start = .32 + progress * reach;
-        const end = start + .048 + progress * .115;
+        const start = (neon ? .38 : .32) + progress * reach;
+        const end = start + .048 + progress * (neon ? .19 : .115);
+        if (neon) context.strokeStyle = DOPA_COLORS[index % DOPA_COLORS.length];
         context.globalAlpha = progress * .74 * speedLines;
         context.beginPath();
         context.moveTo(width * .5 + x * start, height * .45 + y * start);

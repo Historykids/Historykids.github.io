@@ -8,7 +8,43 @@
  const motifs=new Map(),colors=['#9dffe0','#c8a0ff','#ffd47c','#81c9ff','#ff8aaa','#e8f7ff'],sprites=new Map(),foodSprites=new Map(),num=n=>Math.floor(n).toLocaleString('ja-JP'),time=n=>Math.floor(n/60).toString().padStart(2,'0')+':'+Math.floor(n%60).toString().padStart(2,'0');
  function localStorageSafe(){try{return localStorage.getItem(key);}catch{return null;}}
  function writable(){try{window.HKAccountSync?.assertActive();return !locked;}catch{locked=true;$('saveStatus').textContent='アカウントが変わりました。ページを読み直してください。';$('play').disabled=true;return false;}}
- function save(){if(!writable())return false;try{localStorage.setItem(key,JSON.stringify(profile));window.dispatchEvent(new CustomEvent('hk-progress-change',{detail:{source:'neon-snake'}}));return true;}catch{$('saveStatus').textContent='端末に保存できません。ブラウザの保存設定を確認してください。';return false;}}
+ const progressLabel=$('progressStatus'),loginLink=$('snakeLogin');
+ let syncTimer;
+ function progressStatus(message){if(progressLabel.textContent!==message)progressLabel.textContent=message;}
+ function syncProgress(keepalive=false){
+  const account=window.HKAccountSync,loggedIn=!!account?.meta?.();
+  loginLink.hidden=loggedIn;
+  if(!loggedIn||locked)return;
+  account.syncSnake(keepalive).then(()=>{if(!locked&&!keepalive)progressStatus('歴史キッズのアカウントに保存済み');}).catch(error=>{
+   if(locked||keepalive)return;
+   progressStatus(error.message==='account-session-expired'?'端末に保存中。再ログインすると同期できます。':'端末に保存中。通信が戻ると同期します。');
+   if(error.message==='account-session-expired')loginLink.hidden=false;
+  });
+ }
+ function save(){
+  if(!writable())return false;
+  try{
+   profile.updatedAt=Math.max(Date.now(),profile.updatedAt+1);
+   localStorage.setItem(key,JSON.stringify(profile));
+   window.dispatchEvent(new CustomEvent('hk-progress-change',{detail:{source:'neon-snake'}}));
+   if(window.HKAccountSync?.meta?.()){
+    progressStatus('アカウントに保存中…');
+    clearTimeout(syncTimer);syncTimer=setTimeout(syncProgress,350);
+   }
+   return true;
+  }catch{$('saveStatus').textContent='端末に保存できません。ブラウザの保存設定を確認してください。';return false;}
+ }
+ function reloadProfile(){
+  const previousName=profile.name;
+  profile=E.profile(localStorageSafe());
+  if($('playerName').value===previousName)$('playerName').value=profile.name;
+ }
+ function editProfile(edit){
+  if(!writable())return;
+  reloadProfile();
+  if(edit(profile))save();
+  renderHome();
+ }
  function element(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;}
  function toast(message){$('gameToast').textContent=message;$('gameToast').style.opacity='1';toastUntil=performance.now()+2300;}
  function beep(kind='eat'){if(!soundOn)return;try{audio??=new(window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();const o=audio.createOscillator(),g=audio.createGain();o.type='sine';o.frequency.setValueAtTime(kind==='kill'?660:480,audio.currentTime);o.frequency.exponentialRampToValueAtTime(kind==='kill'?990:720,audio.currentTime+.08);g.gain.setValueAtTime(.025,audio.currentTime);g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+.14);o.connect(g);g.connect(audio.destination);o.start();o.stop(audio.currentTime+.15);}catch{}}
@@ -21,8 +57,8 @@
    return canvas;
   }
   const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 150 75');svg.setAttribute('aria-hidden','true');const path=document.createElementNS(ns,'path');path.setAttribute('d','M20 52 C-3 17 67 8 76 36 S138 67 126 29');path.setAttribute('fill','none');path.setAttribute('stroke',s.colors[1]);path.setAttribute('stroke-width','19');path.setAttribute('stroke-linecap','round');svg.append(path);const p=path.cloneNode();p.setAttribute('stroke',s.colors[0]);p.setAttribute('stroke-width','11');svg.append(p);for(const x of [121,130]){const eye=document.createElementNS(ns,'circle');eye.setAttribute('cx',x);eye.setAttribute('cy','24');eye.setAttribute('r','3');eye.setAttribute('fill','#efffff');svg.append(eye);const pupil=eye.cloneNode();pupil.setAttribute('r','1.5');pupil.setAttribute('cy','22.5');pupil.setAttribute('fill','#172332');svg.append(pupil);}svg.style.setProperty('--glow',s.colors[0]+'33');return svg;}
- function renderCollection(){const mount=$('skins');mount.replaceChildren();for(const s of E.skins){const owned=profile.owned.includes(s.id),chosen=profile.selected===s.id,canBuy=!owned&&s.cost&&profile.coins>=s.cost,card=element('article','skin-card'+(chosen?' selected':'')+(!owned?' locked':'')),picture=element('div','skin-art');picture.append(art(s));card.append(element('span','skin-tag',s.rarity),picture,element('h3','',s.name));const progress=s.require?Math.min(profile[s.require.key],s.require.goal):0;card.append(element('p','',s.require&&!owned?s.require.label+' · '+num(progress)+' / '+num(s.require.goal):owned?'アンロック済み': 'コインでアンロック'));const button=element('button','',chosen?'✓ 使用中':owned?'使う':s.cost?'◈ '+num(s.cost)+(canBuy?' で解放':''):'チャレンジで解放');button.type='button';button.disabled=chosen||!owned&&!canBuy||locked;button.setAttribute('aria-label',s.name+' · '+button.textContent);button.onclick=()=>{if(!writable())return;if(E.equip(profile,s.id)){save();renderHome();}};card.append(button);if(s.require&&!owned){const bar=element('span','skin-progress');bar.style.width=(progress/s.require.goal*100)+'%';card.append(bar);}mount.append(card);}
-  $('missions').replaceChildren();for(const m of E.missions){const value=Math.min(profile.daily[m.id],m.goal),claimed=profile.daily.claimed.includes(m.id),card=element('article','mission-card');card.append(element('span','eyebrow','DAILY CHALLENGE'),element('h3','',m.title),element('p','',num(value)+' / '+num(m.goal)+m.unit+' · 報酬 '+m.reward+'コイン'));const progress=element('progress');progress.max=m.goal;progress.value=value;progress.setAttribute('aria-label',m.title+'の進捗');const button=element('button','',claimed?'✓ 受け取り済み':value>=m.goal?'◈ '+m.reward+'コインを受け取る':'プレイして進めよう');button.disabled=claimed||value<m.goal||locked;button.onclick=()=>{if(writable()&&E.claim(profile,m.id)){save();renderHome();}};card.append(progress,button);$('missions').append(card);}
+ function renderCollection(){const mount=$('skins');mount.replaceChildren();for(const s of E.skins){const owned=profile.owned.includes(s.id),chosen=profile.selected===s.id,canBuy=!owned&&s.cost&&profile.coins>=s.cost,card=element('article','skin-card'+(chosen?' selected':'')+(!owned?' locked':'')),picture=element('div','skin-art');picture.append(art(s));card.append(element('span','skin-tag',s.rarity),picture,element('h3','',s.name));const progress=s.require?Math.min(profile[s.require.key],s.require.goal):0;card.append(element('p','',s.require&&!owned?s.require.label+' · '+num(progress)+' / '+num(s.require.goal):owned?'アンロック済み': 'コインでアンロック'));const button=element('button','',chosen?'✓ 使用中':owned?'使う':s.cost?'◈ '+num(s.cost)+(canBuy?' で解放':''):'チャレンジで解放');button.type='button';button.disabled=chosen||!owned&&!canBuy||locked;button.setAttribute('aria-label',s.name+' · '+button.textContent);button.onclick=()=>editProfile(current=>E.equip(current,s.id));card.append(button);if(s.require&&!owned){const bar=element('span','skin-progress');bar.style.width=(progress/s.require.goal*100)+'%';card.append(bar);}mount.append(card);}
+  $('missions').replaceChildren();for(const m of E.missions){const value=Math.min(profile.daily[m.id],m.goal),claimed=profile.daily.claimed.includes(m.id),card=element('article','mission-card');card.append(element('span','eyebrow','DAILY CHALLENGE'),element('h3','',m.title),element('p','',num(value)+' / '+num(m.goal)+m.unit+' · 報酬 '+m.reward+'コイン'));const progress=element('progress');progress.max=m.goal;progress.value=value;progress.setAttribute('aria-label',m.title+'の進捗');const button=element('button','',claimed?'✓ 受け取り済み':value>=m.goal?'◈ '+m.reward+'コインを受け取る':'プレイして進めよう');button.disabled=claimed||value<m.goal||locked;button.onclick=()=>editProfile(current=>E.claim(current,m.id));card.append(progress,button);$('missions').append(card);}
   renderTitles();
   const ready=E.missions.filter(m=>profile.daily[m.id]>=m.goal&&!profile.daily.claimed.includes(m.id)).length;$('missionCount').textContent=ready?ready+'件受取可能':'';$('skinCount').textContent=profile.owned.length+' / '+E.skins.length;
  }
@@ -46,7 +82,7 @@
    const button=element('button','',active?'✓ 装備中':unlocked?'装備する':'未獲得');
    button.type='button';button.disabled=active||!unlocked||locked;
    button.setAttribute('aria-label',item.name+' · '+button.textContent);
-   button.onclick=()=>{if(writable()&&E.equipTitle(profile,item.id)){save();renderHome();}};
+   button.onclick=()=>editProfile(current=>E.equipTitle(current,item.id));
    card.append(meter,button);mount.append(card);
   }
  }
@@ -64,7 +100,7 @@
  }
  const onlineErrors={'snake-full':'このアリーナは満員です。別のアリーナを選んでください。','snake-update':'ゲームが更新されました。ページを読み直してください。','snake-resume-expired':'前の対戦は終了しています。もう一度プレイしてください。','snake-replaced':'別の画面で同じ対戦が開かれました。','snake-unavailable':'対戦サーバーに接続できません。少し待って再試行してください。'};
  function connectedArena(value,first){arena=value;if(!first)return;starting=false;playing=true;paused=false;settled=false;leaveToHome=false;keys.clear();touch.reset();camera={x:arena.player.x,y:arena.player.y,zoom:.93};last=performance.now();accumulator=0;lastHud=0;$('home').hidden=true;$('gameHud').hidden=false;$('play').disabled=false;$('play').innerHTML='オンラインでプレイ <span>↗</span>';document.body.classList.add('playing');for(const id of ['pauseDialog','resultDialog'])if($(id).open)$(id).close();canvas.focus();toast(mobileMode?'左スティックで移動 · 右ボタンで加速 · 登場後3秒間は衝突から保護':'WASD / 矢印キーで移動 · Spaceで加速 · 登場後3秒間は衝突から保護');hud();}
- function start(){if(!writable()||starting)return;profile.name=$('playerName').value.trim().slice(0,16)||'PLAYER';save();net?.close();starting=true;settled=false;leaveToHome=false;keys.clear();touch.reset();$('play').disabled=true;$('play').textContent='接続中…';$('saveStatus').textContent='オンラインのアリーナに接続しています。';const run=++gameRun,owner=window.HKAccountSync?.meta?.()?.owner||localStorageSafeIdentity();
+ function start(){if(!writable()||starting)return;const name=$('playerName').value.trim().slice(0,16)||'PLAYER';reloadProfile();if(profile.name!==name){profile.name=name;save();}net?.close();starting=true;settled=false;leaveToHome=false;keys.clear();touch.reset();$('play').disabled=true;$('play').textContent='接続中…';$('saveStatus').textContent='オンラインのアリーナに接続しています。';const run=++gameRun,owner=window.HKAccountSync?.meta?.()?.owner||localStorageSafeIdentity();
   net=new window.HKNeonSnakeOnline.OnlineClient({endpoint:window.HKRankingConfig?.endpoint,room:$('roomSelect').value,name:profile.name,skin:profile.selected,title:profile.title,ownerKey:owner,viewRadius:()=>Math.min(1400,Math.hypot(width,height)/(2*camera.zoom)+120),onState:(value,first)=>{if(run===gameRun)connectedArena(value,first);},onStatus:(text,state)=>{if(run!==gameRun)return;$('networkStatus').textContent=text;$('networkStatus').dataset.state=state;if(starting)$('saveStatus').textContent=text;},onEvent:e=>{if(run!==gameRun)return;if(e.type==='kill'){toast(e.name+' を撃破！');beep('kill');}if(e.type==='eat')beep();},onResult:result=>{if(run!==gameRun)return;starting=false;arena=net.arena;arena.stats=result.stats;if(!arena.player)arena.player={id:result.playerId,x:0,y:0,angle:0,mass:result.stats.best,radius:13,age:10,body:[],alive:false};playing=true;arena.player.alive=false;if(leaveToHome){reward();goHome();}else end(result.reason);},onError:(code,stats)=>{if(run!==gameRun)return;starting=false;$('play').disabled=locked;$('play').innerHTML='オンラインでプレイ <span>↗</span>';const text=onlineErrors[code]||'通信を確認できません。もう一度接続してください。';$('saveStatus').textContent=text;if(playing&&stats&&!settled){arena.stats=stats;end('通信が切れたため、最後にサーバーが確認した記録を保存しました。');net?.clearResume();}else if(!settled)goHome();}});
  }
  function localStorageSafeIdentity(){try{return localStorage.getItem('hk_wealth_identity_v1')?.slice(0,16)||'guest';}catch{return 'guest';}}
@@ -77,7 +113,7 @@
    result.unlockedTitles.forEach((item,index)=>{if(index)unlocks.push(' / ');unlocks.push(titleName(item,'strong'));});
   }
   $('unlockMessage').replaceChildren(...(unlocks.length?unlocks:['集めた光と経験値は次のプレイへ。']));if($('pauseDialog').open)$('pauseDialog').close();$('resultDialog').showModal();}
- function goHome(){net?.close();playing=false;starting=false;paused=false;keys.clear();touch.reset();arena=null;document.body.classList.remove('playing');$('gameHud').hidden=true;$('home').hidden=false;$('play').disabled=locked;$('play').innerHTML='オンラインでプレイ <span>↗</span>';$('quit').disabled=false;$('quit').textContent='報酬を受け取って退出する';for(const id of ['pauseDialog','resultDialog'])if($(id).open)$(id).close();renderHome();$('play').focus();}
+ function goHome(){net?.close();playing=false;starting=false;paused=false;keys.clear();touch.reset();arena=null;document.body.classList.remove('playing');$('gameHud').hidden=true;$('home').hidden=false;$('play').disabled=locked;$('play').innerHTML='オンラインでプレイ <span>↗</span>';$('quit').disabled=false;$('quit').textContent='報酬を受け取って退出する';for(const id of ['pauseDialog','resultDialog'])if($(id).open)$(id).close();if(!locked)reloadProfile();renderHome();$('play').focus();}
  function pause(){if(!playing||paused||settled)return;paused=true;keys.clear();touch.reset();net?.control({x:0,y:0,boost:false});hud();$('pauseDialog').showModal();}
  function resume(){if(!playing||settled||locked)return;paused=false;last=performance.now();accumulator=0;$('pauseDialog').close();canvas.focus();}
  function hud(){if(!arena)return;const p=arena.player,rank=arena.ranking();$('length').textContent=num(p.mass);$('kills').textContent=arena.stats.kills+' K.O.';$('timer').textContent=time(arena.stats.seconds);$('myRank').textContent='あなた '+arena.stats.rank+'位 / '+(arena.humans+arena.cpu)+'匹 · 人間 '+arena.humans+'人 / CPU '+arena.cpu+'匹';
@@ -181,13 +217,19 @@
  function control(){let x=0,y=0;for(const k of keys){if(['a','arrowleft'].includes(k))x--;if(['d','arrowright'].includes(k))x++;if(['w','arrowup'].includes(k))y--;if(['s','arrowdown'].includes(k))y++;}const stick=touch.get();return mobileMode&&(stick.x||stick.y||stick.boost)?{...stick,boost:stick.boost||keys.has(' ')}:{x:E.clamp(x,-1,1),y:E.clamp(y,-1,1),boost:keys.has(' ')};}
  function frame(t){const dt=Math.min((t-last)/1000||0,.1);last=t;if(playing&&arena?.player){net?.control(paused||locked?{x:0,y:0,boost:false}:control());if(!locked)net?.frame(dt);draw(arena,dt);}else{if(!document.hidden){accumulator=Math.min(accumulator+dt,.15);while(accumulator>=1/60){if(demo.ended)demo=new E.Arena({bots:E.CPU_COUNT,seed:71838});demo.step(1/60,{angle:demo.aim(demo.player)});accumulator-=1/60;}}draw(demo,dt);previewTime+=dt;preview(previewTime);}if(playing&&arena?.stats&&t-lastHud>200){lastHud=t;hud();}if(t>toastUntil)$('gameToast').style.opacity='0';requestAnimationFrame(frame);}
  $('playForm').onsubmit=e=>{e.preventDefault();start();};$('skinsTab').onclick=()=>showTab('skins');$('missionsTab').onclick=()=>{renderHome();showTab('missions');};$('titlesTab').onclick=()=>showTab('titles');
- $('clearTitle').onclick=()=>{if(writable()&&E.equipTitle(profile,'')){save();renderHome();}};$('browseSkins').onclick=()=>{showTab('skins');$('collection').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'});};$('pause').onclick=pause;$('resume').onclick=resume;$('quit').onclick=()=>{if(locked){goHome();return;}leaveToHome=true;$('quit').disabled=true;$('quit').textContent='退出処理中…';net?.leave();};$('toHome').onclick=goHome;$('again').onclick=start;
+ $('clearTitle').onclick=()=>editProfile(current=>E.equipTitle(current,''));$('browseSkins').onclick=()=>{showTab('skins');$('collection').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'});};$('pause').onclick=pause;$('resume').onclick=resume;$('quit').onclick=()=>{if(locked){goHome();return;}leaveToHome=true;$('quit').disabled=true;$('quit').textContent='退出処理中…';net?.leave();};$('toHome').onclick=goHome;$('again').onclick=start;
  $('pauseDialog').addEventListener('cancel',e=>{e.preventDefault();resume();});$('resultDialog').addEventListener('cancel',e=>{e.preventDefault();goHome();});
  $('sound').onclick=()=>{soundOn=!soundOn;$('sound').textContent='音 '+(soundOn?'ON':'OFF');$('sound').setAttribute('aria-pressed',String(soundOn));$('sound').setAttribute('aria-label','効果音を'+(soundOn?'オフ':'オン')+'にする');if(soundOn)beep();};
  async function fullscreen(){try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{if(playing)toast('このブラウザでは全画面にできません。');else $('saveStatus').textContent='このブラウザでは全画面にできません。';}}$('fullscreen').onclick=fullscreen;
  document.addEventListener('fullscreenchange',()=>{$('fullscreen').textContent=document.fullscreenElement?'全画面を終了 ↙':'全画面 ↗';});
  window.addEventListener('keydown',e=>{if(['INPUT','TEXTAREA'].includes(document.activeElement?.tagName))return;const k=e.key.toLowerCase();if(k==='f'){e.preventDefault();fullscreen();return;}if(!playing)return;if(['escape','p'].includes(k)){e.preventDefault();if(e.repeat)return;if(settled&&k==='escape')goHome();else if(!settled)paused?resume():pause();return;}if(k==='r'&&settled){e.preventDefault();start();return;}if(['w','a','s','d','arrowup','arrowleft','arrowdown','arrowright',' '].includes(k)){e.preventDefault();if(!paused&&!locked){keys.add(k);net?.control(control());}}});window.addEventListener('keyup',e=>{keys.delete(e.key.toLowerCase());net?.control(paused?{x:0,y:0,boost:false}:control());});const releaseControls=()=>{keys.clear();touch.reset();net?.control({x:0,y:0,boost:false});};window.addEventListener('blur',releaseControls);document.addEventListener('visibilitychange',()=>{if(document.hidden)releaseControls();});window.addEventListener('pagehide',()=>{if(playing&&!settled)net?.send({type:'leave'});net?.close();});window.addEventListener('resize',()=>{releaseControls();resize();});
  function changed(){locked=true;pause();net?.send({type:'leave'});net?.clearResume();net?.close();$('saveStatus').textContent='アカウントが変わりました。ページを読み直してください。';$('play').disabled=true;$('resume').disabled=true;$('again').disabled=true;document.body.classList.add('account-locked');}
- window.addEventListener('storage',e=>{if(e.key===null||['hk_account_profile_v1','hk_wealth_identity_v1'].includes(e.key))changed();else if(e.key===key&&!playing&&!starting){profile=E.profile(localStorageSafe());renderHome();}});window.addEventListener('hk-account-sync',e=>{if(e.detail?.state==='changed')changed();});
+ function savedProfileChanged(){if(!locked&&!playing&&!starting){reloadProfile();renderHome();}}
+ window.addEventListener('storage',e=>{if(e.key===null||['hk_account_profile_v1','hk_wealth_identity_v1'].includes(e.key))changed();else if(e.key===key)savedProfileChanged();});window.addEventListener('hk-account-sync',e=>{if(e.detail?.state==='changed')changed();});
+ window.addEventListener('hk-neon-snake-sync',savedProfileChanged);
+ window.addEventListener('focus',()=>syncProgress());window.addEventListener('online',()=>syncProgress());
+ window.addEventListener('pagehide',()=>{clearTimeout(syncTimer);syncProgress(true);});
+ if(window.HKAccountSync?.meta?.())setInterval(()=>{if(!document.hidden)syncProgress();},45000);
+ syncProgress();
  $('playerName').value=profile.name;renderHome();if(location.hash==='#titles'){showTab('titles');$('collection').scrollIntoView();}resize();requestAnimationFrame(frame);
 })();

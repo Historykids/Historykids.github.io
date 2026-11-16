@@ -15,6 +15,37 @@ async function setup(){const h=await harness();h.board.accounts.now=()=>h.now;as
  await test('only the signed-in account reads and writes its save; stale revisions cannot overwrite newer data',async()=>{
   const {h,api}=await setup();try{const a=(await api('register',{username:'owner_one',password:'password 1234',progress:save()})).body,b=(await api('register',{username:'owner_two',password:'password 1234',progress:save('888')},h.tokens[1])).body;assert.equal((await api('load',undefined,h.tokens[2])).status,401);const first=await api('save',{revision:1,progress:save('123456789012345678901')},a.token);assert.equal(first.status,200);assert.equal(first.body.revision,2);assert.equal((await api('save',{revision:1,progress:save('123456789012345678901')},a.token)).body.revision,2);assert.equal((await api('save',{revision:1,progress:save('10')},a.token)).body.error,'account-conflict');assert.equal(JSON.parse((await api('load',undefined,b.token)).body.progress.values.hk_wallet_v2).balance,'888');assert.equal(JSON.parse((await api('load',undefined,a.token)).body.progress.values.hk_wallet_v2).balance,'123456789012345678901');assert(!JSON.stringify((await h.req('/wealth',undefined,2)).body).includes('passwordHash'));}finally{h.close();}
  });
+ await test('Neon Snake keeps the most advanced whole save across devices and ignores stale account snapshots',async()=>{
+  const {h,api}=await setup();
+  try{
+   const original=save(),low=JSON.stringify({version:1,xp:100,best:900,coins:250});
+   original.values[D.snakeKey]=low;
+   const credentials={username:'snake_player',password:'password 1234'};
+   const a=(await api('register',{...credentials,progress:original})).body;
+   const b=(await api('login',credentials,'')).body;
+   const advanced=JSON.stringify({version:1,xp:3900,best:30000,coins:210,owned:['mint','sakura'],selected:'sakura',title:'leviathan',runs:['one']});
+   assert.equal((await api('neon-snake',{profile:advanced},h.tokens[1])).status,401);
+   assert.equal((await api('neon-snake',{profile:advanced},a.token)).body.profile,advanced);
+   assert.equal((await api('neon-snake',{profile:low},b.token)).body.profile,advanced);
+   assert.equal((await api('neon-snake',{profile:'invalid'},a.token)).status,400);
+   const separate=(await api('register',{username:'snake_other',password:credentials.password,progress:save()},h.tokens[1])).body;
+   assert.equal((await api('neon-snake',{profile:null},separate.token)).body.profile,null);
+   assert.equal((await api('session',undefined,b.token)).body.revision,b.revision);
+   const stale=save('20',0);stale.values[D.snakeKey]=low;
+   const stored=await api('save',{revision:b.revision,progress:stale},b.token);
+   assert.equal(stored.status,200);
+   assert.equal((await api('load',undefined,a.token)).body.progress.values[D.snakeKey],advanced);
+   const olderSettings={...JSON.parse(advanced),updatedAt:100};
+   const newerSettings=JSON.stringify({...olderSettings,selected:'mint',title:'',updatedAt:101});
+   assert.equal((await api('neon-snake',{profile:newerSettings},a.token)).body.profile,newerSettings);
+   assert.equal((await api('neon-snake',{profile:JSON.stringify(olderSettings)},b.token)).body.profile,newerSettings);
+   const harderRun=JSON.stringify({...olderSettings,best:35000,updatedAt:30});
+   assert.equal((await api('neon-snake',{profile:harderRun},b.token)).body.profile,harderRun);
+   const final=(await api('load',undefined,b.token)).body.progress.values;
+   assert.equal(final[D.snakeKey],harderRun);
+   assert.equal(JSON.parse(final.hk_wallet_v2).balance,'20');
+  }finally{h.close();}
+ });
  await test('legacy open tabs preserve all five world-history saves while explicit clears still work',async()=>{
   const {h,api}=await setup();try{const current=save(),keys=D.keys.filter(key=>key.startsWith('cards_world_'));assert.equal(keys.length,5);for(const key of keys)current.values[key]=JSON.stringify({[key]:true});const a=(await api('register',{username:'world_save_user',password:'password 1234',progress:save()})).body;const first=await api('save',{revision:1,progress:current},a.token);assert.equal(first.status,200);assert.equal(first.body.revision,2);const legacy=save('42');for(const key of keys)delete legacy.values[key];const second=await api('save',{revision:2,progress:legacy},a.token);assert.equal(second.status,200);assert.equal(second.body.revision,3);const retained=await api('load',undefined,a.token);for(const key of keys)assert.equal(retained.body.progress.values[key],current.values[key]);const cleared=save('42');for(const key of keys)cleared.values[key]=null;const third=await api('save',{revision:3,progress:cleared},a.token);assert.equal(third.status,200);assert.equal(third.body.revision,4);const reset=await api('load',undefined,a.token);for(const key of keys)assert.equal(reset.body.progress.values[key],null);}finally{h.close();}
  });

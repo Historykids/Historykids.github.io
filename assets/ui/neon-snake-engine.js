@@ -109,6 +109,7 @@
  function profile(raw){let p={};try{p=typeof raw==='string'?JSON.parse(raw):raw||{};}catch{}if(!p||typeof p!=='object')p={};const valid=Array.isArray(p.owned)?p.owned.filter(id=>skins.some(s=>s.id===id)):[],owned=[...new Set([...skins.filter(s=>s.free).map(s=>s.id),...valid])];const result={version:1,name:typeof p.name==='string'?p.name.slice(0,16):'',coins:integer(p.coins),xp:integer(p.xp),best:integer(p.best),games:integer(p.games),totalFood:integer(p.totalFood),totalKills:integer(p.totalKills),totalSeconds:integer(p.totalSeconds),firsts:integer(p.firsts),owned,selected:owned.includes(p.selected)?p.selected:'mint',runs:Array.isArray(p.runs)?p.runs.filter(s=>typeof s==='string').slice(-20):[],daily:p.daily?.day===day()?{day:day(),food:integer(p.daily.food),kills:integer(p.daily.kills),seconds:integer(p.daily.seconds),claimed:Array.isArray(p.daily.claimed)?p.daily.claimed.filter(k=>['food','kills','seconds'].includes(k)):[]}:{day:day(),food:0,kills:0,seconds:0,claimed:[]}};
   const earned=earnedTitles(result);
   result.title=p.title===''||earned.some(item=>item.id===p.title)?p.title:earned.at(-1)?.id??null;
+  result.updatedAt=Number.isSafeInteger(p.updatedAt)&&p.updatedAt>0?p.updatedAt:0;
   return result;
  }
  const level=p=>Math.floor(Math.sqrt(p.xp/120))+1;

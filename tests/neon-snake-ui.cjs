@@ -1,6 +1,38 @@
 const assert=require('node:assert/strict'),{fixture,flush}=require('./neon-snake-harness.cjs');let checks=0;const test=async(name,f)=>{await f();checks++;console.log('PASS',name);};
 const start=async(p,name)=>{p.$('playerName').value=name;p.$('playForm').dispatchEvent(new p.w.Event('submit',{cancelable:true}));await flush();};
 (async()=>{
+await test('the signed-in Snake home loads cloud data and saves costume changes to the account',async()=>{
+ const h=await fixture(),key='hk_neon_snake_v1';
+ let cloud={version:1,name:'CloudPilot',xp:1200,best:13000,coins:180},calls=0;
+ const p=h.page({accountSync:w=>({
+  assertActive(){},meta:()=>({owner:'signed-in-player'}),
+  async syncSnake(){
+   calls++;
+   const local=JSON.parse(w.localStorage.getItem(key));
+   if(local?.updatedAt)cloud=local;
+   else {
+    w.localStorage.setItem(key,JSON.stringify(cloud));
+    await Promise.resolve();
+    w.dispatchEvent(new w.CustomEvent('hk-neon-snake-sync'));
+   }
+  }
+ })});
+ try{
+  await flush();
+  assert(p.$('snakeLogin').hidden);
+  assert.equal(p.$('playerName').value,'CloudPilot');
+  assert.equal(p.$('homeBest').textContent,'13,000');
+  assert.equal(p.$('progressStatus').textContent,'歴史キッズのアカウントに保存済み');
+  const costume=[...p.$('skins').children].find(card=>card.textContent.includes('夜桜'));
+  costume.querySelector('button').click();
+  p.w.dispatchEvent(new p.w.Event('pagehide'));
+  await flush();
+  assert(calls>1);
+  assert.equal(cloud.selected,'sakura');
+  assert.equal(cloud.coins,0);
+  assert(cloud.updatedAt>0);
+ }finally{p.close();h.close();}
+});
 await test('twelve original costumes and purchases survive the online upgrade without spending twice',async()=>{const h=await fixture(),p=h.page({seed:{coins:180}});try{assert.equal(p.$('skins').children.length,20);const card=[...p.$('skins').children].find(c=>c.textContent.includes('夜桜'));card.querySelector('button').click();assert.equal(p.saved().selected,'sakura');assert.equal(p.saved().coins,0);p.$('missionsTab').click();assert(!p.$('missions').hidden);const q=h.page({seed:p.saved()});assert.equal(q.$('selectedSkin').textContent,'夜桜');q.close();}finally{p.close();h.close();}});
 await test('two browser UIs join the same real room and show the other human alongside exactly five CPUs',async()=>{const h=await fixture(),a=h.page(),b=h.page();try{assert.deepEqual(Array.from(a.$('roomSelect').options,o=>o.value),['1','2','3']);await start(a,'Alice');await start(b,'Bob');await h.step(8,[a,b]);assert(a.$('home').hidden&&b.$('home').hidden);assert(a.$('leaderboard').textContent.includes('Bob'));assert(b.$('leaderboard').textContent.includes('Alice'));assert(a.$('myRank').textContent.includes('人間 2人 / CPU 5匹'));assert.equal(a.$('leaderboard').children.length,7);assert(a.$('networkStatus').textContent.includes('オンライン 2人'));}finally{a.close();b.close();h.close();}});
 await test('only keyboard events change movement: mouse motion, clicks and touch cannot steer or boost',async()=>{const h=await fixture(),p=h.page();try{await start(p,'Pilot');const socket=h.sockets.at(-1),record=socket.peer.record,snake=record.snake,initial=snake.angle;const inputCount=socket.sent.filter(m=>m.type==='input').length;for(const type of ['pointermove','pointerdown','mousedown','touchstart'])p.$('arena').dispatchEvent(new p.w.MouseEvent(type,{clientX:1,clientY:800,bubbles:true}));await flush();assert.equal(socket.sent.filter(m=>m.type==='input').length,inputCount);assert.equal(record.snake.input.boost,false);p.w.dispatchEvent(new p.w.KeyboardEvent('keydown',{key:'d'}));await flush();await h.step(7,[p]);assert(Math.abs(snake.angle)<.02);assert.notEqual(snake.angle,initial);p.w.dispatchEvent(new p.w.KeyboardEvent('keydown',{key:'ArrowDown'}));await flush();assert.equal(record.snake.input.x,1);assert.equal(record.snake.input.y,1);p.w.dispatchEvent(new p.w.KeyboardEvent('keydown',{key:' '}));await flush();assert(record.snake.input.boost);p.w.dispatchEvent(new p.w.KeyboardEvent('keyup',{key:' '}));await flush();assert(!record.snake.input.boost);}finally{p.close();h.close();}});

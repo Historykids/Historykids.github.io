@@ -2,7 +2,7 @@ import {scrypt,timingSafeEqual} from 'node:crypto';
 import '../../assets/ui/account-data.js';
 import '../../assets/ui/amounts.js';
 const D=globalThis.HKAccountData,M=globalThis.HKAmounts;
-const routes=['register','login','session','logout','password','rename','save','load','capabilities'];
+const routes=['register','login','session','logout','password','rename','save','load','capabilities','neon-snake'];
 export const accountRoutes=new Set(routes.map(p=>'/wealth/account/'+p));
 const validToken=t=>typeof t==='string'&&/^[a-f0-9]{64}$/.test(t);
 const hex=a=>Array.from(a,b=>b.toString(16).padStart(2,'0')).join('');
@@ -64,6 +64,16 @@ export class Accounts{
  }
  authenticated(hash){const s=this.sql.exec('SELECT owner,expiresAt FROM player_sessions WHERE tokenHash=?',hash).toArray()[0];if(!s||s.expiresAt<=this.now())fail('account-session-expired',401);const a=this.row(s.owner);if(!a)fail('account-session-expired',401);return{account:a,session:s};}
  public(a){return{username:a.name,owner:a.owner,revision:a.revision,updatedAt:a.updatedAt};}
+ saveSnake(account,progress,candidate){
+  const current=progress.values[D.snakeKey]??null;
+  const profile=D.preferSnake(current,candidate);
+  if(profile!==current){
+   progress.values[D.snakeKey]=profile;
+   // A Snake-only update does not conflict with town or learning saves.
+   this.sql.exec('UPDATE player_accounts SET progress=? WHERE owner=?',JSON.stringify(progress),account.owner);
+  }
+  return profile;
+ }
  async newSession(a){
   const token=random(),tokenHash=await digest(token),now=this.now(),expiresAt=now+30*86400000;
   const fresh=this.row(a.owner);if(fresh?.passwordVersion!==a.passwordVersion)fail('account-session-expired',401);a=fresh;
@@ -107,6 +117,10 @@ export class Accounts{
    const {account:a,session}=this.authenticated(hash);
    if(action==='session')return Response.json({...this.public(a),expiresAt:session.expiresAt});
    if(action==='load')return Response.json({...this.public(a),progress:JSON.parse(a.progress)});
+   if(action==='neon-snake'){
+    if(data.profile!==null&&!D.readSnake(data.profile))fail('account-save-invalid');
+    return Response.json({owner:a.owner,profile:this.saveSnake(a,JSON.parse(a.progress),data.profile)});
+   }
    if(action==='logout'){this.sql.exec('UPDATE player_sessions SET expiresAt=0 WHERE tokenHash=?',hash);return Response.json({loggedOut:true});}
    if(action==='rename'){
     const name=username(data.username);if(!name||typeof data.requestId!=='string'||!/^[A-Za-z0-9_-]{16,64}$/.test(data.requestId)||Object.keys(data).some(k=>!['owner','username','password','requestId'].includes(k)))fail('account-input');
@@ -133,13 +147,17 @@ export class Accounts{
    if(action==='save'){
     const old=JSON.parse(a.progress);let posted=data.progress;
     // Older open tabs do not send world-history keys. Preserve them unless the client explicitly clears them.
-    if(object(posted)&&object(posted.values))posted={...posted,values:{...Object.fromEntries(D.keys.filter(key=>(key.startsWith('cards_world_')||key==='hk_neon_snake_v1')&&!Object.hasOwn(posted.values,key)).map(key=>[key,old.values[key]??null])),...posted.values}};
+    if(object(posted)&&object(posted.values))posted={...posted,values:{...Object.fromEntries(D.keys.filter(key=>key.startsWith('cards_world_')&&!Object.hasOwn(posted.values,key)).map(key=>[key,old.values[key]??null])),...posted.values}};
     const save=progress(posted),wallet=JSON.parse(save.values.hk_wallet_v2),oldWallet=JSON.parse(old.values.hk_wallet_v2);
     wallet.redeemedCodes=[...new Set([...(wallet.redeemedCodes||[]),...(oldWallet.redeemedCodes||[])])];save.values.hk_wallet_v2=JSON.stringify(wallet);
-    const serialized=JSON.stringify(save);
-    if(serialized===a.progress)return Response.json({...this.public(a),saved:true});
+    const accountChanged=D.keys.some(key=>key!==D.snakeKey&&(old.values[key]??null)!==save.values[key]);
+    if(!accountChanged){
+     this.saveSnake(a,old,save.values[D.snakeKey]);
+     return Response.json({...this.public(a),saved:true});
+    }
     if(!Number.isSafeInteger(data.revision)||data.revision!==a.revision)fail('account-conflict',409);
-    this.sql.exec('UPDATE player_accounts SET progress=?,revision=revision+1,updatedAt=? WHERE owner=? AND revision=?',serialized,this.now(),a.owner,a.revision);
+    save.values[D.snakeKey]=D.preferSnake(old.values[D.snakeKey],save.values[D.snakeKey]);
+    this.sql.exec('UPDATE player_accounts SET progress=?,revision=revision+1,updatedAt=? WHERE owner=? AND revision=?',JSON.stringify(save),this.now(),a.owner,a.revision);
     return Response.json({...this.public(this.row(a.owner)),saved:true});
    }
    fail('not-found',404);

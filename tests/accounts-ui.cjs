@@ -21,6 +21,25 @@ const change=(p,amount)=>new Promise((yes,no)=>p.W.adjust(amount,yes,no));
  await test('a second browser logs in and restores the saved wallet, town, learning and rebirths',async()=>{
   const h=await harness(),a=page(h),b=page(h,{balance:'7'});try{await credentials(a,{register:true});await change(a,9);await a.S.sync(true);await credentials(b);assert.equal(b.W.snapshot().balance,a.W.snapshot().balance,b.$('accountMessage').textContent);assert.equal(b.S.meta().owner,a.S.meta().owner);assert.equal(b.W.snapshot().rebirths,20);assert.equal(b.map.get('city_v1'),a.map.get('city_v1'));assert.equal(b.map.get('cards_edo_complete_v1'),a.map.get('cards_edo_complete_v1'));assert.notEqual(b.map.get('hk_wealth_identity_v1'),a.map.get('hk_wealth_identity_v1'));}finally{a.close();b.close();h.close();}
  });
+ await test('login automatically keeps the strongest Neon Snake data and sync restores it on other devices',async()=>{
+  const h=await harness(),a=page(h),b=page(h,{balance:'7'}),c=page(h);
+  const key='hk_neon_snake_v1',profile=(xp,extra={})=>JSON.stringify({version:1,xp,best:xp,coins:90,owned:['mint'],...extra});
+  const old=profile(190),advanced=profile(30000,{title:'leviathan',owned:['mint','sakura'],selected:'sakura'}),newer=profile(35000,{owned:['mint','sakura']});
+  try{
+   a.map.set(key,old);b.map.set(key,advanced);c.map.set(key,old);
+   await credentials(a,{register:true});await credentials(b);
+   assert.equal(b.map.get(key),advanced);
+   await b.S.syncSnake();
+   await a.S.syncSnake();assert.equal(a.map.get(key),advanced);
+   await credentials(c);assert.equal(c.map.get(key),advanced);
+   // A failed request retains the better local record for the next attempt.
+   b.map.set(key,newer);h.lose('/wealth/account/neon-snake');
+   await assert.rejects(b.S.syncSnake(),/response lost/);assert.equal(b.map.get(key),newer);
+   await b.S.syncSnake();await c.S.syncSnake();assert.equal(c.map.get(key),newer);
+   await b.S.logout();assert.equal(b.map.get(key),advanced);
+   await b.S.syncSnake();assert.equal(b.map.get(key),advanced);
+  }finally{a.close();b.close();c.close();h.close();}
+ });
  await test('logout saves before revoking its token, restores guest data and a later login resumes the account',async()=>{
   const h=await harness(),a=page(h),b=page(h,{balance:'7'});try{await credentials(a,{register:true});await credentials(b);const token=b.map.get('hk_wealth_identity_v1');await change(b,17);await b.S.logout();assert.equal(b.S.meta(),null);assert.equal(b.W.snapshot().balance,7);const revoked=await h.fetch('https://api.example/wealth/account/session',{headers:{Authorization:'Bearer '+token}});assert.equal(revoked.status,401);await credentials(b);assert.equal(b.W.snapshot().balance,M.add('123456789012345678901234567890',17));}finally{a.close();b.close();h.close();}
  });

@@ -8,7 +8,7 @@
  const caches=['hk_wealth_cache_v1','hk_leaderboard_cache_v3','hk_notice_draft_v1'];
  const errors={'account-name-blocked':'このアカウント名には使えない言葉が含まれています。','account-name-conflict':'別の画面で名前が変更されました。ページを読み直してください。','account-input':'アカウント名は3〜24文字の文字・数字・_・-、パスワードは8〜128文字にしてください。','account-credentials':'アカウント名またはパスワードが違います。','account-name-taken':'このアカウント名は使用されています。別の名前にしてください。','account-already-linked':'この記録はアカウントに登録済みです。ログインしてください。','account-password':'新しいパスワードは8〜128文字にしてください。','account-try-later':'試行回数が多いため、1分ほど待ってから再試行してください。','account-session-expired':'ログインの有効期限が切れました。もう一度ログインしてください。','account-conflict':'別の端末で記録が更新されています。使う記録を選んでください。','account-save-invalid':'記録を確認できません。今の記録を残したまま、保存状態を確認してください。','account-save-large':'保存できる記録の容量を超えています。','account-changed':'別のタブでアカウントが変わりました。ページを読み直してください。','account-storage':'端末に保存できません。ブラウザの保存容量と設定を確認してください。','account-switch-first':'今のアカウントからログアウトしてから、別のアカウントへログインしてください。'};
  const get=k=>localStorage.getItem(k),parse=k=>{try{return JSON.parse(get(k)||'null');}catch{return null;}};
- let loadedProfile=null,saving=null,timer=null,lastSaved=null,conflict=false,state='guest',switching=false;
+ let loadedProfile=null,saving=null,snakeSaving=null,timer=null,lastSaved=null,conflict=false,state='guest',switching=false;
  const meta=()=>{const m=parse(metaKey);return m&&typeof m.username==='string'&&/^[a-f0-9]{64}$/.test(m.owner||'')&&Number.isSafeInteger(m.revision)?m:null;};
  function restore(map){for(const [k,v]of Object.entries(map))if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}
  try{const journal=parse(journalKey);if(journal?.before){restore(journal.before);localStorage.removeItem(journalKey);}loadedProfile=get(profileKey);}catch{state='storage';}
@@ -51,16 +51,44 @@
   assertActive();if(!/^[a-f0-9]{64}$/.test(result.token||'')||!result.progress?.values)throw Error('account-save-invalid');
   const previous=meta();if(previous&&previous.owner!==result.owner)throw Error('account-switch-first');
   await atomic(()=>{const draft=!previous?offline(result.owner):null,after={};for(const k of D.keys)after[k]=keepLocal&&draft?(draft.progress.values[k]??null):(keepLocal||register)?get(k):result.progress.values[k]??null;
+  after[D.snakeKey]=D.preferSnake(D.preferSnake(result.progress.values[D.snakeKey],draft?.progress.values[D.snakeKey]),get(D.snakeKey));
   after[offlineKey(result.owner)]=null;
   if(!previous)after[guestKey]=JSON.stringify(register?Object.fromEntries([...D.keys,identityKey,rankKey].map(k=>[k,null])):guest());
   after[identityKey]=after[rankKey]=result.token;
   after[metaKey]=JSON.stringify({username:result.username,owner:result.owner,revision:result.revision,accountUpdatedAt:result.updatedAt,expiresAt:result.expiresAt});after[profileKey]=crypto.randomUUID();
   for(const k of caches)after[k]=null;
   return after;});lastSaved=null;conflict=false;emit('saved','ログインしました。記録を引き継いで遊べます。');schedule();
+  if(get(D.snakeKey)!==(result.progress.values[D.snakeKey]??null))syncSnake().catch(()=>{});
  }
  function updateMeta(result){const current=meta();if(!current||result.owner!==current.owner)throw Error('account-changed');const newer=(result.updatedAt||0)>=(current.accountUpdatedAt||0);localStorage.setItem(metaKey,JSON.stringify({...current,revision:Math.max(current.revision,result.revision),...(newer?{username:result.username,accountUpdatedAt:result.updatedAt}:{})}));}
  function refreshName(result){assertActive();updateMeta(result);emit('saved','アカウント名を変更しました');}
  function schedule(){if(!meta()||conflict||state==='expired'||switching)return;clearTimeout(timer);timer=setTimeout(()=>sync().catch(()=>{}),2000);}
+ async function syncSnake(keepalive=false){
+  assertActive();const current=meta();if(!current)return null;
+  const activeProfile=loadedProfile,raw=get(D.snakeKey);
+  if(snakeSaving?.activeProfile===activeProfile&&(!keepalive||snakeSaving.raw===raw))return snakeSaving.promise;
+  const pending={activeProfile,raw};
+  const token=get(identityKey)||'';
+  pending.promise=(async()=>{
+   try{
+    while(true){
+     const sent=D.readSnake(pending.raw)?pending.raw:null;
+     const result=await request('neon-snake',{profile:sent},token,keepalive);
+     assertActive();
+     if(activeProfile!==loadedProfile||result.owner!==current.owner)throw Error('account-changed');
+     const local=get(D.snakeKey),winner=D.preferSnake(result.profile,local);
+     if(winner!==local){
+      if(winner===null)localStorage.removeItem(D.snakeKey);else localStorage.setItem(D.snakeKey,winner);
+      window.dispatchEvent(new CustomEvent('hk-neon-snake-sync'));
+     }
+     if(keepalive||winner===result.profile||winner===sent)return result;
+     pending.raw=winner;
+    }
+   }finally{if(snakeSaving===pending)snakeSaving=null;}
+  })();
+  snakeSaving=pending;
+  return pending.promise;
+ }
  async function sync(force=false,keepalive=false){
   assertActive();if(!meta())return null;if(conflict)throw Error('account-conflict');if(saving)return saving;
   const snapshot=capture(),serialized=JSON.stringify(snapshot);if(!force&&serialized===lastSaved)return meta();
@@ -82,7 +110,10 @@
  async function useCloud(){
   assertActive();if(saving)await saving;const r=await request('load'),current=meta(),after={};
   for(const k of D.keys)after[k]=r.progress.values[k]??null;after[metaKey]=JSON.stringify({...current,revision:r.revision,username:r.username,accountUpdatedAt:r.updatedAt});after[profileKey]=crypto.randomUUID();for(const k of caches)after[k]=null;
-  await atomic(after);lastSaved=JSON.stringify(capture());conflict=false;emit('saved','サーバーの記録を読み込みました');return r;
+  await atomic(()=>{after[D.snakeKey]=D.preferSnake(r.progress.values[D.snakeKey],get(D.snakeKey));return after;});
+  lastSaved=JSON.stringify(capture());conflict=false;emit('saved','サーバーの記録を読み込みました');
+  if(after[D.snakeKey]!==(r.progress.values[D.snakeKey]??null))syncSnake().catch(()=>{});
+  return r;
  }
  async function useLocal(){assertActive();if(saving)await saving;const r=await request('session');updateMeta(r);conflict=false;return sync(true);}
  function changed(){
@@ -98,5 +129,5 @@
  window.addEventListener('pagehide',()=>{if(meta())sync(false,true).catch(()=>{});});
  function start(){if(state==='storage'){emit('storage','保存設定を確認してください');return;}emit(meta()?'ready':'guest');if(meta())schedule();setInterval(()=>{if(!document.hidden&&meta())sync().catch(()=>{});},15000);}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
- window.HKAccountSync=Object.freeze({meta,offline,refreshName,capture,assertActive,request,install,logout,sync,useCloud,useLocal,profileKey,metaKey,identityKey,errorText:e=>errors[e?.message]||'通信を確認して、もう一度試してください。',get state(){return state;}});
+ window.HKAccountSync=Object.freeze({meta,offline,refreshName,capture,assertActive,request,install,logout,sync,syncSnake,useCloud,useLocal,profileKey,metaKey,identityKey,errorText:e=>errors[e?.message]||'通信を確認して、もう一度試してください。',get state(){return state;}});
 })();

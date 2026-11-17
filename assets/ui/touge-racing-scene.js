@@ -1,8 +1,8 @@
 import * as THREE from "../vendor/three.module.js";
-import { createCanvasRenderer } from "./touge-racing-canvas.js?v=17";
+import { createCanvasRenderer } from "./touge-racing-canvas.js?v=19";
 import { worldScenery } from "./touge-racing-world.mjs?v=7";
 import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, driveSample, nearShortcut, racerSample, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=17";
-import { smoothRacerPose } from "./touge-racing-motion.mjs?v=17";
+import { smoothRacerPose } from "./touge-racing-motion.mjs?v=19";
 import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, boostRemaining, isRoughSurface, pulsePosition } from "./touge-racing-rules.mjs?v=17";
 
 function ribbon(track, scene, material, left, right, y, from = 0, to = track.length) {
@@ -484,7 +484,7 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
   function render(state, dt, resetCamera, itemRespawns = null, elapsed = 0, projectiles = []) {
     racers.forEach((racer, index) => {
       const pose = smoothRacerPose(track, racer, poses[index], dt, resetCamera);
-      const visible = !racer.dnf && (index === 0 || racer.finishedAt === null);
+      const visible = !racer.dnf && (index === 0 || racer.finishedAt === null || racer.cruising);
       if (!context || (!visible && !cars[index])) return;
       const model = cars[index] ?? (cars[index] = car(scene, racer.color, racer.ghost));
       model.visible = visible;

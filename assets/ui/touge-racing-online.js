@@ -96,8 +96,10 @@ export class OnlineRace {
         return this.fail("invalid-speed");
       }
       this.phase = message.phase;
+      this.lobbyChat = Array.isArray(message.chat);
       this.handlers.state(message, this.id);
     }
+    if (message.type === "chat" && this.joined && this.phase === "lobby") this.handlers.chat(message.entry, this.id);
   }
 
   disconnected(socket) {
@@ -125,6 +127,12 @@ export class OnlineRace {
 
   start() {
     this.send({ type: "start" });
+  }
+
+  chat(preset) {
+    if (!this.joined || this.phase !== "lobby" || !this.lobbyChat) return false;
+    this.send({ type: "chat", preset });
+    return true;
   }
 
   leave() {

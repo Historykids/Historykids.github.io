@@ -1,3 +1,5 @@
+import { LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, LOBBY_EMOJIS, LOBBY_PHRASES, lobbyChatText } from "./touge-racing-rules.mjs?v=19";
+
 export function mountRaceUI(root, showRankings, difficulties, laps) {
   const lapRows = showRankings ? Array.from({ length: laps }, (_, index) =>
     `<div><dt>LAP ${index + 1}</dt><dd>—</dd></div>`).join("") : "";
@@ -68,6 +70,15 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
           <ol class="seats" id="seats"></ol>
           <button class="primary" id="online-start" type="button" disabled>2人そろうと開始できます</button>
           <p class="lobby-guide" id="lobby-guide">2人以上でホストがレースを始められるよ。</p>
+          <section class="lobby-chat" id="lobby-chat" aria-labelledby="chat-title" hidden>
+            <h2 id="chat-title">部屋チャット</h2>
+            <div class="lobby-chat-feed" id="chat-feed" tabindex="0" role="log" aria-label="部屋のメッセージ">
+              <p id="chat-empty">定型文や絵文字を選ぶと、部屋のメンバーに届くよ。</p>
+              <ol id="chat-lines"></ol>
+            </div>
+            <div id="chat-phrases" class="chat-buttons" role="group" aria-label="定型文"></div>
+            <div id="chat-emojis" class="chat-buttons chat-emojis" role="group" aria-label="絵文字"></div>
+          </section>
         </div>
       </section>
 
@@ -132,7 +143,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
           <div class="dialog">
             <h2 id="result-title">レース終了</h2>
             <p id="result-speed-class" class="result-speed-class"></p>
-            <p class="result-place" id="result-place-line"><strong id="result-place"></strong> 位 / 4台</p>
+          <p class="result-place" id="result-place-line"><strong id="result-place"></strong> 位 / <span id="result-field"></span>台</p>
             <dl class="result-stats" id="result-stats">
               <div><dt>${showRankings ? "3周の合計タイム" : "タイム"}</dt><dd id="result-time"></dd></div>
               <div><dt>コース自己ベスト</dt><dd id="best-time"></dd></div>
@@ -153,4 +164,68 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
         </section>
       </section>
   `;
+}
+
+export function mountLobbyChat(room, send) {
+  const panel = room.querySelector("#lobby-chat"), list = room.querySelector("#chat-lines");
+  const feed = room.querySelector("#chat-feed"), empty = room.querySelector("#chat-empty");
+  let enabled = false, last = 0, cooldown;
+  const groups = [
+    [room.querySelector("#chat-phrases"), LOBBY_PHRASES],
+    [room.querySelector("#chat-emojis"), LOBBY_EMOJIS]
+  ];
+  for (const [group, texts] of groups) {
+    for (const [preset, text] of Object.entries(texts)) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "secondary";
+      button.textContent = text;
+      button.addEventListener("click", () => {
+        if (!enabled || cooldown || !send(preset)) return;
+        cooldown = setTimeout(() => { cooldown = null; updateButtons(); }, LOBBY_CHAT_COOLDOWN);
+        updateButtons();
+      });
+      group.append(button);
+    }
+  }
+  const buttons = panel.querySelectorAll("button");
+  function updateButtons() {
+    for (const button of buttons) button.setAttribute("aria-disabled", String(!enabled || !!cooldown));
+  }
+  function add(entry, playerId) {
+    const text = lobbyChatText(entry?.preset);
+    if (!text || !Number.isSafeInteger(entry.id) || entry.id <= last || typeof entry.name !== "string") return;
+    const atBottom = feed.scrollHeight - feed.clientHeight - feed.scrollTop < 32;
+    last = entry.id;
+    const row = document.createElement("li");
+    const name = document.createElement("strong"), body = document.createElement("span");
+    row.classList.toggle("own", entry.playerId === playerId);
+    name.textContent = entry.playerId === playerId ? entry.name + "（自分）" : entry.name;
+    body.textContent = text;
+    row.append(name, body);
+    list.append(row);
+    if (list.childElementCount > LOBBY_CHAT_LIMIT) list.firstElementChild.remove();
+    if (atBottom || entry.playerId === playerId) feed.scrollTop = feed.scrollHeight;
+    empty.hidden = true;
+  }
+  return {
+    add,
+    snapshot(entries, playerId) {
+      panel.hidden = !Array.isArray(entries);
+      enabled = !panel.hidden;
+      updateButtons();
+      if (enabled) for (const entry of entries) add(entry, playerId);
+    },
+    disconnect() { enabled = false; updateButtons(); },
+    reset() {
+      clearTimeout(cooldown);
+      cooldown = null;
+      last = 0;
+      list.replaceChildren();
+      empty.hidden = false;
+      enabled = false;
+      panel.hidden = true;
+      updateButtons();
+    }
+  };
 }

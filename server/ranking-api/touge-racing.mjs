@@ -1,8 +1,8 @@
 import { getTrack, LAPS, racerWorldPosition, TRACKS } from "../../assets/ui/touge-racing-tracks.mjs";
 import {
-  COUNTDOWN, DEFAULT_RACE_SPEED, EMPTY_INPUT, ITEM_RESPAWN_SECONDS, MIN_ROOM_PLAYERS, RACE_LIMIT,
+  COUNTDOWN, DEFAULT_RACE_SPEED, EMPTY_INPUT, ITEM_RESPAWN_SECONDS, LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, MIN_ROOM_PLAYERS, RACE_LIMIT,
   RACE_PROTOCOL, RACE_SPEEDS, ROOM_CODE, STEP, TRIAL_PROTOCOL, VISIBLE_RIVALS, createRaceItems, createRacer,
-  isDriving, isRaceSpeed, pulsePosition, rankRacers, stepRace
+  cruiseAfterFinish, endLastRacer, isDriving, isRaceSpeed, lobbyChatText, pulsePosition, rankRacers, stepRace
 } from "../../assets/ui/touge-racing-rules.mjs";
 
 import { cleanRacerName, raceHub } from "./touge-racing-hub.mjs";
@@ -37,6 +37,7 @@ export async function racingRequest(request, env, reply) {
       protocol: RACE_PROTOCOL, capacity: null, minimumPlayers: MIN_ROOM_PLAYERS,
       shortcuts: true, turboCuts: true, freeDrive: true, trialLaps: LAPS, trialProtocol: TRIAL_PROTOCOL,
       itemRespawnSeconds: ITEM_RESPAWN_SECONDS, pulseMode: "projectile",
+      lobbyChat: true, finishCruise: true, lastPlaceCutoff: true,
       speedClasses: Object.keys(RACE_SPEEDS), tracks: TRACKS.map(track => track.id)
     });
   }
@@ -61,6 +62,8 @@ export class RaceRoom {
     this.track = null;
     this.speedClass = DEFAULT_RACE_SPEED;
     this.racers = [];
+    this.chat = [];
+    this.chatId = 0;
     this.items = null;
     this.startAt = 0;
     this.elapsed = 0;
@@ -144,6 +147,17 @@ export class RaceRoom {
     const record = peer.record;
     if (message.type === "leave") return this.leave(peer);
     if (message.type === "ping") return;
+    if (message.type === "chat") {
+      if (this.phase !== "lobby" || lobbyChatText(message.preset) === null ||
+          now - (record.chatAt ?? -Infinity) < LOBBY_CHAT_COOLDOWN) return;
+      record.chatAt = this.activityAt = now;
+      const entry = { id: ++this.chatId, playerId: record.id, name: record.name, preset: message.preset };
+      this.chat.push(entry);
+      if (this.chat.length > LOBBY_CHAT_LIMIT) this.chat.shift();
+      const event = JSON.stringify({ type: "chat", entry });
+      for (const player of this.players.values()) this.send(player.peer, event);
+      return;
+    }
     if (message.type === "start") {
       if (record.id !== this.host || !["lobby", "finished"].includes(this.phase) || this.connected() < MIN_ROOM_PLAYERS) return;
       this.start(now);
@@ -154,6 +168,7 @@ export class RaceRoom {
         ![-1, 0, 1].includes(message.turn)) return this.reject(peer, "input");
     if (!record.racer || message.seq <= record.ack) return;
     record.ack = message.seq;
+    if (!isDriving(record.racer)) return;
     record.inputAt = now;
     const previous = record.racer.input;
     record.racer.itemQueued ||= message.item === true && !previous.item;
@@ -259,14 +274,16 @@ export class RaceRoom {
       ...(this.track.terrain ? { free: !!racer.free, x: racer.x, z: racer.z, heading: racer.heading, onAsphalt: racer.onAsphalt,
         nextGate: racer.nextGate ?? 0, completedLaps: racer.completedLaps ?? 0, progress: racer.progress } : {}),
       boost: racer.boost, drifting: racer.drifting, driftCharge: racer.driftCharge, slow: racer.slow,
-      item: racer.item, shield: racer.shield, grip: racer.grip, pickup: racer.pickup, contact: racer.contact, finishedAt: racer.finishedAt, dnf: racer.dnf
+      item: racer.item, shield: racer.shield, grip: racer.grip, pickup: racer.pickup, contact: racer.contact,
+      finishedAt: racer.finishedAt, dnf: racer.dnf, cruising: !!racer.cruising, lastPlace: !!racer.lastPlace
     });
     const snapshot = {
       type: "state", phase: this.phase, trackId: this.track.id, speedClass: this.speedClass, host: this.host, players,
       fieldSize: ordered.length, freeDrive: !!this.track.terrain, shortcuts: !!this.track.shortcut, turboCuts: !!this.track.turboCuts, layout: this.track.layoutScale > 1 ? "long" : "classic", itemRespawns: this.items?.respawns ?? null, countdown: Math.max(0, (this.startAt - now) / 1000), elapsed: this.elapsed
     };
     if (lobby) {
-      const message = JSON.stringify({ ...snapshot, racers: ordered.map(wire) });
+      const message = JSON.stringify({ ...snapshot, racers: ordered.map(wire),
+        ...(this.phase === "lobby" ? { chat: this.chat } : {}) });
       for (const record of this.players.values()) this.send(record.peer, message);
       return;
     }
@@ -350,8 +367,10 @@ export class RaceRoom {
     if (this.phase === "racing") {
       const { scale } = RACE_SPEEDS[this.speedClass];
       let steps = 0;
-      while (now - this.tickedAt + .001 >= STEP * 1000 && steps++ < 8) {
+      while (now - this.tickedAt + .001 >= STEP * 1000 && steps++ < 8 && this.racers.some(isDriving)) {
         stepRace(this.track, this.racers, STEP, this.elapsed, LAPS, this.items, scale);
+        endLastRacer(this.racers);
+        for (const racer of this.racers) cruiseAfterFinish(this.track, racer, STEP, scale);
         this.elapsed += STEP;
         this.tickedAt += STEP * 1000;
         this.tickNumber++;

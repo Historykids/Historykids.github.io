@@ -40,6 +40,23 @@ export const CPU_DIFFICULTIES = Object.freeze({
 export const TRIAL_MAX_TICKS = TRIAL_LIMIT * 30;
 export const ROOM_CODE = /^[2-9A-HJ-NP-Z]{6}$/;
 export const EMPTY_INPUT = Object.freeze({ gas: false, brake: false, turn: 0, drift: false, item: false });
+export const LOBBY_CHAT_LIMIT = 20;
+export const LOBBY_CHAT_COOLDOWN = 1000;
+export const LOBBY_PHRASES = Object.freeze({
+  hello: "よろしく！", ready: "準備OK！", wait: "ちょっと待って！",
+  start: "始めよう！", goodLuck: "がんばろう！", course: "このコース楽しみ！",
+  thanks: "ありがとう！", sorry: "ごめん！", rematch: "もう一戦やろう！",
+  goodRace: "いいレースだった！", lastRace: "これがラスト！", bye: "また遊ぼう！"
+});
+export const LOBBY_EMOJIS = Object.freeze({
+  wave: "👋", like: "👍", salute: "🫡", smile: "😄", lol: "😂", wow: "😮",
+  fire: "🔥", flag: "🏁", car: "🏎️", trophy: "🏆", clap: "👏", party: "🎉"
+});
+export function lobbyChatText(id) {
+  if (typeof id !== "string") return null;
+  if (Object.hasOwn(LOBBY_PHRASES, id)) return LOBBY_PHRASES[id];
+  return Object.hasOwn(LOBBY_EMOJIS, id) ? LOBBY_EMOJIS[id] : null;
+}
 export const COLORS = [0x37b8d5, 0xed6d4e, 0xecc372, 0x92abec, 0x74db91, 0xd892f2, 0xf5a55a, 0xec8da7];
 const startingLanes = [-1.9, 2.85, -2.9, .4];
 const startingDistances = [-14, -5.5, -8.5, -11.5];
@@ -206,6 +223,40 @@ export function advanceRacer(track, racer, dt, speedScale = standardSpeed) {
 }
 
 export const isDriving = racer => !racer.dnf && racer.finishedAt === null;
+
+export function endLastRacer(racers) {
+  if (racers.length < MIN_ROOM_PLAYERS || racers.some(racer => racer.dnf)) return;
+  const remaining = racers.filter(isDriving);
+  if (remaining.length !== 1) return;
+  const [last] = remaining;
+  last.dnf = last.lastPlace = true;
+  last.speed = last.boost = last.turboTime = 0;
+  last.input = EMPTY_INPUT;
+  last.itemQueued = false;
+}
+
+export function cruiseAfterFinish(track, racer, dt, speedScale = standardSpeed) {
+  if (racer.finishedAt === null || racer.dnf) return;
+  if (!racer.cruising) {
+    if (racer.free) {
+      const start = track.sample(0);
+      racer.lane = (racer.x - start.x) * start.rx + (racer.z - start.z) * start.rz;
+    }
+    racer.distance = LAPS * track.length;
+    racer.lane = clamp(racer.lane, -track.halfWidth + 1.25, track.halfWidth - 1.25);
+    racer.cruising = true;
+    racer.free = racer.shortcut = racer.drifting = false;
+    racer.onAsphalt = true;
+    racer.steer = racer.lateralSpeed = racer.contact = racer.driftCharge = 0;
+    racer.item = null;
+  }
+  const corner = Math.abs(turnAt(track, racer.distance, 16));
+  const targetSpeed = (28 - 10 * corner) * Math.sqrt(speedScale);
+  racer.speed = approach(racer.speed, targetSpeed, 16 * dt);
+  racer.distance += racer.speed * dt;
+  const lane = ((racer.slot % 4) - 1.5) * Math.min(1.75, track.halfWidth * .32);
+  racer.lane = approach(racer.lane, lane, 1.9 * dt);
+}
 
 function resolveContact(track, a, b) {
   if (a.free || b.free || a.shortcut !== b.shortcut) return;
@@ -556,7 +607,8 @@ export function rankRacers(racers) {
   return [...racers].sort((a, b) =>
     Number(a.dnf) - Number(b.dnf) ||
     (a.finishedAt ?? Infinity) - (b.finishedAt ?? Infinity) ||
-    (b.progress ?? b.distance) - (a.progress ?? a.distance) || a.slot - b.slot
+    (a.finishedAt === null && b.finishedAt === null ? (b.progress ?? b.distance) - (a.progress ?? a.distance) : 0) ||
+    a.slot - b.slot
   );
 }
 

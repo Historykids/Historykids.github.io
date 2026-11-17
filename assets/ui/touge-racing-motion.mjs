@@ -25,6 +25,7 @@ export function smoothRacerPose(track, racer, pose, dt, reset = false) {
   }
   pose.dnf = racer.dnf;
   pose.finishedAt = racer.finishedAt;
+  pose.cruising = racer.cruising;
   pose.shield = racer.shield;
   pose.drifting = racer.drifting;
   return pose;

@@ -1,15 +1,15 @@
-import { createScene } from "./touge-racing-scene.js?v=17";
+import { createScene } from "./touge-racing-scene.js?v=19";
 import { getTrack, LAPS, racerWorldPosition, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=17";
 import {
   DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS,
   TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain,
-  advanceRacer, applyDrive, boostRemaining, createRaceItems, createRacer, createTrialRacer, formatTime, isDriving, isRoughSurface, lapTime, rankRacers, recordTrialInput, stepRace, trialInput
-} from "./touge-racing-rules.mjs?v=18";
-import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=17";
+  advanceRacer, applyDrive, boostRemaining, createRaceItems, createRacer, createTrialRacer, cruiseAfterFinish, endLastRacer, formatTime, isDriving, isRoughSurface, lapTime, rankRacers, recordTrialInput, stepRace, trialInput
+} from "./touge-racing-rules.mjs?v=19";
+import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=19";
 import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=10";
 
 import { createRaceEffects } from "./touge-racing-effects.js?v=17";
-import { mountRaceUI } from "./touge-racing-ui.js?v=18";
+import { mountLobbyChat, mountRaceUI } from "./touge-racing-ui.js?v=19";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();
@@ -62,6 +62,7 @@ function initialize(profile) {
   });
   let state = "setup";
   let race, online, onlinePhase, previousState, menuOpen = false;
+  const lobbyChat = mountLobbyChat(lobby, preset => online?.chat(preset));
   let frameId = 0, lastFrame = 0, itemTap = false;
   const setDirectoryActive = createRoomDirectory(code => joinOnline(code, { type: "join" }));
   const modes = {
@@ -137,8 +138,8 @@ function initialize(profile) {
     context.strokeStyle = "#9aeeff";
     context.stroke();
     return (racer, own, target = context) => {
-      if (racer.dnf || (!own && racer.finishedAt !== null)) return;
-      if (own && track.terrain) {
+      if (racer.dnf || (!own && racer.finishedAt !== null && !racer.cruising)) return;
+      if (own && track.terrain && !racer.cruising) {
         const gate = track.terrain.gates[racer.nextGate ?? 0];
         target.beginPath();
         target.arc(x(gate.x), y(gate.z), 3.2, 0, Math.PI * 2);
@@ -224,6 +225,10 @@ function initialize(profile) {
     return state === "countdown" || state === "racing";
   }
 
+  function canDrive() {
+    return isActive() && !race?.cruising && !menuOpen;
+  }
+
   function showState(value) {
     state = value;
     setDirectoryActive(value === "setup" && mode === "online");
@@ -232,7 +237,7 @@ function initialize(profile) {
     if (ghostChoice) ghostChoice.hidden = value !== "ghost";
     game.hidden = !setup.hidden || !lobby.hidden || value === "ghost";
     game.dataset.state = value;
-    byId("hud").hidden = !isActive() || menuOpen;
+    byId("hud").hidden = (!isActive() && !race?.cruising) || menuOpen;
     byId("paused").hidden = value !== "paused" && !menuOpen;
     byId("result").hidden = value !== "finished";
     if (!isActive()) clearInput();
@@ -263,6 +268,7 @@ function initialize(profile) {
     previous?.scene?.dispose();
     effects.reset();
     delete game.dataset.speedClass;
+    delete game.dataset.cruising;
   }
 
   function setupScreen(message = "") {
@@ -435,7 +441,7 @@ function initialize(profile) {
 
   function refreshHud() {
     const { player, racers, track, elapsed, remaining } = race;
-    const place = race.isTrial ? 1 : race.snapshot?.rank ?? rankRacers(racers).indexOf(player) + 1;
+    const place = race.isTrial ? 1 : race.finishRank ?? race.snapshot?.rank ?? rankRacers(racers).indexOf(player) + 1;
     placeNumber.nodeValue = place;
     game.dataset.rank = String(place);
     byId("field-size").textContent = (race.snapshot?.fieldSize ?? racers.length) + "台中";
@@ -470,12 +476,12 @@ function initialize(profile) {
     const contact = player.contact > .18;
     byId("impact").hidden = !contact;
     game.dataset.contact = String(contact);
-    countdown.hidden = state !== "countdown" && elapsed > .75;
+    countdown.hidden = race.cruising || (state !== "countdown" && elapsed > .75);
     const text = state === "countdown" ? String(Math.max(1, Math.ceil(remaining))) : "GO!";
     if (countdown.textContent !== text) countdown.textContent = text;
     if (!countdown.hidden && isActive() && !menuOpen) effects.animateCountdown(text);
     race.effectSample = {
-      racer: player, lap, place, item, elapsed, lastLap: lap === LAPS, active: state === "racing" && !menuOpen,
+      racer: player, lap, place, item, elapsed, lastLap: lap === LAPS, active: state === "racing" && canDrive(),
       onRoad,
       lapSplit: race.isTrial && lap > 1 ? formatTime(lapTime(player.lapEnds, lap - 2)) : ""
     };
@@ -504,9 +510,13 @@ function initialize(profile) {
         finishTrial();
         return;
       }
-      if (!race.isTrial && player.finishedAt !== null) {
-        finishCPU();
-        return;
+      if (!race.isTrial) {
+        endLastRacer(racers);
+        for (const racer of racers) cruiseAfterFinish(track, racer, STEP, race.scale);
+        if (!isDriving(player)) {
+          finishCPU();
+          return;
+        }
       }
     }
   }
@@ -517,8 +527,8 @@ function initialize(profile) {
     const age = (stamp - race.receivedAt) / 1000;
     race.remaining = Math.max(0, snapshot.countdown - age);
     if (snapshot.phase === "racing") race.elapsed = snapshot.elapsed + Math.min(.16, age);
-    const drive = menuOpen ? EMPTY_INPUT : input();
-    online.control(drive, itemTap);
+    const drive = canDrive() ? input() : EMPTY_INPUT;
+    if (!race.cruising) online.control(drive, itemTap);
     itemTap = false;
     if (snapshot.phase !== "racing") return;
     for (const racer of race.racers) {
@@ -527,6 +537,7 @@ function initialize(profile) {
       const own = racer === race.player;
       racer.finishedAt = target.finishedAt;
       racer.dnf = target.dnf;
+      racer.cruising = !!target.cruising;
       racer.contact = Math.max(0, target.contact - age);
       racer.item = target.item;
       racer.shield = target.shield;
@@ -560,7 +571,7 @@ function initialize(profile) {
       const lead = targetFree || targetShortcut ? 0 : Math.min(.095, age) * target.speed;
       const distanceError = target.distance + lead - racer.distance;
       const blend = 1 - Math.exp(-(own ? 8 : 16) * dt);
-      const snap = freeChanged || changedRoad || !isDriving(racer) || Math.abs(distanceError) > 13;
+      const snap = freeChanged || changedRoad || racer.dnf || Math.abs(distanceError) > 13;
       if (!own || Math.abs(distanceError) > .08) racer.distance += distanceError * (snap ? 1 : blend);
       if (!own || Math.abs(target.lane - racer.lane) > .04) racer.lane += (target.lane - racer.lane) * (snap ? 1 : blend);
       racer.speed += (target.speed - racer.speed) * (snap ? 1 : blend * (own ? .46 : 1));
@@ -570,10 +581,6 @@ function initialize(profile) {
         racer.drifting = target.drifting;
         racer.driftCharge = target.driftCharge;
       } else if (target.boost > racer.boost + .18) racer.boost = target.boost;
-    }
-    if (race.player.finishedAt !== null && online.joined) {
-      if (!menuOpen) effects.finish({ winner: snapshot.rank === 1 });
-      setRaceMessage("ゴール！ ほかの選手のゴールを待っています。");
     }
   }
 
@@ -595,22 +602,24 @@ function initialize(profile) {
   }
   function frame(stamp) {
     frameId = 0;
-    if (!race || (!isActive() && !effects.running)) return;
+    if (!race || (!isActive() && !race.cruising && !effects.running)) return;
     const elapsed = lastFrame ? (stamp - lastFrame) / 1000 : 0;
     const dt = Math.min(.1, elapsed);
     lastFrame = stamp;
     if (isActive()) {
       if (race.isOnline) tickOnline(dt, stamp);
       else if (elapsed) tickLocal(Math.min(2, elapsed));
+    } else if (race.cruising) {
+      for (const racer of race.racers) cruiseAfterFinish(race.track, racer, dt, race.scale);
     }
     refreshHud();
-    if (isActive() || !race.finishDrawn) {
+    if (isActive() || race.cruising || !race.finishDrawn) {
       renderScene(dt, false);
       race.drawMap();
       race.finishDrawn = !isActive();
     }
     effects.render(dt, race.scene, race.effectSample);
-    if (isActive() || effects.running) schedule();
+    if (isActive() || race.cruising || effects.running) schedule();
   }
 
   function togglePause() {
@@ -638,21 +647,23 @@ function initialize(profile) {
   function finishCPU() {
     const { track, player, racers, speedClass } = race;
     const prior = bestTime(track.id, speedClass, false);
-    const record = player.finishedAt < prior;
+    const record = player.finishedAt !== null && player.finishedAt < prior;
     if (record) save(bestKey(track.id, speedClass, false), String(player.finishedAt));
-    byId("result-title").textContent = "レース終了";
+    byId("result-title").textContent = player.lastPlace ? "最下位確定" : "レース終了";
     byId("trial-submit").hidden = true;
     byId("result-place-line").hidden = false;
     byId("result-stats").hidden = false;
     byId("race-order").hidden = true;
     const place = rankRacers(racers).indexOf(player) + 1;
+    race.finishRank = place;
     if (place === 1) byId("result-title").textContent = "優勝！";
     byId("result-place").textContent = place;
-    effects.finish({ winner: place === 1 });
-    byId("result-time").textContent = formatTime(player.finishedAt);
-    byId("best-time").textContent = formatTime(Math.min(prior, player.finishedAt));
+    byId("result-field").textContent = racers.length;
+    if (player.finishedAt !== null) startCruise(place);
+    byId("result-time").textContent = player.lastPlace ? "未完走" : formatTime(player.finishedAt);
+    byId("best-time").textContent = formatTime(record ? player.finishedAt : prior);
     byId("record").hidden = !record;
-    byId("result-note").textContent = "";
+    byId("result-note").textContent = player.lastPlace ? "ほかの全員がゴールしたため、走行を終了したよ。" : "";
     retry.hidden = false;
     retry.disabled = false;
     retry.textContent = "同じコースでもう一度";
@@ -721,6 +732,16 @@ function initialize(profile) {
     if (output.textContent !== text) output.textContent = text;
   }
 
+  function startCruise(place) {
+    if (race.cruising) return;
+    race.cruising = true;
+    race.finishRank = place;
+    game.dataset.cruising = "true";
+    clearInput();
+    effects.finish({ winner: place === 1 });
+    setRaceMessage("ゴール！ 自動走行中");
+  }
+
   function fillList(container, rows) {
     const fragment = document.createDocumentFragment();
     for (const [label, value, emphasized] of rows) {
@@ -742,30 +763,38 @@ function initialize(profile) {
     const ordered = rankRacers(snapshot.racers);
     if (first) {
       for (const racer of race.racers) Object.assign(racer, race.targets.get(racer.id));
-      byId("result-title").textContent = "レース終了";
+      const place = ordered.findIndex(racer => racer.id === id) + 1;
+      race.finishRank = place;
+      race.elapsed = snapshot.elapsed;
+      byId("result-title").textContent = race.player.lastPlace ? "最下位確定" : "レース終了";
       byId("trial-submit").hidden = true;
-      byId("result-place-line").hidden = true;
+      byId("result-place-line").hidden = !race.player.lastPlace;
+      byId("result-place").textContent = place;
+      byId("result-field").textContent = ordered.length;
       byId("result-stats").hidden = true;
       byId("record").hidden = true;
       byId("race-order").hidden = false;
       fillList(byId("race-order"), ordered.map(racer =>
-        [racer.name + (racer.id === id ? "（あなた）" : ""), racer.dnf ? "途中終了" : formatTime(racer.finishedAt), racer.id === id]));
-      if (race.player.finishedAt !== null) effects.finish({ winner: snapshot.rank === 1 });
+        [racer.name + (racer.id === id ? "（あなた）" : ""),
+          racer.lastPlace ? "最下位確定" : racer.dnf ? "途中終了" : formatTime(racer.finishedAt), racer.id === id]));
+      if (race.player.finishedAt !== null) startCruise(place);
       showState("finished");
       resize();
-      if (effects.running) schedule();
+      if (race.cruising || effects.running) schedule();
     }
     const host = snapshot.host === id;
     const count = snapshot.players.filter(player => player.connected).length;
     retry.hidden = !host || count < MIN_ROOM_PLAYERS;
     retry.disabled = retry.hidden;
     retry.textContent = "同じメンバーでもう一度";
-    byId("result-note").textContent = count < MIN_ROOM_PLAYERS ? "再戦には2人以上必要だよ。" :
+    byId("result-note").textContent = race.player.lastPlace ? "ほかの全員がゴールしたため、走行を終了したよ。" :
+      count < MIN_ROOM_PLAYERS ? "再戦には2人以上必要だよ。" :
       host ? "残っているメンバーで再戦できるよ。" : "ホストが再戦を選ぶと、もう一度走れるよ。";
     if (first) (retry.hidden ? byId("back-to-courses") : retry).focus({ preventScroll: true });
   }
 
   function lobbySnapshot(snapshot, id) {
+    lobbyChat.snapshot(snapshot.chat, id);
     const count = snapshot.players.filter(player => player.connected).length;
     const host = snapshot.host === id;
     byId("lobby-count").textContent = "参加者 " + count + "人";
@@ -821,8 +850,13 @@ function initialize(profile) {
     race.receivedAt = performance.now();
     if (snapshot.phase === "finished") {
       finishOnline(snapshot, id);
-    } else if (snapshot.phase !== state) {
-      showState(snapshot.phase);
+    } else {
+      const own = race.targets.get(id);
+      if (own?.finishedAt != null) {
+        startCruise(snapshot.rank);
+        setRaceMessage("ゴール！ 自動走行中");
+      }
+      if (snapshot.phase !== state) showState(snapshot.phase);
     }
   }
 
@@ -840,6 +874,7 @@ function initialize(profile) {
       return;
     }
     leaveOnline();
+    lobbyChat.reset();
     showState("lobby");
     window.scrollTo(0, 0);
     byId("join-invite").hidden = true;
@@ -855,10 +890,12 @@ function initialize(profile) {
     rememberRoom(code);
     online = new OnlineRace(code, { ...request, name: profile }, {
       status(message) {
+        lobbyChat.disconnect();
         byId("lobby-message").textContent = message;
         if (race) setRaceMessage(message);
         if (state === "finished" && message) byId("result-note").textContent = message;
       },
+      chat: lobbyChat.add,
       state: onlineSnapshot,
       error(message) {
         online = null;
@@ -926,7 +963,7 @@ function initialize(profile) {
 
   window.addEventListener("keydown", event => {
     if (event.code === "Escape" && !event.repeat) togglePause();
-    if (!isActive() || menuOpen || !keys.has(event.code) || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (!canDrive() || !keys.has(event.code) || event.altKey || event.ctrlKey || event.metaKey) return;
     event.preventDefault();
     held.set(event.code, keys.get(event.code));
     if (event.code === "Space" && !event.repeat) itemTap = true;
@@ -943,7 +980,7 @@ function initialize(profile) {
   });
   for (const button of buttons) {
     button.addEventListener("pointerdown", event => {
-      if (!isActive() || menuOpen || event.button !== 0) return;
+      if (!canDrive() || event.button !== 0) return;
       event.preventDefault();
       button.setPointerCapture(event.pointerId);
       held.set(event.pointerId, button.dataset.input);

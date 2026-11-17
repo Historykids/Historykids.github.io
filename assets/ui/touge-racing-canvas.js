@@ -340,7 +340,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
       box(faces, p, shot.lane, .75, 0, size, .9, size, [color, color, color, color, cap]);
     }
     racers.forEach((racer, index) => {
-      if (racer.dnf || (index !== 0 && racer.finishedAt !== null)) return;
+      if (racer.dnf || (index !== 0 && racer.finishedAt !== null && !racer.cruising)) return;
       const p = racerSample(track, racer);
       p.x += p.rx * racer.lane;
       p.z += p.rz * racer.lane;

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { RaceRoom } from "../server/ranking-api/touge-racing.mjs";
 import { driveSample, getTrack, lapDistance, LAPS, TRACKS } from "../assets/ui/touge-racing-tracks.mjs";
-import { COUNTDOWN, RACE_PROTOCOL, STEP, createRacer, rankRacers, stepRace, turnAt } from "../assets/ui/touge-racing-rules.mjs";
+import { COUNTDOWN, LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, RACE_PROTOCOL, STEP, createRacer,
+  cruiseAfterFinish, endLastRacer, rankRacers, stepRace, turnAt } from "../assets/ui/touge-racing-rules.mjs";
 
 function steering(track, racer, offset = 0, scale = 1) {
   const distance = (racer.distance + track.length) % track.length;
@@ -60,12 +61,32 @@ assert(host.socket.last("state").players.every(player => !("token" in player)));
 const fifth = connect("join", { name: "E" });
 assert(fifth.joined);
 assert.equal(host.socket.last("state").players.length, 5);
+send(host, "chat", { preset: "ready", name: "Spoofed", text: "<script>" });
+const firstMessage = host.socket.last("chat").entry;
+assert.deepEqual(firstMessage, { id: 1, playerId: host.joined.id, name: "A", preset: "ready" });
+assert.deepEqual(fifth.socket.last("chat").entry, firstMessage);
+send(host, "chat", { preset: "fire" });
+send(players[1], "chat", { preset: "constructor" });
+assert.equal(room.chat.length, 1);
+send(players[1], "chat", { preset: "fire" });
+assert.equal(host.socket.last("chat").entry.preset, "fire");
+for (let i = 0; i < LOBBY_CHAT_LIMIT; i++) {
+  now += LOBBY_CHAT_COOLDOWN;
+  send(host, "chat", { preset: "wait" });
+}
+const late = connect("join", { name: "Late" });
+assert.equal(late.socket.last("state").chat.length, LOBBY_CHAT_LIMIT);
+assert.equal(late.socket.last("state").chat[0].id, 3);
+send(late, "leave");
 send(fifth, "leave");
 send(players[1], "start");
 assert.equal(room.phase, "lobby");
 send(host, "start");
 assert.equal(room.phase, "countdown");
 assert.equal(host.socket.last("state").countdown, COUNTDOWN);
+send(host, "chat", { preset: "hello" });
+assert.equal(host.socket.last("chat").entry.preset, "wait");
+assert(!Object.hasOwn(host.socket.last("state"), "chat"));
 assert.equal(connect("join").socket.last("error").code, "in-progress");
 
 for (let frame = 0; frame < 4500 && room.phase !== "finished"; frame++) {
@@ -88,9 +109,14 @@ for (let frame = 0; frame < 4500 && room.phase !== "finished"; frame++) {
 }
 assert.equal(room.phase, "finished");
 const state = host.socket.last("state");
-assert(state.racers.every(racer => racer.finishedAt > 0 && !racer.dnf && !("input" in racer)));
 const order = rankRacers(state.racers);
-assert.deepEqual(order.map(r => r.finishedAt), order.map(r => r.finishedAt).sort((a, b) => a - b));
+const finishers = order.slice(0, -1), last = order.at(-1);
+assert(finishers.every(racer => racer.finishedAt > 0 && racer.cruising && !racer.dnf && !("input" in racer)));
+assert(finishers[0].distance > room.track.length * LAPS + 2, "A finisher moves while the others are still racing");
+assert(finishers.every((racer, index) => !index || racer.finishedAt >= finishers[index - 1].finishedAt));
+assert(last.dnf && last.lastPlace && !last.cruising && last.finishedAt === null && last.speed === 0);
+assert(Math.abs(state.elapsed - finishers.at(-1).finishedAt) < STEP + .001, "Cutoff happens in the second-last finisher's simulation step");
+assert(!host.socket.last("state").chat);
 assert(players.every(client => client.socket.last("state").phase === "finished"));
 send(host, "start");
 assert.equal(room.phase, "countdown");
@@ -103,13 +129,29 @@ now += 13000;
 room.tick(now);
 assert.equal(room.phase, "lobby");
 assert.equal(room.track, null);
-console.log("Five seats accepted, shared start and results, reconnect, rematch, departure, and room cleanup passed.");
+console.log("Lobby chat, shared start, finish cruising, instant last-place cutoff, reconnect and room cleanup passed.");
 
 const { DatabaseSync } = await import("node:sqlite");
 const { TougeRaceHub } = await import("../server/ranking-api/touge-racing-hub.mjs");
 const { CPU_DIFFICULTIES, DEFAULT_RACE_SPEED, MAIN_ROAD_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, RACE_SPEEDS, createRaceItems, createTrialRacer, lapTime,
   recordTrialInput, replayTrial, TERRAIN_TRIAL_PROTOCOL, TRIAL_MAX_TICKS, TRIAL_PROTOCOL } = await import("../assets/ui/touge-racing-rules.mjs");
 const track = getTrack("yunagi");
+
+// The road drive after finishing is cosmetic and does not alter finish time, lap count or the finishing order.
+const cruiseTrack = getTrack("fuji", { freeDrive: true });
+const exit = cruiseTrack.sample(0);
+const coasting = { ...createRacer(0), free: true, finishedAt: 77, completedLaps: LAPS,
+  x: exit.x + exit.rx * (cruiseTrack.halfWidth + 1), z: exit.z + exit.rz * (cruiseTrack.halfWidth + 1) };
+for (let tick = 0; tick < 900; tick++) {
+  cruiseAfterFinish(cruiseTrack, coasting, STEP);
+  assert(!coasting.free && !coasting.shortcut && Math.abs(coasting.lane) < cruiseTrack.halfWidth);
+}
+assert(coasting.distance > LAPS * cruiseTrack.length + 400);
+assert.equal(coasting.finishedAt, 77);
+assert.equal(coasting.completedLaps, LAPS);
+const soleDriver = createRacer(1), withdrawn = { ...createRacer(2), dnf: true };
+endLastRacer([coasting, soleDriver, withdrawn]);
+assert(!soleDriver.dnf, "A player who is ahead of a withdrawn entrant can still finish");
 
 function trial(track, idleTicks = 0, laps = LAPS, speedClass = DEFAULT_RACE_SPEED) {
   const { scale } = RACE_SPEEDS[speedClass];

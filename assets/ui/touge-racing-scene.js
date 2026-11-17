@@ -442,6 +442,7 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
   const point = new THREE.Vector3();
   const motion = raceCamera ? matchMedia("(prefers-reduced-motion: reduce)") : null;
   let portrait = false;
+  let cameraRacer;
 
   function resize(width, height) {
     portrait = width < height;
@@ -481,7 +482,10 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
     for (let i = count; i < pulseModels.length; i++) pulseModels[i].visible = false;
   }
 
-  function render(state, dt, resetCamera, itemRespawns = null, elapsed = 0, projectiles = []) {
+  function render(state, dt, resetCamera, itemRespawns = null, elapsed = 0, projectiles = [], focus = 0) {
+    const subject = racers[focus];
+    const switchView = resetCamera || cameraRacer !== subject.id;
+    cameraRacer = subject.id;
     racers.forEach((racer, index) => {
       const pose = smoothRacerPose(track, racer, poses[index], dt, resetCamera);
       const visible = !racer.dnf && (index === 0 || racer.finishedAt === null || racer.cruising);
@@ -498,19 +502,19 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
       crate.visible = !itemRespawns || itemRespawns[index] <= elapsed;
       if (crate.visible) crate.children[0].rotation.y += dt * (neon ? 3 : 1.7);
     });
-    const player = poses[0];
+    const player = poses[focus];
     const p = racerSample(track, player, frame);
     const ahead = player.distance + 24 * (player.shortcut ? track.shortcut.ratio : 1);
     const lookingAhead = player.free ? { x: p.x + p.fx * 24, z: p.z + p.fz * 24 } :
       driveSample(track, ahead, player.shortcut, next);
     const intro = state === "ready";
-    const boost = motion && !motion.matches && state === "racing" && boostRemaining(racers[0]) > 0 &&
-      !isRoughSurface(track, racers[0]) ? 1 : 0;
+    const boost = motion && !motion.matches && state === "racing" && boostRemaining(subject) > 0 &&
+      !isRoughSurface(track, subject) ? 1 : 0;
     const rush = neon && motion && !motion.matches && state === "racing"
-      ? 8 * Math.min(1, racers[0].speed / 78) : 0;
+      ? 8 * Math.min(1, subject.speed / 78) : 0;
     const fov = (portrait ? 68 : 61) + rush + boost * (neon ? 11 : 7);
     if (Math.abs(camera.fov - fov) > .05) {
-      camera.fov += (fov - camera.fov) * (resetCamera ? 1 : 1 - Math.exp(-7 * dt));
+      camera.fov += (fov - camera.fov) * (switchView ? 1 : 1 - Math.exp(-7 * dt));
       camera.updateProjectionMatrix();
     }
     const back = intro ? (portrait ? 14 : 16) : (portrait ? 11.4 : 10.6);
@@ -518,7 +522,7 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
     eye.set(p.x - p.fx * back + p.rx * lane, intro ? 6.7 : 4.65, p.z - p.fz * back + p.rz * lane);
     target.set(lookingAhead.x + p.rx * (intro ? -1 : player.lane * .36),
       intro ? 2.75 : 2.65, lookingAhead.z + p.rz * (intro ? -1 : player.lane * .36));
-    const ease = resetCamera ? 1 : 1 - Math.exp(-8 * dt);
+    const ease = switchView ? 1 : 1 - Math.exp(-8 * dt);
     camera.position.lerp(eye, ease);
     if (sky) sky.position.copy(camera.position);
     aim.lerp(target, ease);

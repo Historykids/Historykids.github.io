@@ -348,6 +348,62 @@ assert(largePeers.every(({ socket }) => {
   return state.fieldSize === 35 && state.racers.length === VISIBLE_RIVALS + 1 &&
     state.racers[0].id === socket.last("joined").id && new Set(state.racers.map(racer => racer.id)).size === state.racers.length;
 }));
+for (const freeDrive of [false, true]) {
+  const viewingRoom = new RaceRoom({ clock: () => now, autoRun: false });
+  const sendView = (client, type, options = {}) => viewingRoom.message(client.peer, JSON.stringify({ type, ...options }));
+  function viewingClient(type, options = {}) {
+    const socket = new Socket(), peer = viewingRoom.attach(socket);
+    sendView({ peer }, type, { protocol: RACE_PROTOCOL, spectator: true, freeDrive, layout: "long", trackId: "fuji", ...options });
+    return { socket, peer, joined: socket.last("joined") };
+  }
+  const clients = Array.from({ length: 35 }, (_, i) => viewingClient(i === 0 ? "create" : "join"));
+  const [viewer, next] = clients;
+  sendView(viewer, "start");
+  viewingRoom.phase = "racing";
+  const length = viewingRoom.track.length;
+  viewingRoom.racers.forEach((racer, index) => { racer.distance = length * index / 35; });
+  const target = clients[17].joined.id;
+  sendView(viewer, "watch", { id: target });
+  viewingRoom.broadcast();
+  assert(!("spectators" in viewer.socket.last("state")), "Active drivers cannot spectate");
+  const own = viewingRoom.racers[0];
+  own.finishedAt = 30;
+  cruiseAfterFinish(viewingRoom.track, own, STEP);
+  viewingRoom.broadcast();
+  let view = viewer.socket.last("state");
+  assert.equal(view.watching, null);
+  assert.equal(view.spectators.length, 34);
+  assert(!view.racers.some(racer => racer.id === target), "The target starts outside the viewer's position updates");
+
+  const cruising = own.distance;
+  sendView(viewer, "watch", { id: target });
+  cruiseAfterFinish(viewingRoom.track, own, STEP);
+  viewingRoom.broadcast();
+  view = viewer.socket.last("state");
+  assert.equal(view.watching, target);
+  assert.equal(view.rank, 1);
+  assert.equal(view.racers[0].id, viewer.joined.id);
+  assert(view.racers[0].distance > cruising, "The finisher cruises while watching someone else");
+  assert.equal(view.racers[1].id, target);
+  assert(view.racers.some(racer => racer.id === clients[18].joined.id), "Nearby traffic follows the spectator camera");
+  assert.equal(view.racers.length, VISIBLE_RIVALS + 1);
+  assert.equal(new Set(view.racers.map(racer => racer.id)).size, view.racers.length);
+  assert(!("watching" in next.socket.last("state")), "Other drivers' cameras are independent");
+
+  viewer.socket.close();
+  const resumedViewer = viewingClient("resume", { token: viewer.joined.token });
+  assert.equal(resumedViewer.socket.last("state").watching, target);
+  sendView(resumedViewer, "watch", { id: null });
+  viewingRoom.broadcast();
+  assert.equal(resumedViewer.socket.last("state").watching, null);
+  sendView(resumedViewer, "watch", { id: target });
+  viewingRoom.racers[17].finishedAt = 31;
+  viewingRoom.broadcast();
+  view = resumedViewer.socket.last("state");
+  assert.equal(view.watching, null);
+  assert(!view.spectators.some(racer => racer.id === target));
+}
+console.log("Finishers can spectate distant drivers on both track layouts, return to their car and resume without changing their rank.");
 const small = new RaceRoom({ clock: () => now, autoRun: false });
 const smallHost = small.attach(new Socket());
 small.message(smallHost, JSON.stringify({ type: "create", protocol: RACE_PROTOCOL, trackId: world.id }));

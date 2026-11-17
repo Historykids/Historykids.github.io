@@ -1,15 +1,15 @@
-import { createScene } from "./touge-racing-scene.js?v=19";
+import { createScene } from "./touge-racing-scene.js?v=20";
 import { getTrack, LAPS, racerWorldPosition, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=17";
 import {
-  DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS,
+  DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, RACE_LIMIT, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS,
   TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain,
   advanceRacer, applyDrive, boostRemaining, createRaceItems, createRacer, createTrialRacer, cruiseAfterFinish, endLastRacer, formatTime, isDriving, isRoughSurface, lapTime, rankRacers, recordTrialInput, stepRace, trialInput
 } from "./touge-racing-rules.mjs?v=19";
-import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=19";
+import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=20";
 import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=10";
 
 import { createRaceEffects } from "./touge-racing-effects.js?v=17";
-import { mountLobbyChat, mountRaceUI } from "./touge-racing-ui.js?v=19";
+import { mountLobbyChat, mountRaceUI } from "./touge-racing-ui.js?v=20";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();
@@ -24,6 +24,7 @@ function initialize(profile) {
   const ghostChoice = byId("ghost-choice");
   const start = byId("start"), pause = byId("pause"), resume = byId("resume"), retry = byId("retry");
   const courseGrid = byId("course-grid");
+  const spectator = byId("spectator-picker"), watchSelect = byId("spectator-target");
   const effects = createRaceEffects(game);
   const soundToggle = byId("race-sound");
   const SOUND_KEY = "historykids.tougeRacing.sound";
@@ -229,6 +230,10 @@ function initialize(profile) {
     return isActive() && !race?.cruising && !menuOpen;
   }
 
+  function cameraFocus() {
+    return race.watching ? Math.max(0, race.racers.findIndex(racer => racer.id === race.watching)) : 0;
+  }
+
   function showState(value) {
     state = value;
     setDirectoryActive(value === "setup" && mode === "online");
@@ -267,6 +272,7 @@ function initialize(profile) {
     race = null;
     previous?.scene?.dispose();
     effects.reset();
+    spectator.hidden = true;
     delete game.dataset.speedClass;
     delete game.dataset.cruising;
   }
@@ -299,7 +305,9 @@ function initialize(profile) {
       if (!mapContext) return;
       mapContext.clearRect(0, 0, map.width, map.height);
       mapContext.drawImage(mapBase, 0, 0);
-      for (let i = racers.length - 1; i >= 0; i--) drawMarker(racers[i], i === 0, mapContext);
+      const focus = cameraFocus();
+      for (let i = racers.length - 1; i >= 0; i--) if (i !== focus) drawMarker(racers[i], false, mapContext);
+      drawMarker(racers[focus], true, mapContext);
     };
     const speedClass = isOnline ? snapshot?.speedClass ?? DEFAULT_RACE_SPEED : selectedSpeed;
     const { label, scale } = RACE_SPEEDS[speedClass];
@@ -310,6 +318,7 @@ function initialize(profile) {
     showState("countdown");
     byId("map-title").textContent = track.name;
     byId("place-stat").hidden = isTrial;
+    byId("place-stat").setAttribute("aria-label", "現在の順位");
     byId("item-hud").hidden = isTrial && !track.turboCuts;
     byId("lap-total").textContent = " / " + LAPS;
     if (isTrial) byId("result-laps").hidden = true;
@@ -441,6 +450,7 @@ function initialize(profile) {
 
   function refreshHud() {
     const { player, racers, track, elapsed, remaining } = race;
+    const viewed = racers[cameraFocus()];
     const place = race.isTrial ? 1 : race.finishRank ?? race.snapshot?.rank ?? rankRacers(racers).indexOf(player) + 1;
     placeNumber.nodeValue = place;
     game.dataset.rank = String(place);
@@ -458,11 +468,11 @@ function initialize(profile) {
     byId("drift-label").hidden = !player.drifting;
     byId("drift-meter").value = player.driftCharge;
     const lap = race.isTrial ? Math.min(LAPS, player.lapEnds.length + 1)
-      : Math.min(LAPS, (track.terrain ? player.completedLaps ?? 0 : Math.floor(Math.max(0, player.distance) / track.length)) + 1);
+      : Math.min(LAPS, (track.terrain ? viewed.completedLaps ?? 0 : Math.floor(Math.max(0, viewed.distance) / track.length)) + 1);
     lapNumber.nodeValue = lap;
     if (race.isTrial) showLapTimes(lapHud, elapsed);
     time.textContent = formatTime(player.finishedAt ?? elapsed);
-    const kph = Math.round(player.speed * 3.6);
+    const kph = Math.round(viewed.speed * 3.6);
     speed.textContent = kph;
     speedBar.value = kph;
     const onRoad = !isRoughSurface(track, player);
@@ -498,7 +508,7 @@ function initialize(profile) {
     race.accumulator += dt;
     while (race.accumulator + 1e-9 >= STEP) {
       race.accumulator -= STEP;
-      player.input = input();
+      player.input = race.cruising ? EMPTY_INPUT : input();
       itemTap = false;
       if (race.isTrial) recordTrialInput(race.tape, player.input);
       const elapsed = race.ticks * STEP;
@@ -513,12 +523,19 @@ function initialize(profile) {
       if (!race.isTrial) {
         endLastRacer(racers);
         for (const racer of racers) cruiseAfterFinish(track, racer, STEP, race.scale);
-        if (!isDriving(player)) {
+        if (player.finishedAt !== null && !race.cruising) {
+          const key = bestKey(track.id, race.speedClass, false);
+          race.cpuRecord = player.finishedAt < bestTime(track.id, race.speedClass, false);
+          if (race.cpuRecord) save(key, String(player.finishedAt));
+          startCruise(rankRacers(racers).indexOf(player) + 1);
+        }
+        if (player.dnf || (race.cruising && (!racers.some(isDriving) || race.elapsed >= RACE_LIMIT))) {
           finishCPU();
           return;
         }
       }
     }
+    if (race.cruising) updateSpectators(racers.filter(isDriving), race.watching);
   }
 
   function tickOnline(dt, stamp) {
@@ -587,7 +604,7 @@ function initialize(profile) {
   function renderScene(dt, resetCamera) {
     const boxes = race.isOnline ? race.snapshot?.itemRespawns : race.items?.respawns;
     const projectiles = race.isOnline ? race.snapshot?.projectiles : race.items?.projectiles;
-    race.scene.render(state, dt, resetCamera, boxes, race.elapsed, projectiles);
+    race.scene.render(state, dt, resetCamera, boxes, race.elapsed, projectiles, cameraFocus());
   }
 
   function resize() {
@@ -646,9 +663,7 @@ function initialize(profile) {
 
   function finishCPU() {
     const { track, player, racers, speedClass } = race;
-    const prior = bestTime(track.id, speedClass, false);
-    const record = player.finishedAt !== null && player.finishedAt < prior;
-    if (record) save(bestKey(track.id, speedClass, false), String(player.finishedAt));
+    updateSpectators([]);
     byId("result-title").textContent = player.lastPlace ? "最下位確定" : "レース終了";
     byId("trial-submit").hidden = true;
     byId("result-place-line").hidden = false;
@@ -659,10 +674,9 @@ function initialize(profile) {
     if (place === 1) byId("result-title").textContent = "優勝！";
     byId("result-place").textContent = place;
     byId("result-field").textContent = racers.length;
-    if (player.finishedAt !== null) startCruise(place);
     byId("result-time").textContent = player.lastPlace ? "未完走" : formatTime(player.finishedAt);
-    byId("best-time").textContent = formatTime(record ? player.finishedAt : prior);
-    byId("record").hidden = !record;
+    byId("best-time").textContent = formatTime(bestTime(track.id, speedClass, false));
+    byId("record").hidden = !race.cpuRecord;
     byId("result-note").textContent = player.lastPlace ? "ほかの全員がゴールしたため、走行を終了したよ。" : "";
     retry.hidden = false;
     retry.disabled = false;
@@ -732,11 +746,29 @@ function initialize(profile) {
     if (output.textContent !== text) output.textContent = text;
   }
 
+  function updateSpectators(candidates, watching = null) {
+    const selected = watching && candidates.find(racer => racer.id === watching);
+    const roster = candidates.map(racer => racer.id).join(",");
+    const changed = race.spectatorRoster !== roster;
+    const next = selected?.id ?? null;
+    if (changed) {
+      watchSelect.replaceChildren(new Option("自分の車", ""),
+        ...candidates.map(racer => new Option(racer.name, racer.id)));
+      race.spectatorRoster = roster;
+    }
+    if (changed || next !== race.watching) watchSelect.value = next ?? "";
+    race.watching = next;
+    watchSelect.disabled = race.isOnline && !online?.joined;
+    spectator.hidden = !candidates.length;
+    if (race.cruising) setRaceMessage(selected ? selected.name + " を観戦中" : "ゴール！ 自動走行中");
+  }
+
   function startCruise(place) {
     if (race.cruising) return;
     race.cruising = true;
     race.finishRank = place;
     game.dataset.cruising = "true";
+    byId("place-stat").setAttribute("aria-label", "自分の最終順位");
     clearInput();
     effects.finish({ winner: place === 1 });
     setRaceMessage("ゴール！ 自動走行中");
@@ -762,6 +794,7 @@ function initialize(profile) {
     const first = state !== "finished";
     const ordered = rankRacers(snapshot.racers);
     if (first) {
+      updateSpectators([]);
       for (const racer of race.racers) Object.assign(racer, race.targets.get(racer.id));
       const place = ordered.findIndex(racer => racer.id === id) + 1;
       race.finishRank = place;
@@ -854,7 +887,7 @@ function initialize(profile) {
       const own = race.targets.get(id);
       if (own?.finishedAt != null) {
         startCruise(snapshot.rank);
-        setRaceMessage("ゴール！ 自動走行中");
+        updateSpectators(snapshot.spectators ?? [], snapshot.watching);
       }
       if (snapshot.phase !== state) showState(snapshot.phase);
     }
@@ -891,6 +924,7 @@ function initialize(profile) {
     online = new OnlineRace(code, { ...request, name: profile }, {
       status(message) {
         lobbyChat.disconnect();
+        if (message && !spectator.hidden) watchSelect.disabled = true;
         byId("lobby-message").textContent = message;
         if (race) setRaceMessage(message);
         if (state === "finished" && message) byId("result-note").textContent = message;
@@ -948,6 +982,12 @@ function initialize(profile) {
   byId("online-start").addEventListener("click", () => {
     effects.setSound(soundToggle.checked);
     online?.start();
+  });
+  watchSelect.addEventListener("change", () => {
+    if (!race?.cruising) return;
+    const id = watchSelect.value || null;
+    if (!race.isOnline) updateSpectators(race.racers.filter(isDriving), id);
+    else if (!online?.watch(id)) watchSelect.value = race.watching ?? "";
   });
   byId("leave-lobby").addEventListener("click", () => { leaveOnline(); setupScreen(); });
   pause.addEventListener("click", togglePause);

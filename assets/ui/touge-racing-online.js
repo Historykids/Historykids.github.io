@@ -57,7 +57,7 @@ export class OnlineRace {
       this.timeout = setTimeout(() => socket.close(), 5500);
       socket.addEventListener("open", () => {
         const message = this.token ? { type: "resume", token: this.token } : this.request;
-        this.send({ ...message, protocol: RACE_PROTOCOL, speedClasses: true, freeDrive: true });
+        this.send({ ...message, protocol: RACE_PROTOCOL, speedClasses: true, freeDrive: true, spectator: true });
       });
       socket.addEventListener("message", event => this.message(socket, event.data));
       socket.addEventListener("close", () => this.disconnected(socket));
@@ -127,6 +127,12 @@ export class OnlineRace {
 
   start() {
     this.send({ type: "start" });
+  }
+
+  watch(id) {
+    if (!this.joined || this.phase !== "racing") return false;
+    this.send({ type: "watch", id });
+    return true;
   }
 
   chat(preset) {

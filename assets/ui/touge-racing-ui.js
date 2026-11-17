@@ -118,6 +118,10 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
           <div class="countdown" id="countdown" role="status" hidden></div>
           <span class="impact" id="impact" hidden>接触！</span>
           <div class="race-message" id="race-message" role="status"></div>
+          <div class="spectator-picker" id="spectator-picker" hidden>
+            <label for="spectator-target">観戦するプレイヤー</label>
+            <select id="spectator-target"><option value="">自分の車</option></select>
+          </div>
           <div class="touch-controls" aria-label="タッチ操作">
             <div class="control-group">
               <button type="button" data-input="left" aria-label="左に曲がる">‹</button>

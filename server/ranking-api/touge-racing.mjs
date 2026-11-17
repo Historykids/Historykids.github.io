@@ -37,7 +37,7 @@ export async function racingRequest(request, env, reply) {
       protocol: RACE_PROTOCOL, capacity: null, minimumPlayers: MIN_ROOM_PLAYERS,
       shortcuts: true, turboCuts: true, freeDrive: true, trialLaps: LAPS, trialProtocol: TRIAL_PROTOCOL,
       itemRespawnSeconds: ITEM_RESPAWN_SECONDS, pulseMode: "projectile",
-      lobbyChat: true, finishCruise: true, lastPlaceCutoff: true,
+      lobbyChat: true, finishCruise: true, lastPlaceCutoff: true, spectatorMode: true,
       speedClasses: Object.keys(RACE_SPEEDS), tracks: TRACKS.map(track => track.id)
     });
   }
@@ -147,6 +147,14 @@ export class RaceRoom {
     const record = peer.record;
     if (message.type === "leave") return this.leave(peer);
     if (message.type === "ping") return;
+    if (message.type === "watch") {
+      if (this.phase !== "racing" || !record.spectator || record.racer?.finishedAt == null) return;
+      if (message.id === null) record.watching = null;
+      else if (typeof message.id === "string" && this.racers.some(racer => racer.id === message.id && isDriving(racer))) {
+        record.watching = message.id;
+      }
+      return;
+    }
     if (message.type === "chat") {
       if (this.phase !== "lobby" || lobbyChatText(message.preset) === null ||
           now - (record.chatAt ?? -Infinity) < LOBBY_CHAT_COOLDOWN) return;
@@ -213,6 +221,7 @@ export class RaceRoom {
     }
     if (record.peer) this.reject(record.peer, "replaced");
     record.peer = peer;
+    record.spectator = message.spectator === true;
     peer.record = record;
     this.activityAt = now;
     this.send(peer, { type: "joined", id: record.id, token: record.token, ack: record.ack });
@@ -227,6 +236,7 @@ export class RaceRoom {
     this.items = this.track.region ? createRaceItems(this.track) : null;
     this.racers = [...this.players.values()].sort((a, b) => a.slot - b.slot).map((record, gridSlot) => {
       record.racer = createRacer(gridSlot, { id: record.id, name: record.name, grid: true });
+      record.watching = null;
       record.inputAt = now;
       return record.racer;
     });
@@ -287,6 +297,14 @@ export class RaceRoom {
       for (const record of this.players.values()) this.send(record.peer, message);
       return;
     }
+    const active = new Map(this.racers.filter(isDriving).map(racer => [racer.id, racer]));
+    let spectators;
+    const view = record => {
+      if (this.phase !== "racing" || !record.spectator || record.racer.finishedAt === null) return {};
+      spectators ??= Array.from(active.values(), ({ id, name }) => ({ id, name }));
+      if (!active.has(record.watching)) record.watching = null;
+      return { spectators, watching: record.watching };
+    };
     if (this.track.terrain) {
       const positions = new Map(ordered.map(racer => [racer.id, racerWorldPosition(this.track, racer)]));
       const projectiles = (this.items?.projectiles ?? []).map(({ ownerId, ...pulse }) => ({
@@ -294,11 +312,14 @@ export class RaceRoom {
       }));
       for (const record of this.players.values()) {
         if (!record.peer) continue;
-        const own = positions.get(record.id);
-        const gap = point => (point.x - own.x) ** 2 + (point.z - own.z) ** 2;
-        const rivals = ordered.filter(racer => racer.id !== record.id)
-          .sort((a, b) => gap(positions.get(a.id)) - gap(positions.get(b.id))).slice(0, VISIBLE_RIVALS);
-        this.send(record.peer, { ...snapshot, rank: ranks.get(record.id), racers: [record.racer, ...rivals].map(wire),
+        const options = view(record);
+        const focus = positions.get(options.watching ?? record.id);
+        const gap = point => (point.x - focus.x) ** 2 + (point.z - focus.z) ** 2;
+        const rivals = ordered.filter(racer => racer.id !== record.id && racer.id !== options.watching)
+          .sort((a, b) => gap(positions.get(a.id)) - gap(positions.get(b.id)))
+          .slice(0, VISIBLE_RIVALS - Number(!!options.watching));
+        if (options.watching) rivals.unshift(active.get(options.watching));
+        this.send(record.peer, { ...snapshot, ...options, rank: ranks.get(record.id), racers: [record.racer, ...rivals].map(wire),
           projectiles: projectiles.filter(({ point }) => gap(point) < 365 ** 2).map(({ pulse }) => pulse) });
       }
       return;
@@ -313,9 +334,12 @@ export class RaceRoom {
     const indices = new Map(nearby.map((racer, index) => [racer.data.id, index]));
     for (const record of this.players.values()) {
       if (!record.peer) continue;
-      const index = indices.get(record.id);
+      const options = view(record);
+      const own = indices.get(record.id);
+      const index = indices.get(options.watching ?? record.id);
       const count = nearby.length;
-      const local = [nearby[index].data];
+      const local = [nearby[own].data];
+      if (index !== own) local.push(nearby[index].data);
       let left = 1, right = 1;
       while (local.length < Math.min(count, VISIBLE_RIVALS + 1)) {
         const low = nearby[(index - left + count) % count];
@@ -323,10 +347,10 @@ export class RaceRoom {
         const backward = (nearby[index].progress - low.progress + length) % length;
         const forward = (high.progress - nearby[index].progress + length) % length;
         if (backward < forward) {
-          local.push(low.data);
+          if (low.data.id !== record.id) local.push(low.data);
           left++;
         } else {
-          local.push(high.data);
+          if (high.data.id !== record.id) local.push(high.data);
           right++;
         }
       }
@@ -334,7 +358,7 @@ export class RaceRoom {
         const gap = position - nearby[index].progress;
         return Math.abs(gap - Math.round(gap / length) * length) < 365;
       }).map(({ pulse: { ownerId, ...shot } }) => shot);
-      this.send(record.peer, { ...snapshot, rank: ranks.get(record.id), racers: local, projectiles });
+      this.send(record.peer, { ...snapshot, ...options, rank: ranks.get(record.id), racers: local, projectiles });
     }
   }
 

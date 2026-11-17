@@ -937,6 +937,36 @@ body { background: radial-gradient(ellipse at 82% -5%, #293c61 0%, #101827 58%);
   text-shadow: 0 2px #121e34;
 }
 .game[data-race-finish][data-state="racing"] .race-message { border-color: #8ee8ff; }
+.spectator-picker {
+  position: absolute;
+  left: max(.75rem, env(safe-area-inset-left));
+  bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 5.6rem);
+  display: grid;
+  gap: .28rem;
+  width: min(16rem, 67vw);
+  padding: .55rem .65rem;
+  pointer-events: auto;
+  background: #111e2bef;
+  border: 1px solid #8de9ff54;
+  border-radius: 8px;
+}
+.spectator-picker label { color: var(--ice); font-size: .75rem; font-weight: 800; }
+.spectator-picker select {
+  width: 100%;
+  padding: .4rem;
+  color: var(--text);
+  background: #192e3d;
+  border: 1px solid #87a9ba;
+  border-radius: 5px;
+  font: inherit;
+}
+@media (any-pointer: coarse) {
+  .game[data-cruising] .speedometer {
+    left: max(.75rem, env(safe-area-inset-left));
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    transform: none;
+  }
+}
 .game[data-cruising] :is(.item-hud, .touch-controls, #shortcut-hint, #impact),
 .game[data-cruising][data-state="finished"] :is(.speedometer, .pause) { display: none; }
 .game[data-cruising] #result {

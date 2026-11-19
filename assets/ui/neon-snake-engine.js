@@ -69,15 +69,31 @@
   point(limit=this.radius-130){const a=this.random()*TAU,r=Math.sqrt(this.random())*limit;return{x:Math.cos(a)*r,y:Math.sin(a)*r};}
   spawn(bot,name,skinId){let p=bot?this.point():{x:0,y:0};for(let n=0;n<60&&this.snakes.some(s=>s.alive&&(distance(s,p)<320||s.body.some((b,i)=>i%12===0&&distance(b,p)<100)));n++)p=this.point(bot?this.radius-130:this.radius*.4);const a=bot?this.random()*TAU:-Math.PI/2,mass=0,length=bodyLength(mass),body=[];for(let n=0;n<length;n+=BODY_STEP)body.push({x:p.x-Math.cos(a)*n,y:p.y-Math.sin(a)*n});const s={id:this.nextId++,bot,name,skin:skinId,x:p.x,y:p.y,angle:a,mass,radius:bodyRadius(mass),body,alive:true,boost:false,age:0,thinkAt:0,target:null,respawnAt:0,input:{x:0,y:0,boost:false},stats:null};if(!bot)s.stats={id:String(this.seed)+'-'+s.id+'-'+this.random(),food:0,kills:0,seconds:0,best:mass,peakRank:99,rank:99};this.snakes.push(s);return s;}
   addFood(drop){
-   if(this.food.length>=FOOD_LIMIT)return;
+   if(!drop&&this.food.length>=FOOD_LIMIT)return;
    const position=drop||this.point();
    const bonus=!drop&&this.random()<1/50;
-   this.food.push({
+   const pellet={
     id:this.nextFood++,x:position.x,y:position.y,
-    value:position.value||(bonus?9:2+this.random()*4),
+    value:position.value??(bonus?9:2+this.random()*4),
     color:position.color??(bonus?2:Math.floor(this.random()*6)),
     rich:!!drop||bonus,expiresAt:drop?this.time+85:null,dead:false
-   });
+   };
+   if(this.food.length<FOOD_LIMIT){this.food.push(pellet);return;}
+   let nearest=0,best=Infinity;
+   for(let i=0;i<this.food.length;i++){
+    const food=this.food[i];
+    if(food.dead||food.expiresAt!=null&&food.expiresAt<=this.time){nearest=i;break;}
+    const gap=(food.x-pellet.x)**2+(food.y-pellet.y)**2;
+    if(gap<best){best=gap;nearest=i;}
+   }
+   const prior=this.food[nearest];
+   if(!prior.dead&&(prior.expiresAt==null||prior.expiresAt>this.time)){
+    pellet.value+=prior.value;
+    pellet.expiresAt=prior.expiresAt==null?null:Math.max(prior.expiresAt,pellet.expiresAt);
+   }
+   // Replacing the ID also updates online clients and invalidates the old collision-grid entry.
+   prior.dead=true;
+   this.food[nearest]=pellet;
   }
   rebuild(){this.foodGrid=new Grid(110);for(const f of this.food)if(!f.dead)this.foodGrid.add(f.x,f.y,f);this.bodyGrid=new Grid(85);for(const s of this.snakes)if(s.alive&&s.age>=3)for(let i=0;i<s.body.length;i+=2){const p=curve(s,i,this.time);this.bodyGrid.add(p.x,p.y,{snake:s,x:p.x,y:p.y,index:i});}}
   aim(s){
@@ -97,7 +113,20 @@
    if(danger>.08){if(this.time>=(s.avoidUntil||0)){s.avoidSign=side>=0?-1:1;s.avoidUntil=this.time+.7;}const escape=s.angle+s.avoidSign*Math.PI/2;ax+=Math.cos(escape)*danger*4;ay+=Math.sin(escape)*danger*4;}
    return Math.atan2(ay,ax);
   }
-  kill(s,killer,reason){if(!s.alive)return;s.alive=false;s.respawnAt=this.time+3+this.random()*3;const count=Math.min(160,s.body.length),stride=Math.max(1,Math.floor(s.body.length/count));for(let i=0;i<s.body.length;i+=stride){const p=s.body[i];this.addFood({x:p.x+(this.random()-.5)*22,y:p.y+(this.random()-.5)*22,value:clamp(s.mass/count*.65,3,24),color:skins.findIndex(k=>k.id===s.skin)%6});}if(killer?.stats){killer.stats.kills++;this.events.push({type:'kill',playerId:killer.id,name:s.name});}if(s.stats){s.stats.rank=this.rankOf(s);this.events.push({type:'end',playerId:s.id,reason:reason||(killer?'ほかのヘビにぶつかった！':'アリーナの外に出た！')});}if(!this.multiplayer&&s===this.player)this.ended=true;}
+  dropRemains(s){
+   const mass=Math.max(0,s.mass);
+   if(mass===0)return;
+   const count=Math.min(160,Math.max(1,s.body.length),Math.ceil(mass));
+   const value=Math.floor(mass/count);
+   const color=skins.findIndex(skin=>skin.id===s.skin)%6;
+   for(let i=0;i<count;i++){
+    const p=s.body[Math.floor(i*s.body.length/count)]||s;
+    const x=p.x+(this.random()-.5)*22,y=p.y+(this.random()-.5)*22;
+    const scale=Math.min(1,(this.radius-35)/(Math.hypot(x,y)||1));
+    this.addFood({x:x*scale,y:y*scale,value:i===count-1?mass-value*(count-1):value,color});
+   }
+  }
+  kill(s,killer,reason){if(!s.alive)return;s.alive=false;s.respawnAt=this.time+3+this.random()*3;this.dropRemains(s);if(killer?.stats){killer.stats.kills++;this.events.push({type:'kill',playerId:killer.id,name:s.name});}if(s.stats){s.stats.rank=this.rankOf(s);this.events.push({type:'end',playerId:s.id,reason:reason||(killer?'ほかのヘビにぶつかった！':'アリーナの外に出た！')});}if(!this.multiplayer&&s===this.player)this.ended=true;}
   ranking(){return this.snakes.filter(s=>s.alive||!this.multiplayer&&s===this.player).sort((a,b)=>b.mass-a.mass||a.id-b.id);}
   rankOf(s){return 1+this.snakes.filter(other=>other!==s&&other.alive&&(other.mass>s.mass||other.mass===s.mass&&other.id<s.id)).length;}
   remove(s){this.snakes=this.snakes.filter(other=>other!==s);}

@@ -1,6 +1,38 @@
 const assert=require('node:assert/strict'),{fixture,flush}=require('./neon-snake-harness.cjs');let checks=0;const test=async(n,f)=>{await f();checks++;console.log('PASS',n);};
 async function client(h,name='Alice',room='1',resume){const socket=new h.Socket('wss://api.example/snake/socket?room='+room),messages=[];socket.addEventListener('message',e=>messages.push(JSON.parse(e.data)));await flush();socket.send(JSON.stringify({type:'join',protocol:h.protocol,name,skin:'mint',...(resume?{resume}:{})}));await flush();return{socket,messages,get joined(){return messages.find(m=>m.type==='joined');},get state(){return messages.filter(m=>m.type==='state').at(-1);},input(x,y,seq=1,extra={}){socket.send(JSON.stringify({type:'input',seq,x,y,boost:false,...extra}));}};}
 (async()=>{
+await test('online death drops preserve the current mass and update merged food IDs for a surviving client',async()=>{
+ const h=await fixture();
+ try{
+  const victim=await client(h,'Victim'),observer=await client(h,'Observer'),room=h.room(),arena=room.arena;
+  const dying=room.sessions.get(victim.joined.token).snake;
+  arena.food=[];
+  for(let i=0;i<globalThis.HKNeonSnake.FOOD_LIMIT;i++){
+   arena.addFood({x:100+i%40*4,y:100+Math.floor(i/40)*4,value:2,color:0});
+  }
+  const surviving=room.sessions.get(observer.joined.token).snake;
+  surviving.x=0;surviving.y=0;
+  room.snapshot(observer.socket.peer,true);
+  await flush();
+  const seen=new Map(observer.state.foodAdd.map(food=>[food[0],food]));
+  const before=[...seen.values()].reduce((sum,food)=>sum+food[3],0);
+  dying.mass=30000.125;
+  dying.stats.best=90000;
+  dying.body=Array.from({length:160},(_,i)=>({x:100+i*2,y:200}));
+  room.finish(room.sessions.get(victim.joined.token),'test death');
+  room.snapshot(observer.socket.peer);
+  await flush();
+  for(const id of observer.state.foodRemove)seen.delete(id);
+  for(const food of observer.state.foodAdd)seen.set(food[0],food);
+  assert.equal([...seen.values()].reduce((sum,food)=>sum+food[3],0),before+30000.125);
+  assert.equal(seen.size,arena.food.length);
+  assert(observer.state.foodRemove.length>0);
+  assert.equal(room.status().deathDrop,'current-mass-v1');
+  assert.equal(victim.messages.filter(m=>m.type==='result').length,1);
+  assert(surviving.alive);
+  assert(JSON.stringify(observer.state).length<300000,'The food update fits the browser transport limit');
+ }finally{h.close();}
+});
 await test('two independent online clients share one authoritative arena and exactly five CPUs',async()=>{const h=await fixture();try{const a=await client(h,'Alice'),b=await client(h,'Bob');await h.step(4);assert.notEqual(a.joined.playerId,b.joined.playerId);assert.equal(a.state.humans,2);assert.equal(b.state.humans,2);assert.equal(a.state.cpu,5);assert.equal(h.room().arena.snakes.filter(s=>s.bot).length,5);assert.deepEqual(a.state.positions,b.state.positions);assert(a.state.board.some(s=>s.name==='Bob'&&!s.bot));assert(b.state.board.some(s=>s.name==='Alice'&&!s.bot));const snake=h.room().sessions.get(a.joined.token).snake,before=snake.x;a.input(1,0);await flush();await h.step(18);assert(snake.x>before+50);assert(a.state.positions.some(p=>p[0]===snake.id&&Math.abs(p[1]-snake.x)<7));}finally{h.close();}});
 await test('keyboard intents turn quickly and forged coordinates, scores and boost speeds are rejected',async()=>{const h=await fixture();try{const a=await client(h),s=h.room().sessions.get(a.joined.token).snake;a.input(1,0);await flush();await h.step(6);assert(Math.abs(s.angle)<.06);const before=s.mass;a.input(0,1,2,{soldiers:999999999,xPosition:900});await flush();assert.equal(a.socket.readyState,3);assert.equal(s.mass,before);assert(!a.messages.some(m=>m.type==='result'&&m.stats.best===999999999));}finally{h.close();}});
 await test('a short keyboard tap is retained even if keyup arrives before the next simulation tick',async()=>{const h=await fixture();try{const a=await client(h),s=h.room().sessions.get(a.joined.token).snake;a.input(1,0,1);a.input(0,0,2);await flush();await h.step(7);assert(Math.abs(s.angle)<.02);assert(s.x>10);}finally{h.close();}});

@@ -1,6 +1,46 @@
 const assert=require('node:assert/strict'),E=require('../assets/ui/neon-snake-engine.js');let checks=0;
 const test=(name,f)=>{f();checks++;console.log('PASS',name);};
 test('food grows a snake once and increases its actual score',()=>{const a=new E.Arena({seed:1,bots:0,foodTarget:0});a.food=[{x:a.player.x,y:a.player.y,value:12,color:0,born:0}];const before=a.player.mass;a.step(1/60);assert.equal(a.stats.food,1);assert.equal(a.player.mass,before+12);a.step(1/60);assert.equal(a.stats.food,1);assert.equal(a.stats.best,12);});
+test('death drops exactly the current mass, including small snakes and fractional boost remainders',()=>{
+ for(const mass of [0,.125,1,159,160,161,10000,30000,30000.125,100000000]){
+  const a=new E.Arena({seed:16,bots:0,foodTarget:0,multiplayer:true});
+  const victim=a.spawn(false,'Victim','mint');
+  victim.mass=mass;
+  victim.stats.best=1000000000;
+  victim.body=Array.from({length:700},(_,i)=>({x:-i*4,y:0}));
+  a.kill(victim,null);
+  assert.equal(a.food.reduce((sum,f)=>sum+f.value,0),mass);
+  assert(a.food.length<=160);
+  assert(a.food.every(f=>f.value>0&&Math.hypot(f.x,f.y)<=a.radius-35+.001));
+  const count=a.food.length;
+  a.kill(victim,null);
+  assert.equal(a.food.length,count,'Repeated death cannot drop the same mass twice');
+  if(!mass)continue;
+  const eater=a.spawn(false,'Collector','mint');
+  eater.x=-5;eater.y=0;eater.angle=0;
+  for(const f of a.food){f.x=0;f.y=0;}
+  a.step(1/30,{});
+  assert.equal(eater.mass,mass,'The collected remains restore the exact length');
+  assert.equal(a.food.length,0);
+ }
+});
+test('a full arena preserves all existing food plus each new corpse without exceeding the pellet limit',()=>{
+ const a=new E.Arena({seed:23,bots:0,foodTarget:0,multiplayer:true});
+ for(let i=0;i<E.FOOD_LIMIT;i++)a.addFood({x:(i%50)*12,y:Math.floor(i/50)*12,value:2,color:0});
+ const prior=a.food.slice(),before=prior.reduce((sum,f)=>sum+f.value,0);
+ const first=a.spawn(false,'First','mint');
+ first.mass=30000;
+ a.kill(first,null);
+ assert.equal(a.food.length,E.FOOD_LIMIT);
+ assert.equal(a.food.reduce((sum,f)=>sum+f.value,0),before+30000);
+ assert(prior.some(f=>f.dead),'Merged grid entries cannot still be consumed separately');
+ const second=a.spawn(false,'Second','mint');
+ second.mass=10000.125;
+ a.kill(second,null);
+ assert.equal(a.food.length,E.FOOD_LIMIT);
+ assert.equal(a.food.reduce((sum,f)=>sum+f.value,0),before+40000.125);
+ assert.equal(new Set(a.food.map(f=>f.id)).size,a.food.length);
+});
 test('shared heading physics turns responsively and boost costs length with a floor',()=>{const normal=new E.Arena({seed:3,bots:0}),boost=new E.Arena({seed:3,bots:0});normal.food=Array.from({length:1250},()=>({x:100000,y:100000,value:2,color:0,born:0}));boost.food=normal.food.map(f=>({...f}));normal.player.mass=boost.player.mass=180;const start={x:normal.player.x,y:normal.player.y};for(let i=0;i<60;i++){normal.step(1/60,{angle:0});boost.step(1/60,{angle:0,boost:true});}assert(boost.player.x>normal.player.x);assert(boost.player.mass<normal.player.mass);boost.player.mass=0;
  boost.step(1/30,{boost:true});
  assert.equal(boost.player.boost,false);

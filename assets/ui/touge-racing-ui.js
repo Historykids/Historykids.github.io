@@ -1,4 +1,4 @@
-import { LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, LOBBY_EMOJIS, LOBBY_PHRASES, lobbyChatText } from "./touge-racing-rules.mjs?v=19";
+import { LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, LOBBY_EMOJIS, LOBBY_PHRASES, lobbyChatText } from "./touge-racing-rules.mjs?v=21";
 
 export function mountRaceUI(root, showRankings, difficulties, laps) {
   const lapRows = showRankings ? Array.from({ length: laps }, (_, index) =>
@@ -12,7 +12,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
             <p class="course"><span class="checker" aria-hidden="true"></span> 峠レーシング 3D</p>
             <h1 id="game-title"></h1>
           </div>
-          <p class="keyboard">↑↓←→ / WASD　Shiftでドリフト　Spaceでアイテム</p>
+          <p class="keyboard">↑↓←→ / WASD　Shift ドリフト　Space アイテム　J ジャンプ</p>
           <p class="touch-hint">操作　画面のボタン</p>
         </div>
         <section id="online-entry" class="online-entry" aria-labelledby="entry-title" hidden>
@@ -35,10 +35,11 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
               <button class="primary" id="start" type="button" disabled>CPUと対戦する →</button>
             </div>
           </div>
-          <div id="course-grid" class="course-grid" aria-label="全10コース"></div>
+          <p class="new-course-announcement">新コース3つが登場 <span>雲海アルプス・ドバイ・ハワイ</span></p>
+          <div id="course-grid" class="course-grid" aria-label="全13コース"></div>
         </section>
         <div class="race-preferences">
-          <p class="control-tip" id="race-tip">ドリフトを続けて離すと加速。草地や砂地は減速するけど、ターボ中なら加速したまま横切れるよ。ミニマップの点を順に通ろう。</p>
+          <p class="control-tip" id="race-tip">左右の操作でカーブを曲がろう。青い台でジャンプし、空中でJを押すと着地ブースト。草地はターボで横切ろう。</p>
           <label class="race-sound"><input id="race-sound" type="checkbox"> 効果音</label>
         </div>
       </section>
@@ -117,6 +118,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
           </div>
           <div class="countdown" id="countdown" role="status" hidden></div>
           <span class="impact" id="impact" hidden>接触！</span>
+          <span class="jump-status" id="jump-status" role="status" hidden></span>
           <div class="race-message" id="race-message" role="status"></div>
           <div class="spectator-picker" id="spectator-picker" hidden>
             <label for="spectator-target">観戦するプレイヤー</label>
@@ -129,6 +131,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
             </div>
             <div class="control-group control-pedals">
               <button type="button" data-input="item" aria-label="アイテムを使う">アイテム</button>
+              <button type="button" data-input="jump">ジャンプ</button>
               <button type="button" data-input="drift">ドリフト</button>
               <button type="button" data-input="brake">ブレーキ</button>
               <button type="button" data-input="gas">アクセル</button>

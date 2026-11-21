@@ -1,7 +1,7 @@
 import { getTrack } from "../../assets/ui/touge-racing-tracks.mjs";
 import {
   DEFAULT_RACE_SPEED, isRaceSpeed, MAIN_ROAD_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL, replayTrial, ROOM_CODE,
-  SHORTCUT_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain
+  SHORTCUT_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, TRIAL_PROTOCOL, ASSISTED_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain
 } from "../../assets/ui/touge-racing-rules.mjs";
 
 const ROOM_TTL = 40000;
@@ -105,7 +105,7 @@ export class TougeRaceHub {
   submit(run) {
     const freeDrive = usesTrialTerrain(run?.protocol);
     const total = freeDrive || [TURBO_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, MAIN_ROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL].includes(run?.protocol);
-    const track = getTrack(run?.track, { classic: !total, freeDrive });
+    const track = getTrack(run?.track, { classic: !total, freeDrive, manualDrive:run?.protocol===TRIAL_PROTOCOL });
     const speedClass = run?.speedClass ?? DEFAULT_RACE_SPEED;
     const name = cleanRacerName(run?.name);
     if (!track || !isRaceSpeed(speedClass) || !name || !PLAYER_KEY.test(run?.player ?? "") || typeof run.protocol !== "string") {
@@ -150,8 +150,8 @@ export class TougeRaceHub {
       const stored = leader?.tape ? JSON.parse(leader.tape) : null;
       const run = Array.isArray(stored) ? { protocol: MAIN_ROAD_TRIAL_PROTOCOL, tape: stored } : stored;
       const clientReplay = url.searchParams.get("replay");
-      const replayVersion = ["5", "6", "7", "8", "9"].includes(clientReplay) ? Number(clientReplay) : 4;
-      const requiredVersion = run?.protocol === TRIAL_PROTOCOL ? 9 : run?.protocol === TERRAIN_TRIAL_PROTOCOL ? 8 :
+      const replayVersion = ["5", "6", "7", "8", "9", "10"].includes(clientReplay) ? Number(clientReplay) : 4;
+      const requiredVersion = run?.protocol === TRIAL_PROTOCOL ? 10 : run?.protocol === ASSISTED_TRIAL_PROTOCOL ? 9 : run?.protocol === TERRAIN_TRIAL_PROTOCOL ? 8 :
         run?.protocol === TURBO_TRIAL_PROTOCOL ? 7 : run?.protocol === OFFROAD_TRIAL_PROTOCOL ? 6 :
         run?.protocol === SHORTCUT_TRIAL_PROTOCOL ? 5 : 4;
       const supported = replayVersion >= requiredVersion;

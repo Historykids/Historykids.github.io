@@ -1,4 +1,4 @@
-import { buildTerrain, terrainPoint } from "./touge-racing-terrain.mjs?v=17";
+import { buildTerrain, terrainPoint } from "./touge-racing-terrain.mjs?v=21";
 
 export const LAPS = 3;
 export const PAD_LENGTH = 9;
@@ -68,12 +68,23 @@ const worldCourses = [
   ["alpine", "南島・アルパイン峡谷", "ニュージーランド", "湖沿いのワイドな入口から、峡谷のつづら折りへ。", "上級", "highland", 7.5,
     [[-96,71],[-54,69],[-6,65],[36,80],[82,79],[121,60],[141,25],[114,1],[80,15],[52,-1],[74,-33],[106,-52],[81,-81],[34,-80],[-1,-55],[-42,-71],[-82,-80],[-124,-58],[-135,-21],[-109,6],[-129,33],[-122,54]], [.1,.57,.89]]
 ];
+worldCourses.push(
+  ["cloudpass", "雲海アルプス・スカイ峠", "スイス", "雲の上の稜線と大きなアップダウン。青いジャンプ台から空へ。", "上級", "highland", 10,
+    [[-110,65],[-55,65],[8,80],[70,65],[120,30],[130,-15],[88,-43],[45,-20],[8,-55],[-45,-80],[-110,-55],[-145,-10],[-130,35]], [.12,.47,.81]],
+  ["dunefly", "ドバイ・サンセットフライウェイ", "UAE", "砂丘を見下ろす高架道路。連続ジャンプと高速コーナーをつなごう。", "中級", "desert", 11,
+    [[-125,65],[-55,65],[15,65],[90,62],[140,30],[135,-25],[90,-60],[20,-70],[-40,-55],[-95,-70],[-145,-30],[-150,20]], [.1,.43,.76]],
+  ["lavacoast", "ハワイ・溶岩ジャンプトレイル", "ハワイ", "溶岩の谷と海を望む急坂。大ジャンプで稜線を飛び越えよう。", "上級", "volcano", 10.5,
+    [[-115,70],[-55,70],[5,58],[65,78],[125,48],[140,5],[105,-25],[60,-5],[35,-45],[-10,-80],[-65,-70],[-125,-50],[-145,-5],[-132,40]], [.13,.5,.83]]
+);
+const newCourses = new Set(["cloudpass", "dunefly", "lavacoast"]);
 export const TRACKS = worldCourses.map(([id, name, region, description, difficulty, theme, halfWidth, points, boostFractions]) =>
-  ({ id, name, region, description, difficulty, theme, colors: palettes[theme], halfWidth, points, boostFractions }));
+  ({ id, name, region, description, difficulty, theme, colors: palettes[theme], halfWidth, points, boostFractions,
+    newCourse: newCourses.has(id) }));
 
 const circuitLengths = {
   fuji: 2650, amalfi: 2500, paris: 2600, iceland: 2600, giza: 2750,
-  monument: 2700, rio: 2600, singapore: 2500, sydney: 2700, alpine: 2550
+  monument: 2700, rio: 2600, singapore: 2500, sydney: 2700, alpine: 2550,
+  cloudpass: 2800, dunefly: 2850, lavacoast: 2750
 };
 const mix = (a, b, t) => a + (b - a) * t;
 // Entry and exit as fractions of the lap, followed by the side of the road.
@@ -81,7 +92,7 @@ const shortcutSections = {
   fuji: [.36, .53, -1], amalfi: [.36, .51, 1], paris: [.32, .49, -1],
   iceland: [.36, .52, 1], giza: [.30, .47, -1], monument: [.26, .42, -1],
   rio: [.74, .90, -1], singapore: [.44, .61, -1], sydney: [.28, .44, -1],
-  alpine: [.46, .63, -1]
+  alpine: [.46, .63, -1], cloudpass: [.3,.46,-1], dunefly: [.3,.45,1], lavacoast: [.35,.51,-1]
 };
 export const SHORTCUT_COLOR = "#f8bf55";
 
@@ -149,16 +160,31 @@ export function racerWorldPosition(track, racer, out) {
   return p;
 }
 
+export function rampHeight(track, racer) {
+  if (!track.manualDrive || !racer.onAsphalt && racer.free) return 0;
+  const position = lapDistance(track, racer.distance);
+  for (const ramp of track.ramps) {
+    const t = (position - ramp.distance) / ramp.length;
+    if (t >= 0 && t <= 1 && Math.abs(racer.lane - ramp.lane) < ramp.halfWidth) return t * ramp.height;
+  }
+  return 0;
+}
+
+export function roadHeight(track, distance) {
+  const p = track.sample(distance);
+  return track.heightAt?.(p.x, p.z) ?? 0;
+}
+
 export function driveSample(track, distance, shortcut, out) {
   if (!shortcut || !track.shortcut) return track.sample(distance, out);
   return track.shortcut.sample((lapDistance(track, distance) - track.shortcut.from) / track.shortcut.ratio, out);
 }
 
 const cached = new Map();
-export function getTrack(id, { classic = false, shortcuts = !classic, offroad = shortcuts, turboCuts = offroad, freeDrive = false } = {}) {
+export function getTrack(id, { classic = false, shortcuts = !classic, offroad = shortcuts, turboCuts = offroad, freeDrive = false, manualDrive = false } = {}) {
   const spec = TRACKS.find(track => track.id === id) ?? LEGACY_TRACKS.find(track => track.id === id);
   if (!spec) return null;
-  const key = id + (classic ? ":classic" : freeDrive ? ":terrain" : shortcuts ? (turboCuts ? ":turbo" : offroad ? ":offroad" : ":shortcuts") : ":main");
+  const key = id + (classic ? ":classic" : freeDrive ? ":terrain" : shortcuts ? (turboCuts ? ":turbo" : offroad ? ":offroad" : ":shortcuts") : ":main") + (manualDrive ? ":manual" : "");
   if (cached.has(key)) return cached.get(key);
 
   const { points } = spec;
@@ -222,6 +248,11 @@ export function getTrack(id, { classic = false, shortcuts = !classic, offroad = 
   const outline = Array.from({ length: 100 }, (_, i) => sample(length * i / 100));
   const itemLines = (layoutScale > 1 ? [.065, .20, .335, .47, .61, .75, .885] : [.22, .58, .93]).map(portion => length * portion);
   const track = { ...spec, length, layoutScale, sample, samples, pads, outline, itemLines, padLength: PAD_LENGTH, padHalfWidth: PAD_HALF_WIDTH };
+  track.manualDrive = manualDrive && !classic && freeDrive && Object.hasOwn(shortcutSections,id);
+  const amplitude = spec.newCourse ? 22 : 5;
+  track.heightAt = track.manualDrive ? (x,z) => 5 + amplitude * (1 + Math.sin(x/190) * Math.cos(z/210)) : () => 0;
+  track.ramps = pads.map((pad,i) => ({distance: pad.distance + 13, lane: spec.newCourse ? 0 : pad.lane,
+    length: spec.newCourse ? 14 : 10, halfWidth: spec.newCourse ? spec.halfWidth - 1 : 3.8, height: spec.newCourse ? 4.5 : 2.4, id:i}));
   if (!classic && shortcuts && Object.hasOwn(shortcutSections, id)) {
     track.shortcut = buildShortcut(track, shortcutSections[id]);
     if (offroad && !freeDrive) {

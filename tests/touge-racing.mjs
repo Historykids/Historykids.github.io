@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { RaceRoom } from "../server/ranking-api/touge-racing.mjs";
-import { driveSample, getTrack, lapDistance, LAPS, TRACKS } from "../assets/ui/touge-racing-tracks.mjs";
+import { driveSample, getTrack, lapDistance, LAPS, TRACKS, racerWorldPosition } from "../assets/ui/touge-racing-tracks.mjs";
 import { COUNTDOWN, LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, RACE_PROTOCOL, STEP, createRacer,
   cruiseAfterFinish, endLastRacer, rankRacers, stepRace, turnAt } from "../assets/ui/touge-racing-rules.mjs";
 
@@ -12,8 +12,8 @@ function steering(track, racer, offset = 0, scale = 1) {
   return { gas: true, brake: false, turn: correction > 2.1 ? 1 : correction < -2.1 ? -1 : 0 };
 }
 
-assert.equal(TRACKS.length, 10);
-assert.equal(new Set(TRACKS.map(spec => spec.id)).size, 10);
+assert.equal(TRACKS.length, 13);
+assert.equal(new Set(TRACKS.map(spec => spec.id)).size, 13);
 for (const { id } of TRACKS) {
   const track = getTrack(id);
   assert(track.length > 500);
@@ -134,7 +134,7 @@ console.log("Lobby chat, shared start, finish cruising, instant last-place cutof
 const { DatabaseSync } = await import("node:sqlite");
 const { TougeRaceHub } = await import("../server/ranking-api/touge-racing-hub.mjs");
 const { CPU_DIFFICULTIES, DEFAULT_RACE_SPEED, MAIN_ROAD_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, RACE_SPEEDS, createRaceItems, createTrialRacer, lapTime,
-  recordTrialInput, replayTrial, TERRAIN_TRIAL_PROTOCOL, TRIAL_MAX_TICKS, TRIAL_PROTOCOL } = await import("../assets/ui/touge-racing-rules.mjs");
+  recordTrialInput, replayTrial, TERRAIN_TRIAL_PROTOCOL, TRIAL_MAX_TICKS, TRIAL_PROTOCOL: MANUAL_TRIAL_PROTOCOL, ASSISTED_TRIAL_PROTOCOL: TRIAL_PROTOCOL } = await import("../assets/ui/touge-racing-rules.mjs");
 const track = getTrack("yunagi");
 
 // The road drive after finishing is cosmetic and does not alter finish time, lap count or the finishing order.
@@ -443,7 +443,7 @@ console.log("All ten scenic models and smoothed position/yaw verified.");
 
 for (const { id } of TRACKS) {
   const expanded = getTrack(id);
-  assert(expanded.length >= 2500 && expanded.length <= 2750.01);
+  assert(expanded.length >= 2500 && expanded.length <= 2850.01);
   assert.equal(expanded.halfWidth, getTrack(id, { classic: true }).halfWidth);
   assert.equal(expanded.itemLines.length, 8);
   assert(expanded.itemLines.includes(expanded.offroadItemLine));
@@ -688,7 +688,6 @@ assert.equal(Math.round(oldRacer.finishedAt * 100), 16640);
 assert.equal(replayTrial(open, oldTape, TERRAIN_TRIAL_PROTOCOL), oldRacer.finishedAt);
 assert.equal((await submit({ ...record, track: open.id, tape: oldTape, protocol: TERRAIN_TRIAL_PROTOCOL })).status, 200);
 assert.equal((await ghostBoard("150cc", 9, open.id)).protocol, TERRAIN_TRIAL_PROTOCOL);
-database.close();
 
 const terrainRoom = new RaceRoom({ clock: () => now, autoRun: false });
 const terrainSockets = ["create", "join"].map(type => {
@@ -717,3 +716,67 @@ for (let i = 0; i < 8 && !rival.slow; i++) {
 }
 assert(rival.slow > 0, "A pulse can hit another driver away from the road");
 console.log("Terrain driving, unrestricted rejoin, sequential lap checkpoints, trial replays and online pulses verified.");
+
+function manualInput(track,racer) {
+  const position=racerWorldPosition(track,racer);
+  const target=track.sample(racer.distance+Math.max(12,racer.speed*.43));
+  const desired=Math.atan2(target.x-position.x,target.z-position.z);
+  const heading=racer.free?racer.heading:Math.atan2(position.fx,position.fz);
+  const error=Math.atan2(Math.sin(desired-heading),Math.cos(desired-heading));
+  return {gas:true,brake:Math.abs(error)>.8&&racer.speed>32,
+    turn:Math.abs(error)<.023?0:error>0?-1:1,jump:racer.airborne&&!racer.trick};
+}
+for(const course of TRACKS){
+  const route=getTrack(course.id,{freeDrive:true,manualDrive:true}),racer=createTrialRacer(),tape=[];
+  let airborne=false,landingBoost=false;
+  for(let tick=0;tick<TRIAL_MAX_TICKS&&racer.finishedAt===null;tick++){
+    racer.input=manualInput(route,racer);
+    recordTrialInput(tape,racer.input);
+    stepRace(route,[racer],STEP,tick*STEP);
+    airborne ||= racer.airborne;
+    landingBoost ||= racer.landing>.35&&racer.boost>0;
+  }
+  assert.equal(racer.lapEnds.length,3,course.id+" can finish with manual steering");
+  assert(airborne&&landingBoost,course.id+" supports ramps, tricks and landing boosts");
+  assert.equal(replayTrial(route,tape,MANUAL_TRIAL_PROTOCOL),racer.finishedAt);
+  if(course.id==="cloudpass"){
+    const response=await submit({...record,track:course.id,player:crypto.randomUUID(),protocol:MANUAL_TRIAL_PROTOCOL,tape});
+    assert.equal(response.status,200,"The server accepts and verifies a new manual-steering replay");
+    assert.equal(await ghostBoard("150cc",9,course.id),null);
+    assert.equal((await ghostBoard("150cc",10,course.id)).protocol,MANUAL_TRIAL_PROTOCOL);
+  }
+  assert.equal(replayTrial(route,tape,TRIAL_PROTOCOL),null,"Old replay versions cannot claim a jump run");
+}
+const manual=getTrack("cloudpass",{freeDrive:true,manualDrive:true});
+const straight=createTrialRacer();
+straight.speed=42;straight.input={...EMPTY_INPUT,gas:true};
+stepRace(manual,[straight],STEP,0);
+const origin=racerWorldPosition(manual,straight),heading=straight.heading;
+for(let i=1;i<180;i++)stepRace(manual,[straight],STEP,i*STEP);
+const traveled=racerWorldPosition(manual,straight);
+assert.equal(straight.heading,heading);
+assert(Math.abs((traveled.x-origin.x)*Math.cos(heading)-(traveled.z-origin.z)*Math.sin(heading))<.0001,
+ "Without steering the car keeps its world direction through curves");
+assert(straight.free);
+const reentry=manual.sample(400);
+Object.assign(straight,{x:reentry.x+reentry.rx*2,z:reentry.z+reentry.rz*2,heading:Math.atan2(reentry.fx,reentry.fz)+.2});
+const entryHeading=straight.heading;
+stepRace(manual,[straight],STEP,7);
+assert(straight.free&&straight.onAsphalt);
+assert(Math.abs(straight.heading-entryHeading)<1e-12,"Rejoining asphalt does not align or pull the car");
+const actionRoom=new RaceRoom({clock:()=>now,autoRun:false}),actionSocket=new Socket();
+const actionPeer=actionRoom.attach(actionSocket);
+actionRoom.message(actionPeer,JSON.stringify({type:"create",protocol:RACE_PROTOCOL,trackId:"cloudpass",layout:"long",freeDrive:true,manualDrive:true}));
+actionRoom.message(actionRoom.attach(new Socket()),JSON.stringify({type:"join",protocol:RACE_PROTOCOL,freeDrive:true,manualDrive:true}));
+actionRoom.start(now);
+const actionDriver=actionRoom.racers[0];
+actionDriver.speed=30;
+actionRoom.message(actionPeer,JSON.stringify({type:"input",...EMPTY_INPUT,gas:true,jump:true,seq:1}));
+actionRoom.message(actionPeer,JSON.stringify({type:"input",...EMPTY_INPUT,gas:true,jump:false,seq:2}));
+now=actionRoom.startAt+STEP*2000;
+actionRoom.tick(now);
+assert(actionDriver.free&&actionDriver.airborne,"A quick online jump press survives the following key release");
+assert(actionSocket.last("state").racers.find(racer=>racer.id===actionDriver.id).airborne);
+console.log("13 manual courses, jump replays, landing boosts, unassisted road reentry and online jump input verified.");
+
+database.close();

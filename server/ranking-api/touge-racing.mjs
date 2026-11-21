@@ -38,6 +38,7 @@ export async function racingRequest(request, env, reply) {
       shortcuts: true, turboCuts: true, freeDrive: true, trialLaps: LAPS, trialProtocol: TRIAL_PROTOCOL,
       itemRespawnSeconds: ITEM_RESPAWN_SECONDS, pulseMode: "projectile",
       lobbyChat: true, finishCruise: true, lastPlaceCutoff: true, spectatorMode: true,
+      manualSteering: true, jumps: true, newTracks: TRACKS.filter(track=>track.newCourse).map(track=>track.id),
       speedClasses: Object.keys(RACE_SPEEDS), tracks: TRACKS.map(track => track.id)
     });
   }
@@ -180,8 +181,9 @@ export class RaceRoom {
     record.inputAt = now;
     const previous = record.racer.input;
     record.racer.itemQueued ||= message.item === true && !previous.item;
+    record.racer.jumpQueued ||= message.jump === true && !previous.jump;
     record.racer.input = {
-      gas: message.gas, brake: message.brake, turn: message.turn, drift: message.drift === true, item: message.item === true
+      gas: message.gas, brake: message.brake, turn: message.turn, drift: message.drift === true, item: message.item === true, jump: message.jump === true
     };
   }
 
@@ -191,6 +193,7 @@ export class RaceRoom {
     }
     if (this.speedClass !== DEFAULT_RACE_SPEED && message.speedClasses !== true) return this.reject(peer, "version");
     if (this.track?.terrain && message.freeDrive !== true) return this.reject(peer, "version");
+    if (this.track?.manualDrive && message.manualDrive !== true) return this.reject(peer, "version");
     let record;
     if (message.type === "resume") {
       record = this.players.get(message.token);
@@ -200,7 +203,7 @@ export class RaceRoom {
     } else {
       if (message.type === "create") {
         if (this.track) return this.reject(peer, "code-used");
-        const track = getTrack(message.trackId, { classic: message.layout !== "long", shortcuts: message.freeDrive === true, freeDrive: message.freeDrive === true });
+        const track = getTrack(message.trackId, { classic: message.layout !== "long", shortcuts: message.freeDrive === true, freeDrive: message.freeDrive === true, manualDrive:message.manualDrive===true });
         if (!track) return this.reject(peer, "invalid-track");
         const speedClass = message.speedClass ?? DEFAULT_RACE_SPEED;
         if (!isRaceSpeed(speedClass)) return this.reject(peer, "invalid-speed");
@@ -281,6 +284,7 @@ export class RaceRoom {
     const wire = racer => ({
       id: racer.id, slot: racer.slot, name: racer.name, color: racer.color,
       distance: racer.distance, shortcut: racer.shortcut, turboTime: racer.turboTime, lane: racer.lane, speed: racer.speed, steer: racer.steer,
+      airY:racer.airY, airborne:racer.airborne, verticalSpeed:racer.verticalSpeed, jumpAge:racer.jumpAge, trick:racer.trick, landing:racer.landing,
       ...(this.track.terrain ? { free: !!racer.free, x: racer.x, z: racer.z, heading: racer.heading, onAsphalt: racer.onAsphalt,
         nextGate: racer.nextGate ?? 0, completedLaps: racer.completedLaps ?? 0, progress: racer.progress } : {}),
       boost: racer.boost, drifting: racer.drifting, driftCharge: racer.driftCharge, slow: racer.slow,
@@ -289,7 +293,7 @@ export class RaceRoom {
     });
     const snapshot = {
       type: "state", phase: this.phase, trackId: this.track.id, speedClass: this.speedClass, host: this.host, players,
-      fieldSize: ordered.length, freeDrive: !!this.track.terrain, shortcuts: !!this.track.shortcut, turboCuts: !!this.track.turboCuts, layout: this.track.layoutScale > 1 ? "long" : "classic", itemRespawns: this.items?.respawns ?? null, countdown: Math.max(0, (this.startAt - now) / 1000), elapsed: this.elapsed
+      fieldSize: ordered.length, manualDrive:!!this.track.manualDrive, freeDrive: !!this.track.terrain, shortcuts: !!this.track.shortcut, turboCuts: !!this.track.turboCuts, layout: this.track.layoutScale > 1 ? "long" : "classic", itemRespawns: this.items?.respawns ?? null, countdown: Math.max(0, (this.startAt - now) / 1000), elapsed: this.elapsed
     };
     if (lobby) {
       const message = JSON.stringify({ ...snapshot, racers: ordered.map(wire),

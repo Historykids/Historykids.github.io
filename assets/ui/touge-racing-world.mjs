@@ -27,6 +27,31 @@ export function worldScenery(track) {
   }
 
   switch (track.id) {
+    case "cloudpass":
+      for(let i=0;i<9;i++){
+        const x=150+i*19,z=100+(i*37)%120,h=45+(i*17)%60;
+        tower(x,z,48,43,0,h,.17,"#718b9d",7);
+        tower(x,z,11,10,h,13,0,"#eefaff",7);
+      }
+      for(let i=0;i<6;i++){box(-150+i*55,100,5,5,0,28,"#526b80");beam([-150+i*55,28,100],[-95+i*55,28,100],1.2,"#aecbd8");}
+      break;
+    case "dunefly":
+      for(let i=0;i<16;i++){
+        const x=160+(i%4)*18,z=100+Math.floor(i/4)*24,h=20+(i*19)%80;
+        tower(x,z,10,11,0,h,.65,i%2?"#50788d":"#caaf81",6);
+        tower(x,z,4,4,h,18,0,"#d5eef4",5);
+      }
+      for(let i=0;i<7;i++)tower(-175,95+i*20,65,42,0,10+i*2,.3,"#d8aa6c",8);
+      break;
+    case "lavacoast":
+      tower(170,140,130,110,0,95,.19,"#613f46",10);
+      tower(170,140,27,23,95,3,.88,"#ff873d",10);
+      for(let i=0;i<9;i++){
+        const x=133+i*13,z=90+(i*23)%115;
+        tower(x,z,12,14,0,20+(i*7)%27,.2,"#403c4e",7);
+        box(x,z,2,9,21,.4,"#ff7346");
+      }
+      break;
     case "fuji":
       tower(204, 115, 145, 118, 0, 58, .39, "#647d9a", 10);
       tower(204, 115, 57, 46, 58, 37, 0, "#eff9fc", 10);

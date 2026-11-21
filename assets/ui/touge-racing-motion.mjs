@@ -1,4 +1,4 @@
-import { driveSample } from "./touge-racing-tracks.mjs?v=17";
+import { driveSample, racerWorldPosition } from "./touge-racing-tracks.mjs?v=21";
 
 const angleDifference = (angle, from) => Math.atan2(Math.sin(angle - from), Math.cos(angle - from));
 
@@ -7,7 +7,7 @@ export function smoothRacerPose(track, racer, pose, dt, reset = false) {
   const travel = fresh ? 1 : 1 - Math.exp(-27 * dt);
   const lateral = fresh ? 1 : 1 - Math.exp(-16 * dt);
   pose.distance = fresh ? racer.distance : pose.distance + (racer.distance - pose.distance) * travel;
-  pose.lane = fresh ? racer.lane : pose.lane + (racer.lane - pose.lane) * lateral;
+  pose.lane = racer.free ? 0 : fresh ? racer.lane : pose.lane + (racer.lane - pose.lane) * lateral;
   const p = driveSample(track, pose.distance - 1.7, racer.shortcut);
   const ahead = driveSample(track, pose.distance + 1.7, racer.shortcut);
   const angle = racer.free ? racer.heading : Math.atan2(ahead.x - p.x, ahead.z - p.z) -
@@ -28,5 +28,13 @@ export function smoothRacerPose(track, racer, pose, dt, reset = false) {
   pose.cruising = racer.cruising;
   pose.shield = racer.shield;
   pose.drifting = racer.drifting;
+  const world=racerWorldPosition(track,racer);
+  const ground=track.heightAt?.(world.x,world.z)??0;
+  const y=track.manualDrive&&!racer.airborne ? Math.max(ground,racer.airY??0) : racer.airY??0;
+  pose.airY=fresh?y:(pose.airY??y)+(y-(pose.airY??y))*travel;
+  pose.airborne=racer.airborne;
+  pose.verticalSpeed=racer.verticalSpeed??0;
+  pose.jumpAge=racer.jumpAge??0;
+  pose.trick=racer.trick;
   return pose;
 }

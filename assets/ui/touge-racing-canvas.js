@@ -1,7 +1,7 @@
-import { worldScenery } from "./touge-racing-world.mjs?v=7";
+import { worldScenery } from "./touge-racing-world.mjs?v=21";
 
-import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, nearShortcut, racerSample, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=17";
-import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulsePosition } from "./touge-racing-rules.mjs?v=17";
+import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, nearShortcut, racerSample, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=21";
+import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulsePosition } from "./touge-racing-rules.mjs?v=21";
 
 // Software perspective renderer for browsers that cannot open a WebGL context.
 export function createCanvasRenderer(canvas, racers, track, showItems = false, neon = false) {
@@ -30,7 +30,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
   }
 
   function point(p, lane, y) {
-    return [p.x + p.rx * lane, y, p.z + p.rz * lane];
+    return [p.x + p.rx * lane, y+(track.heightAt?.(p.x,p.z)??0), p.z + p.rz * lane];
   }
 
   function strip(to, a, b, left, right, y, color) {
@@ -56,9 +56,13 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
       [-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1],
       [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]
     ].map(([dx, dy, dz]) => {
-      const localX = x + dx * w / 2;
-      const localZ = z + dz * d / 2;
-      return [p.x + p.rx * localX + p.fx * localZ, y + dy * h / 2, p.z + p.rz * localX + p.fz * localZ];
+      let localX = x + dx * w / 2,localY=y+dy*h/2,localZ=z+dz*d/2;
+      if(p.pitch){
+        const a=localY*Math.cos(p.pitch)-localZ*Math.sin(p.pitch);
+        localZ=localY*Math.sin(p.pitch)+localZ*Math.cos(p.pitch);localY=a;
+      }
+      if(p.roll){const a=localX*Math.cos(p.roll)-localY*Math.sin(p.roll);localY=localX*Math.sin(p.roll)+localY*Math.cos(p.roll);localX=a;}
+      return [p.x + p.rx * localX + p.fx * localZ, (p.y??track.heightAt?.(p.x,p.z)??0)+localY, p.z + p.rz * localX + p.fz * localZ];
     });
     const sides = [
       [0, 1, 2, 3], [4, 7, 6, 5], [0, 3, 7, 4],
@@ -71,6 +75,22 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
 
   const sea = { color: waterColor, corners: worldPoints([[-1100, -.25, 94], [-1100, -.25, 1100], [1100, -.25, 1100], [1100, -.25, 94]]) };
   if (coastal) terrain.push(sea);
+  if(track.manualDrive){
+    const b=track.terrain.bounds,step=24;
+    const color=parseInt(groundColor.slice(1),16);
+    for(let z=b.top;z<b.bottom;z+=step)for(let x=b.left;x<b.right;x+=step){
+      const corners=[[x,z],[x+step,z],[x+step,z+step],[x,z+step]].map(([px,pz])=>[px,track.heightAt(px,pz)-.15,pz]);
+      terrain.push({color:shade(color,1+Math.sin(x*.023)*Math.cos(z*.029)*.035),corners});
+    }
+    for(const ramp of track.ramps){
+      for(let i=0;i<8;i++){
+        const a=sample(ramp.distance+ramp.length*i/8),b=sample(ramp.distance+ramp.length*(i+1)/8);
+        markings.push({color:i%2?"#3b94aa":"#286d86",corners:[
+          point(a,ramp.lane-ramp.halfWidth,.2+ramp.height*i/8),point(a,ramp.lane+ramp.halfWidth,.2+ramp.height*i/8),
+          point(b,ramp.lane+ramp.halfWidth,.2+ramp.height*(i+1)/8),point(b,ramp.lane-ramp.halfWidth,.2+ramp.height*(i+1)/8)]});
+      }
+    }
+  }
   for (let i = 0; i < (coastal ? 21 : 0); i++) {
     const x = Math.sin(i * 2.4) * 150 + i * 11 - 135;
     const z = 101 + (i * 17) % 95;
@@ -310,9 +330,9 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
     ground.addColorStop(1, groundColor);
     ctx.fillStyle = ground;
     ctx.fillRect(0, horizon, width, height - horizon);
-    terrain.forEach(surface => paint(project(surface)));
     const { x: eyeX, z: eyeZ } = camera.position;
     const nearby = ({ corners: [[x, , z]] }) => Math.abs(x - eyeX) < 345 && Math.abs(z - eyeZ) < 345;
+    terrain.filter(nearby).map(project).filter(Boolean).sort((a,b)=>b.depth-a.depth).forEach(paint);
     for (const [color, strips] of road) {
       ctx.beginPath();
       for (const surface of strips) {
@@ -342,6 +362,9 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
     racers.forEach((racer, index) => {
       if (racer.dnf || (index !== 0 && racer.finishedAt !== null && !racer.cruising)) return;
       const p = racerSample(track, racer);
+      p.y=racer.airY??0;
+      p.pitch=racer.airborne?-Math.atan2(racer.verticalSpeed,30):0;
+      p.roll=racer.trick?Math.sin(racer.jumpAge*Math.PI*2)*.38:0;
       p.x += p.rx * racer.lane;
       p.z += p.rz * racer.lane;
       p.fx = Math.sin(racer.yaw);

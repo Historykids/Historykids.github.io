@@ -1,4 +1,4 @@
-import { buildTerrain, terrainPoint } from "./touge-racing-terrain.mjs?v=22";
+import { buildTerrain, terrainPoint } from "./touge-racing-terrain.mjs?v=23";
 
 export const LAPS = 3;
 export const PAD_LENGTH = 9;
@@ -181,10 +181,10 @@ export function driveSample(track, distance, shortcut, out) {
 }
 
 const cached = new Map();
-export function getTrack(id, { classic = false, shortcuts = !classic, offroad = shortcuts, turboCuts = offroad, freeDrive = false, manualDrive = false } = {}) {
+export function getTrack(id, { classic = false, shortcuts = !classic, offroad = shortcuts, turboCuts = offroad, freeDrive = false, manualDrive = false, assistedSteering = false } = {}) {
   const spec = TRACKS.find(track => track.id === id) ?? LEGACY_TRACKS.find(track => track.id === id);
   if (!spec) return null;
-  const key = id + (classic ? ":classic" : freeDrive ? ":terrain" : shortcuts ? (turboCuts ? ":turbo" : offroad ? ":offroad" : ":shortcuts") : ":main") + (manualDrive ? ":manual" : "");
+  const key = id + (classic ? ":classic" : freeDrive ? ":terrain" : shortcuts ? (turboCuts ? ":turbo" : offroad ? ":offroad" : ":shortcuts") : ":main") + (manualDrive ? ":manual" : "") + (assistedSteering ? ":assisted" : "");
   if (cached.has(key)) return cached.get(key);
 
   const { points } = spec;
@@ -249,6 +249,7 @@ export function getTrack(id, { classic = false, shortcuts = !classic, offroad = 
   const itemLines = (layoutScale > 1 ? [.065, .20, .335, .47, .61, .75, .885] : [.22, .58, .93]).map(portion => length * portion);
   const track = { ...spec, length, layoutScale, sample, samples, pads, outline, itemLines, padLength: PAD_LENGTH, padHalfWidth: PAD_HALF_WIDTH };
   track.manualDrive = manualDrive && !classic && freeDrive && Object.hasOwn(shortcutSections,id);
+  track.assistedSteering = assistedSteering;
   const amplitude = spec.newCourse ? 22 : 5;
   track.heightAt = track.manualDrive ? (x,z) => 5 + amplitude * (1 + Math.sin(x/190) * Math.cos(z/210)) : () => 0;
   track.ramps = pads.map((pad,i) => ({distance: pad.distance + 13, lane: spec.newCourse ? 0 : pad.lane,

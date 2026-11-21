@@ -66,9 +66,9 @@ export function enterTerrain(track, racer) {
   racer.x = road.x + road.rx * racer.lane;
   racer.z = road.z + road.rz * racer.lane;
   racer.heading = Math.atan2(road.fx, road.fz) - Math.atan2(racer.lateralSpeed, Math.max(1, racer.speed));
-  if (!track.manualDrive) racer.lane = 0;
+  if (!track.manualDrive || track.assistedSteering) racer.lane = 0;
   racer.lateralSpeed = 0;
-  racer.onAsphalt = track.manualDrive ? Math.abs(racer.lane) <= track.halfWidth : false;
+  racer.onAsphalt = track.manualDrive && !track.assistedSteering ? Math.abs(racer.lane) <= track.halfWidth : false;
 }
 
 export function moveAcrossTerrain(track, racer, dt) {
@@ -78,7 +78,7 @@ export function moveAcrossTerrain(track, racer, dt) {
   racer.z = clamp(racer.z + Math.cos(racer.heading) * step, bounds.top, bounds.bottom);
   const road = roadAt(racer.x, racer.z);
   racer.onAsphalt = !!road && road.error <= track.halfWidth ** 2;
-  if (track.manualDrive) {
+  if (track.manualDrive && !track.assistedSteering) {
     if (road) {
       racer.distance = road.distance + Math.round((racer.distance - road.distance) / track.length) * track.length;
       racer.lane = road.lane;

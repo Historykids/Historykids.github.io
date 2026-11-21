@@ -1,15 +1,15 @@
-import { createScene } from "./touge-racing-scene.js?v=22";
-import { getTrack, LAPS, racerWorldPosition, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=22";
+import { createScene } from "./touge-racing-scene.js?v=23";
+import { getTrack, LAPS, racerWorldPosition, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=23";
 import {
   DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, RACE_LIMIT, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS,
-  TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain,
+  TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain,
   advanceRacer, applyDrive, boostRemaining, createRaceItems, createRacer, createTrialRacer, cruiseAfterFinish, endLastRacer, formatTime, isDriving, isRoughSurface, lapTime, rankRacers, recordTrialInput, stepRace, trialInput
-} from "./touge-racing-rules.mjs?v=22";
-import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=22";
-import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=22";
+} from "./touge-racing-rules.mjs?v=23";
+import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=23";
+import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=23";
 
-import { createRaceEffects } from "./touge-racing-effects.js?v=22";
-import { mountLobbyChat, mountRaceUI } from "./touge-racing-ui.js?v=22";
+import { createRaceEffects } from "./touge-racing-effects.js?v=23";
+import { mountLobbyChat, mountRaceUI } from "./touge-racing-ui.js?v=23";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();
@@ -365,7 +365,7 @@ function initialize(profile) {
       createRacer(0, { name: profile }),
       ...Array.from({ length: CPU_FIELD_SIZE - 1 }, (_, i) => createRacer(i + 1, { name: "CPU " + (i + 1), cpu: true, difficulty: cpuDifficulty.value }))
     ];
-    prepareRace(getTrack(selected, { freeDrive: true, manualDrive:true }), racers, false);
+    prepareRace(getTrack(selected, { freeDrive: true, manualDrive:true, assistedSteering:true }), racers, false);
   }
 
   let loadingGhost = false, trialGhostEnabled = false;
@@ -378,7 +378,7 @@ function initialize(profile) {
 
   async function startTrial(enabled = trialGhostEnabled) {
     if (loadingGhost) return;
-    const track = getTrack(selected, { freeDrive: true, manualDrive:true }), speedClass = selectedSpeed;
+    const track = getTrack(selected, { freeDrive: true, manualDrive:true, assistedSteering:true }), speedClass = selectedSpeed;
     const previousRace = race, previousState = state;
     const player = createTrialRacer();
     if (track.turboCuts) player.item = "turbo";
@@ -392,7 +392,7 @@ function initialize(profile) {
       choiceButtons.forEach(button => { button.disabled = true; });
       byId("ghost-loading").textContent = "1位のゴーストを読み込み中…";
       try {
-        const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1", replay: "10" });
+        const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1", replay: "11" });
         const result = await raceRequest("/race/leaderboard?" + query);
         if (result.track === track.id && result.speedClass === speedClass) data = result.ghost;
         note = data ? "1位 " + data.name + " · " + formatTime(data.seconds) : "1位のゴーストはまだありません";
@@ -410,7 +410,7 @@ function initialize(profile) {
     if (!prepareRace(track, racers, false, true)) return;
     race.ghost = data ? {
       racer: racers[1], tape: data.tape, index: 0, remaining: 0,
-      track: usesTrialTerrain(data.protocol) ? { ...track, manualDrive:data.protocol===TRIAL_PROTOCOL, legacyTerrainSpeed: data.protocol === TERRAIN_TRIAL_PROTOCOL } :
+      track: usesTrialTerrain(data.protocol) ? { ...track, manualDrive:[TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(data.protocol), assistedSteering:data.protocol===TRIAL_PROTOCOL, legacyTerrainSpeed: data.protocol === TERRAIN_TRIAL_PROTOCOL } :
         getTrack(track.id, {
           shortcuts: [SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL].includes(data.protocol),
           offroad: [OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL].includes(data.protocol),
@@ -873,7 +873,7 @@ function initialize(profile) {
       return;
     }
     if (!race || (snapshot.phase === "countdown" && formerPhase === "finished")) {
-      const track = getTrack(snapshot.trackId, { classic: snapshot.layout !== "long", shortcuts: snapshot.freeDrive === true, freeDrive: snapshot.freeDrive === true, manualDrive:snapshot.manualDrive===true });
+      const track = getTrack(snapshot.trackId, { classic: snapshot.layout !== "long", shortcuts: snapshot.freeDrive === true, freeDrive: snapshot.freeDrive === true, manualDrive:snapshot.manualDrive===true, assistedSteering:snapshot.assistedSteering===true });
       const own = snapshot.racers.find(racer => racer.id === id);
       if (!track || !own) return;
       const initial = [own, ...snapshot.racers.filter(racer => racer.id !== id).slice(0, VISIBLE_RIVALS)];

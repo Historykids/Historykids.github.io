@@ -1,7 +1,7 @@
-import { worldScenery } from "./touge-racing-world.mjs?v=22";
+import { worldScenery } from "./touge-racing-world.mjs?v=23";
 
-import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, nearShortcut, racerSample, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=22";
-import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulsePosition } from "./touge-racing-rules.mjs?v=22";
+import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, nearShortcut, racerSample, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=23";
+import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulsePosition } from "./touge-racing-rules.mjs?v=23";
 
 // Software perspective renderer for browsers that cannot open a WebGL context.
 export function createCanvasRenderer(canvas, racers, track, showItems = false, neon = false) {

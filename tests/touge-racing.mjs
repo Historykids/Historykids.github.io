@@ -134,7 +134,7 @@ console.log("Lobby chat, shared start, finish cruising, instant last-place cutof
 const { DatabaseSync } = await import("node:sqlite");
 const { TougeRaceHub } = await import("../server/ranking-api/touge-racing-hub.mjs");
 const { CPU_DIFFICULTIES, DEFAULT_RACE_SPEED, MAIN_ROAD_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, RACE_SPEEDS, createRaceItems, createTrialRacer, lapTime,
-  recordTrialInput, replayTrial, TERRAIN_TRIAL_PROTOCOL, TRIAL_MAX_TICKS, TRIAL_PROTOCOL: MANUAL_TRIAL_PROTOCOL, ASSISTED_TRIAL_PROTOCOL: TRIAL_PROTOCOL } = await import("../assets/ui/touge-racing-rules.mjs");
+  recordTrialInput, replayTrial, TERRAIN_TRIAL_PROTOCOL, TRIAL_MAX_TICKS, TRIAL_PROTOCOL: RESTORED_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, ASSISTED_TRIAL_PROTOCOL: TRIAL_PROTOCOL } = await import("../assets/ui/touge-racing-rules.mjs");
 const track = getTrack("yunagi");
 
 // The road drive after finishing is cosmetic and does not alter finish time, lap count or the finishing order.
@@ -766,8 +766,8 @@ assert(straight.free&&straight.onAsphalt);
 assert(Math.abs(straight.heading-entryHeading)<1e-12,"Rejoining asphalt does not align or pull the car");
 const actionRoom=new RaceRoom({clock:()=>now,autoRun:false}),actionSocket=new Socket();
 const actionPeer=actionRoom.attach(actionSocket);
-actionRoom.message(actionPeer,JSON.stringify({type:"create",protocol:RACE_PROTOCOL,trackId:"cloudpass",layout:"long",freeDrive:true,manualDrive:true}));
-actionRoom.message(actionRoom.attach(new Socket()),JSON.stringify({type:"join",protocol:RACE_PROTOCOL,freeDrive:true,manualDrive:true}));
+actionRoom.message(actionPeer,JSON.stringify({type:"create",protocol:RACE_PROTOCOL,trackId:"cloudpass",layout:"long",freeDrive:true,manualDrive:true,assistedSteering:true}));
+actionRoom.message(actionRoom.attach(new Socket()),JSON.stringify({type:"join",protocol:RACE_PROTOCOL,freeDrive:true,manualDrive:true,assistedSteering:true}));
 actionRoom.start(now);
 const actionDriver=actionRoom.racers[0];
 actionDriver.speed=30;
@@ -775,8 +775,50 @@ actionRoom.message(actionPeer,JSON.stringify({type:"input",...EMPTY_INPUT,gas:tr
 actionRoom.message(actionPeer,JSON.stringify({type:"input",...EMPTY_INPUT,gas:true,jump:false,seq:2}));
 now=actionRoom.startAt+STEP*2000;
 actionRoom.tick(now);
-assert(actionDriver.free&&actionDriver.airborne,"A quick online jump press survives the following key release");
+assert(!actionDriver.free&&actionDriver.airborne,"A quick online jump press survives the following key release");
 assert(actionSocket.last("state").racers.find(racer=>racer.id===actionDriver.id).airborne);
 console.log("13 manual courses, jump replays, landing boosts, unassisted road reentry and online jump input verified.");
+
+// Restore the original road assistance without removing the newer ramps and jumps.
+const restored=getTrack("cloudpass",{freeDrive:true,manualDrive:true,assistedSteering:true});
+const original=getTrack("cloudpass",{freeDrive:true});
+const assistedCar=createTrialRacer(),originalCar=createTrialRacer();
+for(let tick=0;tick<90;tick++){
+  const input=steering(original,originalCar);
+  assistedCar.input=originalCar.input=input;
+  stepRace(restored,[assistedCar],STEP,tick*STEP);
+  stepRace(original,[originalCar],STEP,tick*STEP);
+  for(const key of ["distance","lane","speed","lateralSpeed","free"])
+    assert.equal(assistedCar[key],originalCar[key],"Original road assistance: "+key);
+}
+const mergePoint=restored.sample(400);
+Object.assign(assistedCar,{free:true,x:mergePoint.x+mergePoint.rx*2,z:mergePoint.z+mergePoint.rz*2,
+  distance:400,heading:Math.atan2(mergePoint.fx,mergePoint.fz)+.2,speed:30,input:EMPTY_INPUT});
+stepRace(restored,[assistedCar],STEP,4);
+assert(!assistedCar.free,"Returning to the road restores the original automatic alignment");
+assert.equal(actionSocket.last("state").assistedSteering,true);
+
+for(const {id} of TRACKS){
+  const route=getTrack(id,{freeDrive:true,manualDrive:true,assistedSteering:true});
+  const racer=createTrialRacer(),tape=[];
+  let airborne=false,landingBoost=false;
+  for(let tick=0;tick<TRIAL_MAX_TICKS&&racer.finishedAt===null;tick++){
+    racer.input={...steering(route,racer),jump:racer.airborne&&!racer.trick};
+    recordTrialInput(tape,racer.input);
+    stepRace(route,[racer],STEP,tick*STEP);
+    airborne ||= racer.airborne;
+    landingBoost ||= racer.landing>.35&&racer.boost>0;
+  }
+  assert.equal(racer.lapEnds.length,LAPS,id+" finishes with restored assistance");
+  assert(airborne&&landingBoost,id+" retains ramps, tricks and landing boosts");
+  assert.equal(replayTrial(route,tape,RESTORED_TRIAL_PROTOCOL),racer.finishedAt);
+  if(id==="dunefly"){
+    const response=await submit({...record,track:id,player:crypto.randomUUID(),protocol:RESTORED_TRIAL_PROTOCOL,tape});
+    assert.equal(response.status,200,"The server validates restored-steering trial records");
+    assert.equal(await ghostBoard("150cc",10,id),null);
+    assert.equal((await ghostBoard("150cc",11,id)).protocol,RESTORED_TRIAL_PROTOCOL);
+  }
+}
+console.log("Original curve assistance and road reentry restored across 13 courses; jumps, online snapshots and old/new ghost replays passed.");
 
 database.close();

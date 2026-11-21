@@ -1,15 +1,15 @@
-import { createScene } from "./touge-racing-scene.js?v=21";
-import { getTrack, LAPS, racerWorldPosition, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=21";
+import { createScene } from "./touge-racing-scene.js?v=22";
+import { getTrack, LAPS, racerWorldPosition, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=22";
 import {
   DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, RACE_LIMIT, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS,
   TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain,
   advanceRacer, applyDrive, boostRemaining, createRaceItems, createRacer, createTrialRacer, cruiseAfterFinish, endLastRacer, formatTime, isDriving, isRoughSurface, lapTime, rankRacers, recordTrialInput, stepRace, trialInput
-} from "./touge-racing-rules.mjs?v=21";
-import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=21";
-import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=21";
+} from "./touge-racing-rules.mjs?v=22";
+import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=22";
+import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=22";
 
-import { createRaceEffects } from "./touge-racing-effects.js?v=21";
-import { mountLobbyChat, mountRaceUI } from "./touge-racing-ui.js?v=21";
+import { createRaceEffects } from "./touge-racing-effects.js?v=22";
+import { mountLobbyChat, mountRaceUI } from "./touge-racing-ui.js?v=22";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();

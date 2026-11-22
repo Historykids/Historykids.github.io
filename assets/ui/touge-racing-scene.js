@@ -1,6 +1,6 @@
 import { coachwork } from "./touge-racing-coachwork.mjs?v=25";
 import * as THREE from "../vendor/three.module.js";
-import { createCanvasRenderer } from "./touge-racing-canvas.js?v=25";
+import { createCanvasRenderer } from "./touge-racing-canvas.js?v=26";
 import { worldScenery } from "./touge-racing-world.mjs?v=25";
 import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, driveSample, nearShortcut, racerSample, roadHeight, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=25";
 import { smoothRacerPose } from "./touge-racing-motion.mjs?v=25";

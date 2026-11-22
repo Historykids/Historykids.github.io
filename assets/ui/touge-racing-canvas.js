@@ -21,6 +21,39 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
   const worldPoints = corners => corners.map(([x, y, z]) => [x * worldScale, y * worldScale, z * worldScale]);
   const customCar = track.signature ? coachwork(track.id) : null;
   const vehicles = new Map();
+  let grain, clouds;
+  if(track.signature){
+    const tile=document.createElement("canvas");
+    tile.width=tile.height=128;
+    const brush=tile.getContext("2d"), image=brush.createImageData(128,128);
+    let seed=1979;
+    for(let i=0;i<image.data.length;i+=4){
+      seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+      const tint=(seed&1)*255;
+      image.data.set([tint,tint,tint,(seed>>>24)*.28],i);
+    }
+    brush.putImageData(image,0,0);
+    grain=ctx.createPattern(tile,"repeat");
+    clouds=document.createElement("canvas");
+    clouds.width=1024;clouds.height=192;
+    const skyBrush=clouds.getContext("2d"),skyImage=skyBrush.createImageData(1024,192);
+    function noise(x,y,period){
+      function cell(a,b){
+        const n=Math.sin(((a%period+period)%period)*127.1+b*311.7)*43758.55;
+        return n-Math.floor(n);
+      }
+      const ix=Math.floor(x),iy=Math.floor(y);
+      let u=x-ix,v=y-iy;u=u*u*(3-2*u);v=v*v*(3-2*v);
+      return (cell(ix,iy)*(1-u)+cell(ix+1,iy)*u)*(1-v)+(cell(ix,iy+1)*(1-u)+cell(ix+1,iy+1)*u)*v;
+    }
+    for(let y=0;y<192;y++)for(let x=0;x<1024;x++){
+      let n=0;
+      for(let k=0;k<4;k++){const f=8*2**k;n+=noise(x*f/1024,y*f/300,f)*.53/2**k;}
+      const alpha=Math.min(1,Math.max(0,(n-.42)*4))*(1-(y/192)**6);
+      skyImage.data.set([211+n*42,214+n*35,218+n*26,alpha*(track.id==="meridian"?110:195)],(y*1024+x)*4);
+    }
+    skyBrush.putImageData(skyImage,0,0);
+  }
   const near = .7;
   let ratio = 1;
   let width = 1;
@@ -105,7 +138,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
     [-48, -153, 79], [0, -140, 50], [57, -148, 70], [112, -120, 57],
     [150, -81, 68], [185, 164, 30], [230, 191, 38], [-169, 203, 34]
   ];
-  for (const [x, z, h] of peaks) {
+  for (const [x, z, h] of track.signature ? [] : peaks) {
     scenery.push({ color: mountainColor,
       corners: worldPoints([[x - h, -.5, z], [x, h, z + 3], [x + h, -.5, z + 10]]) });
     scenery.push({ color: shade(parseInt(mountainColor.slice(1), 16), 1.15),
@@ -265,7 +298,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
       ];
     }
 
-    function project({ corners, color, oneSided, opacity }) {
+    function project({ corners, color, oneSided, opacity, finish, shadowColor }) {
       const vertices = corners.map(transform);
       const clipped = [];
       for (let i = 0; i < vertices.length; i++) {
@@ -288,7 +321,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
         }, 0);
         if (area >= 0) return null;
       }
-      return { color, screen, opacity, depth: clipped.reduce((sum, p) => sum + p[2], 0) / clipped.length };
+      return { color, screen, opacity, finish, shadowColor, depth: clipped.reduce((sum, p) => sum + p[2], 0) / clipped.length };
     }
 
     function trace(screen) {
@@ -302,6 +335,18 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
       ctx.beginPath();
       trace(polygon.screen);
       ctx.fillStyle = polygon.color;
+      if(polygon.finish==="paint" || polygon.finish==="glass"){
+        const ys=polygon.screen.map(p=>p[1]);
+        const low=Math.min(...ys),high=Math.max(...ys);
+        const sheen=ctx.createLinearGradient(0,low,0,Math.max(low+.1,high));
+        if(polygon.finish==="glass"){
+          sheen.addColorStop(0,skyHorizon);sheen.addColorStop(.38,"#6f8991");sheen.addColorStop(1,"#182a34");
+        }else{
+          sheen.addColorStop(0,polygon.color);sheen.addColorStop(.27,polygon.color);
+          sheen.addColorStop(1,polygon.shadowColor);
+        }
+        ctx.fillStyle=sheen;
+      }
       ctx.globalAlpha = polygon.opacity ?? 1;
       ctx.fill();
       ctx.globalAlpha = 1;
@@ -312,6 +357,12 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
     sky.addColorStop(1, skyHorizon);
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, width, height);
+    if(clouds){
+      const panoramaWidth=width*3,skyHeight=Math.max(1,horizon);
+      const offset=((Math.atan2(view[2],view[10])/(2*Math.PI)+1)%1)*panoramaWidth;
+      ctx.drawImage(clouds,-offset,0,panoramaWidth,skyHeight);
+      ctx.drawImage(clouds,panoramaWidth-offset,0,panoramaWidth,skyHeight);
+    }
     const sun = transform([camera.position.x + 170, camera.position.y + 39, camera.position.z + 105]);
     if (sun[2] > near) {
       const x = width / 2 + sun[0] * focal / sun[2];
@@ -344,6 +395,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
       }
       ctx.fillStyle = color;
       ctx.fill();
+      if(grain&&color==="#353641"){ctx.fillStyle=grain;ctx.fill();}
     }
     for (const surface of markings) if (nearby(surface)) paint(project(surface));
 
@@ -386,7 +438,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
         const finishes={paint:body,glass:"#263e49",trim:"#272b2d",metal:"#a1a8ab",red:"#ec4732",lamp:"#e1efef"};
         for(const panel of customCar.panels){
           const corners=panel.vertices.map(([x,y,z])=>[p.x+p.rx*x+p.fx*z,p.y+y,p.z+p.rz*x+p.fz*z]);
-          faces.push({corners,color:finishes[panel.finish]});
+          faces.push({corners,color:finishes[panel.finish],finish:panel.finish,shadowColor:side});
         }
         for(const sign of [-1,1])for(const z of customCar.axles){
           const r=customCar.wheel;

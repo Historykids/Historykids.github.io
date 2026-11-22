@@ -1,15 +1,15 @@
-import { createScene } from "./touge-racing-scene.js?v=23";
-import { getTrack, LAPS, racerWorldPosition, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=23";
+import { createScene } from "./touge-racing-scene.js?v=24";
+import { getTrack, LAPS, racerWorldPosition, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=24";
 import {
   DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, RACE_LIMIT, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS,
-  TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain,
+  TRIAL_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain,
   advanceRacer, applyDrive, boostRemaining, createRaceItems, createRacer, createTrialRacer, cruiseAfterFinish, endLastRacer, formatTime, isDriving, isRoughSurface, lapTime, rankRacers, recordTrialInput, stepRace, trialInput
-} from "./touge-racing-rules.mjs?v=23";
-import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=23";
-import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=23";
+} from "./touge-racing-rules.mjs?v=24";
+import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=24";
+import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=24";
 
-import { createRaceEffects } from "./touge-racing-effects.js?v=23";
-import { mountLobbyChat, mountRaceUI } from "./touge-racing-ui.js?v=23";
+import { createRaceEffects } from "./touge-racing-effects.js?v=24";
+import { mountLobbyChat, mountRaceUI } from "./touge-racing-ui.js?v=24";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();
@@ -216,7 +216,7 @@ function initialize(profile) {
       byId("race-speed").firstElementChild.textContent = "作る部屋の速さ";
     }
     if (mode === "trial") {
-      keyboardHelp.textContent = "↑↓←→ / WASD　Shift ドリフト　Space ターボ　J ジャンプ";
+      keyboardHelp.textContent = "↑↓←→ / WASD　Shift ドリフト　Space ターボ　J 空中アクション";
       byId("race-tip").textContent = "草地や砂地では減速。毎周1つ使えるターボで横切ろう。ミニマップに次の通過地点が出るよ。";
     }
     updateProfileLink();
@@ -392,7 +392,7 @@ function initialize(profile) {
       choiceButtons.forEach(button => { button.disabled = true; });
       byId("ghost-loading").textContent = "1位のゴーストを読み込み中…";
       try {
-        const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1", replay: "11" });
+        const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1", replay: "12" });
         const result = await raceRequest("/race/leaderboard?" + query);
         if (result.track === track.id && result.speedClass === speedClass) data = result.ghost;
         note = data ? "1位 " + data.name + " · " + formatTime(data.seconds) : "1位のゴーストはまだありません";
@@ -410,7 +410,11 @@ function initialize(profile) {
     if (!prepareRace(track, racers, false, true)) return;
     race.ghost = data ? {
       racer: racers[1], tape: data.tape, index: 0, remaining: 0,
-      track: usesTrialTerrain(data.protocol) ? { ...track, manualDrive:[TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(data.protocol), assistedSteering:data.protocol===TRIAL_PROTOCOL, legacyTerrainSpeed: data.protocol === TERRAIN_TRIAL_PROTOCOL } :
+      track: usesTrialTerrain(data.protocol) ? { ...track,
+        manualDrive:[TRIAL_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(data.protocol),
+        assistedSteering:[TRIAL_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL].includes(data.protocol),
+        legacyGroundJump:[GROUND_JUMP_TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(data.protocol),
+        legacyTerrainSpeed: data.protocol === TERRAIN_TRIAL_PROTOCOL } :
         getTrack(track.id, {
           shortcuts: [SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL].includes(data.protocol),
           offroad: [OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL].includes(data.protocol),

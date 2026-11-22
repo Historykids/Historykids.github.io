@@ -134,7 +134,7 @@ console.log("Lobby chat, shared start, finish cruising, instant last-place cutof
 const { DatabaseSync } = await import("node:sqlite");
 const { TougeRaceHub } = await import("../server/ranking-api/touge-racing-hub.mjs");
 const { CPU_DIFFICULTIES, DEFAULT_RACE_SPEED, MAIN_ROAD_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, RACE_SPEEDS, createRaceItems, createTrialRacer, lapTime,
-  recordTrialInput, replayTrial, TERRAIN_TRIAL_PROTOCOL, TRIAL_MAX_TICKS, TRIAL_PROTOCOL: RESTORED_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, ASSISTED_TRIAL_PROTOCOL: TRIAL_PROTOCOL } = await import("../assets/ui/touge-racing-rules.mjs");
+  recordTrialInput, replayTrial, TERRAIN_TRIAL_PROTOCOL, TRIAL_MAX_TICKS, TRIAL_PROTOCOL: RESTORED_TRIAL_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, ASSISTED_TRIAL_PROTOCOL: TRIAL_PROTOCOL } = await import("../assets/ui/touge-racing-rules.mjs");
 const track = getTrack("yunagi");
 
 // The road drive after finishing is cosmetic and does not alter finish time, lap count or the finishing order.
@@ -727,7 +727,7 @@ function manualInput(track,racer) {
     turn:Math.abs(error)<.023?0:error>0?-1:1,jump:racer.airborne&&!racer.trick};
 }
 for(const course of TRACKS){
-  const route=getTrack(course.id,{freeDrive:true,manualDrive:true}),racer=createTrialRacer(),tape=[];
+  const route={...getTrack(course.id,{freeDrive:true,manualDrive:true}),legacyGroundJump:true},racer=createTrialRacer(),tape=[];
   let airborne=false,landingBoost=false;
   for(let tick=0;tick<TRIAL_MAX_TICKS&&racer.finishedAt===null;tick++){
     racer.input=manualInput(route,racer);
@@ -766,8 +766,8 @@ assert(straight.free&&straight.onAsphalt);
 assert(Math.abs(straight.heading-entryHeading)<1e-12,"Rejoining asphalt does not align or pull the car");
 const actionRoom=new RaceRoom({clock:()=>now,autoRun:false}),actionSocket=new Socket();
 const actionPeer=actionRoom.attach(actionSocket);
-actionRoom.message(actionPeer,JSON.stringify({type:"create",protocol:RACE_PROTOCOL,trackId:"cloudpass",layout:"long",freeDrive:true,manualDrive:true,assistedSteering:true}));
-actionRoom.message(actionRoom.attach(new Socket()),JSON.stringify({type:"join",protocol:RACE_PROTOCOL,freeDrive:true,manualDrive:true,assistedSteering:true}));
+actionRoom.message(actionPeer,JSON.stringify({type:"create",protocol:RACE_PROTOCOL,trackId:"cloudpass",layout:"long",freeDrive:true,manualDrive:true,assistedSteering:true,rampJumpsOnly:true}));
+actionRoom.message(actionRoom.attach(new Socket()),JSON.stringify({type:"join",protocol:RACE_PROTOCOL,freeDrive:true,manualDrive:true,assistedSteering:true,rampJumpsOnly:true}));
 actionRoom.start(now);
 const actionDriver=actionRoom.racers[0];
 actionDriver.speed=30;
@@ -775,9 +775,22 @@ actionRoom.message(actionPeer,JSON.stringify({type:"input",...EMPTY_INPUT,gas:tr
 actionRoom.message(actionPeer,JSON.stringify({type:"input",...EMPTY_INPUT,gas:true,jump:false,seq:2}));
 now=actionRoom.startAt+STEP*2000;
 actionRoom.tick(now);
-assert(!actionDriver.free&&actionDriver.airborne,"A quick online jump press survives the following key release");
+assert(!actionDriver.free&&!actionDriver.airborne&&!actionDriver.trick,"Online jump presses on ordinary road do not launch the car");
+const actionRamp=actionRoom.track.ramps[0];
+Object.assign(actionDriver,{distance:actionRamp.distance+actionRamp.length-.4,lane:actionRamp.lane,speed:30});
+actionRoom.message(actionPeer,JSON.stringify({type:"input",...EMPTY_INPUT,gas:true,jump:true,seq:3}));
+actionRoom.message(actionPeer,JSON.stringify({type:"input",...EMPTY_INPUT,gas:true,jump:false,seq:4}));
+now+=STEP*1000;
+actionRoom.tick(now);
+assert(actionDriver.airborne&&actionDriver.trick,"A quick online action press at the ramp survives the following key release");
+now+=STEP*1000;
+actionRoom.tick(now);
 assert(actionSocket.last("state").racers.find(racer=>racer.id===actionDriver.id).airborne);
-console.log("13 manual courses, jump replays, landing boosts, unassisted road reentry and online jump input verified.");
+assert(actionSocket.last("state").rampJumpsOnly);
+const outdatedRoom=new RaceRoom({clock:()=>now,autoRun:false}),outdatedSocket=new Socket();
+outdatedRoom.message(outdatedRoom.attach(outdatedSocket),JSON.stringify({type:"create",protocol:RACE_PROTOCOL,trackId:"cloudpass",layout:"long",freeDrive:true,manualDrive:true,assistedSteering:true}));
+assert.equal(outdatedSocket.last("error").code,"version","Older clients refresh before playing with the new jump rules");
+console.log("13 legacy manual courses and replays retained; online jumps are restricted to ramps.");
 
 // Restore the original road assistance without removing the newer ramps and jumps.
 const restored=getTrack("cloudpass",{freeDrive:true,manualDrive:true,assistedSteering:true});
@@ -815,10 +828,56 @@ for(const {id} of TRACKS){
   if(id==="dunefly"){
     const response=await submit({...record,track:id,player:crypto.randomUUID(),protocol:RESTORED_TRIAL_PROTOCOL,tape});
     assert.equal(response.status,200,"The server validates restored-steering trial records");
-    assert.equal(await ghostBoard("150cc",10,id),null);
-    assert.equal((await ghostBoard("150cc",11,id)).protocol,RESTORED_TRIAL_PROTOCOL);
+    assert.equal(await ghostBoard("150cc",11,id),null);
+    assert.equal((await ghostBoard("150cc",12,id)).protocol,RESTORED_TRIAL_PROTOCOL);
   }
 }
 console.log("Original curve assistance and road reentry restored across 13 courses; jumps, online snapshots and old/new ghost replays passed.");
+
+// Jump keys never launch a car on ordinary road or off-road, including while boosting.
+for(const offroad of [false,true]){
+  const racer=createTrialRacer(),position=restored.sample(0);
+  Object.assign(racer,{speed:35,turboTime:2,free:offroad,
+    x:position.x+position.rx*30,z:position.z+position.rz*30,heading:Math.atan2(position.fx,position.fz)});
+  for(let tick=0;tick<20;tick++){
+    racer.input={...EMPTY_INPUT,gas:true,jump:tick%2===0};
+    stepRace(restored,[racer],STEP,tick*STEP);
+    assert(!racer.airborne&&!racer.trick&&!racer.landing,"Ground action is ignored "+(offroad?"off-road":"on-road"));
+  }
+}
+const ramp=restored.ramps[0];
+for(const [speed,lane,shouldJump] of [[35,ramp.lane,true],[8,ramp.lane,false],[35,ramp.lane+ramp.halfWidth+1,false]]){
+  const racer=createTrialRacer();
+  Object.assign(racer,{distance:ramp.distance+ramp.length-.1,lane,speed,input:{...EMPTY_INPUT,gas:true}});
+  stepRace(restored,[racer],STEP,0);
+  assert.equal(racer.airborne,shouldJump,"Ramp requires sufficient speed and a car inside its width");
+  if(!shouldJump)continue;
+  assert(!racer.trick,"The ramp launches the car automatically before the action key is pressed");
+  racer.input={...EMPTY_INPUT,gas:true,jump:true};
+  stepRace(restored,[racer],STEP,STEP);
+  assert(racer.trick,"An action press after leaving the ramp triggers the trick");
+  for(let tick=2;tick<90&&racer.airborne;tick++){
+    racer.input={...EMPTY_INPUT,gas:true};
+    stepRace(restored,[racer],STEP,tick*STEP);
+  }
+  assert(!racer.airborne&&racer.landing>.35&&racer.boost>0,"The ramp action still awards its landing boost");
+}
+
+// Existing version-11 records keep their original ground-hop physics when replayed.
+const legacyHopTrack={...getTrack("lavacoast",{freeDrive:true,manualDrive:true,assistedSteering:true}),legacyGroundJump:true};
+const legacyHopper=createTrialRacer(),legacyHopTape=[];
+let groundHop=false;
+for(let tick=0;tick<TRIAL_MAX_TICKS&&legacyHopper.finishedAt===null;tick++){
+  legacyHopper.input={...steering(legacyHopTrack,legacyHopper),jump:tick%24===0||legacyHopper.airborne&&!legacyHopper.trick};
+  recordTrialInput(legacyHopTape,legacyHopper.input);
+  stepRace(legacyHopTrack,[legacyHopper],STEP,tick*STEP);
+  groundHop ||= legacyHopper.airborne&&legacyHopper.verticalSpeed<=7.8&&legacyHopper.jumpAge===0;
+}
+assert(groundHop&&legacyHopper.finishedAt!==null);
+assert.equal(replayTrial(legacyHopTrack,legacyHopTape,GROUND_JUMP_TRIAL_PROTOCOL),legacyHopper.finishedAt);
+assert.notEqual(replayTrial(legacyHopTrack,legacyHopTape,RESTORED_TRIAL_PROTOCOL),legacyHopper.finishedAt);
+assert.equal((await submit({...record,track:legacyHopTrack.id,player:crypto.randomUUID(),protocol:GROUND_JUMP_TRIAL_PROTOCOL,tape:legacyHopTape})).status,200);
+assert.equal((await ghostBoard("150cc",12,legacyHopTrack.id)).protocol,GROUND_JUMP_TRIAL_PROTOCOL);
+console.log("Ramp-only launch, airborne actions, landing boosts, ground/off-road rejection and version-11 ghost compatibility passed.");
 
 database.close();

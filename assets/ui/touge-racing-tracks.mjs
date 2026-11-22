@@ -1,4 +1,4 @@
-import { buildTerrain, terrainPoint } from "./touge-racing-terrain.mjs?v=23";
+import { buildTerrain, terrainPoint } from "./touge-racing-terrain.mjs?v=24";
 
 export const LAPS = 3;
 export const PAD_LENGTH = 9;

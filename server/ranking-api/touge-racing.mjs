@@ -38,7 +38,7 @@ export async function racingRequest(request, env, reply) {
       shortcuts: true, turboCuts: true, freeDrive: true, trialLaps: LAPS, trialProtocol: TRIAL_PROTOCOL,
       itemRespawnSeconds: ITEM_RESPAWN_SECONDS, pulseMode: "projectile",
       lobbyChat: true, finishCruise: true, lastPlaceCutoff: true, spectatorMode: true,
-      manualSteering: false, assistedSteering: true, jumps: true, newTracks: TRACKS.filter(track=>track.newCourse).map(track=>track.id),
+      manualSteering: false, assistedSteering: true, jumps: true, rampJumpsOnly: true, newTracks: TRACKS.filter(track=>track.newCourse).map(track=>track.id),
       speedClasses: Object.keys(RACE_SPEEDS), tracks: TRACKS.map(track => track.id)
     });
   }
@@ -194,6 +194,7 @@ export class RaceRoom {
     if (this.speedClass !== DEFAULT_RACE_SPEED && message.speedClasses !== true) return this.reject(peer, "version");
     if (this.track?.terrain && message.freeDrive !== true) return this.reject(peer, "version");
     if (this.track?.manualDrive && message.manualDrive !== true) return this.reject(peer, "version");
+    if (this.track?.manualDrive && message.rampJumpsOnly !== true) return this.reject(peer, "version");
     if (this.track?.assistedSteering && message.assistedSteering !== true) return this.reject(peer, "version");
     let record;
     if (message.type === "resume") {
@@ -204,7 +205,7 @@ export class RaceRoom {
     } else {
       if (message.type === "create") {
         if (this.track) return this.reject(peer, "code-used");
-        if (message.manualDrive === true && message.assistedSteering !== true) return this.reject(peer, "version");
+        if (message.manualDrive === true && (message.assistedSteering !== true || message.rampJumpsOnly !== true)) return this.reject(peer, "version");
         const track = getTrack(message.trackId, { classic: message.layout !== "long", shortcuts: message.freeDrive === true,
           freeDrive: message.freeDrive === true, manualDrive:message.manualDrive===true, assistedSteering:message.assistedSteering===true });
         if (!track) return this.reject(peer, "invalid-track");
@@ -296,7 +297,7 @@ export class RaceRoom {
     });
     const snapshot = {
       type: "state", phase: this.phase, trackId: this.track.id, speedClass: this.speedClass, host: this.host, players,
-      fieldSize: ordered.length, manualDrive:!!this.track.manualDrive, assistedSteering:!!this.track.assistedSteering, freeDrive: !!this.track.terrain, shortcuts: !!this.track.shortcut, turboCuts: !!this.track.turboCuts, layout: this.track.layoutScale > 1 ? "long" : "classic", itemRespawns: this.items?.respawns ?? null, countdown: Math.max(0, (this.startAt - now) / 1000), elapsed: this.elapsed
+      fieldSize: ordered.length, manualDrive:!!this.track.manualDrive, assistedSteering:!!this.track.assistedSteering, rampJumpsOnly:!!this.track.manualDrive, freeDrive: !!this.track.terrain, shortcuts: !!this.track.shortcut, turboCuts: !!this.track.turboCuts, layout: this.track.layoutScale > 1 ? "long" : "classic", itemRespawns: this.items?.respawns ?? null, countdown: Math.max(0, (this.startAt - now) / 1000), elapsed: this.elapsed
     };
     if (lobby) {
       const message = JSON.stringify({ ...snapshot, racers: ordered.map(wire),

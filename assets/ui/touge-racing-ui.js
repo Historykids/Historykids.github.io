@@ -1,4 +1,4 @@
-import { LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, LOBBY_EMOJIS, LOBBY_PHRASES, lobbyChatText } from "./touge-racing-rules.mjs?v=23";
+import { LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, LOBBY_EMOJIS, LOBBY_PHRASES, lobbyChatText } from "./touge-racing-rules.mjs?v=24";
 
 export function mountRaceUI(root, showRankings, difficulties, laps) {
   const lapRows = showRankings ? Array.from({ length: laps }, (_, index) =>
@@ -12,7 +12,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
             <p class="course"><span class="checker" aria-hidden="true"></span> 峠レーシング 3D</p>
             <h1 id="game-title"></h1>
           </div>
-          <p class="keyboard">↑↓←→ / WASD　Shift ドリフト　Space アイテム　J ジャンプ</p>
+          <p class="keyboard">↑↓←→ / WASD　Shift ドリフト　Space アイテム　J 空中アクション</p>
           <p class="touch-hint">操作　画面のボタン</p>
         </div>
         <section id="online-entry" class="online-entry" aria-labelledby="entry-title" hidden>
@@ -131,7 +131,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
             </div>
             <div class="control-group control-pedals">
               <button type="button" data-input="item" aria-label="アイテムを使う">アイテム</button>
-              <button type="button" data-input="jump">ジャンプ</button>
+              <button type="button" data-input="jump">アクション</button>
               <button type="button" data-input="drift">ドリフト</button>
               <button type="button" data-input="brake">ブレーキ</button>
               <button type="button" data-input="gas">アクセル</button>

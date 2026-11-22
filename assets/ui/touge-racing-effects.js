@@ -1,5 +1,5 @@
-import { boostRemaining } from "./touge-racing-rules.mjs?v=25";
-import { DEFAULT_RACE_SPEED, DOPA_COLORS, ITEMS, RACE_SPEEDS } from "./touge-racing-rules.mjs?v=25";
+import { boostRemaining } from "./touge-racing-rules.mjs?v=27";
+import { DEFAULT_RACE_SPEED, DOPA_COLORS, ITEMS, RACE_SPEEDS } from "./touge-racing-rules.mjs?v=27";
 
 const DRIFT_COLORS = ["#a6ebff", "#ffc648", "#ff76df"];
 const COLORS = {

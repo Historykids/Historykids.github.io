@@ -1,5 +1,5 @@
-import { enterTerrain, moveAcrossTerrain, turnAcrossTerrain, updateTerrainProgress } from "./touge-racing-terrain.mjs?v=25";
-import { ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, ITEM_LANES, LAPS, driveSample, lapDistance, racerWorldPosition, rampHeight } from "./touge-racing-tracks.mjs?v=25";
+import { enterTerrain, moveAcrossTerrain, turnAcrossTerrain, updateTerrainProgress } from "./touge-racing-terrain.mjs?v=27";
+import { courseRamps, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, ITEM_LANES, LAPS, driveSample, lapDistance, racerWorldPosition, rampHeight } from "./touge-racing-tracks.mjs?v=27";
 
 export const RACE_PROTOCOL = "touge-racing-1";
 export const CPU_FIELD_SIZE = 4;
@@ -12,7 +12,8 @@ export const ITEM_RESPAWN_SECONDS = 1;
 export const PULSE_LIFETIME = 2.6;
 const PULSE_SPEED = 88;
 export const STEP = 1 / 30;
-export const TRIAL_PROTOCOL = "touge-time-attack-12";
+export const TRIAL_PROTOCOL = "touge-time-attack-13";
+export const ALL_RAMPS_PROTOCOL = "touge-time-attack-12";
 export const GROUND_JUMP_TRIAL_PROTOCOL = "touge-time-attack-11";
 export const MANUAL_TRIAL_PROTOCOL = "touge-time-attack-10";
 export const ASSISTED_TRIAL_PROTOCOL = "touge-time-attack-9";
@@ -22,7 +23,7 @@ export const OFFROAD_TRIAL_PROTOCOL = "touge-time-attack-6";
 export const SHORTCUT_TRIAL_PROTOCOL = "touge-time-attack-5";
 export const MAIN_ROAD_TRIAL_PROTOCOL = "touge-time-attack-4";
 export const PREVIOUS_TRIAL_PROTOCOL = "touge-time-attack-3";
-export const usesTrialTerrain = protocol => [TRIAL_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, ASSISTED_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL].includes(protocol);
+export const usesTrialTerrain = protocol => [TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, ASSISTED_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL].includes(protocol);
 export const TRIAL_LIMIT = 360;
 export const DEFAULT_RACE_SPEED = "150cc";
 export const RACE_SPEEDS = Object.freeze({
@@ -631,10 +632,11 @@ export function replayTrial(track, tape, protocol = TRIAL_PROTOCOL, speedClass =
   const openTerrain = usesTrialTerrain(protocol);
   if (!isRaceSpeed(speedClass) || (!openTerrain && protocol !== TURBO_TRIAL_PROTOCOL && protocol !== OFFROAD_TRIAL_PROTOCOL && protocol !== SHORTCUT_TRIAL_PROTOCOL && protocol !== MAIN_ROAD_TRIAL_PROTOCOL &&
       (speedClass !== DEFAULT_RACE_SPEED || (!singleLap && protocol !== PREVIOUS_TRIAL_PROTOCOL)))) return null;
+  if ([ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL].includes(protocol)) track = {...track, ramps:courseRamps(track)};
   if (protocol === TERRAIN_TRIAL_PROTOCOL) track = { ...track, legacyTerrainSpeed: true };
   if (protocol === MANUAL_TRIAL_PROTOCOL) track = { ...track, assistedSteering:false, legacyGroundJump:true };
   else if (protocol === GROUND_JUMP_TRIAL_PROTOCOL) track = { ...track, assistedSteering:true, legacyGroundJump:true };
-  else if (protocol === TRIAL_PROTOCOL) track = { ...track, legacyGroundJump:false };
+  else if (protocol === TRIAL_PROTOCOL || protocol === ALL_RAMPS_PROTOCOL) track = { ...track, legacyGroundJump:false };
   else if (protocol !== TRIAL_PROTOCOL) track = { ...track, manualDrive:false, assistedSteering:false };
   if (!openTerrain && track.terrain) track = { ...track, terrain: null, offroad: !!track.shortcut };
   if (protocol === TURBO_TRIAL_PROTOCOL && track.shortcut) track = { ...track, offroad: true, turboCuts: true };
@@ -645,7 +647,7 @@ export function replayTrial(track, tape, protocol = TRIAL_PROTOCOL, speedClass =
   const laps = singleLap ? 1 : LAPS;
   const maxTicks = singleLap ? 3600 : TRIAL_MAX_TICKS;
   if (!Array.isArray(tape) || !tape.length || tape.length > maxTicks) return null;
-  const maxMask = [TRIAL_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL].includes(protocol) && track.manualDrive ? 123 : openTerrain || [TURBO_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL].includes(protocol) ? 59 : legacy ? 11 : 27;
+  const maxMask = [TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL].includes(protocol) && track.manualDrive ? 123 : openTerrain || [TURBO_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL].includes(protocol) ? 59 : legacy ? 11 : 27;
   let total = 0;
   for (const entry of tape) {
     if (!Array.isArray(entry) || entry.length !== 2) return null;

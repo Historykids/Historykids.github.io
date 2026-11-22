@@ -1,4 +1,4 @@
-import { buildTerrain, terrainPoint } from "./touge-racing-terrain.mjs?v=25";
+import { buildTerrain, terrainPoint } from "./touge-racing-terrain.mjs?v=27";
 
 export const LAPS = 3;
 export const PAD_LENGTH = 9;
@@ -196,6 +196,11 @@ export function driveSample(track, distance, shortcut, out) {
   return track.shortcut.sample((lapDistance(track, distance) - track.shortcut.from) / track.shortcut.ratio, out);
 }
 
+export function courseRamps(track) {
+  return track.pads.map((pad,i) => ({distance: pad.distance + 13, lane: track.newCourse ? 0 : pad.lane,
+    length: track.newCourse ? 14 : 10, halfWidth: track.newCourse ? track.halfWidth - 1 : 3.8, height: track.newCourse ? 4.5 : 2.4, id:i}));
+}
+
 const cached = new Map();
 export function getTrack(id, { classic = false, shortcuts = !classic, offroad = shortcuts, turboCuts = offroad, freeDrive = false, manualDrive = false, assistedSteering = false } = {}) {
   const spec = TRACKS.find(track => track.id === id) ?? archived.find(track => track.id === id) ?? LEGACY_TRACKS.find(track => track.id === id);
@@ -276,8 +281,7 @@ export function getTrack(id, { classic = false, shortcuts = !classic, offroad = 
     };
     track.heightAt=relief[id];
   }
-  track.ramps = pads.map((pad,i) => ({distance: pad.distance + 13, lane: spec.newCourse ? 0 : pad.lane,
-    length: spec.newCourse ? 14 : 10, halfWidth: spec.newCourse ? spec.halfWidth - 1 : 3.8, height: spec.newCourse ? 4.5 : 2.4, id:i}));
+  track.ramps = track.signature ? courseRamps(track) : [];
   if (!classic && shortcuts && Object.hasOwn(shortcutSections, id)) {
     track.shortcut = buildShortcut(track, shortcutSections[id]);
     if (offroad && !freeDrive) {

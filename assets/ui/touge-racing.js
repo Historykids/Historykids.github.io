@@ -1,15 +1,15 @@
-import { createScene } from "./touge-racing-scene.js?v=26";
-import { getTrack, LAPS, racerWorldPosition, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=25";
+import { createScene } from "./touge-racing-scene.js?v=27";
+import { courseRamps, getTrack, LAPS, racerWorldPosition, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=27";
 import {
   DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, RACE_LIMIT, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS,
-  TRIAL_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain,
+  TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain,
   advanceRacer, applyDrive, boostRemaining, createRaceItems, createRacer, createTrialRacer, cruiseAfterFinish, endLastRacer, formatTime, isDriving, isRoughSurface, lapTime, rankRacers, recordTrialInput, stepRace, trialInput
-} from "./touge-racing-rules.mjs?v=25";
-import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=25";
-import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=25";
+} from "./touge-racing-rules.mjs?v=27";
+import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=27";
+import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=27";
 
-import { createRaceEffects } from "./touge-racing-effects.js?v=25";
-import { mountLobbyChat, mountRaceUI } from "./touge-racing-ui.js?v=25";
+import { createRaceEffects } from "./touge-racing-effects.js?v=27";
+import { mountLobbyChat, mountRaceUI } from "./touge-racing-ui.js?v=27";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();
@@ -293,6 +293,7 @@ function initialize(profile) {
     cleanupRace();
     menuOpen = false;
     clearInput();
+    document.querySelector('[data-input="jump"]').hidden = !track.manualDrive || track.ramps.length === 0;
     const oldCanvas = byId("track");
     const canvas = oldCanvas.cloneNode();
     canvas.setAttribute("aria-label", track.name + "の3Dコース");
@@ -392,7 +393,7 @@ function initialize(profile) {
       choiceButtons.forEach(button => { button.disabled = true; });
       byId("ghost-loading").textContent = "1位のゴーストを読み込み中…";
       try {
-        const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1", replay: "12" });
+        const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1", replay: "13" });
         const result = await raceRequest("/race/leaderboard?" + query);
         if (result.track === track.id && result.speedClass === speedClass) data = result.ghost;
         note = data ? "1位 " + data.name + " · " + formatTime(data.seconds) : "1位のゴーストはまだありません";
@@ -411,8 +412,9 @@ function initialize(profile) {
     race.ghost = data ? {
       racer: racers[1], tape: data.tape, index: 0, remaining: 0,
       track: usesTrialTerrain(data.protocol) ? { ...track,
-        manualDrive:[TRIAL_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(data.protocol),
-        assistedSteering:[TRIAL_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL].includes(data.protocol),
+        manualDrive:[TRIAL_PROTOCOL,ALL_RAMPS_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(data.protocol),
+        assistedSteering:[TRIAL_PROTOCOL,ALL_RAMPS_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL].includes(data.protocol),
+        ramps:[ALL_RAMPS_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(data.protocol) ? courseRamps(track) : track.ramps,
         legacyGroundJump:[GROUND_JUMP_TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(data.protocol),
         legacyTerrainSpeed: data.protocol === TERRAIN_TRIAL_PROTOCOL } :
         getTrack(track.id, {

@@ -1,4 +1,4 @@
-import { LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, LOBBY_EMOJIS, LOBBY_PHRASES, lobbyChatText } from "./touge-racing-rules.mjs?v=25";
+import { LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, LOBBY_EMOJIS, LOBBY_PHRASES, lobbyChatText } from "./touge-racing-rules.mjs?v=27";
 
 export function mountRaceUI(root, showRankings, difficulties, laps) {
   const lapRows = showRankings ? Array.from({ length: laps }, (_, index) =>
@@ -39,7 +39,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
           <div id="course-grid" class="course-grid" aria-label="全13コース"></div>
         </section>
         <div class="race-preferences">
-          <p class="control-tip" id="race-tip">ドリフトを続けて離すと加速。青い台でジャンプし、空中でJを押すと着地ブースト。草地はターボで横切ろう。</p>
+          <p class="control-tip" id="race-tip">ドリフトを続けて離すと加速。新3コースでは青い台から飛び、空中でJを押すと着地ブースト。草地はターボで横切ろう。</p>
           <label class="race-sound"><input id="race-sound" type="checkbox"> 効果音</label>
         </div>
       </section>

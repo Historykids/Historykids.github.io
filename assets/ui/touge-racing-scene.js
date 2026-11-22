@@ -1,10 +1,9 @@
-import { coachwork } from "./touge-racing-coachwork.mjs?v=25";
 import * as THREE from "../vendor/three.module.js";
-import { createCanvasRenderer } from "./touge-racing-canvas.js?v=26";
-import { worldScenery } from "./touge-racing-world.mjs?v=25";
-import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, driveSample, nearShortcut, racerSample, roadHeight, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=25";
-import { smoothRacerPose } from "./touge-racing-motion.mjs?v=25";
-import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, boostRemaining, isRoughSurface, pulsePosition } from "./touge-racing-rules.mjs?v=25";
+import { createCanvasRenderer } from "./touge-racing-canvas.js?v=27";
+import { worldScenery } from "./touge-racing-world.mjs?v=27";
+import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, driveSample, nearShortcut, racerSample, roadHeight, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=27";
+import { smoothRacerPose } from "./touge-racing-motion.mjs?v=27";
+import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, boostRemaining, isRoughSurface, pulsePosition } from "./touge-racing-rules.mjs?v=27";
 
 function ribbon(track, scene, material, left, right, y, from = 0, to = track.length) {
   const vertices = [];
@@ -447,41 +446,10 @@ const rims = flat(0x9da7b6);
 const taillight = bright(0xff513e);
 const headlight = bright(0xffe9bd);
 
-function car(scene, paint, ghost, track) {
+function car(scene, paint, ghost) {
   const group = new THREE.Group();
   const body = new THREE.MeshPhysicalMaterial({color:paint,metalness:.55,roughness:.23,clearcoat:1,clearcoatRoughness:.18});
   group.userData.paint = body;
-  if (track.signature) {
-    const {panels,wheel,axles}=coachwork(track.id);
-    const finishes={paint:body, glass:carGlass.clone(),trim:carTrim.clone(),metal:rims.clone(),red:taillight.clone(),lamp:headlight.clone()};
-    for(const [finish,material] of Object.entries(finishes)){
-      const vertices=[];
-      for(const panel of panels.filter(panel=>panel.finish===finish)){
-        for(let i=1;i<panel.vertices.length-1;i++) vertices.push(...panel.vertices[0],...panel.vertices[i],...panel.vertices[i+1]);
-      }
-      if(!vertices.length)continue;
-      material.side=THREE.DoubleSide;
-      const geometry=new THREE.BufferGeometry();
-      geometry.setAttribute("position",new THREE.Float32BufferAttribute(vertices,3));
-      geometry.computeVertexNormals();
-      group.add(new THREE.Mesh(geometry,material));
-    }
-    for(const side of [-1,1])for(const z of axles){
-      const rotor=new THREE.Group();
-      rotor.position.set(side*1.01,wheel,z);
-      rotor.userData.wheel=true;
-      group.add(rotor);
-      const tire=new THREE.Mesh(new THREE.TorusGeometry(wheel*.78,wheel*.22,10,32),tires);
-      tire.rotation.y=Math.PI/2;
-      rotor.add(tire);
-      const disc=new THREE.Mesh(new THREE.CylinderGeometry(wheel*.65,wheel*.65,.14,24),carTrim);
-      disc.rotation.z=Math.PI/2;rotor.add(disc);
-      for(let spoke=0;spoke<5;spoke++){
-        const bar=box(rotor,rims,side*.092,0,0,.035,.047,wheel*1.32);
-        bar.rotation.x=spoke*Math.PI/5;
-      }
-    }
-  } else {
   box(group, carTrim, 0, .42, 0, 2.12, .27, 3.95);
   box(group, body, 0, .74, .05, 2.15, .44, 3.95);
   box(group, body, 0, .99, .94, 1.98, .16, 1.7);
@@ -508,7 +476,6 @@ function car(scene, paint, ghost, track) {
       hub.position.copy(wheel.position);
       group.add(hub);
     }
-  }
   }
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(2.75, 4.6), new THREE.MeshBasicMaterial({
     color: 0x171a20, transparent: true, opacity: .37, depthWrite: false
@@ -641,7 +608,7 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
       const pose = smoothRacerPose(track, racer, poses[index], dt, resetCamera);
       const visible = !racer.dnf && (index === 0 || racer.finishedAt === null || racer.cruising);
       if (!context || (!visible && !cars[index])) return;
-      const model = cars[index] ?? (cars[index] = car(scene, racer.color, racer.ghost, track));
+      const model = cars[index] ?? (cars[index] = car(scene, racer.color, racer.ghost));
       model.visible = visible;
       if (!visible) return;
       const p = racerSample(track, pose, frame);

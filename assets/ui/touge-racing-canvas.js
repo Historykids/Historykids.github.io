@@ -1,8 +1,7 @@
-import { coachwork } from "./touge-racing-coachwork.mjs?v=25";
-import { worldScenery } from "./touge-racing-world.mjs?v=25";
+import { worldScenery } from "./touge-racing-world.mjs?v=27";
 
-import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, nearShortcut, racerSample, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=25";
-import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulsePosition } from "./touge-racing-rules.mjs?v=25";
+import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, nearShortcut, racerSample, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=27";
+import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulsePosition } from "./touge-racing-rules.mjs?v=27";
 
 // Software perspective renderer for browsers that cannot open a WebGL context.
 export function createCanvasRenderer(canvas, racers, track, showItems = false, neon = false) {
@@ -19,7 +18,6 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
   const crates = [];
   const worldScale = track.layoutScale ?? 1;
   const worldPoints = corners => corners.map(([x, y, z]) => [x * worldScale, y * worldScale, z * worldScale]);
-  const customCar = track.signature ? coachwork(track.id) : null;
   const vehicles = new Map();
   let grain, clouds;
   if(track.signature){
@@ -298,7 +296,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
       ];
     }
 
-    function project({ corners, color, oneSided, opacity, finish, shadowColor }) {
+    function project({ corners, color, oneSided, opacity }) {
       const vertices = corners.map(transform);
       const clipped = [];
       for (let i = 0; i < vertices.length; i++) {
@@ -321,7 +319,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
         }, 0);
         if (area >= 0) return null;
       }
-      return { color, screen, opacity, finish, shadowColor, depth: clipped.reduce((sum, p) => sum + p[2], 0) / clipped.length };
+      return { color, screen, opacity, depth: clipped.reduce((sum, p) => sum + p[2], 0) / clipped.length };
     }
 
     function trace(screen) {
@@ -335,18 +333,6 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
       ctx.beginPath();
       trace(polygon.screen);
       ctx.fillStyle = polygon.color;
-      if(polygon.finish==="paint" || polygon.finish==="glass"){
-        const ys=polygon.screen.map(p=>p[1]);
-        const low=Math.min(...ys),high=Math.max(...ys);
-        const sheen=ctx.createLinearGradient(0,low,0,Math.max(low+.1,high));
-        if(polygon.finish==="glass"){
-          sheen.addColorStop(0,skyHorizon);sheen.addColorStop(.38,"#6f8991");sheen.addColorStop(1,"#182a34");
-        }else{
-          sheen.addColorStop(0,polygon.color);sheen.addColorStop(.27,polygon.color);
-          sheen.addColorStop(1,polygon.shadowColor);
-        }
-        ctx.fillStyle=sheen;
-      }
       ctx.globalAlpha = polygon.opacity ?? 1;
       ctx.fill();
       ctx.globalAlpha = 1;
@@ -434,30 +420,12 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
       const rubber = ["#232735", "#232735", "#232735", "#232735", "#303744"];
       const startFace = faces.length;
       const red = Array(5).fill("#ff5346");
-      if(customCar){
-        const finishes={paint:body,glass:"#263e49",trim:"#272b2d",metal:"#a1a8ab",red:"#ec4732",lamp:"#e1efef"};
-        for(const panel of customCar.panels){
-          const corners=panel.vertices.map(([x,y,z])=>[p.x+p.rx*x+p.fx*z,p.y+y,p.z+p.rz*x+p.fz*z]);
-          faces.push({corners,color:finishes[panel.finish],finish:panel.finish,shadowColor:side});
-        }
-        for(const sign of [-1,1])for(const z of customCar.axles){
-          const r=customCar.wheel;
-          for(const [radius,offset,color] of [[r,1.06,"#242629"],[r*.57,1.08,"#a2a7a8"]]){
-            const corners=Array.from({length:12},(_,i)=>{
-              const angle=i*Math.PI/6,along=z+radius*Math.cos(angle);
-              return [p.x+p.rx*sign*offset+p.fx*along,p.y+r+radius*Math.sin(angle),p.z+p.rz*sign*offset+p.fz*along];
-            });
-            faces.push({corners,color});
-          }
-        }
-      }else{
       box(faces, p, 0, .7, 0, 2.14, .54, 3.98, paintwork);
       box(faces, p, 0, 1.13, -.2, 1.66, .43, 1.64, glass);
       box(faces, p, 0, 1.12, -1.8, 1.98, .095, .26, paintwork);
       for (const side of [-1, 1]) {
         box(faces, p, side * .77, .78, -2, .44, .14, .05, red);
         for (const z of [-1.3, 1.28]) box(faces, p, side * .94, .36, z, .35, .64, .68, rubber);
-      }
       }
       if (racer.ghost) for (let i = startFace; i < faces.length; i++) faces[i].opacity = .42;
     });

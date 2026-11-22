@@ -1,7 +1,8 @@
-import { worldScenery } from "./touge-racing-world.mjs?v=24";
+import { coachwork } from "./touge-racing-coachwork.mjs?v=25";
+import { worldScenery } from "./touge-racing-world.mjs?v=25";
 
-import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, nearShortcut, racerSample, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=24";
-import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulsePosition } from "./touge-racing-rules.mjs?v=24";
+import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, nearShortcut, racerSample, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=25";
+import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, pulsePosition } from "./touge-racing-rules.mjs?v=25";
 
 // Software perspective renderer for browsers that cannot open a WebGL context.
 export function createCanvasRenderer(canvas, racers, track, showItems = false, neon = false) {
@@ -18,6 +19,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
   const crates = [];
   const worldScale = track.layoutScale ?? 1;
   const worldPoints = corners => corners.map(([x, y, z]) => [x * worldScale, y * worldScale, z * worldScale]);
+  const customCar = track.signature ? coachwork(track.id) : null;
   const vehicles = new Map();
   const near = .7;
   let ratio = 1;
@@ -126,7 +128,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
     roadStrip(a, b, halfWidth - edgeFar, halfWidth - edgeNear, .16,
       neon ? DOPA_COLORS[(tint + 3) % DOPA_COLORS.length] : "#e3dfd3");
     if (index % 2 === 0) roadStrip(a, b, -.08, .08, .16, "#c9b388");
-    if (index % (theme === "desert" ? 21 : 4) === 0) {
+    if (!track.signature && index % (theme === "desert" ? 21 : 4) === 0) {
       const side = index % 12 === 0 && from > length * .37 ? 1 : -1;
       const offset = side * (12 + 4 * Math.sin(index * .8) ** 2);
       if (nearShortcut(track, a.x + a.rx * offset, a.z + a.rz * offset)) continue;
@@ -218,7 +220,7 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
   for (const shape of worldScenery(track)) {
     const pigment = parseInt(shape.color.slice(1), 16);
     for (const [i, face] of shape.faces.entries()) {
-      scenery.push({ color: shade(pigment, [1.11,.86,.94,1.02][i % 4]), corners: face.map(j => shape.vertices[j]) });
+      scenery.push({ color: shade(pigment, [1.11,.86,.94,1.02][i % 4]), corners: face.map(j => {const [x,y,z]=shape.vertices[j];return [x,y+(track.signature?track.heightAt(x,z):0),z];}) });
     }
   }
   if (showItems) {
@@ -380,12 +382,30 @@ export function createCanvasRenderer(canvas, racers, track, showItems = false, n
       const rubber = ["#232735", "#232735", "#232735", "#232735", "#303744"];
       const startFace = faces.length;
       const red = Array(5).fill("#ff5346");
+      if(customCar){
+        const finishes={paint:body,glass:"#263e49",trim:"#272b2d",metal:"#a1a8ab",red:"#ec4732",lamp:"#e1efef"};
+        for(const panel of customCar.panels){
+          const corners=panel.vertices.map(([x,y,z])=>[p.x+p.rx*x+p.fx*z,p.y+y,p.z+p.rz*x+p.fz*z]);
+          faces.push({corners,color:finishes[panel.finish]});
+        }
+        for(const sign of [-1,1])for(const z of customCar.axles){
+          const r=customCar.wheel;
+          for(const [radius,offset,color] of [[r,1.06,"#242629"],[r*.57,1.08,"#a2a7a8"]]){
+            const corners=Array.from({length:12},(_,i)=>{
+              const angle=i*Math.PI/6,along=z+radius*Math.cos(angle);
+              return [p.x+p.rx*sign*offset+p.fx*along,p.y+r+radius*Math.sin(angle),p.z+p.rz*sign*offset+p.fz*along];
+            });
+            faces.push({corners,color});
+          }
+        }
+      }else{
       box(faces, p, 0, .7, 0, 2.14, .54, 3.98, paintwork);
       box(faces, p, 0, 1.13, -.2, 1.66, .43, 1.64, glass);
       box(faces, p, 0, 1.12, -1.8, 1.98, .095, .26, paintwork);
       for (const side of [-1, 1]) {
         box(faces, p, side * .77, .78, -2, .44, .14, .05, red);
         for (const z of [-1.3, 1.28]) box(faces, p, side * .94, .36, z, .35, .64, .68, rubber);
+      }
       }
       if (racer.ghost) for (let i = startFace; i < faces.length; i++) faces[i].opacity = .42;
     });

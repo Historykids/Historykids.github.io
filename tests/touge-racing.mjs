@@ -739,7 +739,7 @@ for(const course of TRACKS){
   assert.equal(racer.lapEnds.length,3,course.id+" can finish with manual steering");
   assert(airborne&&landingBoost,course.id+" supports ramps, tricks and landing boosts");
   assert.equal(replayTrial(route,tape,MANUAL_TRIAL_PROTOCOL),racer.finishedAt);
-  if(course.id==="cloudpass"){
+  if(course.id==="firn"){
     const response=await submit({...record,track:course.id,player:crypto.randomUUID(),protocol:MANUAL_TRIAL_PROTOCOL,tape});
     assert.equal(response.status,200,"The server accepts and verifies a new manual-steering replay");
     assert.equal(await ghostBoard("150cc",9,course.id),null);
@@ -825,7 +825,7 @@ for(const {id} of TRACKS){
   assert.equal(racer.lapEnds.length,LAPS,id+" finishes with restored assistance");
   assert(airborne&&landingBoost,id+" retains ramps, tricks and landing boosts");
   assert.equal(replayTrial(route,tape,RESTORED_TRIAL_PROTOCOL),racer.finishedAt);
-  if(id==="dunefly"){
+  if(id==="meridian"){
     const response=await submit({...record,track:id,player:crypto.randomUUID(),protocol:RESTORED_TRIAL_PROTOCOL,tape});
     assert.equal(response.status,200,"The server validates restored-steering trial records");
     assert.equal(await ghostBoard("150cc",11,id),null);

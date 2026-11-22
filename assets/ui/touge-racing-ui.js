@@ -1,4 +1,4 @@
-import { LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, LOBBY_EMOJIS, LOBBY_PHRASES, lobbyChatText } from "./touge-racing-rules.mjs?v=24";
+import { LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, LOBBY_EMOJIS, LOBBY_PHRASES, lobbyChatText } from "./touge-racing-rules.mjs?v=25";
 
 export function mountRaceUI(root, showRankings, difficulties, laps) {
   const lapRows = showRankings ? Array.from({ length: laps }, (_, index) =>
@@ -35,7 +35,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
               <button class="primary" id="start" type="button" disabled>CPUと対戦する →</button>
             </div>
           </div>
-          <p class="new-course-announcement">新コース3つが登場 <span>雲海アルプス・ドバイ・ハワイ</span></p>
+          <p class="new-course-announcement">新コース3つが登場 <span>フィルン峠・メリディアン埠頭・プナ海岸</span></p>
           <div id="course-grid" class="course-grid" aria-label="全13コース"></div>
         </section>
         <div class="race-preferences">

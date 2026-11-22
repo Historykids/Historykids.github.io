@@ -1,5 +1,5 @@
-import { TRACKS } from "./touge-racing-tracks.mjs?v=24";
-import { createRankingPanel, mountSpeedPicker } from "./touge-racing-menu.js?v=24";
+import { TRACKS } from "./touge-racing-tracks.mjs?v=25";
+import { createRankingPanel, mountSpeedPicker } from "./touge-racing-menu.js?v=25";
 import { requireRaceName } from "./touge-racing-profile.mjs?v=6";
 
 const name = requireRaceName();

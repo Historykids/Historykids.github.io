@@ -1,4 +1,4 @@
-import { DEFAULT_RACE_SPEED, RACE_PROTOCOL } from "./touge-racing-rules.mjs?v=24";
+import { DEFAULT_RACE_SPEED, RACE_PROTOCOL } from "./touge-racing-rules.mjs?v=25";
 
 const ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 const messages = {

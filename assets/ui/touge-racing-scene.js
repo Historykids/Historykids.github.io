@@ -1,9 +1,10 @@
+import { coachwork } from "./touge-racing-coachwork.mjs?v=25";
 import * as THREE from "../vendor/three.module.js";
-import { createCanvasRenderer } from "./touge-racing-canvas.js?v=24";
-import { worldScenery } from "./touge-racing-world.mjs?v=24";
-import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, driveSample, nearShortcut, racerSample, roadHeight, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=24";
-import { smoothRacerPose } from "./touge-racing-motion.mjs?v=24";
-import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, boostRemaining, isRoughSurface, pulsePosition } from "./touge-racing-rules.mjs?v=24";
+import { createCanvasRenderer } from "./touge-racing-canvas.js?v=25";
+import { worldScenery } from "./touge-racing-world.mjs?v=25";
+import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, driveSample, nearShortcut, racerSample, roadHeight, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=25";
+import { smoothRacerPose } from "./touge-racing-motion.mjs?v=25";
+import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, boostRemaining, isRoughSurface, pulsePosition } from "./touge-racing-rules.mjs?v=25";
 
 function ribbon(track, scene, material, left, right, y, from = 0, to = track.length) {
   const vertices = [];
@@ -61,11 +62,12 @@ function buildRoad(scene, track, neon) {
     appendRibbon(track, vertices, indices, left, right, y, from, to);
   }
   const white = bright(0xe8edf2);
-  const red = flat(0xcc4339);
+  const red = flat(track.signature ? track.colors[5] : 0xcc4339);
   const kerb = flat(0xe9d9b8);
   const lanes = flat(0xd2b984);
   strip(flat(0x51463e), -ROAD_HALF - 1.25, ROAD_HALF + 1.25, .09);
-  const asphalt=flat(0x292d37);
+  const asphalt=flat(track.signature ? {firn:0x9aa3a9,meridian:0xb1aaa1,puna:0x848991}[track.id] : 0x292d37);
+  if(track.signature) asphalt.roughness=track.id==="meridian"?.43:.77;
   const pixels=document.createElement("canvas");
   pixels.width=pixels.height=128;
   const paint=pixels.getContext("2d");
@@ -175,10 +177,10 @@ function makeSky(scene, track, colors) {
     parseInt(value.slice(3, 5), 16) / 255,
     parseInt(value.slice(5, 7), 16) / 255
   );
-  const sun = new THREE.Vector3(.81, .185, .5).normalize();
+  const sun = new THREE.Vector3(...({firn:[-.68,.48,.56],meridian:[.86,.09,.44],puna:[.45,.24,-.85]}[track.id] ?? [.81,.185,.5])).normalize();
   const sky = new THREE.Mesh(new THREE.SphereGeometry(515, 24, 12), new THREE.ShaderMaterial({
     side: THREE.BackSide,
-    uniforms: { sun: { value: sun }, zenith: { value: asRGB(colors[0]) }, horizonColor: { value: asRGB(colors[1]) }, night: { value: track.theme === "night" ? 1 : 0 } },
+    uniforms: { weather: {value:track.signature ? (track.id==="meridian"?.18:.58) : 0}, sun: { value: sun }, zenith: { value: asRGB(colors[0]) }, horizonColor: { value: asRGB(colors[1]) }, night: { value: track.theme === "night" ? 1 : 0 } },
     vertexShader: `
       varying vec3 vPosition;
       void main() {
@@ -187,6 +189,12 @@ function makeSky(scene, track, colors) {
       }
     `,
     fragmentShader: `
+      uniform float weather;
+      float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+      float noise(vec2 p){
+        vec2 v=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+        return mix(mix(hash(v),hash(v+vec2(1,0)),f.x),mix(hash(v+vec2(0,1)),hash(v+vec2(1,1)),f.x),f.y);
+      }
       uniform vec3 sun;
       uniform vec3 zenith;
       uniform vec3 horizonColor;
@@ -202,6 +210,12 @@ function makeSky(scene, track, colors) {
         float alignment = max(0.0, dot(direction, sun));
         color += pow(alignment, 38.0) * vec3(.19, .09, .015);
         color = mix(color, mix(vec3(1.0, .87, .62), vec3(.88, .92, 1.0), night), smoothstep(.9987, .9991, alignment));
+        if(weather>0. && y>.018){
+          vec2 p=direction.xz/max(y,.035)*2.7;
+          float density=.52*noise(p)+.28*noise(p*2.1)+.14*noise(p*4.3)+.06*noise(p*9.);
+          float cloud=smoothstep(.47,.73,density)*smoothstep(.018,.14,y)*weather;
+          color=mix(color,mix(vec3(.56,.61,.68),vec3(1.,.95,.88),density),cloud);
+        }
         gl_FragColor = vec4(color, 1.0);
       }
     `
@@ -211,6 +225,7 @@ function makeSky(scene, track, colors) {
   light.position.set(sun.x * 100, 38, sun.z * 100);
   scene.add(light, new THREE.HemisphereLight(0xe5e8ff, 0x5c5147, 1.65));
   scene.userData.sun=light;
+  scene.userData.sunDirection=sun;
   light.castShadow=true;
   light.shadow.mapSize.set(1536,1536);
   light.shadow.camera.left=light.shadow.camera.bottom=-65;
@@ -244,13 +259,28 @@ function landscape(scene, track) {
       vertices.push(px,track.heightAt(px,pz)-.12,pz);
       if(x<segments&&z<segments){const a=z*(segments+1)+x;indices.push(a,a+segments+1,a+1,a+1,a+segments+1,a+segments+2);}
     }
-    addSurface(scene,flat(track.colors[2]),vertices,indices);
+    const ground=flat(track.colors[2]);
+    if(track.signature){
+      ground.vertexColors=true;
+      const geometry=new THREE.BufferGeometry(), colors=[];
+      for(let i=0;i<vertices.length;i+=3){
+        const x=vertices[i],z=vertices[i+2];
+        const grain=.84+.09*Math.sin(x*.046+Math.sin(z*.064))+.12*Math.cos(z*.051+x*.02);
+        colors.push(grain,grain*.99,grain*.95);
+      }
+      geometry.setAttribute("position",new THREE.Float32BufferAttribute(vertices,3));
+      geometry.setAttribute("color",new THREE.Float32BufferAttribute(colors,3));
+      geometry.setIndex(indices);geometry.computeVertexNormals();
+      const terrain=new THREE.Mesh(geometry,ground);
+      terrain.receiveShadow=true;scene.add(terrain);
+    }else addSurface(scene,ground,vertices,indices);
     box(scene,flat(track.colors[3]),0,-3,0,4000,1,4000);
   }else{
     box(scene, flat(track.colors[2]), 0, -.69, -105 * worldScale, 530 * worldScale, 1.37, (coastal ? 402 : 700) * worldScale);
     box(scene, flat(coastal ? track.colors[3] : track.colors[2]), 0, -1.8, 0, 1000 * worldScale, .45, 1000 * worldScale);
   }
 
+  if (track.signature) return;
   let seed = 1347;
   function random() {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -324,6 +354,9 @@ function addWorldScenery(scene, track) {
   for (const [color, mesh] of byColor) {
     const material = flat(color);
     material.side = THREE.DoubleSide;
+    if(track.id==="meridian" && ["#435865","#526573","#66636b","#455660"].includes(color)){
+      material.metalness=.72;material.roughness=.22;
+    }
     addSurface(scene, material, mesh.positions, mesh.indices);
   }
 }
@@ -414,10 +447,41 @@ const rims = flat(0x9da7b6);
 const taillight = bright(0xff513e);
 const headlight = bright(0xffe9bd);
 
-function car(scene, paint, ghost) {
+function car(scene, paint, ghost, track) {
   const group = new THREE.Group();
   const body = new THREE.MeshPhysicalMaterial({color:paint,metalness:.55,roughness:.23,clearcoat:1,clearcoatRoughness:.18});
   group.userData.paint = body;
+  if (track.signature) {
+    const {panels,wheel,axles}=coachwork(track.id);
+    const finishes={paint:body, glass:carGlass.clone(),trim:carTrim.clone(),metal:rims.clone(),red:taillight.clone(),lamp:headlight.clone()};
+    for(const [finish,material] of Object.entries(finishes)){
+      const vertices=[];
+      for(const panel of panels.filter(panel=>panel.finish===finish)){
+        for(let i=1;i<panel.vertices.length-1;i++) vertices.push(...panel.vertices[0],...panel.vertices[i],...panel.vertices[i+1]);
+      }
+      if(!vertices.length)continue;
+      material.side=THREE.DoubleSide;
+      const geometry=new THREE.BufferGeometry();
+      geometry.setAttribute("position",new THREE.Float32BufferAttribute(vertices,3));
+      geometry.computeVertexNormals();
+      group.add(new THREE.Mesh(geometry,material));
+    }
+    for(const side of [-1,1])for(const z of axles){
+      const rotor=new THREE.Group();
+      rotor.position.set(side*1.01,wheel,z);
+      rotor.userData.wheel=true;
+      group.add(rotor);
+      const tire=new THREE.Mesh(new THREE.TorusGeometry(wheel*.78,wheel*.22,10,32),tires);
+      tire.rotation.y=Math.PI/2;
+      rotor.add(tire);
+      const disc=new THREE.Mesh(new THREE.CylinderGeometry(wheel*.65,wheel*.65,.14,24),carTrim);
+      disc.rotation.z=Math.PI/2;rotor.add(disc);
+      for(let spoke=0;spoke<5;spoke++){
+        const bar=box(rotor,rims,side*.092,0,0,.035,.047,wheel*1.32);
+        bar.rotation.x=spoke*Math.PI/5;
+      }
+    }
+  } else {
   box(group, carTrim, 0, .42, 0, 2.12, .27, 3.95);
   box(group, body, 0, .74, .05, 2.15, .44, 3.95);
   box(group, body, 0, .99, .94, 1.98, .16, 1.7);
@@ -444,6 +508,7 @@ function car(scene, paint, ghost) {
       hub.position.copy(wheel.position);
       group.add(hub);
     }
+  }
   }
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(2.75, 4.6), new THREE.MeshBasicMaterial({
     color: 0x171a20, transparent: true, opacity: .37, depthWrite: false
@@ -576,7 +641,7 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
       const pose = smoothRacerPose(track, racer, poses[index], dt, resetCamera);
       const visible = !racer.dnf && (index === 0 || racer.finishedAt === null || racer.cruising);
       if (!context || (!visible && !cars[index])) return;
-      const model = cars[index] ?? (cars[index] = car(scene, racer.color, racer.ghost));
+      const model = cars[index] ?? (cars[index] = car(scene, racer.color, racer.ghost, track));
       model.visible = visible;
       if (!visible) return;
       const p = racerSample(track, pose, frame);
@@ -622,7 +687,11 @@ export function createScene(canvas, racers, track, { showItems = false, raceCame
     camera.lookAt(aim);
     if (context) {
       const sun=scene.userData.sun;
-      if(sun){sun.position.set(p.x+90,elevation+110,p.z+60);sun.target.position.set(p.x,elevation,p.z);}
+      if(sun){
+        sun.target.position.set(p.x,elevation,p.z);
+        if(track.signature)sun.position.copy(sun.target.position).addScaledVector(scene.userData.sunDirection,128);
+        else sun.position.set(p.x+90,elevation+110,p.z+60);
+      }
       renderPulses(projectiles, elapsed);
       renderer.render(scene, camera);
     } else renderer.render(scene, camera, itemRespawns, elapsed, projectiles);

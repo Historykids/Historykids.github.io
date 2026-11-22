@@ -26,7 +26,122 @@ export function worldScenery(track) {
     mesh(color, verts, [[0,1,2,3],[4,7,6,5],[0,4,5,1],[1,5,6,2],[2,6,7,3],[3,7,4,0]]);
   }
 
+  if(track.signature){
+    // Place small structures in road coordinates so the driver passes them at close range.
+    for(let i=0;i<42;i++){
+      const road=track.sample((i+.36)*track.length/42),sign=i%2?1:-1;
+      const offset=(track.halfWidth+10+i%4*3)*sign;
+      const x=(road.x+road.rx*offset)/scale,z=(road.z+road.rz*offset)/scale;
+      if(track.id==="firn"){
+        if(i%5===0){
+          box(x,z,5.4,3.8,0,2.6,"#927d69");
+          mesh("#625c59",[[x-3,2.6,z-2.3],[x+3,2.6,z-2.3],[x+3,3.9,z],[x-3,3.9,z],[x-3,2.6,z+2.3],[x+3,2.6,z+2.3]],[[0,1,2,3],[3,2,5,4],[0,3,4],[1,5,2]]);
+          for(const dx of [-1.65,0,1.65])box(x+dx,z-1.91,.8,.1,1.15,.8,"#344951");
+        }else for(let k=0;k<3;k++){
+          const tx=x+(k-1)*1.35,tz=z+k*1.9,h=3.4+(i+k)%4;
+          tower(tx,tz,.37,.37,0,h*.4,.85,"#655d51",5);
+          for(let layer=0;layer<3;layer++)tower(tx,tz,h*(.56-.11*layer),h*(.51-.1*layer),h*(.18+layer*.2),h*.46,.05,layer===2?"#4b6057":"#344d43",7);
+        }
+      }else if(track.id==="meridian"){
+        box(x,z,.18,.2,0,4.8,"#6a6e72"); beam([x,4.8,z],[x+road.rx*1.3,5.1,z+road.rz*1.3],.13,"#818481");
+        box(x+road.rx*1.3,z+road.rz*1.3,.58,.35,5,.1,"#ffdfb4");
+        if(i%3===0){
+          const tx=x+road.rx*sign*6,tz=z+road.rz*sign*6,h=5+i%12;
+          box(tx,tz,6,5,0,h,"#455660");
+          for(let y=1;y<h;y+=1.2)box(tx,tz,6.12,5.12,y,.16,"#aaa498");
+        }
+      }else{
+        for(let k=0;k<4;k++){
+          const r=1+(i+k)%3,tx=x+k*1.4,tz=z+Math.sin(k+i)*2;
+          tower(tx,tz,r*1.8,r*1.3,0,r*.71,.55,k%2?"#494846":"#585452",7);
+        }
+        if(i%3===0){
+          beam([x,0,z],[x+.6,4.6,z+.35],.28,"#776b54");
+          for(let leaf=0;leaf<8;leaf++){
+            const a=leaf*Math.PI/4+i,dx=Math.cos(a),dz=Math.sin(a);
+            mesh(leaf%2?"#526f4f":"#395544",[[x+.6,4.7,z+.35],[x+1.6*dx-.44*dz,5.15,z+1.6*dz+.44*dx],[x+3.4*dx,3.9,z+3.4*dz],[x+1.6*dx+.44*dz,5.15,z+1.6*dz-.44*dx]],[[0,1,2],[0,2,3]]);
+          }
+        }
+      }
+    }
+  }
   switch (track.id) {
+    case "firn": {
+      // Layer broken rock faces below a continuous, irregular snow line.
+      for(let bank=0;bank<2;bank++){
+        const side=bank?1:-1;
+        let previous;
+        for(let i=0;i<=48;i++){
+          const x=-310+i*13, height=36+22*Math.sin(i*.52)**2+19*Math.cos(i*.29)+7*Math.sin(i*1.9);
+          const z=side*(147+15*Math.sin(i*.37));
+          const section=[[x,0,z],[x+3,height*.48,z+side*15],[x-2,height*.78,z+side*25],[x,height,z+side*37]];
+          if(previous)for(let band=0;band<3;band++){
+            const tones=[["#56655f","#68716b"],["#71818a","#879496"],["#d4dfe0","#edf1ec"]][band];
+            const a=previous[band],b=section[band],c=section[band+1],d=previous[band+1];
+            mesh(tones[i%2],[a,b,c],[[0,1,2]]);
+            mesh(tones[(i+1)%2],[a,c,d],[[0,1,2]]);
+          }
+          previous=section;
+        }
+      }
+      for(let i=0;i<10;i++){
+        const x=-129+i*15,z=82+Math.sin(i*.55)*5;
+        box(x,z,2.7,3.4,0,12,"#87877b"); box(x,z,15.5,4.2,12,1,"#6e736e");
+        for(const side of [-1,1])box(x,z+side,15,.12,13,.18,"#454e50");
+        if(i<6){box(x,z,9.8,3.1,13.3,2.9,"#a24738");box(x,z+.01,10.2,3.3,16.2,.35,"#535b5b");
+          for(const gap of [-3,-1,1,3])box(x+gap,z-1.57,1.35,.1,14.6,1.05,"#94afbb");}
+      }
+      break;
+    }
+    case "meridian": {
+      for(let i=0;i<32;i++){
+        const x=-160+(i%16)*21,z=100+Math.floor(i/16)*25+(i%3)*3;
+        const h=15+(i*19)%47+(i===8?42:0), w=8+i%5,d=8+i%3;
+        const glass=["#435865","#526573","#66636b"][i%3];
+        box(x,z,w,d,0,h,glass);
+        for(let y=2;y<h-1;y+=3.3)box(x,z,w+.13,d+.13,y,.19,y%5>2?"#a49a89":"#777788");
+        for(const col of [-.34,0,.34])box(x+w*col,z-d*.5,w*.026,.18,0,h,"#87959b");
+        box(x,z,w*.76,d*.8,h,2.4,glass);
+        if(i%4===0)beam([x,h+2.4,z],[x,h+9,z],.24,"#a6aaad");
+      }
+      for(let i=0;i<14;i++){
+        const x=-117+(i%7)*14,z=-91-Math.floor(i/7)*8;
+        box(x,z,12,4.2,0,4,"#8c6857");box(x,z,11.9,4.2,4.1,4,i%3?"#5c7779":"#925b45");
+      }
+      for(const x of [-108,-49,10]){
+        for(const dx of [-4,4])box(x+dx,-105,1.1,5,0,20,"#b98356");
+        beam([x-8,20,-105],[x+23,20,-105],1.2,"#cf9867");
+        beam([x-4,20,-105],[x+3,28,-105],.55,"#bf885d");
+        beam([x+3,28,-105],[x+23,20,-105],.55,"#bf885d");
+      }
+      break;
+    }
+    case "puna": {
+      const coast=i=>109+7*Math.sin(i*.54)+4*Math.cos(i*1.1);
+      for(let i=0;i<52;i++){
+        const x=-260+10*i,z=coast(i),next=coast(i+1);
+        for(const [offset,width,color] of [[0,5,"#252d31"],[5,2,"#d3e0d7"],[7,11,"#57999a"],[18,250,"#265e70"]]){
+          mesh(color,[[x,1,z+offset],[x+10,1,next+offset],[x+10,1,next+offset+width],[x,1,z+offset+width]],[[0,1,2,3]]);
+        }
+      }
+      for(let i=0;i<38;i++){
+        const x=-168+9*i,z=-99-(i*17)%21;
+        tower(x,z,19,15,0,9+(i*13)%17,.66,i%2?"#534c49":"#645a54",7);
+      }
+      for(let i=0;i<27;i++){
+        const x=-145+11*i,z=coast(i)-6;
+        beam([x,0,z],[x+1,6,z+.4],.48,"#796854");
+        for(let j=0;j<7;j++){
+          const a=j*.897+i,dx=Math.cos(a),dz=Math.sin(a);
+          mesh(j%2?"#47634d":"#334e40",[[x+1,6,z+.4],[x+1+dx*2-dz*.5,6.8,z+dz*2+dx*.5],[x+1+dx*4.6,5,z+dz*4.6],[x+1+dx*2+dz*.5,6.8,z+dz*2-dx*.5]],[[0,1,2],[0,2,3]]);
+        }
+      }
+      tower(98,98,4,4,0,11,.65,"#e1d6bd",12);
+      tower(98,98,3.3,3.3,11,1.8,1,"#62473e",12);
+      tower(98,98,2.8,2.8,12.8,2.1,1,"#ffe0a2",12);
+      tower(98,98,4,4,14.9,1.7,.1,"#6c443c",12);
+      break;
+    }
     case "cloudpass":
       for(let i=0;i<9;i++){
         const x=150+i*19,z=100+(i*37)%120,h=45+(i*17)%60;

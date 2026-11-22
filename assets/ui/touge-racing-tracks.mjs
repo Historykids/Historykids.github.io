@@ -1,4 +1,4 @@
-import { buildTerrain, terrainPoint } from "./touge-racing-terrain.mjs?v=24";
+import { buildTerrain, terrainPoint } from "./touge-racing-terrain.mjs?v=25";
 
 export const LAPS = 3;
 export const PAD_LENGTH = 9;
@@ -68,23 +68,39 @@ const worldCourses = [
   ["alpine", "南島・アルパイン峡谷", "ニュージーランド", "湖沿いのワイドな入口から、峡谷のつづら折りへ。", "上級", "highland", 7.5,
     [[-96,71],[-54,69],[-6,65],[36,80],[82,79],[121,60],[141,25],[114,1],[80,15],[52,-1],[74,-33],[106,-52],[81,-81],[34,-80],[-1,-55],[-42,-71],[-82,-80],[-124,-58],[-135,-21],[-109,6],[-129,33],[-122,54]], [.1,.57,.89]]
 ];
-worldCourses.push(
+const retiredCourses = [
   ["cloudpass", "雲海アルプス・スカイ峠", "スイス", "雲の上の稜線と大きなアップダウン。青いジャンプ台から空へ。", "上級", "highland", 10,
     [[-110,65],[-55,65],[8,80],[70,65],[120,30],[130,-15],[88,-43],[45,-20],[8,-55],[-45,-80],[-110,-55],[-145,-10],[-130,35]], [.12,.47,.81]],
   ["dunefly", "ドバイ・サンセットフライウェイ", "UAE", "砂丘を見下ろす高架道路。連続ジャンプと高速コーナーをつなごう。", "中級", "desert", 11,
     [[-125,65],[-55,65],[15,65],[90,62],[140,30],[135,-25],[90,-60],[20,-70],[-40,-55],[-95,-70],[-145,-30],[-150,20]], [.1,.43,.76]],
   ["lavacoast", "ハワイ・溶岩ジャンプトレイル", "ハワイ", "溶岩の谷と海を望む急坂。大ジャンプで稜線を飛び越えよう。", "上級", "volcano", 10.5,
     [[-115,70],[-55,70],[5,58],[65,78],[125,48],[140,5],[105,-25],[60,-5],[35,-45],[-10,-80],[-65,-70],[-125,-50],[-145,-5],[-132,40]], [.13,.5,.83]]
+];
+worldCourses.push(
+  ["firn", "フィルン峠・氷河鉄道線", "スイス", "山麓駅を抜け、氷河の壁に沿う二段の折り返しへ。", "上級", "firn", 9.5,
+    [[-145,46],[-106,53],[-51,50],[-18,32],[23,36],[76,66],[123,60],[149,31],[138,10],[94,1],[61,-16],[73,-34],[119,-42],[127,-66],[99,-84],[48,-79],[6,-49],[-35,-46],[-78,-76],[-120,-67],[-153,-33],[-164,10]], [.09,.39,.73]],
+  ["meridian", "ドバイ・メリディアン埠頭", "UAE", "夕暮れの高層街を貫く直線から、港の倉庫街を回る。", "中級", "meridian", 11,
+    [[-138,70],[-70,70],[15,70],[99,70],[142,54],[146,20],[119,9],[71,10],[48,-9],[55,-45],[26,-69],[-21,-68],[-42,-44],[-71,-39],[-99,-64],[-135,-57],[-155,-27],[-151,14]], [.13,.53,.84]],
+  ["puna", "プナ・黒砂海岸線", "ハワイ", "黒砂浜をかすめる海岸線から、灯台と玄武岩の尾根へ。", "上級", "puna", 10,
+    [[-124,39],[-88,64],[-45,77],[-6,67],[30,76],[73,92],[119,78],[146,48],[132,19],[101,9],[85,-21],[101,-52],[77,-78],[32,-69],[0,-43],[-39,-52],[-76,-80],[-119,-68],[-139,-39],[-121,-9],[-138,13]], [.08,.48,.77]]
 );
-const newCourses = new Set(["cloudpass", "dunefly", "lavacoast"]);
-export const TRACKS = worldCourses.map(([id, name, region, description, difficulty, theme, halfWidth, points, boostFractions]) =>
-  ({ id, name, region, description, difficulty, theme, colors: palettes[theme], halfWidth, points, boostFractions,
-    newCourse: newCourses.has(id) }));
+const specialPalettes = {
+  firn:["#335777","#cfdfec","#82918a","#47788a","#344c43","#637583","#c45235"],
+  meridian:["#243555","#d49978","#ae947b","#415766","#565e68","#454959","#eeb76d"],
+  puna:["#316a84","#f4bb94","#524d45","#245969","#405b45","#5e5259","#ead8ab"]
+};
+function courseSpec([id,name,region,description,difficulty,theme,halfWidth,points,boostFractions]) {
+  const signature = Object.hasOwn(specialPalettes,id);
+  return {id,name,region,description,difficulty,theme,halfWidth,points,boostFractions,
+    colors:specialPalettes[id] ?? palettes[theme],signature,newCourse:signature || ["cloudpass","dunefly","lavacoast"].includes(id)};
+}
+export const TRACKS = worldCourses.map(courseSpec);
+const archived = retiredCourses.map(courseSpec);
 
 const circuitLengths = {
   fuji: 2650, amalfi: 2500, paris: 2600, iceland: 2600, giza: 2750,
   monument: 2700, rio: 2600, singapore: 2500, sydney: 2700, alpine: 2550,
-  cloudpass: 2800, dunefly: 2850, lavacoast: 2750
+  firn: 2760, meridian: 2840, puna: 2710, cloudpass: 2800, dunefly: 2850, lavacoast: 2750
 };
 const mix = (a, b, t) => a + (b - a) * t;
 // Entry and exit as fractions of the lap, followed by the side of the road.
@@ -92,7 +108,7 @@ const shortcutSections = {
   fuji: [.36, .53, -1], amalfi: [.36, .51, 1], paris: [.32, .49, -1],
   iceland: [.36, .52, 1], giza: [.30, .47, -1], monument: [.26, .42, -1],
   rio: [.74, .90, -1], singapore: [.44, .61, -1], sydney: [.28, .44, -1],
-  alpine: [.46, .63, -1], cloudpass: [.3,.46,-1], dunefly: [.3,.45,1], lavacoast: [.35,.51,-1]
+  alpine: [.46, .63, -1], firn:[.3,.46,-1], meridian:[.34,.52,1], puna:[.41,.57,-1], cloudpass: [.3,.46,-1], dunefly: [.3,.45,1], lavacoast: [.35,.51,-1]
 };
 export const SHORTCUT_COLOR = "#f8bf55";
 
@@ -182,7 +198,7 @@ export function driveSample(track, distance, shortcut, out) {
 
 const cached = new Map();
 export function getTrack(id, { classic = false, shortcuts = !classic, offroad = shortcuts, turboCuts = offroad, freeDrive = false, manualDrive = false, assistedSteering = false } = {}) {
-  const spec = TRACKS.find(track => track.id === id) ?? LEGACY_TRACKS.find(track => track.id === id);
+  const spec = TRACKS.find(track => track.id === id) ?? archived.find(track => track.id === id) ?? LEGACY_TRACKS.find(track => track.id === id);
   if (!spec) return null;
   const key = id + (classic ? ":classic" : freeDrive ? ":terrain" : shortcuts ? (turboCuts ? ":turbo" : offroad ? ":offroad" : ":shortcuts") : ":main") + (manualDrive ? ":manual" : "") + (assistedSteering ? ":assisted" : "");
   if (cached.has(key)) return cached.get(key);
@@ -252,6 +268,14 @@ export function getTrack(id, { classic = false, shortcuts = !classic, offroad = 
   track.assistedSteering = assistedSteering;
   const amplitude = spec.newCourse ? 22 : 5;
   track.heightAt = track.manualDrive ? (x,z) => 5 + amplitude * (1 + Math.sin(x/190) * Math.cos(z/210)) : () => 0;
+  if(track.manualDrive && spec.signature){
+    const relief={
+      firn:(x,z)=>22+12*Math.sin(x/145)+9*Math.cos((x+z)/175),
+      meridian:(x,z)=>4+1.7*Math.cos(z/120)+1.5*Math.sin(x/102),
+      puna:(x,z)=>2+13*(1-Math.tanh(z/140))*(.74+.26*Math.cos(x/80))
+    };
+    track.heightAt=relief[id];
+  }
   track.ramps = pads.map((pad,i) => ({distance: pad.distance + 13, lane: spec.newCourse ? 0 : pad.lane,
     length: spec.newCourse ? 14 : 10, halfWidth: spec.newCourse ? spec.halfWidth - 1 : 3.8, height: spec.newCourse ? 4.5 : 2.4, id:i}));
   if (!classic && shortcuts && Object.hasOwn(shortcutSections, id)) {

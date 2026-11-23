@@ -1,9 +1,9 @@
 import * as THREE from "../vendor/three.module.js";
-import { createCanvasRenderer } from "./touge-racing-canvas.js?v=28";
-import { worldScenery } from "./touge-racing-world.mjs?v=28";
-import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, driveSample, nearShortcut, racerSample, roadHeight, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=28";
-import { smoothRacerPose } from "./touge-racing-motion.mjs?v=28";
-import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, boostRemaining, isRoughSurface, pulsePosition } from "./touge-racing-rules.mjs?v=28";
+import { createCanvasRenderer } from "./touge-racing-canvas.js?v=29";
+import { worldScenery } from "./touge-racing-world.mjs?v=29";
+import { ITEM_LANES, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, driveSample, nearShortcut, racerSample, roadHeight, SHORTCUT_COLOR } from "./touge-racing-tracks.mjs?v=29";
+import { smoothRacerPose } from "./touge-racing-motion.mjs?v=29";
+import { DOPA_COLORS, DOPA_SKY, ITEMS, PULSE_LIFETIME, boostRemaining, isRoughSurface, pulsePosition } from "./touge-racing-rules.mjs?v=29";
 
 function ribbon(track, scene, material, left, right, y, from = 0, to = track.length) {
   const vertices = [];

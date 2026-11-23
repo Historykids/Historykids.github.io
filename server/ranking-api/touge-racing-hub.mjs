@@ -1,7 +1,7 @@
 import { getTrack } from "../../assets/ui/touge-racing-tracks.mjs";
 import {
   DEFAULT_RACE_SPEED, isRaceSpeed, MAIN_ROAD_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL, replayTrial, ROOM_CODE,
-  SHORTCUT_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, TRIAL_PROTOCOL, RAMP_TAP_TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, ASSISTED_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain
+  SHORTCUT_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, TRIAL_PROTOCOL, SIX_KEY_TRIAL_PROTOCOL, RAMP_TAP_TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, ASSISTED_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain
 } from "../../assets/ui/touge-racing-rules.mjs";
 
 const ROOM_TTL = 40000;
@@ -106,20 +106,20 @@ export class TougeRaceHub {
     const freeDrive = usesTrialTerrain(run?.protocol);
     const total = freeDrive || [TURBO_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, MAIN_ROAD_TRIAL_PROTOCOL, PREVIOUS_TRIAL_PROTOCOL].includes(run?.protocol);
     const track = getTrack(run?.track, { classic: !total, freeDrive,
-      manualDrive:[TRIAL_PROTOCOL,RAMP_TAP_TRIAL_PROTOCOL,ALL_RAMPS_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(run?.protocol),
-      assistedSteering:[TRIAL_PROTOCOL,RAMP_TAP_TRIAL_PROTOCOL,ALL_RAMPS_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL].includes(run?.protocol) });
+      manualDrive:[TRIAL_PROTOCOL,SIX_KEY_TRIAL_PROTOCOL,RAMP_TAP_TRIAL_PROTOCOL,ALL_RAMPS_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(run?.protocol),
+      assistedSteering:[TRIAL_PROTOCOL,SIX_KEY_TRIAL_PROTOCOL,RAMP_TAP_TRIAL_PROTOCOL,ALL_RAMPS_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL].includes(run?.protocol) });
     const speedClass = run?.speedClass ?? DEFAULT_RACE_SPEED;
     const name = cleanRacerName(run?.name);
     if (!track || !isRaceSpeed(speedClass) || !name || !PLAYER_KEY.test(run?.player ?? "") || typeof run.protocol !== "string") {
       return reply({ error: "invalid-record" }, 400);
     }
-    const seconds = replayTrial(track, run.tape, run.protocol, speedClass);
+    const seconds = replayTrial(track, run.tape, run.protocol, speedClass, run.jumpSeed);
     if (seconds === null) return reply({ error: "invalid-replay" }, 400);
     const centis = Math.round(seconds * 100);
     const board = total ? totalBoard(track.id, speedClass) : track.id;
     const old = this.rows("SELECT centis, tape IS NOT NULL AS hasTape FROM trial_records WHERE track = ? AND player = ?", board, run.player)[0];
     const updated = !old || centis < old.centis;
-    const tape = total ? JSON.stringify({ protocol: run.protocol, tape: run.tape }) : null;
+    const tape = total ? JSON.stringify({ protocol: run.protocol, tape: run.tape, ...(run.protocol === TRIAL_PROTOCOL ? { jumpSeed: run.jumpSeed ?? 0 } : {}) }) : null;
     if (updated) {
       this.sql.exec(`INSERT INTO trial_records (track, player, name, centis, recorded, tape) VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(track, player) DO UPDATE SET name=excluded.name, centis=excluded.centis,
@@ -152,8 +152,8 @@ export class TougeRaceHub {
       const stored = leader?.tape ? JSON.parse(leader.tape) : null;
       const run = Array.isArray(stored) ? { protocol: MAIN_ROAD_TRIAL_PROTOCOL, tape: stored } : stored;
       const clientReplay = url.searchParams.get("replay");
-      const replayVersion = ["5", "6", "7", "8", "9", "10", "11", "12", "13", "14"].includes(clientReplay) ? Number(clientReplay) : 4;
-      const requiredVersion = run?.protocol === TRIAL_PROTOCOL ? 14 : run?.protocol === RAMP_TAP_TRIAL_PROTOCOL ? 13 : run?.protocol === ALL_RAMPS_PROTOCOL ? 12 : run?.protocol === GROUND_JUMP_TRIAL_PROTOCOL ? 11 : run?.protocol === MANUAL_TRIAL_PROTOCOL ? 10 : run?.protocol === ASSISTED_TRIAL_PROTOCOL ? 9 : run?.protocol === TERRAIN_TRIAL_PROTOCOL ? 8 :
+      const replayVersion = ["5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"].includes(clientReplay) ? Number(clientReplay) : 4;
+      const requiredVersion = run?.protocol === TRIAL_PROTOCOL ? 15 : run?.protocol === SIX_KEY_TRIAL_PROTOCOL ? 14 : run?.protocol === RAMP_TAP_TRIAL_PROTOCOL ? 13 : run?.protocol === ALL_RAMPS_PROTOCOL ? 12 : run?.protocol === GROUND_JUMP_TRIAL_PROTOCOL ? 11 : run?.protocol === MANUAL_TRIAL_PROTOCOL ? 10 : run?.protocol === ASSISTED_TRIAL_PROTOCOL ? 9 : run?.protocol === TERRAIN_TRIAL_PROTOCOL ? 8 :
         run?.protocol === TURBO_TRIAL_PROTOCOL ? 7 : run?.protocol === OFFROAD_TRIAL_PROTOCOL ? 6 :
         run?.protocol === SHORTCUT_TRIAL_PROTOCOL ? 5 : 4;
       const supported = replayVersion >= requiredVersion;

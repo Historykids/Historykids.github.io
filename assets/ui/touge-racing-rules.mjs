@@ -1,5 +1,5 @@
-import { enterTerrain, moveAcrossTerrain, turnAcrossTerrain, updateTerrainProgress } from "./touge-racing-terrain.mjs?v=28";
-import { courseRamps, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, ITEM_LANES, LAPS, driveSample, lapDistance, racerWorldPosition, rampHeight } from "./touge-racing-tracks.mjs?v=28";
+import { enterTerrain, moveAcrossTerrain, turnAcrossTerrain, updateTerrainProgress } from "./touge-racing-terrain.mjs?v=29";
+import { courseRamps, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, ITEM_LANES, LAPS, driveSample, lapDistance, racerWorldPosition, rampHeight } from "./touge-racing-tracks.mjs?v=29";
 
 export const RACE_PROTOCOL = "touge-racing-1";
 export const CPU_FIELD_SIZE = 4;
@@ -12,7 +12,8 @@ export const ITEM_RESPAWN_SECONDS = 1;
 export const PULSE_LIFETIME = 2.6;
 const PULSE_SPEED = 88;
 export const STEP = 1 / 30;
-export const TRIAL_PROTOCOL = "touge-time-attack-14";
+export const TRIAL_PROTOCOL = "touge-time-attack-15";
+export const SIX_KEY_TRIAL_PROTOCOL = "touge-time-attack-14";
 export const RAMP_TAP_TRIAL_PROTOCOL = "touge-time-attack-13";
 export const ALL_RAMPS_PROTOCOL = "touge-time-attack-12";
 export const GROUND_JUMP_TRIAL_PROTOCOL = "touge-time-attack-11";
@@ -24,17 +25,30 @@ export const OFFROAD_TRIAL_PROTOCOL = "touge-time-attack-6";
 export const SHORTCUT_TRIAL_PROTOCOL = "touge-time-attack-5";
 export const MAIN_ROAD_TRIAL_PROTOCOL = "touge-time-attack-4";
 export const PREVIOUS_TRIAL_PROTOCOL = "touge-time-attack-3";
-export const usesTrialTerrain = protocol => [TRIAL_PROTOCOL, RAMP_TAP_TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, ASSISTED_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL].includes(protocol);
+export const usesTrialTerrain = protocol => [TRIAL_PROTOCOL, SIX_KEY_TRIAL_PROTOCOL, RAMP_TAP_TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, ASSISTED_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL].includes(protocol);
 export const JUMP_KEYS = Object.freeze(["J", "K", "L", "I"]);
-export const JUMP_COMMAND_TIME = 1.05;
+export const JUMP_COMMAND_LENGTH = 2;
+export const JUMP_COMMAND_TIME = 2;
 export const JUMP_BOOST_SPEED = 82;
 const JUMP_BOOST_SECONDS = 2.1;
+export const newJumpSeed = () => crypto.getRandomValues(new Uint32Array(1))[0];
 const jumpCommands = [
   [1, 3, 2, 4, 1, 2],
   [3, 1, 4, 2, 3, 4],
   [2, 4, 1, 3, 2, 1]
 ].map(Object.freeze);
 export const jumpCommand = rampId => jumpCommands[rampId];
+
+function nextJumpCommand(racer) {
+  // Each run has a seed so the same draws can be reproduced in its ghost replay.
+  let draw = racer.jumpRandom = (racer.jumpRandom + 0x6D2B79F5) >>> 0;
+  draw = Math.imul(draw ^ draw >>> 15, draw | 1);
+  draw ^= draw + Math.imul(draw ^ draw >>> 7, draw | 61);
+  const count = JUMP_KEYS.length;
+  const pair = ((draw ^ draw >>> 14) >>> 0) % (count * (count - 1));
+  const first = Math.floor(pair / (count - 1));
+  return [first + 1, (first + 1 + pair % (count - 1)) % count + 1];
+}
 export const TRIAL_LIMIT = 360;
 export const DEFAULT_RACE_SPEED = "150cc";
 export const RACE_SPEEDS = Object.freeze({
@@ -89,7 +103,7 @@ const itemTypes = Object.keys(ITEMS);
 const TURBO_SECONDS = 2.2;
 const LEGACY_OFFROAD_SECONDS = 14;
 
-export function createRacer(slot, { id = String(slot), name = "", cpu = false, grid = false, difficulty = "normal" } = {}) {
+export function createRacer(slot, { id = String(slot), name = "", cpu = false, grid = false, difficulty = "normal", jumpSeed = 0 } = {}) {
   return {
     id, name, slot, color: COLORS[slot % COLORS.length], cpu, difficulty,
     lane: grid ? [-4.6, -1.55, 1.55, 4.6][slot % 4] : startingLanes[slot],
@@ -97,7 +111,7 @@ export function createRacer(slot, { id = String(slot), name = "", cpu = false, g
     speed: 0, shortcut: false, offroadTime: 0, turboTime: 0, lateralSpeed: 0, steer: 0, boost: 0, lastPad: -1, contact: 0,
     finishedAt: null, dnf: false, input: EMPTY_INPUT,
     airY: 0, verticalSpeed: 0, airborne: false, jumpHeld: false, jumpAge: 0, trick: false, landing: 0,
-    jumpRamp: -1, jumpProgress: 0, jumpBoost: 0,
+    jumpRamp: -1, jumpProgress: 0, jumpBoost: 0, jumpSeed, jumpRandom: jumpSeed, jumpTime: 0, jumpCommand: null,
     drifting: false, driftCharge: 0, shield: 0, grip: 0, slow: 0, pickup: 0, item: null, lastBox: -1, itemHeld: false, itemReady: 0
   };
 }
@@ -250,14 +264,30 @@ function stepJump(track, racer, before, dt) {
   racer.jumpHeld = !!racer.input.jump;
   const commandKey = racer.jumpKeys?.shift() ?? racer.input.jumpKey;
   const legacyAction = track.legacyJumpAction || track.legacyGroundJump;
+  const randomCombo = !legacyAction && !track.sixKeyJump;
   racer.landing = Math.max(0,racer.landing-dt);
+  if (randomCombo && racer.jumpTime > 0) {
+    const inTime = dt <= racer.jumpTime + 1e-9;
+    racer.jumpTime = Math.max(0, racer.jumpTime - dt);
+    if (inTime && commandKey && racer.jumpProgress >= 0) {
+      if (commandKey !== racer.jumpCommand[racer.jumpProgress]) racer.jumpProgress = -1;
+      else if (++racer.jumpProgress === JUMP_COMMAND_LENGTH) {
+        racer.jumpTime = 0;
+        if (racer.airborne) racer.trick = true;
+        else {
+          racer.landing = 1;
+          racer.jumpBoost = JUMP_BOOST_SECONDS;
+        }
+      }
+    }
+  }
   if (racer.airborne) {
     racer.jumpAge += dt;
     if (legacyAction) {
       if (pressed && racer.jumpAge < 1.1) racer.trick = true;
-    } else if (!racer.trick && racer.jumpProgress >= 0 && racer.jumpRamp >= 0) {
+    } else if (track.sixKeyJump && !racer.trick && racer.jumpProgress >= 0 && racer.jumpRamp >= 0) {
       const command = jumpCommand(racer.jumpRamp);
-      if (racer.jumpAge > JUMP_COMMAND_TIME + 1e-9) racer.jumpProgress = -1;
+      if (racer.jumpAge > 1.05 + 1e-9) racer.jumpProgress = -1;
       else if (commandKey) {
         if (commandKey !== command[racer.jumpProgress]) racer.jumpProgress = -1;
         else racer.trick = ++racer.jumpProgress === command.length;
@@ -275,7 +305,7 @@ function stepJump(track, racer, before, dt) {
       }
       racer.trick = false;
       racer.jumpRamp = -1;
-      if (racer.jumpKeys) racer.jumpKeys.length = 0;
+      if (racer.jumpKeys && racer.jumpTime <= 0) racer.jumpKeys.length = 0;
     }
     return;
   }
@@ -298,6 +328,11 @@ function stepJump(track, racer, before, dt) {
       racer.trick = legacyAction && (pressed || racer.cpu);
       racer.jumpRamp = ramp.id;
       racer.jumpProgress = 0;
+      if (randomCombo && !racer.cpu) {
+        if (racer.jumpKeys) racer.jumpKeys.length = 0;
+        racer.jumpCommand = nextJumpCommand(racer);
+        racer.jumpTime = JUMP_COMMAND_TIME;
+      }
       break;
     }
   }
@@ -636,8 +671,8 @@ export function stepRace(track, racers, dt, elapsed, laps = LAPS, items = null, 
   });
 }
 
-export function createTrialRacer() {
-  return Object.assign(createRacer(0), { distance: 0, lane: 0, lapEnds: [] });
+export function createTrialRacer(jumpSeed = 0) {
+  return Object.assign(createRacer(0, { jumpSeed }), { distance: 0, lane: 0, lapEnds: [] });
 }
 
 export function lapTime(lapEnds, index) {
@@ -658,10 +693,11 @@ export function trialInput(mask) {
   return { gas: !!(mask & 1), brake: !!(mask & 2), turn: ((mask & 12) >> 2) - 1, drift: !!(mask & 16), item: !!(mask & 32), jump: !!(mask & 64), jumpKey: mask >> 7 };
 }
 
-export function replayTrial(track, tape, protocol = TRIAL_PROTOCOL, speedClass = DEFAULT_RACE_SPEED) {
+export function replayTrial(track, tape, protocol = TRIAL_PROTOCOL, speedClass = DEFAULT_RACE_SPEED, jumpSeed = 0) {
   const legacy = protocol === "touge-time-attack-1" && !track.region;
   const singleLap = legacy || protocol === "touge-time-attack-2";
   const openTerrain = usesTrialTerrain(protocol);
+  if (protocol === TRIAL_PROTOCOL && (!Number.isInteger(jumpSeed) || jumpSeed < 0 || jumpSeed > 0xffffffff)) return null;
   if (!isRaceSpeed(speedClass) || (!openTerrain && protocol !== TURBO_TRIAL_PROTOCOL && protocol !== OFFROAD_TRIAL_PROTOCOL && protocol !== SHORTCUT_TRIAL_PROTOCOL && protocol !== MAIN_ROAD_TRIAL_PROTOCOL &&
       (speedClass !== DEFAULT_RACE_SPEED || (!singleLap && protocol !== PREVIOUS_TRIAL_PROTOCOL)))) return null;
   if ([ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL].includes(protocol)) track = {...track, ramps:courseRamps(track)};
@@ -669,7 +705,9 @@ export function replayTrial(track, tape, protocol = TRIAL_PROTOCOL, speedClass =
   if (protocol === MANUAL_TRIAL_PROTOCOL) track = { ...track, assistedSteering:false, legacyGroundJump:true };
   else if (protocol === GROUND_JUMP_TRIAL_PROTOCOL) track = { ...track, assistedSteering:true, legacyGroundJump:true };
   else if (protocol === RAMP_TAP_TRIAL_PROTOCOL || protocol === ALL_RAMPS_PROTOCOL) track = { ...track, legacyGroundJump:false, legacyJumpAction:true };
-  else if (protocol === TRIAL_PROTOCOL) track = { ...track, legacyGroundJump:false, legacyJumpAction:false };
+  else if (protocol === TRIAL_PROTOCOL || protocol === SIX_KEY_TRIAL_PROTOCOL) {
+    track = { ...track, legacyGroundJump:false, legacyJumpAction:false, sixKeyJump:protocol === SIX_KEY_TRIAL_PROTOCOL };
+  }
   else track = { ...track, manualDrive:false, assistedSteering:false };
   if (!openTerrain && track.terrain) track = { ...track, terrain: null, offroad: !!track.shortcut };
   if (protocol === TURBO_TRIAL_PROTOCOL && track.shortcut) track = { ...track, offroad: true, turboCuts: true };
@@ -680,9 +718,9 @@ export function replayTrial(track, tape, protocol = TRIAL_PROTOCOL, speedClass =
   const laps = singleLap ? 1 : LAPS;
   const maxTicks = singleLap ? 3600 : TRIAL_MAX_TICKS;
   if (!Array.isArray(tape) || !tape.length || tape.length > maxTicks) return null;
-  const usesJumpInput = [TRIAL_PROTOCOL, RAMP_TAP_TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL].includes(protocol) && track.manualDrive;
+  const usesJumpInput = [TRIAL_PROTOCOL, SIX_KEY_TRIAL_PROTOCOL, RAMP_TAP_TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL].includes(protocol) && track.manualDrive;
   const maxMask = usesJumpInput
-    ? 123 + (protocol === TRIAL_PROTOCOL && track.ramps.length ? JUMP_KEYS.length << 7 : 0)
+    ? 123 + ([TRIAL_PROTOCOL, SIX_KEY_TRIAL_PROTOCOL].includes(protocol) && track.ramps.length ? JUMP_KEYS.length << 7 : 0)
     : openTerrain || [TURBO_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL].includes(protocol) ? 59 : legacy ? 11 : 27;
   let total = 0;
   for (const entry of tape) {
@@ -691,7 +729,7 @@ export function replayTrial(track, tape, protocol = TRIAL_PROTOCOL, speedClass =
     if (!Number.isInteger(mask) || mask < 0 || mask > maxMask || (mask & 12) === 12 ||
         !Number.isInteger(count) || count < 1 || (total += count) > maxTicks) return null;
   }
-  const player = createTrialRacer();
+  const player = createTrialRacer(jumpSeed);
   const racers = [player];
   let tick = 0;
   for (const [mask, count] of tape) {

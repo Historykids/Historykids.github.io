@@ -1,15 +1,15 @@
-import { createScene } from "./touge-racing-scene.js?v=28";
-import { courseRamps, getTrack, LAPS, racerWorldPosition, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=28";
+import { createScene } from "./touge-racing-scene.js?v=29";
+import { courseRamps, getTrack, LAPS, racerWorldPosition, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=29";
 import {
-  DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, JUMP_KEYS, JUMP_COMMAND_TIME, JUMP_BOOST_SPEED, RACE_LIMIT, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS,
-  TRIAL_PROTOCOL, RAMP_TAP_TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain,
-  advanceRacer, applyDrive, boostRemaining, createRaceItems, createRacer, createTrialRacer, cruiseAfterFinish, endLastRacer, formatTime, isDriving, isRoughSurface, jumpCommand, lapTime, rankRacers, recordTrialInput, stepRace, trialInput
-} from "./touge-racing-rules.mjs?v=28";
-import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=28";
-import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=28";
+  DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, JUMP_KEYS, JUMP_BOOST_SPEED, RACE_LIMIT, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS,
+  TRIAL_PROTOCOL, SIX_KEY_TRIAL_PROTOCOL, RAMP_TAP_TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain,
+  advanceRacer, applyDrive, boostRemaining, createRaceItems, createRacer, createTrialRacer, cruiseAfterFinish, endLastRacer, formatTime, isDriving, isRoughSurface, newJumpSeed, lapTime, rankRacers, recordTrialInput, stepRace, trialInput
+} from "./touge-racing-rules.mjs?v=29";
+import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=29";
+import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=29";
 
-import { createRaceEffects } from "./touge-racing-effects.js?v=28";
-import { mountLobbyChat, mountRaceUI } from "./touge-racing-ui.js?v=28";
+import { createRaceEffects } from "./touge-racing-effects.js?v=29";
+import { mountLobbyChat, mountRaceUI } from "./touge-racing-ui.js?v=29";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();
@@ -370,7 +370,7 @@ function initialize(profile) {
 
   function startCPU() {
     const racers = [
-      createRacer(0, { name: profile }),
+      createRacer(0, { name: profile, jumpSeed: newJumpSeed() }),
       ...Array.from({ length: CPU_FIELD_SIZE - 1 }, (_, i) => createRacer(i + 1, { name: "CPU " + (i + 1), cpu: true, difficulty: cpuDifficulty.value }))
     ];
     prepareRace(getTrack(selected, { freeDrive: true, manualDrive:true, assistedSteering:true }), racers, false);
@@ -388,7 +388,7 @@ function initialize(profile) {
     if (loadingGhost) return;
     const track = getTrack(selected, { freeDrive: true, manualDrive:true, assistedSteering:true }), speedClass = selectedSpeed;
     const previousRace = race, previousState = state;
-    const player = createTrialRacer();
+    const player = createTrialRacer(newJumpSeed());
     if (track.turboCuts) player.item = "turbo";
     const racers = [player];
     trialGhostEnabled = enabled;
@@ -400,7 +400,7 @@ function initialize(profile) {
       choiceButtons.forEach(button => { button.disabled = true; });
       byId("ghost-loading").textContent = "1位のゴーストを読み込み中…";
       try {
-        const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1", replay: "14" });
+        const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1", replay: "15" });
         const result = await raceRequest("/race/leaderboard?" + query);
         if (result.track === track.id && result.speedClass === speedClass) data = result.ghost;
         note = data ? "1位 " + data.name + " · " + formatTime(data.seconds) : "1位のゴーストはまだありません";
@@ -414,14 +414,15 @@ function initialize(profile) {
       }
       if (race !== previousRace || state !== previousState || selected !== track.id || selectedSpeed !== speedClass) return;
     }
-    if (data) racers.push(Object.assign(createTrialRacer(), { id: "ghost", color: 0x80ffea, ghost: true }));
+    if (data) racers.push(Object.assign(createTrialRacer(data.jumpSeed), { id: "ghost", color: 0x80ffea, ghost: true }));
     if (!prepareRace(track, racers, false, true)) return;
     race.ghost = data ? {
       racer: racers[1], tape: data.tape, index: 0, remaining: 0,
       track: usesTrialTerrain(data.protocol) ? { ...track,
-        manualDrive:[TRIAL_PROTOCOL,RAMP_TAP_TRIAL_PROTOCOL,ALL_RAMPS_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(data.protocol),
-        assistedSteering:[TRIAL_PROTOCOL,RAMP_TAP_TRIAL_PROTOCOL,ALL_RAMPS_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL].includes(data.protocol),
+        manualDrive:[TRIAL_PROTOCOL,SIX_KEY_TRIAL_PROTOCOL,RAMP_TAP_TRIAL_PROTOCOL,ALL_RAMPS_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(data.protocol),
+        assistedSteering:[TRIAL_PROTOCOL,SIX_KEY_TRIAL_PROTOCOL,RAMP_TAP_TRIAL_PROTOCOL,ALL_RAMPS_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL].includes(data.protocol),
         ramps:[ALL_RAMPS_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(data.protocol) ? courseRamps(track) : track.ramps,
+        sixKeyJump: data.protocol === SIX_KEY_TRIAL_PROTOCOL,
         legacyJumpAction: [RAMP_TAP_TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL].includes(data.protocol),
         legacyGroundJump:[GROUND_JUMP_TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(data.protocol),
         legacyTerrainSpeed: data.protocol === TERRAIN_TRIAL_PROTOCOL } :
@@ -499,7 +500,7 @@ function initialize(profile) {
       ((player.nextGate ?? 0) + 1) + " / " + track.terrain.gates.length : "";
     shortcutHint.hidden = !hint;
     if (shortcutHint.textContent !== hint) shortcutHint.textContent = hint;
-    const command = viewed.airborne && jumpCommand(viewed.jumpRamp);
+    const command = viewed.jumpTime > 0 && viewed.jumpCommand;
     const entering = command && viewed === player && canDrive() && !viewed.trick && viewed.jumpProgress >= 0;
     jumpPanel.hidden = !entering;
     if (entering) {
@@ -509,7 +510,7 @@ function initialize(profile) {
         key.classList.toggle("done", index < viewed.jumpProgress);
         key.classList.toggle("next", index === viewed.jumpProgress);
       });
-      jumpTimer.value = Math.max(0, JUMP_COMMAND_TIME - viewed.jumpAge);
+      jumpTimer.value = Math.max(0, viewed.jumpTime);
       jumpSeconds.textContent = jumpTimer.value.toFixed(2) + "秒";
     }
     const actionStatus = viewed.trick ? "コマンド成功！" : viewed.jumpBoost > 0 ? "着地ブースト" :
@@ -588,7 +589,7 @@ function initialize(profile) {
       racer.finishedAt = target.finishedAt;
       racer.dnf = target.dnf;
       racer.cruising = !!target.cruising;
-      for(const field of ["airY","airborne","verticalSpeed","jumpAge","trick","landing","jumpRamp","jumpProgress"])racer[field]=target[field];
+      for(const field of ["airY","airborne","verticalSpeed","jumpAge","trick","landing","jumpTime","jumpCommand","jumpProgress"])racer[field]=target[field];
       racer.jumpBoost = Math.max(0, (target.jumpBoost ?? 0) - age);
       racer.contact = Math.max(0, target.contact - age);
       racer.item = target.item;
@@ -764,7 +765,7 @@ function initialize(profile) {
     try {
       const result = await raceRequest("/race/leaderboard", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ protocol: TRIAL_PROTOCOL, track: run.track.id, speedClass: run.speedClass, player: trialPlayer, name: profile, tape: run.tape })
+        body: JSON.stringify({ protocol: TRIAL_PROTOCOL, track: run.track.id, speedClass: run.speedClass, player: trialPlayer, name: profile, tape: run.tape, jumpSeed: run.player.jumpSeed })
       });
       if (race !== run) return;
       status.textContent = (result.updated ? "登録できたよ！ " : "登録済みの自己ベスト ") +
@@ -1038,7 +1039,7 @@ function initialize(profile) {
 
   function queueJumpKey(key) {
     const player = race?.player;
-    if (canDrive() && player?.airborne && player.jumpRamp >= 0 && !player.trick &&
+    if (canDrive() && player?.jumpTime > 0 && !player.trick &&
         player.jumpProgress >= 0 && jumpKeys.length < jumpSequence.length) jumpKeys.push(key);
   }
 

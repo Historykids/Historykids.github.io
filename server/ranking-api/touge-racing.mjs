@@ -1,8 +1,8 @@
 import { getTrack, LAPS, racerWorldPosition, TRACKS } from "../../assets/ui/touge-racing-tracks.mjs";
 import {
-  COUNTDOWN, DEFAULT_RACE_SPEED, EMPTY_INPUT, ITEM_RESPAWN_SECONDS, JUMP_KEYS, LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, MIN_ROOM_PLAYERS, RACE_LIMIT,
+  COUNTDOWN, DEFAULT_RACE_SPEED, EMPTY_INPUT, ITEM_RESPAWN_SECONDS, JUMP_COMMAND_LENGTH, JUMP_KEYS, LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, MIN_ROOM_PLAYERS, RACE_LIMIT,
   RACE_PROTOCOL, RACE_SPEEDS, ROOM_CODE, STEP, TRIAL_PROTOCOL, VISIBLE_RIVALS, createRaceItems, createRacer,
-  cruiseAfterFinish, endLastRacer, isDriving, isRaceSpeed, lobbyChatText, pulsePosition, rankRacers, stepRace
+  cruiseAfterFinish, endLastRacer, isDriving, isRaceSpeed, lobbyChatText, pulsePosition, rankRacers, newJumpSeed, stepRace
 } from "../../assets/ui/touge-racing-rules.mjs";
 
 import { cleanRacerName, raceHub } from "./touge-racing-hub.mjs";
@@ -38,7 +38,7 @@ export async function racingRequest(request, env, reply) {
       shortcuts: true, turboCuts: true, freeDrive: true, trialLaps: LAPS, trialProtocol: TRIAL_PROTOCOL,
       itemRespawnSeconds: ITEM_RESPAWN_SECONDS, pulseMode: "projectile",
       lobbyChat: true, finishCruise: true, lastPlaceCutoff: true, spectatorMode: true,
-      manualSteering: false, assistedSteering: true, jumps: true, rampJumpsOnly: true, jumpCombos: true, newTracks: TRACKS.filter(track=>track.newCourse).map(track=>track.id),
+      manualSteering: false, assistedSteering: true, jumps: true, rampJumpsOnly: true, jumpCombos: JUMP_COMMAND_LENGTH, newTracks: TRACKS.filter(track=>track.newCourse).map(track=>track.id),
       speedClasses: Object.keys(RACE_SPEEDS), tracks: TRACKS.map(track => track.id)
     });
   }
@@ -182,9 +182,9 @@ export class RaceRoom {
     record.inputAt = now;
     const previous = record.racer.input;
     record.racer.itemQueued ||= message.item === true && !previous.item;
-    if (message.jumpKey && record.racer.airborne && record.racer.jumpRamp >= 0 && !record.racer.trick) {
+    if (message.jumpKey && record.racer.jumpTime > 0 && record.racer.jumpProgress >= 0) {
       const queue = record.racer.jumpKeys ??= [];
-      if (queue.length < 6) queue.push(message.jumpKey);
+      if (queue.length < JUMP_COMMAND_LENGTH) queue.push(message.jumpKey);
     }
     record.racer.input = {
       gas: message.gas, brake: message.brake, turn: message.turn, drift: message.drift === true, item: message.item === true
@@ -200,7 +200,7 @@ export class RaceRoom {
     if (this.track?.manualDrive && message.manualDrive !== true) return this.reject(peer, "version");
     if (this.track?.manualDrive && message.rampJumpsOnly !== true) return this.reject(peer, "version");
     if (this.track?.assistedSteering && message.assistedSteering !== true) return this.reject(peer, "version");
-    if (this.track?.manualDrive && this.track.ramps.length && message.jumpCombos !== true) return this.reject(peer, "version");
+    if (this.track?.manualDrive && this.track.ramps.length && message.jumpCombos !== JUMP_COMMAND_LENGTH) return this.reject(peer, "version");
     let record;
     if (message.type === "resume") {
       record = this.players.get(message.token);
@@ -214,7 +214,7 @@ export class RaceRoom {
         const track = getTrack(message.trackId, { classic: message.layout !== "long", shortcuts: message.freeDrive === true,
           freeDrive: message.freeDrive === true, manualDrive:message.manualDrive===true, assistedSteering:message.assistedSteering===true });
         if (!track) return this.reject(peer, "invalid-track");
-        if (track.manualDrive && track.ramps.length && message.jumpCombos !== true) return this.reject(peer, "version");
+        if (track.manualDrive && track.ramps.length && message.jumpCombos !== JUMP_COMMAND_LENGTH) return this.reject(peer, "version");
         const speedClass = message.speedClass ?? DEFAULT_RACE_SPEED;
         if (!isRaceSpeed(speedClass)) return this.reject(peer, "invalid-speed");
         if (speedClass !== DEFAULT_RACE_SPEED && message.speedClasses !== true) return this.reject(peer, "version");
@@ -248,7 +248,7 @@ export class RaceRoom {
   start(now) {
     this.items = this.track.region ? createRaceItems(this.track) : null;
     this.racers = [...this.players.values()].sort((a, b) => a.slot - b.slot).map((record, gridSlot) => {
-      record.racer = createRacer(gridSlot, { id: record.id, name: record.name, grid: true });
+      record.racer = createRacer(gridSlot, { id: record.id, name: record.name, grid: true, jumpSeed: newJumpSeed() });
       record.watching = null;
       record.inputAt = now;
       return record.racer;
@@ -296,7 +296,7 @@ export class RaceRoom {
       distance: racer.distance, shortcut: racer.shortcut, turboTime: racer.turboTime, lane: racer.lane, speed: racer.speed, steer: racer.steer,
       airY:racer.airY, airborne:racer.airborne, verticalSpeed:racer.verticalSpeed, jumpAge:racer.jumpAge, trick:racer.trick, landing:racer.landing,
       ...(this.track.manualDrive && this.track.ramps.length ? {
-        jumpRamp:racer.jumpRamp, jumpProgress:racer.jumpProgress, jumpBoost:racer.jumpBoost
+        jumpTime:racer.jumpTime, jumpCommand:racer.jumpCommand, jumpProgress:racer.jumpProgress, jumpBoost:racer.jumpBoost
       } : {}),
       ...(this.track.terrain ? { free: !!racer.free, x: racer.x, z: racer.z, heading: racer.heading, onAsphalt: racer.onAsphalt,
         nextGate: racer.nextGate ?? 0, completedLaps: racer.completedLaps ?? 0, progress: racer.progress } : {}),

@@ -1,4 +1,4 @@
-import { JUMP_KEYS, JUMP_COMMAND_TIME, jumpCommand, LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, LOBBY_EMOJIS, LOBBY_PHRASES, lobbyChatText } from "./touge-racing-rules.mjs?v=28";
+import { JUMP_KEYS, JUMP_COMMAND_TIME, JUMP_COMMAND_LENGTH, LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, LOBBY_EMOJIS, LOBBY_PHRASES, lobbyChatText } from "./touge-racing-rules.mjs?v=29";
 
 export function mountRaceUI(root, showRankings, difficulties, laps) {
   const lapRows = showRankings ? Array.from({ length: laps }, (_, index) =>
@@ -39,7 +39,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
           <div id="course-grid" class="course-grid" aria-label="全13コース"></div>
         </section>
         <div class="race-preferences">
-          <p class="control-tip" id="race-tip">ドリフトを続けて離すと加速。新3コースは、ジャンプ中に表示された6つのキーを順に押すと着地で加速。草地はターボで横切ろう。</p>
+          <p class="control-tip" id="race-tip">ドリフトを続けて離すと加速。新3コースは、ランダムに出る2つのキーを2秒以内に順に押すと加速。草地はターボで横切ろう。</p>
           <label class="race-sound"><input id="race-sound" type="checkbox"> 効果音</label>
         </div>
       </section>
@@ -120,7 +120,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
           <span class="impact" id="impact" hidden>接触！</span>
           <div class="jump-command" id="jump-command" hidden>
             <div class="jump-command-header"><strong>空中コマンド</strong><span id="jump-seconds"></span></div>
-            <div class="jump-sequence" id="jump-sequence" aria-label="入力の順番">${jumpCommand(0).map(() => "<kbd></kbd>").join("")}</div>
+            <div class="jump-sequence" id="jump-sequence" aria-label="入力の順番">${"<kbd></kbd>".repeat(JUMP_COMMAND_LENGTH)}</div>
             <progress id="jump-timer" max="${JUMP_COMMAND_TIME}" aria-label="残り時間"></progress>
             <div class="jump-keypad" id="jump-keypad" aria-label="コマンド入力">
               ${JUMP_KEYS.map((key, index) => `<button type="button" data-command-key="${index + 1}">${key}</button>`).join("")}

@@ -9,7 +9,7 @@ import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.
 import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=29";
 
 import { createRaceEffects } from "./touge-racing-effects.js?v=29";
-import { mountLobbyChat, mountRaceUI } from "./touge-racing-ui.js?v=29";
+import { mountLobbyChat, mountRaceUI } from "./touge-racing-ui.js?v=31";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();
@@ -24,6 +24,7 @@ function initialize(profile) {
   const ghostChoice = byId("ghost-choice");
   const start = byId("start"), pause = byId("pause"), resume = byId("resume"), retry = byId("retry");
   const courseGrid = byId("course-grid");
+  const newCourseGrid = byId("new-course-grid");
   const spectator = byId("spectator-picker"), watchSelect = byId("spectator-target");
   const effects = createRaceEffects(game);
   const soundToggle = byId("race-sound");
@@ -162,7 +163,7 @@ function initialize(profile) {
   }
 
   function createCourseCards() {
-    for (const course of [...TRACKS].sort((a,b)=>Number(b.newCourse)-Number(a.newCourse))) {
+    for (const course of TRACKS) {
       const card = document.createElement("button");
       card.type = "button";
       card.dataset.course = course.id;
@@ -190,14 +191,17 @@ function initialize(profile) {
       caption.append(region, title, difficulty);
       card.append(art, caption);
       card.addEventListener("click", () => selectCourse(course.id));
-      courseGrid.append(card);
+      const grid = course.newCourse ? newCourseGrid : courseGrid;
+      grid.append(card);
       outline(canvas, getTrack(course.id), true);
     }
   }
 
   function selectCourse(id) {
     selected = id;
-    for (const card of courseGrid.children) card.setAttribute("aria-pressed", String(card.dataset.course === id));
+    for (const card of [...courseGrid.children, ...newCourseGrid.children]) {
+      card.setAttribute("aria-pressed", String(card.dataset.course === id));
+    }
     const course = getTrack(id);
     const best = bestTime(id, selectedSpeed, mode === "trial");
     byId("selected-info").textContent = course.region + " · 1周 " + (course.length / 1000).toFixed(2) + " km · " + course.description +

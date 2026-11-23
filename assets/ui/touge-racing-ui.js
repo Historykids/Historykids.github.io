@@ -35,8 +35,9 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
               <button class="primary" id="start" type="button" disabled>CPUと対戦する →</button>
             </div>
           </div>
-          <p class="new-course-announcement">新コース3つが登場 <span>フィルン峠・メリディアン埠頭・プナ海岸</span></p>
-          <div id="course-grid" class="course-grid" aria-label="全13コース"></div>
+          <div id="course-grid" class="course-grid" role="group" aria-label="既存コース"></div>
+          <p class="new-course-announcement" id="new-courses-title">新コース3つが登場 <span>フィルン峠・メリディアン埠頭・プナ海岸</span></p>
+          <div id="new-course-grid" class="course-grid new-course-grid" role="group" aria-labelledby="new-courses-title"></div>
         </section>
         <div class="race-preferences">
           <p class="control-tip" id="race-tip">ドリフトを続けて離すと加速。新3コースは、ランダムに出る2つのキーを2秒以内に順に押すと加速。草地はターボで横切ろう。</p>

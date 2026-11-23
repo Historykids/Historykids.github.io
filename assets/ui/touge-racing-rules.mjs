@@ -1,5 +1,5 @@
-import { enterTerrain, moveAcrossTerrain, turnAcrossTerrain, updateTerrainProgress } from "./touge-racing-terrain.mjs?v=27";
-import { courseRamps, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, ITEM_LANES, LAPS, driveSample, lapDistance, racerWorldPosition, rampHeight } from "./touge-racing-tracks.mjs?v=27";
+import { enterTerrain, moveAcrossTerrain, turnAcrossTerrain, updateTerrainProgress } from "./touge-racing-terrain.mjs?v=28";
+import { courseRamps, ITEM_ZONE_AFTER, ITEM_ZONE_BEFORE, ITEM_LANES, LAPS, driveSample, lapDistance, racerWorldPosition, rampHeight } from "./touge-racing-tracks.mjs?v=28";
 
 export const RACE_PROTOCOL = "touge-racing-1";
 export const CPU_FIELD_SIZE = 4;
@@ -12,7 +12,8 @@ export const ITEM_RESPAWN_SECONDS = 1;
 export const PULSE_LIFETIME = 2.6;
 const PULSE_SPEED = 88;
 export const STEP = 1 / 30;
-export const TRIAL_PROTOCOL = "touge-time-attack-13";
+export const TRIAL_PROTOCOL = "touge-time-attack-14";
+export const RAMP_TAP_TRIAL_PROTOCOL = "touge-time-attack-13";
 export const ALL_RAMPS_PROTOCOL = "touge-time-attack-12";
 export const GROUND_JUMP_TRIAL_PROTOCOL = "touge-time-attack-11";
 export const MANUAL_TRIAL_PROTOCOL = "touge-time-attack-10";
@@ -23,7 +24,17 @@ export const OFFROAD_TRIAL_PROTOCOL = "touge-time-attack-6";
 export const SHORTCUT_TRIAL_PROTOCOL = "touge-time-attack-5";
 export const MAIN_ROAD_TRIAL_PROTOCOL = "touge-time-attack-4";
 export const PREVIOUS_TRIAL_PROTOCOL = "touge-time-attack-3";
-export const usesTrialTerrain = protocol => [TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, ASSISTED_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL].includes(protocol);
+export const usesTrialTerrain = protocol => [TRIAL_PROTOCOL, RAMP_TAP_TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, ASSISTED_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL].includes(protocol);
+export const JUMP_KEYS = Object.freeze(["J", "K", "L", "I"]);
+export const JUMP_COMMAND_TIME = 1.05;
+export const JUMP_BOOST_SPEED = 82;
+const JUMP_BOOST_SECONDS = 2.1;
+const jumpCommands = [
+  [1, 3, 2, 4, 1, 2],
+  [3, 1, 4, 2, 3, 4],
+  [2, 4, 1, 3, 2, 1]
+].map(Object.freeze);
+export const jumpCommand = rampId => jumpCommands[rampId];
 export const TRIAL_LIMIT = 360;
 export const DEFAULT_RACE_SPEED = "150cc";
 export const RACE_SPEEDS = Object.freeze({
@@ -86,6 +97,7 @@ export function createRacer(slot, { id = String(slot), name = "", cpu = false, g
     speed: 0, shortcut: false, offroadTime: 0, turboTime: 0, lateralSpeed: 0, steer: 0, boost: 0, lastPad: -1, contact: 0,
     finishedAt: null, dnf: false, input: EMPTY_INPUT,
     airY: 0, verticalSpeed: 0, airborne: false, jumpHeld: false, jumpAge: 0, trick: false, landing: 0,
+    jumpRamp: -1, jumpProgress: 0, jumpBoost: 0,
     drifting: false, driftCharge: 0, shield: 0, grip: 0, slow: 0, pickup: 0, item: null, lastBox: -1, itemHeld: false, itemReady: 0
   };
 }
@@ -136,16 +148,18 @@ export function applyDrive(track, racer, input, dt, speedScale = standardSpeed) 
     racer.lastPad = padId;
   }
   racer.boost = Math.max(0, racer.boost - dt);
+  racer.jumpBoost = Math.max(0, (racer.jumpBoost ?? 0) - dt);
   const rough = !racer.airborne && isRoughSurface(track, racer);
   const boosting = boostRemaining(racer) > 0 && !rough;
   const heavyTerrain = rough && track.terrain && !track.legacyTerrainSpeed && !gripping;
+  const launchBoost = racer.jumpBoost > 0 && !rough && racer.slow <= 0;
   const limit = heavyTerrain ? 19 : racer.slow > 0 ? 25 :
-    rough ? (gripping ? 43 : 24) : boosting ? 63 : drifting ? 42 : 47;
+    rough ? (gripping ? 43 : 24) : launchBoost ? JUMP_BOOST_SPEED : boosting ? 63 : drifting ? 42 : 47;
   const target = input.gas || boosting ? limit * speedScale : 0;
   const terrainDrag = heavyTerrain ? 55 : 24;
   if (input.brake) racer.speed = Math.max(0, racer.speed - accelerationStep * Math.max(32, terrainDrag));
   else if (rough || input.gas || boosting) {
-    const acceleration = rough ? (racer.speed > target ? terrainDrag : 24) : boosting ? 31 : 20;
+    const acceleration = rough ? (racer.speed > target ? terrainDrag : 24) : launchBoost ? 44 : boosting ? 31 : 20;
     racer.speed = approach(racer.speed, target, accelerationStep * acceleration);
   } else racer.speed = Math.max(0, racer.speed - accelerationStep * 8.5);
 }
@@ -185,7 +199,7 @@ export function isRoughSurface(track, racer) {
 }
 
 export function boostRemaining(racer) {
-  return Math.max(racer.boost, racer.turboTime ?? 0);
+  return Math.max(racer.boost, racer.turboTime ?? 0, racer.jumpBoost ?? 0);
 }
 
 function activateTurbo(track, racer) {
@@ -232,21 +246,36 @@ function stepJump(track, racer, before, dt) {
   if (!track.manualDrive) return;
   const p = racerWorldPosition(track, racer);
   const ground = track.heightAt(p.x,p.z) + rampHeight(track,racer);
-  const pressed = racer.jumpQueued || racer.input.jump && !racer.jumpHeld;
-  racer.jumpQueued=false;
+  const pressed = racer.input.jump && !racer.jumpHeld;
   racer.jumpHeld = !!racer.input.jump;
+  const commandKey = racer.jumpKeys?.shift() ?? racer.input.jumpKey;
+  const legacyAction = track.legacyJumpAction || track.legacyGroundJump;
   racer.landing = Math.max(0,racer.landing-dt);
   if (racer.airborne) {
     racer.jumpAge += dt;
-    if (pressed && racer.jumpAge < 1.1) racer.trick = true;
+    if (legacyAction) {
+      if (pressed && racer.jumpAge < 1.1) racer.trick = true;
+    } else if (!racer.trick && racer.jumpProgress >= 0 && racer.jumpRamp >= 0) {
+      const command = jumpCommand(racer.jumpRamp);
+      if (racer.jumpAge > JUMP_COMMAND_TIME + 1e-9) racer.jumpProgress = -1;
+      else if (commandKey) {
+        if (commandKey !== command[racer.jumpProgress]) racer.jumpProgress = -1;
+        else racer.trick = ++racer.jumpProgress === command.length;
+      }
+    }
     racer.verticalSpeed -= 24*dt;
     racer.airY += racer.verticalSpeed*dt;
     if (racer.airY <= ground && racer.verticalSpeed < 0) {
       racer.airborne = false;
       racer.airY = ground;
       racer.landing = racer.trick ? 1 : .3;
-      if (racer.trick) racer.boost = Math.max(racer.boost,1.15);
+      if (racer.trick) {
+        if (legacyAction) racer.boost = Math.max(racer.boost, 1.15);
+        else racer.jumpBoost = JUMP_BOOST_SECONDS;
+      }
       racer.trick = false;
+      racer.jumpRamp = -1;
+      if (racer.jumpKeys) racer.jumpKeys.length = 0;
     }
     return;
   }
@@ -266,7 +295,9 @@ function stepJump(track, racer, before, dt) {
       racer.airborne = true;
       racer.airY = track.heightAt(p.x,p.z)+ramp.height;
       racer.verticalSpeed = 9+Math.min(75,racer.speed)*.04;
-      racer.trick = pressed || racer.cpu;
+      racer.trick = legacyAction && (pressed || racer.cpu);
+      racer.jumpRamp = ramp.id;
+      racer.jumpProgress = 0;
       break;
     }
   }
@@ -280,7 +311,7 @@ export function endLastRacer(racers) {
   if (remaining.length !== 1) return;
   const [last] = remaining;
   last.dnf = last.lastPlace = true;
-  last.speed = last.boost = last.turboTime = 0;
+  last.speed = last.boost = last.turboTime = last.jumpBoost = 0;
   last.input = EMPTY_INPUT;
   last.itemQueued = false;
 }
@@ -586,7 +617,7 @@ export function stepRace(track, racers, dt, elapsed, laps = LAPS, items = null, 
       const crossing = updateTerrainProgress(track, racer, before[index], after[index], dt, elapsed);
       if (crossing === null || racer.completedLaps < laps) return;
       racer.finishedAt = crossing;
-      racer.speed = racer.boost = racer.turboTime = 0;
+      racer.speed = racer.boost = racer.turboTime = racer.jumpBoost = 0;
       return;
     }
     const advance = racer.distance - from;
@@ -616,14 +647,15 @@ export function lapTime(lapEnds, index) {
 }
 
 export function recordTrialInput(tape, input) {
-  const mask = Number(input.gas) | (Number(input.brake) << 1) | ((input.turn + 1) << 2) | (input.drift ? 16 : 0) | (input.item ? 32 : 0) | (input.jump ? 64 : 0);
+  const mask = Number(input.gas) | (Number(input.brake) << 1) | ((input.turn + 1) << 2) |
+    (input.drift ? 16 : 0) | (input.item ? 32 : 0) | (input.jump ? 64 : 0) | ((input.jumpKey ?? 0) << 7);
   const last = tape.at(-1);
   if (last?.[0] === mask) last[1]++;
   else tape.push([mask, 1]);
 }
 
 export function trialInput(mask) {
-  return { gas: !!(mask & 1), brake: !!(mask & 2), turn: ((mask & 12) >> 2) - 1, drift: !!(mask & 16), item: !!(mask & 32), jump: !!(mask & 64) };
+  return { gas: !!(mask & 1), brake: !!(mask & 2), turn: ((mask & 12) >> 2) - 1, drift: !!(mask & 16), item: !!(mask & 32), jump: !!(mask & 64), jumpKey: mask >> 7 };
 }
 
 export function replayTrial(track, tape, protocol = TRIAL_PROTOCOL, speedClass = DEFAULT_RACE_SPEED) {
@@ -636,8 +668,9 @@ export function replayTrial(track, tape, protocol = TRIAL_PROTOCOL, speedClass =
   if (protocol === TERRAIN_TRIAL_PROTOCOL) track = { ...track, legacyTerrainSpeed: true };
   if (protocol === MANUAL_TRIAL_PROTOCOL) track = { ...track, assistedSteering:false, legacyGroundJump:true };
   else if (protocol === GROUND_JUMP_TRIAL_PROTOCOL) track = { ...track, assistedSteering:true, legacyGroundJump:true };
-  else if (protocol === TRIAL_PROTOCOL || protocol === ALL_RAMPS_PROTOCOL) track = { ...track, legacyGroundJump:false };
-  else if (protocol !== TRIAL_PROTOCOL) track = { ...track, manualDrive:false, assistedSteering:false };
+  else if (protocol === RAMP_TAP_TRIAL_PROTOCOL || protocol === ALL_RAMPS_PROTOCOL) track = { ...track, legacyGroundJump:false, legacyJumpAction:true };
+  else if (protocol === TRIAL_PROTOCOL) track = { ...track, legacyGroundJump:false, legacyJumpAction:false };
+  else track = { ...track, manualDrive:false, assistedSteering:false };
   if (!openTerrain && track.terrain) track = { ...track, terrain: null, offroad: !!track.shortcut };
   if (protocol === TURBO_TRIAL_PROTOCOL && track.shortcut) track = { ...track, offroad: true, turboCuts: true };
   else if (protocol === SHORTCUT_TRIAL_PROTOCOL) track = { ...track, offroad: false, turboCuts: false };
@@ -647,7 +680,10 @@ export function replayTrial(track, tape, protocol = TRIAL_PROTOCOL, speedClass =
   const laps = singleLap ? 1 : LAPS;
   const maxTicks = singleLap ? 3600 : TRIAL_MAX_TICKS;
   if (!Array.isArray(tape) || !tape.length || tape.length > maxTicks) return null;
-  const maxMask = [TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL].includes(protocol) && track.manualDrive ? 123 : openTerrain || [TURBO_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL].includes(protocol) ? 59 : legacy ? 11 : 27;
+  const usesJumpInput = [TRIAL_PROTOCOL, RAMP_TAP_TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL].includes(protocol) && track.manualDrive;
+  const maxMask = usesJumpInput
+    ? 123 + (protocol === TRIAL_PROTOCOL && track.ramps.length ? JUMP_KEYS.length << 7 : 0)
+    : openTerrain || [TURBO_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL].includes(protocol) ? 59 : legacy ? 11 : 27;
   let total = 0;
   for (const entry of tape) {
     if (!Array.isArray(entry) || entry.length !== 2) return null;

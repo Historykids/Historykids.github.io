@@ -1,4 +1,4 @@
-import { LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, LOBBY_EMOJIS, LOBBY_PHRASES, lobbyChatText } from "./touge-racing-rules.mjs?v=27";
+import { JUMP_KEYS, JUMP_COMMAND_TIME, jumpCommand, LOBBY_CHAT_COOLDOWN, LOBBY_CHAT_LIMIT, LOBBY_EMOJIS, LOBBY_PHRASES, lobbyChatText } from "./touge-racing-rules.mjs?v=28";
 
 export function mountRaceUI(root, showRankings, difficulties, laps) {
   const lapRows = showRankings ? Array.from({ length: laps }, (_, index) =>
@@ -12,7 +12,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
             <p class="course"><span class="checker" aria-hidden="true"></span> 峠レーシング 3D</p>
             <h1 id="game-title"></h1>
           </div>
-          <p class="keyboard">↑↓←→ / WASD　Shift ドリフト　Space アイテム　J 空中アクション</p>
+          <p class="keyboard">↑↓←→ / WASD　Shift ドリフト　Space アイテム　J・K・L・I 空中コマンド</p>
           <p class="touch-hint">操作　画面のボタン</p>
         </div>
         <section id="online-entry" class="online-entry" aria-labelledby="entry-title" hidden>
@@ -39,7 +39,7 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
           <div id="course-grid" class="course-grid" aria-label="全13コース"></div>
         </section>
         <div class="race-preferences">
-          <p class="control-tip" id="race-tip">ドリフトを続けて離すと加速。新3コースでは青い台から飛び、空中でJを押すと着地ブースト。草地はターボで横切ろう。</p>
+          <p class="control-tip" id="race-tip">ドリフトを続けて離すと加速。新3コースは、ジャンプ中に表示された6つのキーを順に押すと着地で加速。草地はターボで横切ろう。</p>
           <label class="race-sound"><input id="race-sound" type="checkbox"> 効果音</label>
         </div>
       </section>
@@ -118,6 +118,14 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
           </div>
           <div class="countdown" id="countdown" role="status" hidden></div>
           <span class="impact" id="impact" hidden>接触！</span>
+          <div class="jump-command" id="jump-command" hidden>
+            <div class="jump-command-header"><strong>空中コマンド</strong><span id="jump-seconds"></span></div>
+            <div class="jump-sequence" id="jump-sequence" aria-label="入力の順番">${jumpCommand(0).map(() => "<kbd></kbd>").join("")}</div>
+            <progress id="jump-timer" max="${JUMP_COMMAND_TIME}" aria-label="残り時間"></progress>
+            <div class="jump-keypad" id="jump-keypad" aria-label="コマンド入力">
+              ${JUMP_KEYS.map((key, index) => `<button type="button" data-command-key="${index + 1}">${key}</button>`).join("")}
+            </div>
+          </div>
           <span class="jump-status" id="jump-status" role="status" hidden></span>
           <div class="race-message" id="race-message" role="status"></div>
           <div class="spectator-picker" id="spectator-picker" hidden>
@@ -131,7 +139,6 @@ export function mountRaceUI(root, showRankings, difficulties, laps) {
             </div>
             <div class="control-group control-pedals">
               <button type="button" data-input="item" aria-label="アイテムを使う">アイテム</button>
-              <button type="button" data-input="jump">アクション</button>
               <button type="button" data-input="drift">ドリフト</button>
               <button type="button" data-input="brake">ブレーキ</button>
               <button type="button" data-input="gas">アクセル</button>

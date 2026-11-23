@@ -1106,3 +1106,52 @@ body { background: radial-gradient(ellipse at 82% -5%, #293c61 0%, #101827 58%);
 .course-card.new-course{position:relative;border:1px solid #64efc5;box-shadow:0 0 0 1px #64efc522,0 7px 25px #0cf3a918}
 .new-course-label{position:absolute;top:.6rem;left:.6rem;z-index:1;background:#b2ffdc;color:#103a35;border-radius:4px;padding:.24rem .5rem;font-size:.65rem;font-weight:900;letter-spacing:.08em}
 .jump-status{position:absolute;top:31%;left:50%;transform:translateX(-50%);padding:.45rem .9rem;border:1px solid #a9ffdf;color:#caffea;background:#133849e8;border-radius:9px;font-size:1.1rem;font-weight:900;white-space:nowrap}
+
+.jump-command[hidden] { display: none; }
+.jump-command {
+  position: absolute;
+  z-index: 4;
+  top: 29%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(25rem, calc(100% - 1.5rem));
+  padding: .65rem .85rem;
+  border: 1px solid #80e7dc;
+  border-radius: .7rem;
+  color: #eafffa;
+  background: #0d2635f2;
+  box-shadow: 0 .35rem 1.4rem #050e1b66;
+}
+.jump-command-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: .4rem; }
+#jump-seconds { color: #ffe297; font-variant-numeric: tabular-nums; }
+.jump-sequence, .jump-keypad { display: flex; justify-content: center; gap: .35rem; }
+.jump-sequence kbd {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  aspect-ratio: 1;
+  border: 1px solid #537084;
+  border-radius: .35rem;
+  background: #1b3b4b;
+  color: #f1f7f9;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+.jump-sequence .done { border-color: #78d7b5; color: #aaf8d7; background: #194b43; }
+.jump-sequence .next { border-color: #ffe297; color: #1f2630; background: #ffe297; transform: translateY(-.15rem); }
+.jump-command progress { display: block; width: 100%; height: .5rem; margin-top: .55rem; accent-color: #7ceed7; }
+.jump-keypad { display: none; }
+@media (any-pointer: coarse) {
+  .jump-keypad { display: flex; margin-top: .55rem; }
+  .jump-keypad button {
+    min-width: 3rem;
+    min-height: 2.75rem;
+    border: 1px solid #658ca1;
+    border-radius: .45rem;
+    color: white;
+    background: #25485f;
+    font: inherit;
+    font-weight: 800;
+    touch-action: manipulation;
+  }
+}

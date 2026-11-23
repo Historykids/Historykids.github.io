@@ -1,4 +1,4 @@
-import { DEFAULT_RACE_SPEED, RACE_PROTOCOL } from "./touge-racing-rules.mjs?v=27";
+import { DEFAULT_RACE_SPEED, RACE_PROTOCOL } from "./touge-racing-rules.mjs?v=28";
 
 const ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 const messages = {
@@ -57,7 +57,7 @@ export class OnlineRace {
       this.timeout = setTimeout(() => socket.close(), 5500);
       socket.addEventListener("open", () => {
         const message = this.token ? { type: "resume", token: this.token } : this.request;
-        this.send({ ...message, protocol: RACE_PROTOCOL, speedClasses: true, freeDrive: true, manualDrive:true, assistedSteering:true, rampJumpsOnly:true, spectator: true });
+        this.send({ ...message, protocol: RACE_PROTOCOL, speedClasses: true, freeDrive: true, manualDrive:true, assistedSteering:true, rampJumpsOnly:true, jumpCombos:true, spectator: true });
       });
       socket.addEventListener("message", event => this.message(socket, event.data));
       socket.addEventListener("close", () => this.disconnected(socket));
@@ -116,11 +116,11 @@ export class OnlineRace {
 
   control(input, force = false) {
     const changed = input.turn !== this.input.turn || input.gas !== this.input.gas || input.brake !== this.input.brake ||
-      input.drift !== this.input.drift || input.item !== this.input.item || input.jump !== this.input.jump;
+      input.drift !== this.input.drift || input.item !== this.input.item;
     this.input = input;
     if (!this.joined || !["countdown", "racing"].includes(this.phase)) return;
     const now = performance.now();
-    if (!force && !changed && now - (this.inputAt || 0) < 85) return;
+    if (!force && !input.jumpKey && !changed && now - (this.inputAt || 0) < 85) return;
     this.inputAt = now;
     this.send({ type: "input", seq: ++this.sequence, ...input });
   }

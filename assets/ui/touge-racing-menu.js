@@ -1,5 +1,5 @@
-import { getTrack } from "./touge-racing-tracks.mjs?v=27";
-import { DEFAULT_RACE_SPEED, formatTime, isRaceSpeed, RACE_SPEEDS, ROOM_CODE } from "./touge-racing-rules.mjs?v=27";
+import { getTrack } from "./touge-racing-tracks.mjs?v=28";
+import { DEFAULT_RACE_SPEED, formatTime, isRaceSpeed, RACE_SPEEDS, ROOM_CODE } from "./touge-racing-rules.mjs?v=28";
 
 const byId = id => document.getElementById(id);
 

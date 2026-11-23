@@ -1,15 +1,15 @@
-import { createScene } from "./touge-racing-scene.js?v=27";
-import { courseRamps, getTrack, LAPS, racerWorldPosition, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=27";
+import { createScene } from "./touge-racing-scene.js?v=28";
+import { courseRamps, getTrack, LAPS, racerWorldPosition, SHORTCUT_COLOR, TRACKS } from "./touge-racing-tracks.mjs?v=28";
 import {
-  DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, RACE_LIMIT, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS,
-  TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain,
-  advanceRacer, applyDrive, boostRemaining, createRaceItems, createRacer, createTrialRacer, cruiseAfterFinish, endLastRacer, formatTime, isDriving, isRoughSurface, lapTime, rankRacers, recordTrialInput, stepRace, trialInput
-} from "./touge-racing-rules.mjs?v=27";
-import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=27";
-import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=27";
+  DEFAULT_RACE_SPEED, RACE_SPEEDS, EMPTY_INPUT, ROOM_CODE, CPU_DIFFICULTIES, CPU_FIELD_SIZE, MIN_ROOM_PLAYERS, VISIBLE_RIVALS, ITEMS, JUMP_KEYS, JUMP_COMMAND_TIME, JUMP_BOOST_SPEED, RACE_LIMIT, STEP, TRIAL_LIMIT, TRIAL_MAX_TICKS,
+  TRIAL_PROTOCOL, RAMP_TAP_TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL, GROUND_JUMP_TRIAL_PROTOCOL, MANUAL_TRIAL_PROTOCOL, TERRAIN_TRIAL_PROTOCOL, SHORTCUT_TRIAL_PROTOCOL, OFFROAD_TRIAL_PROTOCOL, TURBO_TRIAL_PROTOCOL, usesTrialTerrain,
+  advanceRacer, applyDrive, boostRemaining, createRaceItems, createRacer, createTrialRacer, cruiseAfterFinish, endLastRacer, formatTime, isDriving, isRoughSurface, jumpCommand, lapTime, rankRacers, recordTrialInput, stepRace, trialInput
+} from "./touge-racing-rules.mjs?v=28";
+import { OnlineRace, makeRoomCode, savedRoomToken } from "./touge-racing-online.js?v=28";
+import { createRoomDirectory, mountSpeedPicker, raceRequest } from "./touge-racing-menu.js?v=28";
 
-import { createRaceEffects } from "./touge-racing-effects.js?v=27";
-import { mountLobbyChat, mountRaceUI } from "./touge-racing-ui.js?v=27";
+import { createRaceEffects } from "./touge-racing-effects.js?v=28";
+import { mountLobbyChat, mountRaceUI } from "./touge-racing-ui.js?v=28";
 import { requireRaceName, readRaceStorage as load, saveRaceStorage as save, safeRacePage } from "./touge-racing-profile.mjs?v=6";
 
 const profile = requireRaceName();
@@ -39,10 +39,15 @@ function initialize(profile) {
   const placeNumber = byId("place").firstChild, lapNumber = byId("lap").firstChild;
   const buttons = [...document.querySelectorAll("[data-input]")];
   const held = new Map();
+  const jumpKeys = [];
+  const jumpPanel = byId("jump-command");
+  const jumpSequence = [...byId("jump-sequence").children];
+  const jumpTimer = byId("jump-timer"), jumpSeconds = byId("jump-seconds");
+  const jumpStatus = byId("jump-status");
   const keys = new Map([
     ["ArrowUp", "gas"], ["KeyW", "gas"], ["ArrowDown", "brake"], ["KeyS", "brake"],
     ["ArrowLeft", "left"], ["KeyA", "left"], ["ArrowRight", "right"], ["KeyD", "right"],
-    ["ShiftLeft", "drift"], ["ShiftRight", "drift"], ["Space", "item"], ["KeyJ", "jump"], ["KeyE", "jump"]
+    ["ShiftLeft", "drift"], ["ShiftRight", "drift"], ["Space", "item"]
   ]);
 
   const BEST_PREFIX = "historykids.tougeRacing.best.long.";
@@ -64,7 +69,7 @@ function initialize(profile) {
   let state = "setup";
   let race, online, onlinePhase, previousState, menuOpen = false;
   const lobbyChat = mountLobbyChat(lobby, preset => online?.chat(preset));
-  let frameId = 0, lastFrame = 0, itemTap = false, jumpTap = false;
+  let frameId = 0, lastFrame = 0, itemTap = false;
   const setDirectoryActive = createRoomDirectory(code => joinOnline(code, { type: "join" }));
   const modes = {
     cpu: "CPUと対戦する →", online: "このコースで部屋を作る →", trial: "タイムアタック開始 →"
@@ -216,7 +221,7 @@ function initialize(profile) {
       byId("race-speed").firstElementChild.textContent = "作る部屋の速さ";
     }
     if (mode === "trial") {
-      keyboardHelp.textContent = "↑↓←→ / WASD　Shift ドリフト　Space ターボ　J 空中アクション";
+      keyboardHelp.textContent = "↑↓←→ / WASD　Shift ドリフト　Space ターボ　J・K・L・I 空中コマンド";
       byId("race-tip").textContent = "草地や砂地では減速。毎周1つ使えるターボで横切ろう。ミニマップに次の通過地点が出るよ。";
     }
     updateProfileLink();
@@ -252,7 +257,8 @@ function initialize(profile) {
 
   function clearInput() {
     held.clear();
-    itemTap = jumpTap = false;
+    itemTap = false;
+    jumpKeys.length = 0;
     buttons.forEach(button => button.classList.remove("pressed"));
     if (online) online.control(EMPTY_INPUT, true);
   }
@@ -263,7 +269,7 @@ function initialize(profile) {
       gas: actions.includes("gas"),
       brake: actions.includes("brake"),
       turn: Number(actions.includes("right")) - Number(actions.includes("left")),
-      drift: actions.includes("drift"), item: itemTap || actions.includes("item"), jump: jumpTap || actions.includes("jump")
+      drift: actions.includes("drift"), item: itemTap || actions.includes("item"), jumpKey: jumpKeys.shift() ?? 0
     };
   }
 
@@ -293,7 +299,7 @@ function initialize(profile) {
     cleanupRace();
     menuOpen = false;
     clearInput();
-    document.querySelector('[data-input="jump"]').hidden = !track.manualDrive || track.ramps.length === 0;
+    jumpPanel.hidden = jumpStatus.hidden = true;
     const oldCanvas = byId("track");
     const canvas = oldCanvas.cloneNode();
     canvas.setAttribute("aria-label", track.name + "の3Dコース");
@@ -317,7 +323,8 @@ function initialize(profile) {
     game.dataset.speedClass = speedClass;
     byId("speed-class-label").textContent = label;
     byId("result-speed-class").textContent = label;
-    speedBar.max = Math.ceil(230 * scale / 10) * 10;
+    const peakSpeed = track.ramps.length ? JUMP_BOOST_SPEED * 3.6 : 230;
+    speedBar.max = Math.ceil(peakSpeed * scale / 10) * 10;
     showState("countdown");
     byId("map-title").textContent = track.name;
     byId("place-stat").hidden = isTrial;
@@ -393,7 +400,7 @@ function initialize(profile) {
       choiceButtons.forEach(button => { button.disabled = true; });
       byId("ghost-loading").textContent = "1位のゴーストを読み込み中…";
       try {
-        const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1", replay: "13" });
+        const query = new URLSearchParams({ track: track.id, speedClass, ghost: "1", replay: "14" });
         const result = await raceRequest("/race/leaderboard?" + query);
         if (result.track === track.id && result.speedClass === speedClass) data = result.ghost;
         note = data ? "1位 " + data.name + " · " + formatTime(data.seconds) : "1位のゴーストはまだありません";
@@ -412,9 +419,10 @@ function initialize(profile) {
     race.ghost = data ? {
       racer: racers[1], tape: data.tape, index: 0, remaining: 0,
       track: usesTrialTerrain(data.protocol) ? { ...track,
-        manualDrive:[TRIAL_PROTOCOL,ALL_RAMPS_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(data.protocol),
-        assistedSteering:[TRIAL_PROTOCOL,ALL_RAMPS_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL].includes(data.protocol),
+        manualDrive:[TRIAL_PROTOCOL,RAMP_TAP_TRIAL_PROTOCOL,ALL_RAMPS_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(data.protocol),
+        assistedSteering:[TRIAL_PROTOCOL,RAMP_TAP_TRIAL_PROTOCOL,ALL_RAMPS_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL].includes(data.protocol),
         ramps:[ALL_RAMPS_PROTOCOL,GROUND_JUMP_TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(data.protocol) ? courseRamps(track) : track.ramps,
+        legacyJumpAction: [RAMP_TAP_TRIAL_PROTOCOL, ALL_RAMPS_PROTOCOL].includes(data.protocol),
         legacyGroundJump:[GROUND_JUMP_TRIAL_PROTOCOL,MANUAL_TRIAL_PROTOCOL].includes(data.protocol),
         legacyTerrainSpeed: data.protocol === TERRAIN_TRIAL_PROTOCOL } :
         getTrack(track.id, {
@@ -491,9 +499,23 @@ function initialize(profile) {
       ((player.nextGate ?? 0) + 1) + " / " + track.terrain.gates.length : "";
     shortcutHint.hidden = !hint;
     if (shortcutHint.textContent !== hint) shortcutHint.textContent = hint;
-    const jumpStatus=byId("jump-status");
-    jumpStatus.hidden=!viewed.airborne&&!viewed.landing;
-    jumpStatus.textContent=viewed.trick?"ジャンプアクション！":viewed.airborne?"Jでアクション":viewed.landing>.35?"着地ブースト！":"";
+    const command = viewed.airborne && jumpCommand(viewed.jumpRamp);
+    const entering = command && viewed === player && canDrive() && !viewed.trick && viewed.jumpProgress >= 0;
+    jumpPanel.hidden = !entering;
+    if (entering) {
+      jumpSequence.forEach((key, index) => {
+        const label = JUMP_KEYS[command[index] - 1];
+        if (key.textContent !== label) key.textContent = label;
+        key.classList.toggle("done", index < viewed.jumpProgress);
+        key.classList.toggle("next", index === viewed.jumpProgress);
+      });
+      jumpTimer.value = Math.max(0, JUMP_COMMAND_TIME - viewed.jumpAge);
+      jumpSeconds.textContent = jumpTimer.value.toFixed(2) + "秒";
+    }
+    const actionStatus = viewed.trick ? "コマンド成功！" : viewed.jumpBoost > 0 ? "着地ブースト" :
+      command && viewed.jumpProgress < 0 && viewed === player ? "コマンド失敗" : "";
+    jumpStatus.hidden = !actionStatus;
+    if (jumpStatus.textContent !== actionStatus) jumpStatus.textContent = actionStatus;
     const contact = player.contact > .18;
     byId("impact").hidden = !contact;
     game.dataset.contact = String(contact);
@@ -520,7 +542,7 @@ function initialize(profile) {
     while (race.accumulator + 1e-9 >= STEP) {
       race.accumulator -= STEP;
       player.input = race.cruising ? EMPTY_INPUT : input();
-      itemTap = jumpTap = false;
+      itemTap = false;
       if (race.isTrial) recordTrialInput(race.tape, player.input);
       const elapsed = race.ticks * STEP;
       stepRace(track, race.isTrial ? [player] : racers, STEP, elapsed, LAPS, race.items, race.scale);
@@ -556,8 +578,8 @@ function initialize(profile) {
     race.remaining = Math.max(0, snapshot.countdown - age);
     if (snapshot.phase === "racing") race.elapsed = snapshot.elapsed + Math.min(.16, age);
     const drive = canDrive() ? input() : EMPTY_INPUT;
-    if (!race.cruising) online.control(drive, itemTap || jumpTap);
-    itemTap = jumpTap = false;
+    if (!race.cruising) online.control(drive, itemTap);
+    itemTap = false;
     if (snapshot.phase !== "racing") return;
     for (const racer of race.racers) {
       const target = race.targets?.get(racer.id);
@@ -566,7 +588,8 @@ function initialize(profile) {
       racer.finishedAt = target.finishedAt;
       racer.dnf = target.dnf;
       racer.cruising = !!target.cruising;
-      for(const field of ["airY","airborne","verticalSpeed","jumpAge","trick","landing"])racer[field]=target[field];
+      for(const field of ["airY","airborne","verticalSpeed","jumpAge","trick","landing","jumpRamp","jumpProgress"])racer[field]=target[field];
+      racer.jumpBoost = Math.max(0, (target.jumpBoost ?? 0) - age);
       racer.contact = Math.max(0, target.contact - age);
       racer.item = target.item;
       racer.shield = target.shield;
@@ -1013,13 +1036,25 @@ function initialize(profile) {
     else startLocalRace();
   });
 
+  function queueJumpKey(key) {
+    const player = race?.player;
+    if (canDrive() && player?.airborne && player.jumpRamp >= 0 && !player.trick &&
+        player.jumpProgress >= 0 && jumpKeys.length < jumpSequence.length) jumpKeys.push(key);
+  }
+
   window.addEventListener("keydown", event => {
     if (event.code === "Escape" && !event.repeat) togglePause();
-    if (!canDrive() || !keys.has(event.code) || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (!canDrive() || event.altKey || event.ctrlKey || event.metaKey) return;
+    const commandKey = JUMP_KEYS.findIndex(key => event.code === "Key" + key);
+    if (commandKey >= 0 && race.track.ramps.length) {
+      event.preventDefault();
+      if (!event.repeat) queueJumpKey(commandKey + 1);
+      return;
+    }
+    if (!keys.has(event.code)) return;
     event.preventDefault();
     held.set(event.code, keys.get(event.code));
     if (event.code === "Space" && !event.repeat) itemTap = true;
-    if (["KeyJ","KeyE"].includes(event.code) && !event.repeat) jumpTap = true;
   });
   window.addEventListener("keyup", event => held.delete(event.code));
   window.addEventListener("blur", () => {
@@ -1038,7 +1073,6 @@ function initialize(profile) {
       button.setPointerCapture(event.pointerId);
       held.set(event.pointerId, button.dataset.input);
       if (button.dataset.input === "item") itemTap = true;
-      if (button.dataset.input === "jump") jumpTap = true;
       button.classList.add("pressed");
     });
     for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
@@ -1048,6 +1082,11 @@ function initialize(profile) {
       });
     }
   }
+
+  byId("jump-keypad").addEventListener("click", event => {
+    const key = event.target.closest("[data-command-key]");
+    if (key) queueJumpKey(Number(key.dataset.commandKey));
+  });
 
   createCourseCards();
   setupMenu();
